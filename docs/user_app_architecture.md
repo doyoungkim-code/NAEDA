@@ -105,45 +105,56 @@ com.naeda.app/
 │   ├── 📁 navigation/              ← 네비게이션 설정
 │   │   ├── NavGraph.kt             ← 전체 네비게이션 그래프
 │   │   ├── Screen.kt               ← 화면 Route 정의
-│   │   └── BottomNavBar.kt         ← 하단 탭 바
+│   │   └── BottomNavBar.kt         ← 하단 5탭 (홈, 혜택, 스캔, 자산, 더보기)
 │   │
 │   ├── 📁 auth/                    ← 인증 화면
 │   │   ├── LoginScreen.kt
 │   │   ├── LoginViewModel.kt
-│   │   ├── SignUpScreen.kt
+│   │   ├── SignUpScreen.kt         ← 이름→주민번호→휴대폰→인증번호
 │   │   └── SignUpViewModel.kt
 │   │
-│   ├── 📁 home/                    ← 홈 화면
-│   │   ├── HomeScreen.kt
+│   ├── 📁 home/                    ← 홈 탭
+│   │   ├── HomeScreen.kt           ← 잔액, 페이스페이 배너, 퀵액션, 최근활동
 │   │   └── HomeViewModel.kt
 │   │
-│   ├── 📁 banking/                 ← 뱅킹 화면
-│   │   ├── AccountScreen.kt        ← 계좌 조회
-│   │   ├── AccountViewModel.kt
+│   ├── 📁 benefit/                 ← 혜택 탭
+│   │   ├── BenefitScreen.kt        ← 포인트 현황
+│   │   ├── BenefitViewModel.kt
+│   │   ├── CouponScreen.kt         ← 할인권 교환
+│   │   ├── DonationScreen.kt       ← 후원하기
+│   │   └── DonationViewModel.kt
+│   │
+│   ├── 📁 scan/                    ← 스캔 탭 (가운데 버튼)
+│   │   ├── ScanTabScreen.kt        ← 등록 여부에 따라 분기
+│   │   ├── ScanTabViewModel.kt
+│   │   ├── 📁 facepay/             ← 얼굴 미등록 시
+│   │   │   ├── FaceIntroScreen.kt  ← 페이스페이 소개
+│   │   │   ├── FaceGuideScreen.kt  ← 촬영 가이드
+│   │   │   ├── FaceCaptureScreen.kt← 카메라 촬영 + Liveness
+│   │   │   ├── FaceAnalyzingScreen.kt ← 분석 중
+│   │   │   ├── FaceCompleteScreen.kt  ← 등록 완료
+│   │   │   └── FaceRegisterViewModel.kt
+│   │   └── 📁 map/                 ← 얼굴 등록 후
+│   │       ├── GumiMapScreen.kt    ← 구미 맛집/카페 지도
+│   │       ├── GumiMapViewModel.kt
+│   │       ├── StoreDetailScreen.kt← 매장 상세
+│   │       └── MapFilterSheet.kt   ← 필터 (페이스페이 가능, 카테고리)
+│   │
+│   ├── 📁 asset/                   ← 자산 탭
+│   │   ├── AssetScreen.kt          ← 계좌 목록
+│   │   ├── AssetViewModel.kt
+│   │   ├── AccountDetailScreen.kt  ← 계좌 상세
 │   │   ├── TransferScreen.kt       ← 이체
 │   │   ├── TransferViewModel.kt
 │   │   ├── TransactionScreen.kt    ← 거래내역
-│   │   └── TransactionViewModel.kt
-│   │
-│   ├── 📁 facepay/                 ← 페이스페이
-│   │   ├── FaceRegisterScreen.kt   ← 얼굴 등록
-│   │   ├── FaceRegisterViewModel.kt
-│   │   └── 📁 camera/
-│   │       └── CameraPreview.kt    ← CameraX 프리뷰 컴포넌트
-│   │
-│   ├── 📁 point/                   ← 포인트/후원
-│   │   ├── PointScreen.kt          ← 포인트 현황
-│   │   ├── PointViewModel.kt
-│   │   ├── DonationScreen.kt       ← 후원 화면
-│   │   └── DonationViewModel.kt
-│   │
-│   ├── 📁 report/                  ← 소비 리포트
-│   │   ├── ReportScreen.kt
+│   │   ├── ReportScreen.kt         ← 소비 리포트
 │   │   └── ReportViewModel.kt
 │   │
-│   ├── 📁 recommend/               ← 맛집 추천
-│   │   ├── RecommendScreen.kt
-│   │   └── RecommendViewModel.kt
+│   ├── 📁 more/                    ← 더보기 탭
+│   │   ├── MoreScreen.kt           ← 메뉴 리스트
+│   │   ├── SettingsScreen.kt       ← 설정
+│   │   ├── NotificationScreen.kt   ← 알림 내역
+│   │   └── SecurityScreen.kt       ← FDS 보안 내역
 │   │
 │   └── 📁 common/                  ← 공통 UI 컴포넌트
 │       ├── LoadingIndicator.kt
@@ -255,42 +266,51 @@ sealed class Resource<T> {
 ├── 🔐 인증 플로우 (로그인 전)
 │   ├── 스플래시 → 토큰 확인
 │   ├── 로그인
-│   ├── 회원가입
+│   ├── 회원가입 (이름 → 주민번호 → 휴대폰 → 인증번호)
 │   └── 1원 인증
 │
-└── 🏠 메인 플로우 (로그인 후) — 하단 탭 네비게이션
+└── 🏠 메인 플로우 (로그인 후) — 하단 탭 네비게이션 (5탭)
     │
     ├── 🏠 홈 탭
-    │   ├── 잔액 요약
-    │   ├── 최근 거래
-    │   ├── 포인트 현황
-    │   └── 퀵 액션 (이체, 얼굴 등록)
+    │   ├── 잔액 요약 카드
+    │   ├── 송금하기 / 거래내역 퀵버튼
+    │   ├── 페이스페이 배너 ("웃으며 결제하세요")
+    │   ├── 퀵 액션 (QR결제, 공과금, 투자, 리워드)
+    │   └── 최근 활동 (거래 내역 피드)
     │
-    ├── 💰 뱅킹 탭
-    │   ├── 계좌 목록
-    │   ├── 계좌 상세 → 거래내역
+    ├── 🎁 혜택 탭
+    │   ├── 포인트 현황 / 적립 내역
+    │   ├── 할인권 교환 (구미 지역 매장 전용)
+    │   └── 후원하기 (후원처 목록 + AI 추천 + 기부)
+    │
+    ├── 😀/🗺️ 스캔 탭 (가운데 큰 버튼 — 상태에 따라 변경)
+    │   ├── [얼굴 미등록] 얼굴 등록 플로우
+    │   │   ├── 페이스페이 소개 화면
+    │   │   ├── 촬영 가이드 (마스크/모자 벗기)
+    │   │   ├── 카메라 촬영 (CameraX)
+    │   │   ├── Liveness 검증 (눈 깜빡임 + 고개 방향)
+    │   │   ├── 분석 중 로딩
+    │   │   └── 등록 완료
+    │   │
+    │   └── [얼굴 등록 완료] 구미 맛집/카페 지도
+    │       ├── 지도 뷰 (구미 지역 매장 표시)
+    │       ├── 필터: 페이스페이 가능 매장
+    │       ├── 필터: 카테고리 (한식/카페/양식 등)
+    │       ├── 매장 상세 (위치, 메뉴, 리뷰)
+    │       └── AI 맛집 추천 (시간대/날씨/취향 반영)
+    │
+    ├── 💰 자산 탭
+    │   ├── 계좌 목록 / 상세
     │   ├── 이체
-    │   └── 적금 상품
+    │   ├── 거래내역 상세
+    │   ├── 소비 리포트 (카테고리 차트 + 지역 기여 점수)
+    │   └── 적금 상품 조회/가입
     │
-    ├── 😀 페이스페이 탭
-    │   ├── 얼굴 등록 (미등록 시)
-    │   ├── 등록 완료 상태
-    │   ├── 결제 내역
-    │   └── BLE 설정
-    │
-    ├── 📊 리포트 탭
-    │   ├── 월간 소비 리포트
-    │   ├── 카테고리별 차트
-    │   ├── 지역 기여 점수
-    │   └── 절약 인사이트
-    │
-    └── ⭐ 더보기 탭
-        ├── 포인트 현황/사용
-        ├── 할인권 교환
-        ├── 후원하기
-        ├── 맛집 추천
-        ├── 설정
-        └── 알림 내역
+    └── ⋯ 더보기 탭
+        ├── 설정 (BLE, 알림, 결제 비밀번호)
+        ├── 알림 내역
+        ├── FDS 보안 내역
+        └── 신용등급 조회
 ```
 
 ---
@@ -337,15 +357,15 @@ fun AccountScreen(viewModel: AccountViewModel = hiltViewModel()) {
 
 사용자 앱 2명이 동시에 작업할 때 충돌을 최소화하는 구조:
 
-| 파트 A (페이스페이 + BLE) | 파트 B (뱅킹 + 서비스) |
-|--------------------------|----------------------|
-| `ui/facepay/` | `ui/banking/` |
-| `ui/home/` (퀵 액션) | `ui/home/` (잔액, 거래) |
-| `ble/` | `ui/point/` |
-| `data/remote/api/PaymentApi.kt` | `ui/report/` |
-| `data/repository/PaymentRepositoryImpl.kt` | `ui/recommend/` |
-| `ui/common/` (카메라 관련) | `data/remote/api/BankingApi.kt` |
-| | `data/remote/api/PointApi.kt` |
+| 파트 A (페이스페이 + BLE + 지도) | 파트 B (뱅킹 + 혜택 + 리포트) |
+|-------------------------------|------------------------------|
+| `ui/scan/facepay/` 얼굴 등록 전체 | `ui/home/` 홈 화면 |
+| `ui/scan/map/` 구미 맛집 지도 | `ui/benefit/` 혜택/포인트/후원 |
+| `ui/scan/ScanTabScreen.kt` 분기 | `ui/asset/` 계좌/이체/거래내역 |
+| `ble/` BLE 비콘 수신 | `ui/asset/ReportScreen.kt` 소비 리포트 |
+| `data/remote/api/PaymentApi.kt` | `ui/more/` 더보기 |
+| `data/remote/api/MapApi.kt` | `data/remote/api/BankingApi.kt` |
+| CameraX 카메라 관련 | `data/remote/api/PointApi.kt` |
 | | `data/remote/api/AiApi.kt` |
 
 **공통 작업 (1주차에 같이 세팅)**:
