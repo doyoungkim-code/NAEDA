@@ -24,7 +24,7 @@ $RECYCLE.BIN/
 .venv
 venv/
 env/
-.env.*
+
 
 # Python (AI 서버)
 __pycache__/
