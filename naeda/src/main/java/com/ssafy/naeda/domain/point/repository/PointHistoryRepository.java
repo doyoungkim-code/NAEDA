@@ -7,5 +7,5 @@ import java.util.List;
 
 public interface PointHistoryRepository extends JpaRepository<PointHistory, Long> {
 
-    List<PointHistory> findByWalletIdOrderByCreatedDesc(Long walletId);
+    List<PointHistory> findByWalletIdOrderByCreated(Long walletId);
 }

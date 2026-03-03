@@ -9,6 +9,7 @@ import com.ssafy.naeda.domain.point.entity.PointType;
 import com.ssafy.naeda.domain.point.entity.PointWallet;
 import com.ssafy.naeda.domain.point.repository.PointHistoryRepository;
 import com.ssafy.naeda.domain.point.repository.PointWalletRepository;
+import java.util.Comparator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -92,9 +93,10 @@ public class PointService {
         PointWallet wallet = pointWalletRepository.findByUserNo(userNo)
                 .orElseThrow(() -> new IllegalArgumentException("포인트 지갑이 존재하지 않습니다. userNo: " + userNo));
 
-        return pointHistoryRepository.findByWalletIdOrderByCreatedDesc(wallet.getWalletId())
+        return pointHistoryRepository.findByWalletIdOrderByCreated(wallet.getWalletId())
                 .stream()
                 .map(PointHistoryResponse::from)
+                .sorted(Comparator.comparing(PointHistoryResponse::getCreated).reversed())
                 .toList();
     }
 }
