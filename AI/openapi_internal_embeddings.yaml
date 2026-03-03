@@ -1,0 +1,151 @@
+openapi: 3.0.3
+info:
+  title: NAEDA AI Internal Embedding API
+  version: 1.0.0
+  description: Back 서버 전용 얼굴 임베딩 추출 API
+servers:
+  - url: http://localhost:8000
+    description: Local
+tags:
+  - name: Internal Embeddings
+    description: 내부 임베딩 추출 API
+paths:
+  /health:
+    get:
+      tags: [Internal Embeddings]
+      summary: 헬스체크
+      operationId: healthCheck
+      responses:
+        "200":
+          description: 정상
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    example: ok
+  /internal/v1/embeddings/extract:
+    post:
+      tags: [Internal Embeddings]
+      summary: 얼굴 임베딩 추출
+      operationId: extractEmbedding
+      parameters:
+        - in: header
+          name: X-Service-Token
+          required: true
+          schema:
+            type: string
+          description: Back -> AI 내부 호출 인증 토큰
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: 임베딩 추출 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmbeddingExtractResponse"
+        "400":
+          description: 잘못된 이미지 요청
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                emptyImage:
+                  value:
+                    code: EMPTY_IMAGE
+                    message: Image file is empty
+                    requestId: req-abc001
+                invalidImage:
+                  value:
+                    code: INVALID_IMAGE
+                    message: Invalid image format
+                    requestId: req-abc002
+                noFace:
+                  value:
+                    code: NO_FACE
+                    message: No face detected
+                    requestId: req-abc003
+                multipleFaces:
+                  value:
+                    code: MULTIPLE_FACES
+                    message: Multiple faces detected
+                    requestId: req-abc004
+        "401":
+          description: 서비스 토큰 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: UNAUTHORIZED
+                message: Invalid service token
+                requestId: req-abc005
+        "503":
+          description: AI 추론 장애
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: AI_UNAVAILABLE
+                message: AI service unavailable
+                requestId: req-abc006
+        "504":
+          description: AI 타임아웃
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: AI_TIMEOUT
+                message: AI request timeout
+                requestId: req-abc007
+
+components:
+  schemas:
+    EmbeddingExtractResponse:
+      type: object
+      required: [embedding, dim, model, faceCount]
+      properties:
+        embedding:
+          type: array
+          items:
+            type: number
+            format: float
+          description: L2 정규화된 512차원 임베딩
+        dim:
+          type: integer
+          example: 512
+        model:
+          type: string
+          example: arcface-buffalo_l
+        faceCount:
+          type: integer
+          example: 1
+    ErrorResponse:
+      type: object
+      required: [code, message, requestId]
+      properties:
+        code:
+          type: string
+          example: NO_FACE
+        message:
+          type: string
+          example: No face detected
+        requestId:
+          type: string
+          example: req-abc003
