@@ -1,0 +1,15 @@
+services:
+  ai-internal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: naeda-ai-internal
+    env_file:
+      - .env
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+      APP_RELOAD: "false"
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
