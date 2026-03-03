@@ -1,0 +1,295 @@
+openapi: 3.0.3
+info:
+  title: NAEDA Face Back API
+  version: 1.0.0
+  description: |
+    Front에서 호출하는 얼굴 등록/검색 API 스펙.
+    처리 흐름은 Back -> AI(임베딩 추출) -> Back(DB 저장/검색) 구조를 전제로 한다.
+servers:
+  - url: https://api.naeda.example.com
+    description: Production
+  - url: http://localhost:8080
+    description: Local
+tags:
+  - name: Face
+    description: 얼굴 등록/검색 API
+paths:
+  /api/v1/face/health:
+    get:
+      tags: [Face]
+      summary: 얼굴인식 경로 헬스체크
+      operationId: getFaceHealth
+      responses:
+        '200':
+          description: 정상
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FaceHealthResponse'
+              example:
+                status: UP
+                service: face
+                time: "2026-03-03T09:00:00Z"
+
+  /api/v1/face/enroll:
+    post:
+      tags: [Face]
+      summary: 얼굴 등록 (포즈별)
+      description: 정면/좌/우/상/하 이미지 1장을 등록한다.
+      operationId: enrollFace
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [userId, pose, image]
+              properties:
+                userId:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                  description: 사용자 식별자
+                  example: user123
+                pose:
+                  $ref: '#/components/schemas/PoseType'
+                image:
+                  type: string
+                  format: binary
+                  description: jpg/png 이미지 파일
+      responses:
+        '200':
+          description: 등록 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollResponse'
+              example:
+                success: true
+                userId: user123
+                pose: front
+                savedAt: "2026-03-03T09:01:12Z"
+        '400':
+          description: 잘못된 요청 (이미지 없음/얼굴 미검출/다중 얼굴 등)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                noFace:
+                  value:
+                    code: NO_FACE
+                    message: No face detected
+                    requestId: req-abc123
+                multipleFaces:
+                  value:
+                    code: MULTIPLE_FACES
+                    message: Multiple faces detected
+                    requestId: req-abc124
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: AI 서버 일시 장애
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: AI_UNAVAILABLE
+                message: AI service unavailable
+                requestId: req-abc125
+        '504':
+          description: AI 응답 타임아웃
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: AI_TIMEOUT
+                message: AI request timeout
+                requestId: req-abc126
+
+  /api/v1/face/search:
+    post:
+      tags: [Face]
+      summary: 얼굴 검색
+      description: 입력 이미지 1장을 임베딩으로 변환 후 저장된 임베딩과 유사도 비교하여 최고 후보를 반환한다.
+      operationId: searchFace
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: 검색할 얼굴 이미지
+                topK:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  default: 3
+                  description: 상위 후보 개수
+      responses:
+        '200':
+          description: 검색 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+              example:
+                matched: true
+                bestUserId: user123
+                similarity: 0.81
+                threshold: 0.7
+                candidates:
+                  - userId: user123
+                    pose: front
+                    similarity: 0.81
+                  - userId: user123
+                    pose: left
+                    similarity: 0.79
+                  - userId: user456
+                    pose: front
+                    similarity: 0.62
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_IMAGE
+                message: Invalid image format
+                requestId: req-abc127
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: AI 서버 일시 장애
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: AI 응답 타임아웃
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    PoseType:
+      type: string
+      enum: [front, left, right, up, down]
+      example: front
+
+    FaceHealthResponse:
+      type: object
+      required: [status, service, time]
+      properties:
+        status:
+          type: string
+          example: UP
+        service:
+          type: string
+          example: face
+        time:
+          type: string
+          format: date-time
+          example: "2026-03-03T09:00:00Z"
+
+    EnrollResponse:
+      type: object
+      required: [success, userId, pose, savedAt]
+      properties:
+        success:
+          type: boolean
+          example: true
+        userId:
+          type: string
+          example: user123
+        pose:
+          $ref: '#/components/schemas/PoseType'
+        savedAt:
+          type: string
+          format: date-time
+          example: "2026-03-03T09:01:12Z"
+
+    SearchResponse:
+      type: object
+      required: [matched, threshold, candidates]
+      properties:
+        matched:
+          type: boolean
+          example: true
+        bestUserId:
+          type: string
+          nullable: true
+          example: user123
+        similarity:
+          type: number
+          format: float
+          nullable: true
+          example: 0.81
+        threshold:
+          type: number
+          format: float
+          example: 0.7
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchCandidate'
+
+    SearchCandidate:
+      type: object
+      required: [userId, pose, similarity]
+      properties:
+        userId:
+          type: string
+          example: user123
+        pose:
+          type: string
+          example: front
+        similarity:
+          type: number
+          format: float
+          example: 0.81
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: 에러 코드
+          example: NO_FACE
+        message:
+          type: string
+          description: 사용자/개발자용 에러 메시지
+          example: No face detected
+        requestId:
+          type: string
+          description: 추적용 요청 ID
+          example: req-abc123
