@@ -67,3 +67,43 @@ spring:
 ## 포트
 
 - 기본 포트: `8080`
+
+## docker 실행 
+
+- 로컬 DB 세팅 (Docker Postgres)
+0) 사전 준비
+
+- Docker Desktop 설치 및 실행
+
+1) 환경변수 파일 생성
+
+naeda/ 폴더에서 실행 (docker-compose.yml 있는 위치)
+
+```copy .env.example .env```
+
+.env는 커밋 금지(.gitignore 처리)
+
+2) Postgres 컨테이너 실행
+
+```docker compose up -d```
+```docker ps```
+3) DB 스키마 적용 (테이블 생성)
+
+PowerShell은 < 리다이렉션이 안 되므로 파이프 방식 사용
+
+```Get-Content db/schema.sql | docker exec -i naeda-postgres psql -U user -d naeda_db```
+
+4) 테이블 생성 확인
+
+```docker exec -it naeda-postgres psql -U user -d naeda_db -c "\dt"```
+5) (선택) DB 초기화가 필요할 때
+
+- 컨테이너만 내리고 다시 올리기(데이터 유지됨)
+
+```docker compose down```
+```docker compose up -d```
+
+- 데이터까지 완전 초기화(주의: DB 데이터 삭제)
+
+```docker compose down -v```
+```docker compose up -d```
