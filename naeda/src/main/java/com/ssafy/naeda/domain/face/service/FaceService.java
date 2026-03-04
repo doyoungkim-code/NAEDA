@@ -31,7 +31,7 @@ public class FaceService {
     @Value("${face.threshold:0.7}")
     private float threshold;
 
-    private static final Set<String> VALID_POSES = Set.of("front", "left", "right", "up", "down");
+    private static final Set<String> VALID_POSES = Set.of("front1", "front2", "front3", "left", "right", "up", "down");
 
     /**
      * 얼굴 등록
