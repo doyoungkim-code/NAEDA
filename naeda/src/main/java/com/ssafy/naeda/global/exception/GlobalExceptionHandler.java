@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
@@ -29,6 +30,13 @@ public class GlobalExceptionHandler {
                 : e.getMessage());
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("INVALID_REFERENCE", "유효하지 않은 참조값입니다. userId를 확인해주세요."));
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException e) {
+        log.warn("Validation failed: {}", e.getMessage());
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("VALIDATION_ERROR", "입력값이 올바르지 않습니다."));
     }
 
     @ExceptionHandler({
