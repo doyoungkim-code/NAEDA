@@ -29,6 +29,7 @@ ai:
 face:
   threshold: 0.7
   top-k: 3
+  encrypt-key: ${FACE_ENCRYPT_KEY}
 
 springdoc:
   api-docs:

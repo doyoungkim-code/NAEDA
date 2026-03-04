@@ -2,13 +2,19 @@ package com.ssafy.naeda.domain.face.entity;
 
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 /**
- * float[] <-> TEXT (JSON 배열 형태) 변환기
- * DB에는 "[0.12,-0.03,0.09,...]" 문자열로 저장
+ * float[] <-> 암호화된 TEXT 변환기
+ * DB에는 "base64(IV):base64(암호문)" 형태로 저장
  */
+@Component
 @Converter
 public class FloatArrayConverter implements AttributeConverter<float[], String> {
+
+    @Autowired
+    private EmbeddingEncryptor encryptor;
 
     @Override
     public String convertToDatabaseColumn(float[] attribute) {
@@ -19,13 +25,14 @@ public class FloatArrayConverter implements AttributeConverter<float[], String> 
             sb.append(attribute[i]);
         }
         sb.append("]");
-        return sb.toString();
+        return encryptor.encrypt(sb.toString());
     }
 
     @Override
     public float[] convertToEntityAttribute(String dbData) {
         if (dbData == null || dbData.isBlank()) return null;
-        String stripped = dbData.substring(1, dbData.length() - 1);
+        String json = encryptor.decrypt(dbData);
+        String stripped = json.substring(1, json.length() - 1);
         String[] parts = stripped.split(",");
         float[] result = new float[parts.length];
         for (int i = 0; i < parts.length; i++) {
