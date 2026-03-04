@@ -44,7 +44,7 @@ class ReportInternalControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/internal/consumption-reports - 리포트 저장 201")
+    @DisplayName("POST /api/internal/reports - 리포트 저장 201")
     void saveReport() throws Exception {
         ReportSaveRequest request = ReportSaveRequest.builder()
                 .userNo(1L)
@@ -59,7 +59,7 @@ class ReportInternalControllerTest {
                 .insights(List.of("카페 지출이 전월 대비 15% 증가했습니다"))
                 .build();
 
-        mockMvc.perform(post("/api/internal/consumption-reports")
+        mockMvc.perform(post("/api/internal/reports")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andDo(print())
@@ -70,11 +70,11 @@ class ReportInternalControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/internal/consumption-reports - 필수 값 누락 시 400")
+    @DisplayName("POST /api/internal/reports - 필수 값 누락 시 400")
     void saveReportValidationFail() throws Exception {
         String invalidJson = "{\"totalSpending\": 100000}";
 
-        mockMvc.perform(post("/api/internal/consumption-reports")
+        mockMvc.perform(post("/api/internal/reports")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidJson))
                 .andDo(print())

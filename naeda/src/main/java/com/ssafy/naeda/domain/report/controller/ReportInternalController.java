@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/internal/consumption-reports")
+@RequestMapping("/api/internal/reports")
 @Tag(name = "소비 리포트 (내부)", description = "AI 서버에서 호출하는 소비 리포트 저장 API")
 public class ReportInternalController {
 
