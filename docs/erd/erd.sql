@@ -9,7 +9,7 @@ CREATE TYPE transaction_type_enum AS ENUM ('DEPOSIT', 'WITHDRAW', 'TRANSFER', 'P
 CREATE TYPE period_type_enum AS ENUM ('WEEKLY', 'MONTHLY');
 CREATE TYPE local_grade_enum AS ENUM ('A', 'B', 'C', 'D');
 CREATE TYPE payment_method_enum AS ENUM ('FACE_PAY', 'PIN_FALLBACK');
-CREATE TYPE auth_level_enum AS ENUM ('FACE_ONLY', 'FACE_PIN');
+CREATE TYPE auth_level_enum AS ENUM ('FACE_ONLY', 'FACE_PHONE', 'FACE_PIN', 'FACE_SIGNATURE', 'BLOCKED');
 CREATE TYPE payment_status_enum AS ENUM ('SUCCESS', 'FAILED', 'CANCELLED', 'BLOCKED');
 CREATE TYPE fds_action_enum AS ENUM ('NONE', 'ALERT', 'PAUSE', 'BLOCK');
 CREATE TYPE point_type_enum AS ENUM ('EARN', 'USE_COUPON', 'CHARGE');
@@ -92,7 +92,7 @@ CREATE TABLE payment (
     store_id             BIGINT                NOT NULL,              -- FK → store
     amount               BIGINT                NOT NULL,              -- 결제 금액
     payment_method       payment_method_enum   NOT NULL,              -- FACE_PAY / PIN_FALLBACK
-    auth_level           auth_level_enum       NOT NULL,              -- FACE_ONLY / FACE_PIN
+    auth_level           auth_level_enum       NOT NULL,              -- FACE_ONLY / FACE_PHONE / FACE_PIN / FACE_SIGNATURE / BLOCKED
     status               payment_status_enum   NOT NULL,              -- SUCCESS / FAILED / CANCELLED / BLOCKED
     face_distance        FLOAT,                                       -- 얼굴 매칭 거리값 (낮을수록 유사)
     liveness_passed      BOOLEAN,                                     -- Liveness 통과 여부
