@@ -96,7 +96,7 @@ class PointHistoryRepositoryTest {
         PointHistory history = pointHistoryRepository.save(
                 PointHistory.builder()
                         .walletId(savedWallet.getWalletId())
-                        .type(PointType.CHARGE)
+                        .type(PointType.USE_COUPON)
                         .amount(10000L)
                         .balanceAfter(11000L)
                         .description("포인트 충전")
@@ -122,8 +122,8 @@ class PointHistoryRepositoryTest {
         }
 
         List<PointHistory> all = pointHistoryRepository.findAll();
-        assertThat(all).hasSize(3);
+        assertThat(all).hasSize(2);
         assertThat(all).extracting(PointHistory::getType)
-                .containsExactlyInAnyOrder(PointType.EARN, PointType.USE_COUPON, PointType.CHARGE);
+                .containsExactlyInAnyOrder(PointType.EARN, PointType.USE_COUPON);
     }
 }
