@@ -8,7 +8,8 @@ public class AmountPolicy implements RbaPolicy{
 
     private static final long HIGH_AMOUNT_THRESHOLD = 50_000L;
 
-    public AuthLevel evaluate(long amount, double faceDistance) {
+    @Override
+    public AuthLevel evaluate(long amount, double similarity) {
         if (amount >= HIGH_AMOUNT_THRESHOLD) {
             return AuthLevel.FACE_SIGNATURE;
         }
