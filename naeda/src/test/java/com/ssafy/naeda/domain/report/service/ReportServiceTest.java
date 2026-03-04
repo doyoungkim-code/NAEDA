@@ -6,6 +6,7 @@ import com.ssafy.naeda.domain.report.entity.ConsumptionReport;
 import com.ssafy.naeda.domain.report.entity.LocalGrade;
 import com.ssafy.naeda.domain.report.entity.PeriodType;
 import com.ssafy.naeda.domain.report.repository.ConsumptionReportRepository;
+import com.ssafy.naeda.global.exception.NotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -106,7 +107,7 @@ class ReportServiceTest {
                 .willReturn(List.of());
 
         assertThatThrownBy(() -> reportService.getLatestReport(999L, PeriodType.MONTHLY))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(NotFoundException.class)
                 .hasMessage("리포트가 존재하지 않습니다.");
     }
 

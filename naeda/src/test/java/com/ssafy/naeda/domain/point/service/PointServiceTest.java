@@ -7,6 +7,9 @@ import com.ssafy.naeda.domain.point.dto.response.PointWalletResponse;
 import com.ssafy.naeda.domain.point.entity.PointType;
 import com.ssafy.naeda.domain.point.repository.PointHistoryRepository;
 import com.ssafy.naeda.domain.point.repository.PointWalletRepository;
+import com.ssafy.naeda.global.exception.DuplicateException;
+import com.ssafy.naeda.global.exception.InsufficientBalanceException;
+import com.ssafy.naeda.global.exception.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -58,7 +61,7 @@ class PointServiceTest {
         pointService.createWallet(USER_NO);
 
         assertThatThrownBy(() -> pointService.createWallet(USER_NO))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(DuplicateException.class);
     }
 
     @Test
@@ -76,7 +79,7 @@ class PointServiceTest {
     @DisplayName("존재하지 않는 지갑 조회 시 예외")
     void getWallet_notFound() {
         assertThatThrownBy(() -> pointService.getWallet(999L))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(NotFoundException.class);
     }
 
     @Test
@@ -127,7 +130,7 @@ class PointServiceTest {
                 .build();
 
         assertThatThrownBy(() -> pointService.usePoints(USER_NO, request))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(InsufficientBalanceException.class);
     }
 
     @Test

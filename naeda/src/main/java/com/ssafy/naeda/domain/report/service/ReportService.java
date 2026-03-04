@@ -5,6 +5,7 @@ import com.ssafy.naeda.domain.report.dto.response.ReportResponse;
 import com.ssafy.naeda.domain.report.entity.ConsumptionReport;
 import com.ssafy.naeda.domain.report.entity.PeriodType;
 import com.ssafy.naeda.domain.report.repository.ConsumptionReportRepository;
+import com.ssafy.naeda.global.exception.NotFoundException;
 import java.util.Comparator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -47,7 +48,7 @@ public class ReportService {
                 .map(ReportResponse::from)
                 .sorted(Comparator.comparing(ReportResponse::getGenerated).reversed())
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("리포트가 존재하지 않습니다."));
+                .orElseThrow(() -> new NotFoundException("리포트가 존재하지 않습니다."));
     }
 
     // 리포트 히스토리 조회

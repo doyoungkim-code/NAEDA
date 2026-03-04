@@ -58,6 +58,27 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("FILE_TOO_LARGE", "업로드 파일 크기가 제한(10MB)을 초과했습니다."));
     }
 
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFoundException(NotFoundException e) {
+        log.warn("Not found: {}", e.getMessage());
+        return ResponseEntity.status(404)
+                .body(new ErrorResponse("NOT_FOUND", e.getMessage()));
+    }
+
+    @ExceptionHandler(DuplicateException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateException(DuplicateException e) {
+        log.warn("Duplicate: {}", e.getMessage());
+        return ResponseEntity.status(409)
+                .body(new ErrorResponse("DUPLICATE", e.getMessage()));
+    }
+
+    @ExceptionHandler(InsufficientBalanceException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientBalanceException(InsufficientBalanceException e) {
+        log.warn("Insufficient balance: {}", e.getMessage());
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("INSUFFICIENT_BALANCE", e.getMessage()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(Exception e) {
         log.error("Unexpected error", e);

@@ -1,5 +1,6 @@
 package com.ssafy.naeda.domain.point.entity;
 
+import com.ssafy.naeda.global.exception.InsufficientBalanceException;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -43,7 +44,7 @@ public class PointWallet {
 
     public void use(Long amount) {
         if(this.balance < amount) {
-            throw new IllegalStateException("포인트 잔액이 부족합니다. 현재 잔액: " + this.balance);
+            throw new InsufficientBalanceException("포인트 잔액이 부족합니다. 현재 잔액: " + this.balance);
         }
 
         this.balance -= amount;
