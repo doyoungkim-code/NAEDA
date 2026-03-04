@@ -3,9 +3,12 @@ package com.ssafy.naeda.domain.rba.dto;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.util.Set;
+
 @Getter
 @Builder
 public class RbaResult {
-    private final AuthLevel authLevel;
-    private final String reason;  // "금액 5만원 이상", "유사도 경계 구간" 등
+    private final Set<AuthMethod> requiredMethods;
+    private final boolean blocked;
+    private final String reason;
 }
