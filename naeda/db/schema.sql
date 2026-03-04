@@ -45,6 +45,17 @@ CREATE TABLE face_vector (
                              registered        TIMESTAMP     NOT NULL DEFAULT NOW()
 );
 
+-- 2-1) Face_Embeddings (naeda 얼굴 임베딩 저장)
+CREATE TABLE face_embeddings (
+                                 id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                                 user_id     VARCHAR(64)   NOT NULL,               -- FK → user.user_id
+                                 pose        VARCHAR(16)   NOT NULL,               -- front / left / right ...
+                                 embedding   TEXT          NOT NULL,               -- float[] JSON 문자열
+                                 created_at  TIMESTAMP     NOT NULL DEFAULT NOW(),
+                                 updated_at  TIMESTAMP     NOT NULL DEFAULT NOW(),
+                                 CONSTRAINT uk_face_embeddings_user_pose UNIQUE (user_id, pose)
+);
+
 -- 3) Account (SSAFY 계좌)
 CREATE TABLE account (
                          account_id    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -205,6 +216,11 @@ CREATE TABLE notification (
 ALTER TABLE face_vector
     ADD CONSTRAINT fk_face_vector_user
         FOREIGN KEY (user_no) REFERENCES "user" (user_no) ON DELETE CASCADE;
+
+-- Face_Embeddings → User(user_id)
+ALTER TABLE face_embeddings
+    ADD CONSTRAINT fk_face_embeddings_user_id
+        FOREIGN KEY (user_id) REFERENCES "user" (user_id) ON DELETE CASCADE;
 
 -- Account → User
 ALTER TABLE account
