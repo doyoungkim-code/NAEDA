@@ -60,8 +60,8 @@ class ConsumptionReportRepositoryTest {
     }
 
     @Test
-    @DisplayName("userNo + periodType으로 가장 오래된 리포트 조회")
-    void findTopByUserNoAndPeriodType() {
+    @DisplayName("userNo + periodType으로 generated 오름차순 리포트 목록 조회")
+    void findByUserNoAndPeriodTypeOrderByGenerated() {
         consumptionReportRepository.save(
                 ConsumptionReport.builder()
                         .userNo(1L)
@@ -83,11 +83,12 @@ class ConsumptionReportRepositoryTest {
                         .build()
         );
 
-        Optional<ConsumptionReport> result = consumptionReportRepository
-                .findTopByUserNoAndPeriodTypeOrderByGenerated(1L, PeriodType.MONTHLY);
+        List<ConsumptionReport> result = consumptionReportRepository
+                .findByUserNoAndPeriodTypeOrderByGenerated(1L, PeriodType.MONTHLY);
 
-        assertThat(result).isPresent();
-        assertThat(result.get().getTotalSpending()).isEqualTo(500000L);
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getTotalSpending()).isEqualTo(500000L);
+        assertThat(result.get(1).getTotalSpending()).isEqualTo(600000L);
     }
 
     @Test
