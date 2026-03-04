@@ -24,7 +24,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter{
         try{
             filterChain.doFilter(request,response);
         }finally {
-            log.info("[CALLBACK][OUT] {} {} status={}", method, uri, response.getStatus());
+            log.info("[RES][OUT] {} {} status={}", method, uri, response.getStatus());
         }
     }
 }
