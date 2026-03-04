@@ -16,3 +16,12 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     show-sql: true
+
+ai:
+  base-url: ${AI_BASE_URL:http://localhost:8000}
+  service-token: ${AI_SERVICE_TOKEN:dev-internal-token}
+  timeout-seconds: ${AI_TIMEOUT_SECONDS:5}
+
+face:
+  threshold: 0.7
+  top-k: 3
