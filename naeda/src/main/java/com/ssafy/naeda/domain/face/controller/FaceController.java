@@ -1,6 +1,7 @@
 package com.ssafy.naeda.domain.face.controller;
 
 import com.ssafy.naeda.domain.face.dto.response.EnrollResponse;
+import com.ssafy.naeda.domain.face.dto.response.HeadPoseCheckResponse;
 import com.ssafy.naeda.domain.face.dto.response.SearchResponse;
 import com.ssafy.naeda.domain.face.service.FaceService;
 import com.ssafy.naeda.global.exception.ErrorResponse;
@@ -79,5 +80,25 @@ public class FaceController {
             @RequestPart(value = "topK", required = false) String topK) {
         int k = (topK != null && !topK.isBlank()) ? Integer.parseInt(topK) : 3;
         return ResponseEntity.ok(faceService.search(image, k));
+    }
+
+    /**
+     * 얼굴 방향 검증
+     * POST /api/v1/face/liveness/headpose/check
+     * multipart: expectedDirection(front|left|right|up|down), image(파일)
+     */
+    @PostMapping(value = "/liveness/headpose/check", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "얼굴 방향 검증", description = "기대 방향과 실제 얼굴 방향이 일치하는지 검증합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "검증 성공"),
+            @ApiResponse(responseCode = "400", description = "요청 값 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "503", description = "AI 서버 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<HeadPoseCheckResponse> checkHeadPose(
+            @Parameter(description = "기대 방향(front|left|right|up|down)", example = "left", required = true)
+            @RequestPart("expectedDirection") String expectedDirection,
+            @Parameter(description = "검증할 얼굴 이미지 파일", required = true)
+            @RequestPart("image") MultipartFile image) {
+        return ResponseEntity.ok(faceService.checkHeadPoseDirection(expectedDirection, image));
     }
 }
