@@ -9,6 +9,9 @@ import com.ssafy.naeda.domain.point.entity.PointType;
 import com.ssafy.naeda.domain.point.entity.PointWallet;
 import com.ssafy.naeda.domain.point.repository.PointHistoryRepository;
 import com.ssafy.naeda.domain.point.repository.PointWalletRepository;
+import com.ssafy.naeda.global.exception.DuplicateException;
+import com.ssafy.naeda.global.exception.NotFoundException;
+import java.util.Comparator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,7 +31,7 @@ public class PointService {
     @Transactional
     public PointWalletResponse createWallet(Long userNo) {
         pointWalletRepository.findByUserNo(userNo).ifPresent(w -> {
-            throw new IllegalStateException("이미 포인트 지갑이 존재합니다. userNo: " + userNo);
+            throw new DuplicateException("이미 포인트 지갑이 존재합니다. userNo: " + userNo);
         });
 
         PointWallet wallet = pointWalletRepository.save(
@@ -42,7 +45,7 @@ public class PointService {
 
     public PointWalletResponse getWallet(Long userNo) {
         PointWallet wallet = pointWalletRepository.findByUserNo(userNo)
-                .orElseThrow(() -> new IllegalArgumentException("포인트 지갑이 존재하지 않습니다. userNo: " + userNo));
+                .orElseThrow(() -> new NotFoundException("포인트 지갑이 존재하지 않습니다. userNo: " + userNo));
 
         return PointWalletResponse.from(wallet);
     }
@@ -50,7 +53,7 @@ public class PointService {
     @Transactional
     public PointWalletResponse earnPoints(Long userNo, PointEarnRequest request) {
         PointWallet wallet = pointWalletRepository.findByUserNoForUpdate(userNo)
-                .orElseThrow(() -> new IllegalArgumentException("포인트 지갑이 존재하지 않습니다. userNo: " + userNo));
+                .orElseThrow(() -> new NotFoundException("포인트 지갑이 존재하지 않습니다. userNo: " + userNo));
 
         wallet.earn(request.getAmount());
 
@@ -71,7 +74,7 @@ public class PointService {
     @Transactional
     public PointWalletResponse usePoints(Long userNo, PointUseRequest request) {
         PointWallet wallet = pointWalletRepository.findByUserNoForUpdate(userNo)
-                .orElseThrow(() -> new IllegalArgumentException("포인트 지갑이 존재하지 않습니다. userNo: " + userNo));
+                .orElseThrow(() -> new NotFoundException("포인트 지갑이 존재하지 않습니다. userNo: " + userNo));
 
         wallet.use(request.getAmount());
 
@@ -90,11 +93,12 @@ public class PointService {
 
     public List<PointHistoryResponse> getHistories(Long userNo) {
         PointWallet wallet = pointWalletRepository.findByUserNo(userNo)
-                .orElseThrow(() -> new IllegalArgumentException("포인트 지갑이 존재하지 않습니다. userNo: " + userNo));
+                .orElseThrow(() -> new NotFoundException("포인트 지갑이 존재하지 않습니다. userNo: " + userNo));
 
-        return pointHistoryRepository.findByWalletIdOrderByCreatedDesc(wallet.getWalletId())
+        return pointHistoryRepository.findByWalletIdOrderByCreated(wallet.getWalletId())
                 .stream()
                 .map(PointHistoryResponse::from)
+                .sorted(Comparator.comparing(PointHistoryResponse::getCreated).reversed())
                 .toList();
     }
 }

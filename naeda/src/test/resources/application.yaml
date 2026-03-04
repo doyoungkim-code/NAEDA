@@ -14,3 +14,7 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     show-sql: true
+
+ai:
+  base-url: http://localhost:8000
+  service-token: test-token
