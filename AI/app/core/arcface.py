@@ -15,7 +15,8 @@ from app.core.errors import AIServiceError
 def get_face_analyzer() -> FaceAnalysis:
     settings = get_settings()
     analyzer = FaceAnalysis(name=settings.arcface_model_name, providers=[settings.arcface_provider])
-    analyzer.prepare(ctx_id=-1, det_size=(640, 640))
+    det_size = max(160, int(settings.arcface_det_size))
+    analyzer.prepare(ctx_id=-1, det_size=(det_size, det_size))
     return analyzer
 
 

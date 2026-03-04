@@ -11,6 +11,7 @@ class Settings(BaseSettings):
 
     arcface_model_name: str = "buffalo_l"
     arcface_provider: str = "CPUExecutionProvider"
+    arcface_det_size: int = 320
     ai_timeout_seconds: float = 5.0
 
     internal_service_token: str = "dev-internal-token"
