@@ -119,3 +119,18 @@ PowerShell은 < 리다이렉션이 안 되므로 파이프 방식 사용
 
 ```docker compose down -v```
 ```docker compose up -d```
+
+
+# DBeaver 연결
+
+DBeaver 설정 (정답)
+
+Host: 127.0.0.1
+
+Port: 5433
+
+Database: naeda_db
+
+Username: user
+
+Password: 1234
