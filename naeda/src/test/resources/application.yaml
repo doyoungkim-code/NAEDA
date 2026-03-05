@@ -18,3 +18,8 @@ spring:
 ai:
   base-url: http://localhost:8000
   service-token: test-token
+
+face:
+  threshold: 0.7
+  top-k: 3
+  encrypt-key: ${FACE_ENCRYPT_KEY}
