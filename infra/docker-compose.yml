@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # ============================================================
+  # PostgreSQL DB
+  # ============================================================
+  postgres:
+    image: postgres:16
+    container_name: naeda-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: Asia/Seoul
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d  # 초기 SQL 없으면 이 줄 삭제
+    networks:
+      - naeda-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # Redis
+  # ============================================================
+  redis:
+    image: redis:7.2-alpine
+    container_name: naeda-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
+    environment:
+      TZ: Asia/Seoul
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - naeda-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # AI 서버 (FastAPI)
+  # ============================================================
+  ai-server:
+    build:
+      context: ../AI        # infra/ 기준으로 상위 폴더의 AI 디렉토리
+      dockerfile: Dockerfile
+    container_name: naeda-ai
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Seoul
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN}
+    ports:
+      - "${AI_PORT}:8000"
+    networks:
+      - naeda-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# ============================================================
+# 볼륨 (데이터 영속성)
+# ============================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# ============================================================
+# 네트워크
+# ============================================================
+networks:
+  naeda-network:
+    driver: bridge

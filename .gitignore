@@ -46,3 +46,9 @@ target/
 
 # Logs
 *.log
+
+# 환경변수 파일 (절대 커밋 금지)
+infra/.env
+
+# Docker 볼륨 데이터
+infra/postgres/data/
