@@ -34,7 +34,7 @@ S14P21D103/
 ```bash
 cd S14P21D103/infra
 cp .env.example .env      # .env 생성 후 SSAFY_API_KEY, FACE_ENCRYPT_KEY 값 채우기
-docker compose up -d      # 3개 서비스 실행
+     # 3개 서비스 실행
 docker compose ps         # 상태 확인 (모두 healthy 확인)
 ```
 
@@ -67,7 +67,7 @@ docker compose ps         # 상태 확인 (모두 healthy 확인)
 ```bash
 docker --version
 docker compose version
-```
+```docker compose up -d 
 
 ### ⚠️ 로컬 PostgreSQL 확인 (중요)
 
