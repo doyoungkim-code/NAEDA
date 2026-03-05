@@ -28,6 +28,9 @@ public class User {
     @Column(length = 50, nullable = false)
     private String username;
 
+    @Column(name = "resident_no", length = 7, nullable = false)
+    private String residentNo;
+
     @Column(length = 20, nullable = false, unique = true)
     private String phone;
 
@@ -40,6 +43,9 @@ public class User {
     @Column(name = "face_registered", nullable = false)
     @Builder.Default
     private Boolean faceRegistered = false;
+
+    @Column(name = "pin_password")
+    private String pinPassword;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
