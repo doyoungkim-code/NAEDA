@@ -71,6 +71,12 @@ CREATE TABLE debit_card (
     debit_card_id  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_no        BIGINT        NOT NULL,                -- FK → user
     card_no        VARCHAR(50)   NOT NULL UNIQUE,         -- 카드번호
+    cvc            VARCHAR(3)    NOT NULL,                -- cvc 번호
+    card_unique_no VARCHAR(50)    NOT NULL,               -- 카드 고유번호
+    card_issuer_code VARCHAR(10)    NOT NULL,             -- 카드사 코드
+    card_issuer_name VARCHAR(50)    NOT NULL,             -- 카드사명
+    card_name      VARCHAR(100)    NOT NULL,              -- 카드 상품명
+    card_expiry_date VARCHAR(8)    NOT NULL,              -- 카드 만료일
     is_active      BOOLEAN       NOT NULL DEFAULT TRUE,   -- 활성 상태
     created        TIMESTAMP     NOT NULL DEFAULT NOW(),
     account_id     BIGINT        NOT NULL                 -- FK → account (연결 계좌)
@@ -81,6 +87,12 @@ CREATE TABLE credit_card (
     credit_card_id  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_no         BIGINT        NOT NULL,                -- FK → user
     card_no         VARCHAR(50)   NOT NULL UNIQUE,         -- 카드번호
+    cvc            VARCHAR(3)    NOT NULL,                -- cvc 번호
+    card_unique_no VARCHAR(50)    NOT NULL,               -- 카드 고유번호
+    card_issuer_code VARCHAR(10)    NOT NULL,             -- 카드사 코드
+    card_issuer_name VARCHAR(50)    NOT NULL,             -- 카드사명
+    card_name      VARCHAR(100)    NOT NULL,              -- 카드 상품명
+    card_expiry_date VARCHAR(8)    NOT NULL,              -- 카드 만료일
     is_active       BOOLEAN       NOT NULL DEFAULT TRUE,   -- 활성 상태
     credit_limit    BIGINT        NOT NULL,                -- 신용 한도
     billing_date    INT           NOT NULL,                -- 결제일
