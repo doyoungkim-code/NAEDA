@@ -8,22 +8,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.example.naedafront.R
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 내다(NAEDA) Typography System
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//
-// 영문/숫자: Manrope (Google Fonts)
-// 한글: Pretendard (GitHub: https://github.com/orioncactus/pretendard)
-//
-// res/font/ 폴더에 아래 파일 필요:
-//   manrope_regular.ttf
-//   manrope_medium.ttf
-//   manrope_semibold.ttf
-//   manrope_bold.ttf
-//   pretendard_regular.otf
-//   pretendard_medium.otf
-//   pretendard_semibold.otf
-//   pretendard_bold.otf
 
 val Manrope = FontFamily(
     Font(R.font.manrope_regular, FontWeight.Normal),
