@@ -28,6 +28,12 @@ public class User {
     @Column(length = 50, nullable = false)
     private String username;
 
+<<<<<<< HEAD
+=======
+    @Column(name = "resident_no", length = 7, nullable = false)
+    private String residentNo;
+
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
     @Column(length = 20, nullable = false, unique = true)
     private String phone;
 
@@ -41,6 +47,12 @@ public class User {
     @Builder.Default
     private Boolean faceRegistered = false;
 
+<<<<<<< HEAD
+=======
+    @Column(name = "pin_password")
+    private String pinPassword;
+
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime created;

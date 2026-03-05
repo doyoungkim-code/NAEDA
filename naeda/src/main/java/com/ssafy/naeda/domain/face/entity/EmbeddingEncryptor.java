@@ -25,11 +25,24 @@ public class EmbeddingEncryptor {
 
     @PostConstruct
     void init() {
+<<<<<<< HEAD
+=======
+        if (base64Key == null || base64Key.isBlank()) {
+            secretKey = null;
+            return;
+        }
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
         byte[] keyBytes = Base64.getDecoder().decode(base64Key);
         secretKey = new SecretKeySpec(keyBytes, "AES");
     }
 
     public String encrypt(String plainText) {
+<<<<<<< HEAD
+=======
+        if (secretKey == null) {
+            return plainText;
+        }
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
         try {
             byte[] iv = new byte[IV_LENGTH];
             new SecureRandom().nextBytes(iv);
@@ -47,6 +60,12 @@ public class EmbeddingEncryptor {
     }
 
     public String decrypt(String encryptedData) {
+<<<<<<< HEAD
+=======
+        if (secretKey == null) {
+            return encryptedData;
+        }
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
         try {
             String[] parts = encryptedData.split(":", 2);
             byte[] iv = Base64.getDecoder().decode(parts[0]);

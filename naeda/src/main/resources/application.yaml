@@ -27,9 +27,17 @@ ai:
   timeout-seconds: ${AI_TIMEOUT_SECONDS:5}
 
 face:
+<<<<<<< HEAD
   threshold: 0.7
   top-k: 3
   encrypt-key: ${FACE_ENCRYPT_KEY}
+=======
+  threshold:
+    match: 0.7
+    ambiguous: 0.65
+  top-k: 3
+  encrypt-key: ${FACE_ENCRYPT_KEY:}
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
 
 springdoc:
   api-docs:
