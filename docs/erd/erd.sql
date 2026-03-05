@@ -98,7 +98,8 @@ CREATE TABLE credit_card (
     is_active       BOOLEAN       NOT NULL DEFAULT TRUE,   -- 활성 상태
     credit_limit    BIGINT        NOT NULL,                -- 신용 한도
     billing_date    INT           NOT NULL,                -- 결제일
-    created         TIMESTAMP     NOT NULL DEFAULT NOW()
+    created         TIMESTAMP     NOT NULL DEFAULT NOW(),
+    account_id      BIGINT        NOT NULL                 -- FK → account (출금 연결계좌)
 );
 
 -- 7) Payment_Method (결제 수단)
@@ -207,7 +208,8 @@ CREATE TABLE point_order (
     user_no     BIGINT        NOT NULL,                -- FK → user
     product_id  BIGINT        NOT NULL,                -- FK → point_product
     order_at    TIMESTAMP     NOT NULL DEFAULT NOW(),   -- 주문 시각
-    address     VARCHAR(255)                           -- 배송 주소
+    road_address      VARCHAR(255),                    -- 도로명 주소
+    number_address    VARCHAR(255)                     -- 지번 주소
 );
 
 -- 15) Consumption_Report (AI 소비 분석 리포트)
@@ -297,6 +299,11 @@ ALTER TABLE debit_card
 ALTER TABLE credit_card
     ADD CONSTRAINT fk_credit_card_user
     FOREIGN KEY (user_no) REFERENCES "user" (user_no) ON DELETE CASCADE;
+
+-- Credit_Card → Account
+ALTER TABLE credit_card
+    ADD CONSTRAINT fk_credit_card_account
+    FOREIGN KEY (account_id) REFERENCES account (account_id) ON DELETE RESTRICT;
 
 -- Payment_Method → User
 ALTER TABLE payment_method
