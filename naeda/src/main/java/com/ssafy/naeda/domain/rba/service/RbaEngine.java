@@ -1,61 +1,65 @@
 package com.ssafy.naeda.domain.rba.service;
 
+import com.ssafy.naeda.domain.face.dto.response.FaceMatchStatus;
+import com.ssafy.naeda.domain.rba.dto.AuthLevel;
 import com.ssafy.naeda.domain.rba.dto.AuthMethod;
 import com.ssafy.naeda.domain.rba.dto.RbaResult;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.EnumSet;
-import java.util.Random;
 import java.util.Set;
 
 @Service
 public class RbaEngine {
 
-    private static final double CONFIDENT_THRESHOLD = 0.80;
-    private static final double BORDERLINE_THRESHOLD = 0.70;
-    private static final long HIGH_AMOUNT_THRESHOLD = 50_000L;
+    @Value("${rba.high-amount:50000}")
+    private long highAmountThreshold;
 
-    private final Random random;
-
-    public RbaEngine() {
-        this.random = new Random();
-    }
-
-    // 테스트용 생성자
-    RbaEngine(Random random) {
-        this.random = random;
-    }
-
-    public RbaResult evaluate(long amount, double similarity) {
-        // 1단계: 유사도 판단
-        if (similarity < BORDERLINE_THRESHOLD) {
+    public RbaResult evaluate(long amount, FaceMatchStatus faceStatus, double similarity) {
+        if (faceStatus == FaceMatchStatus.NO_MATCH) {
             return RbaResult.builder()
+                    .authLevel(AuthLevel.BLOCKED)
                     .requiredMethods(Set.of())
                     .blocked(true)
-                    .reason("유사도 " + similarity + " — 매칭 실패")
+                    .reason("얼굴 매칭 실패: similarity=" + similarity)
                     .build();
         }
 
         Set<AuthMethod> methods = EnumSet.of(AuthMethod.FACE);
+        boolean highAmount = amount >= highAmountThreshold;
 
-        // 2단계: 경계 구간이면 랜덤 2차 인증 추가
-        String reason = "유사도 " + similarity;
-        if (similarity < CONFIDENT_THRESHOLD) {
-            AuthMethod secondAuth = random.nextBoolean() ? AuthMethod.PHONE : AuthMethod.PIN;
-            methods.add(secondAuth);
-            reason += " — 경계 구간, " + secondAuth + " 추가";
+        if (faceStatus == FaceMatchStatus.AMBIGUOUS) {
+            methods.add(AuthMethod.PHONE);
+            AuthLevel level = AuthLevel.FACE_PHONE;
+            String reason = "애매한 매칭 구간: PHONE 2차 인증 필요";
+            if (highAmount) {
+                methods.add(AuthMethod.SIGNATURE);
+                level = AuthLevel.FACE_SIGNATURE;
+                reason += " + 고액 결제 서명";
+            }
+            return RbaResult.builder()
+                    .authLevel(level)
+                    .requiredMethods(methods)
+                    .blocked(false)
+                    .reason(reason + " (similarity=" + similarity + ", amount=" + amount + ")")
+                    .build();
         }
 
-        // 3단계: 고액이면 서명 추가
-        if (amount >= HIGH_AMOUNT_THRESHOLD) {
+        // MATCH
+        AuthLevel level = AuthLevel.FACE_ONLY;
+        String reason = "매칭 성공: 얼굴만으로 인증";
+        if (highAmount) {
             methods.add(AuthMethod.SIGNATURE);
-            reason += " / 고액 결제, 전자서명 추가";
+            level = AuthLevel.FACE_SIGNATURE;
+            reason = "고액 결제: 얼굴 + 전자서명";
         }
 
         return RbaResult.builder()
+                .authLevel(level)
                 .requiredMethods(methods)
                 .blocked(false)
-                .reason(reason)
+                .reason(reason + " (similarity=" + similarity + ", amount=" + amount + ")")
                 .build();
     }
 }

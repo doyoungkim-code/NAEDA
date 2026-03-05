@@ -20,7 +20,7 @@ def get_face_analyzer() -> FaceAnalysis:
     return analyzer
 
 
-def _extract_embedding_from_bytes(image_raw: bytes) -> list[float]:
+def _extract_embedding_from_bytes(image_raw: bytes) -> dict:
     image_bytes = np.frombuffer(image_raw, dtype=np.uint8)
     bgr = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
     if bgr is None:
@@ -50,10 +50,26 @@ def _extract_embedding_from_bytes(image_raw: bytes) -> list[float]:
     if len(normalized) != 512:
         raise AIServiceError(status_code=503, code="AI_UNAVAILABLE", message="Embedding dimension mismatch")
 
-    return normalized
+    face = faces[0]
+    det_score = float(getattr(face, "det_score", 0.0) or 0.0)
+    pose = getattr(face, "pose", None)
+    if pose is not None and len(pose) >= 3:
+        yaw = float(pose[0])
+        pitch = float(pose[1])
+        roll = float(pose[2])
+    else:
+        yaw, pitch, roll = 0.0, 0.0, 0.0
+
+    return {
+        "embedding": normalized,
+        "quality_score": max(0.0, min(det_score, 1.0)),
+        "yaw": yaw,
+        "pitch": pitch,
+        "roll": roll,
+    }
 
 
-async def extract_embedding(upload_file: UploadFile, timeout_seconds: float) -> list[float]:
+async def extract_embedding(upload_file: UploadFile, timeout_seconds: float) -> dict:
     image_raw = await upload_file.read()
     if not image_raw:
         raise AIServiceError(status_code=400, code="EMPTY_IMAGE", message="Image file is empty")

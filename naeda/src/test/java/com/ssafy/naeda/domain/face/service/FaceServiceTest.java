@@ -7,6 +7,10 @@ import com.ssafy.naeda.domain.face.dto.response.SearchResponse;
 import com.ssafy.naeda.domain.face.entity.FaceEmbedding;
 import com.ssafy.naeda.domain.face.exception.FaceException;
 import com.ssafy.naeda.domain.face.repository.FaceEmbeddingRepository;
+import com.ssafy.naeda.domain.rba.dto.AuthLevel;
+import com.ssafy.naeda.domain.rba.dto.AuthMethod;
+import com.ssafy.naeda.domain.rba.dto.RbaResult;
+import com.ssafy.naeda.domain.rba.service.RbaEngine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,10 +22,13 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 
 @ExtendWith(MockitoExtension.class)
@@ -36,6 +43,9 @@ class FaceServiceTest {
     @Mock
     private FaceEmbeddingRepository faceEmbeddingRepository;
 
+    @Mock
+    private RbaEngine rbaEngine;
+
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(faceService, "matchThreshold", 0.7f);
@@ -46,16 +56,27 @@ class FaceServiceTest {
     @DisplayName("search: similarity가 0.70 이상이면 MATCH와 PASS를 반환한다")
     void search_match() {
         given(aiClient.extractEmbedding(any())).willReturn(aiResult(unit(1f, 0f)));
+        given(rbaEngine.evaluate(anyLong(), any(), anyDouble())).willReturn(
+                RbaResult.builder()
+                        .authLevel(AuthLevel.FACE_ONLY)
+                        .requiredMethods(Set.of(AuthMethod.FACE))
+                        .blocked(false)
+                        .reason("ok")
+                        .build()
+        );
         given(faceEmbeddingRepository.findAll()).willReturn(List.of(
                 embedding("user-match", "front1", unit(1f, 0f)),
                 embedding("user-other", "left", unit(0f, 1f))
         ));
 
-        SearchResponse response = faceService.search(mockImage(), 3);
+        SearchResponse response = faceService.search(mockImage(), 3, 30_000L);
 
         assertThat(response.isMatched()).isTrue();
         assertThat(response.getStatus()).isEqualTo(FaceMatchStatus.MATCH);
         assertThat(response.getNextAction()).isEqualTo("PASS");
+        assertThat(response.getAuthLevel()).isEqualTo(AuthLevel.FACE_ONLY);
+        assertThat(response.isBlocked()).isFalse();
+        assertThat(response.getRequiredMethods()).containsExactly(AuthMethod.FACE);
         assertThat(response.getBestUserId()).isEqualTo("user-match");
         assertThat(response.getSimilarity()).isGreaterThanOrEqualTo(0.7f);
     }
@@ -64,16 +85,27 @@ class FaceServiceTest {
     @DisplayName("search: similarity가 0.65 이상 0.70 미만이면 AMBIGUOUS를 반환한다")
     void search_ambiguous() {
         given(aiClient.extractEmbedding(any())).willReturn(aiResult(unit(1f, 0f)));
+        given(rbaEngine.evaluate(anyLong(), any(), anyDouble())).willReturn(
+                RbaResult.builder()
+                        .authLevel(AuthLevel.FACE_PHONE)
+                        .requiredMethods(Set.of(AuthMethod.FACE, AuthMethod.PHONE))
+                        .blocked(false)
+                        .reason("need second")
+                        .build()
+        );
         given(faceEmbeddingRepository.findAll()).willReturn(List.of(
                 embedding("user-ambiguous", "front1", unit(0.68f, (float) Math.sqrt(1 - 0.68f * 0.68f))),
                 embedding("user-low", "left", unit(0.1f, (float) Math.sqrt(1 - 0.1f * 0.1f)))
         ));
 
-        SearchResponse response = faceService.search(mockImage(), 3);
+        SearchResponse response = faceService.search(mockImage(), 3, 30_000L);
 
         assertThat(response.isMatched()).isFalse();
         assertThat(response.getStatus()).isEqualTo(FaceMatchStatus.AMBIGUOUS);
         assertThat(response.getNextAction()).isEqualTo("REQUIRE_SECOND_FACTOR");
+        assertThat(response.getAuthLevel()).isEqualTo(AuthLevel.FACE_PHONE);
+        assertThat(response.isBlocked()).isFalse();
+        assertThat(response.getRequiredMethods()).contains(AuthMethod.FACE, AuthMethod.PHONE);
         assertThat(response.getBestUserId()).isEqualTo("user-ambiguous");
         assertThat(response.getSimilarity()).isBetween(0.65f, 0.7f);
     }
@@ -82,15 +114,26 @@ class FaceServiceTest {
     @DisplayName("search: similarity가 0.65 미만이면 NO_MATCH와 RETRY_CAPTURE를 반환한다")
     void search_noMatch() {
         given(aiClient.extractEmbedding(any())).willReturn(aiResult(unit(1f, 0f)));
+        given(rbaEngine.evaluate(anyLong(), any(), anyDouble())).willReturn(
+                RbaResult.builder()
+                        .authLevel(AuthLevel.BLOCKED)
+                        .requiredMethods(Set.of())
+                        .blocked(true)
+                        .reason("blocked")
+                        .build()
+        );
         given(faceEmbeddingRepository.findAll()).willReturn(List.of(
                 embedding("user-low", "front1", unit(0.4f, (float) Math.sqrt(1 - 0.4f * 0.4f)))
         ));
 
-        SearchResponse response = faceService.search(mockImage(), 3);
+        SearchResponse response = faceService.search(mockImage(), 3, 30_000L);
 
         assertThat(response.isMatched()).isFalse();
         assertThat(response.getStatus()).isEqualTo(FaceMatchStatus.NO_MATCH);
-        assertThat(response.getNextAction()).isEqualTo("RETRY_CAPTURE");
+        assertThat(response.getNextAction()).isEqualTo("BLOCK");
+        assertThat(response.getAuthLevel()).isEqualTo(AuthLevel.BLOCKED);
+        assertThat(response.isBlocked()).isTrue();
+        assertThat(response.getRequiredMethods()).isEmpty();
         assertThat(response.getBestUserId()).isNull();
         assertThat(response.getSimilarity()).isLessThan(0.65f);
     }
