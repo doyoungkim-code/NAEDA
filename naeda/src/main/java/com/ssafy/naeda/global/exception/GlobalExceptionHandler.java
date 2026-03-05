@@ -3,6 +3,7 @@ package com.ssafy.naeda.global.exception;
 import com.ssafy.naeda.domain.face.exception.FaceException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -21,6 +22,16 @@ public class GlobalExceptionHandler {
         log.warn("FaceException: code={}, message={}", e.getCode(), e.getMessage());
         return ResponseEntity.status(e.getStatus())
                 .body(new ErrorResponse(e.getCode(), e.getMessage()));
+    }
+
+    @ExceptionHandler(SsafyApiException.class)
+    public ResponseEntity<ErrorResponse> handleSsafyApiException(SsafyApiException e) {
+        log.warn("SsafyApiException: code={}, message={}", e.getErrorCode(), e.getMessage());
+        HttpStatus status = "NETWORK_ERROR".equals(e.getErrorCode())
+                ? HttpStatus.SERVICE_UNAVAILABLE   // 503
+                : HttpStatus.BAD_GATEWAY;          // 502
+        return ResponseEntity.status(status)
+                .body(new ErrorResponse(e.getErrorCode(), e.getMessage()));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

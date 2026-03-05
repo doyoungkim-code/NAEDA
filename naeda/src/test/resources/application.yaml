@@ -25,3 +25,8 @@ face:
     ambiguous: 0.65
   top-k: 3
   encrypt-key: ${FACE_ENCRYPT_KEY:}
+
+ssafy:
+  api:
+    base-url: https://finopenapi.ssafy.io/ssafy/api/v1
+    key: ${SSAFY_API_KEY:}

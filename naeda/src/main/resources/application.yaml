@@ -40,3 +40,8 @@ springdoc:
     path: /swagger-ui.html
     display-request-duration: true
     operations-sorter: method
+
+ssafy:
+  api:
+    base-url: https://finopenapi.ssafy.io/ssafy/api/v1
+    key: ${SSAFY_API_KEY:}
