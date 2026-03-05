@@ -1,15 +1,10 @@
 package com.ssafy.naeda.domain.face.service;
 
 import com.ssafy.naeda.domain.face.client.AiClient;
-<<<<<<< HEAD
-import com.ssafy.naeda.domain.face.dto.response.CandidateDto;
-import com.ssafy.naeda.domain.face.dto.response.EnrollResponse;
-=======
 import com.ssafy.naeda.domain.face.client.dto.AiEmbeddingResult;
 import com.ssafy.naeda.domain.face.dto.response.CandidateDto;
 import com.ssafy.naeda.domain.face.dto.response.EnrollResponse;
 import com.ssafy.naeda.domain.face.dto.response.FaceMatchStatus;
->>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
 import com.ssafy.naeda.domain.face.dto.response.HeadPoseCheckResponse;
 import com.ssafy.naeda.domain.face.dto.response.SearchResponse;
 import com.ssafy.naeda.domain.face.entity.FaceEmbedding;
@@ -36,16 +31,11 @@ public class FaceService {
     private final AiClient aiClient;
     private final FaceEmbeddingRepository faceEmbeddingRepository;
 
-<<<<<<< HEAD
-    @Value("${face.threshold:0.7}")
-    private float threshold;
-=======
     @Value("${face.threshold.match:0.7}")
     private float matchThreshold;
 
     @Value("${face.threshold.ambiguous:0.65}")
     private float ambiguousThreshold;
->>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
 
     private static final Set<String> VALID_POSES = Set.of("front1", "front2", "front3", "left", "right", "up", "down");
     private static final Set<String> VALID_HEADPOSE_DIRECTIONS = Set.of("front", "left", "right", "up", "down");
@@ -62,12 +52,8 @@ public class FaceService {
             throw new FaceException(FaceErrorCode.INVALID_POSE);
         }
 
-<<<<<<< HEAD
-        float[] embedding = aiClient.extractEmbedding(image);
-=======
         AiEmbeddingResult embeddingResult = aiClient.extractEmbedding(image);
         float[] embedding = embeddingResult.getEmbedding();
->>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
 
         // 이미 등록된 (userId, pose) 조합이면 업데이트, 없으면 새로 저장
         FaceEmbedding entity = faceEmbeddingRepository.findByUserIdAndPose(userId, pose)
@@ -94,12 +80,8 @@ public class FaceService {
      * 3. 유사도 높은 순으로 topK 반환, threshold(0.7) 이상이면 matched
      */
     public SearchResponse search(MultipartFile image, int topK) {
-<<<<<<< HEAD
-        float[] probe = aiClient.extractEmbedding(image);
-=======
         AiEmbeddingResult probeResult = aiClient.extractEmbedding(image);
         float[] probe = probeResult.getEmbedding();
->>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
 
         List<FaceEmbedding> all = faceEmbeddingRepository.findAll();
 
@@ -110,15 +92,6 @@ public class FaceService {
                 .toList();
 
         CandidateDto best = candidates.isEmpty() ? null : candidates.get(0);
-<<<<<<< HEAD
-        boolean matched = best != null && best.getSimilarity() >= threshold;
-
-        return SearchResponse.builder()
-                .matched(matched)
-                .bestUserId(matched ? best.getUserId() : null)
-                .similarity(best != null ? best.getSimilarity() : 0f)
-                .threshold(threshold)
-=======
         float bestSimilarity = best != null ? best.getSimilarity() : 0f;
         FaceMatchStatus status = resolveStatus(bestSimilarity);
         boolean matched = status == FaceMatchStatus.MATCH;
@@ -140,13 +113,10 @@ public class FaceService {
                 .yaw(probeResult.getYaw())
                 .pitch(probeResult.getPitch())
                 .roll(probeResult.getRoll())
->>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
                 .candidates(candidates)
                 .build();
     }
 
-<<<<<<< HEAD
-=======
     private FaceMatchStatus resolveStatus(float similarity) {
         if (similarity >= matchThreshold) {
             return FaceMatchStatus.MATCH;
@@ -157,7 +127,6 @@ public class FaceService {
         return FaceMatchStatus.NO_MATCH;
     }
 
->>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
     /**
      * 얼굴 방향 검증
      * 1. 기대 방향 유효성 검사
