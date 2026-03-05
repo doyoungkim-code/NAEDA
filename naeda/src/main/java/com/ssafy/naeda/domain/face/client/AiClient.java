@@ -3,7 +3,10 @@ package com.ssafy.naeda.domain.face.client;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.naeda.domain.face.client.dto.AiEmbeddingResponse;
 import com.ssafy.naeda.domain.face.client.dto.AiErrorResponse;
+<<<<<<< HEAD
+=======
 import com.ssafy.naeda.domain.face.client.dto.AiEmbeddingResult;
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
 import com.ssafy.naeda.domain.face.client.dto.AiHeadPoseResponse;
 import com.ssafy.naeda.domain.face.exception.FaceErrorCode;
 import com.ssafy.naeda.domain.face.exception.FaceException;
@@ -31,7 +34,11 @@ public class AiClient {
     /**
      * AI 서버에 이미지를 보내서 임베딩(512개 float 배열)을 받아옴
      */
+<<<<<<< HEAD
+    public float[] extractEmbedding(MultipartFile image) {
+=======
     public AiEmbeddingResult extractEmbedding(MultipartFile image) {
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
         try {
             byte[] imageBytes = image.getBytes();
 
@@ -70,6 +77,9 @@ public class AiClient {
                 throw new FaceException(FaceErrorCode.AI_UNAVAILABLE);
             }
 
+<<<<<<< HEAD
+            return response.toFloatArray();
+=======
             return AiEmbeddingResult.builder()
                     .embedding(response.toFloatArray())
                     .qualityScore(response.getQualityScore())
@@ -79,6 +89,7 @@ public class AiClient {
                     .pitch(response.getPitch())
                     .roll(response.getRoll())
                     .build();
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
 
         } catch (FaceException e) {
             throw e;

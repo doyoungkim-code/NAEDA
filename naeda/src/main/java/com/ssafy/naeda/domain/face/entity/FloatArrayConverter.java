@@ -5,6 +5,11 @@ import jakarta.persistence.Converter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+<<<<<<< HEAD
+/**
+ * float[] <-> 암호화된 TEXT 변환기
+ * DB에는 "base64(IV):base64(암호문)" 형태로 저장
+=======
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -16,20 +21,26 @@ import java.util.Base64;
  * 저장 형식:
  * 1) 현재: base64(IV):base64(암호문)
  * 2) 호환: ENCv1:base64(IV):base64(암호문), JSON 평문 배열
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
  */
 @Component
 @Converter
 public class FloatArrayConverter implements AttributeConverter<float[], String> {
 
+<<<<<<< HEAD
+=======
     private static final String LEGACY_PREFIX = "ENCv1:";
     private static final int GCM_TAG_BITS = 128;
 
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
     @Autowired
     private EmbeddingEncryptor encryptor;
 
     @Override
     public String convertToDatabaseColumn(float[] attribute) {
         if (attribute == null) return null;
+<<<<<<< HEAD
+=======
         return encryptor.encrypt(toJson(attribute));
     }
 
@@ -52,12 +63,23 @@ public class FloatArrayConverter implements AttributeConverter<float[], String> 
     }
 
     private String toJson(float[] attribute) {
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < attribute.length; i++) {
             if (i > 0) sb.append(",");
             sb.append(attribute[i]);
         }
         sb.append("]");
+<<<<<<< HEAD
+        return encryptor.encrypt(sb.toString());
+    }
+
+    @Override
+    public float[] convertToEntityAttribute(String dbData) {
+        if (dbData == null || dbData.isBlank()) return null;
+        String json = encryptor.decrypt(dbData);
+        String stripped = json.substring(1, json.length() - 1);
+=======
         return sb.toString();
     }
 
@@ -66,6 +88,7 @@ public class FloatArrayConverter implements AttributeConverter<float[], String> 
         if (stripped.isBlank()) {
             return new float[0];
         }
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
         String[] parts = stripped.split(",");
         float[] result = new float[parts.length];
         for (int i = 0; i < parts.length; i++) {
@@ -73,6 +96,8 @@ public class FloatArrayConverter implements AttributeConverter<float[], String> 
         }
         return result;
     }
+<<<<<<< HEAD
+=======
 
     private String decryptLegacy(String cipherText) {
         String key = System.getenv("FACE_EMBEDDING_AES_KEY");
@@ -101,4 +126,5 @@ public class FloatArrayConverter implements AttributeConverter<float[], String> 
             throw new IllegalStateException("Failed to decrypt legacy ENCv1 embedding", e);
         }
     }
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
 }

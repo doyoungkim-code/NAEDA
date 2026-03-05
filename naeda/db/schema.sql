@@ -29,12 +29,18 @@ CREATE TABLE "user" (
                         user_id           VARCHAR(100)  NOT NULL UNIQUE,       -- 이메일 (로그인)
                         password          VARCHAR(255)  NOT NULL,               -- 비밀번호 (BCrypt)
                         username          VARCHAR(50)   NOT NULL,               -- 이름
+<<<<<<< HEAD
+=======
                         resident_no       VARCHAR(7)    NOT NULL,               -- 주민등록번호 앞 7자리
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
                         phone             VARCHAR(20)   NOT NULL UNIQUE,        -- 전화번호
                         institution_code  VARCHAR(50)   NOT NULL,               -- 기관코드
                         user_key          VARCHAR(255),                         -- SSAFY API 유저 키
                         face_registered   BOOLEAN       NOT NULL DEFAULT FALSE, -- 얼굴 등록 여부
+<<<<<<< HEAD
+=======
                         pin_password      VARCHAR(255),                         -- 6자리 Pin 비밀번호 (BCrypt)
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
                         created           TIMESTAMP     NOT NULL DEFAULT NOW(),
                         modified          TIMESTAMP
 );
@@ -84,12 +90,15 @@ CREATE TABLE debit_card (
                             debit_card_id  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                             user_no        BIGINT        NOT NULL,                -- FK → user
                             card_no        VARCHAR(50)   NOT NULL UNIQUE,         -- 카드번호
+<<<<<<< HEAD
+=======
                             cvc            VARCHAR(3)    NOT NULL,                -- cvc 번호
                             card_unique_no VARCHAR(50)   NOT NULL,                -- 카드 고유번호
                             card_issuer_code VARCHAR(10) NOT NULL,                -- 카드사 코드
                             card_issuer_name VARCHAR(50) NOT NULL,                -- 카드사명
                             card_name      VARCHAR(100)  NOT NULL,                -- 카드 상품명
                             card_expiry_date VARCHAR(8)  NOT NULL,                -- 카드 만료일
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
                             is_active      BOOLEAN       NOT NULL DEFAULT TRUE,   -- 활성 상태
                             created        TIMESTAMP     NOT NULL DEFAULT NOW(),
                             account_id     BIGINT        NOT NULL                 -- FK → account (연결 계좌)
@@ -100,6 +109,12 @@ CREATE TABLE credit_card (
                              credit_card_id  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                              user_no         BIGINT        NOT NULL,                -- FK → user
                              card_no         VARCHAR(50)   NOT NULL UNIQUE,         -- 카드번호
+<<<<<<< HEAD
+                             is_active       BOOLEAN       NOT NULL DEFAULT TRUE,   -- 활성 상태
+                             credit_limit    BIGINT        NOT NULL,                -- 신용 한도
+                             billing_date    INT           NOT NULL,                -- 결제일
+                             created         TIMESTAMP     NOT NULL DEFAULT NOW()
+=======
                              cvc            VARCHAR(3)    NOT NULL,                -- cvc 번호
                              card_unique_no VARCHAR(50)   NOT NULL,                -- 카드 고유번호
                              card_issuer_code VARCHAR(10) NOT NULL,                -- 카드사 코드
@@ -111,6 +126,7 @@ CREATE TABLE credit_card (
                              billing_date    INT           NOT NULL,                -- 결제일
                              created         TIMESTAMP     NOT NULL DEFAULT NOW(),
                              account_id      BIGINT        NOT NULL                 -- FK → account (출금 연결계좌)
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
 );
 
 -- 7) Payment_Method (결제 수단)
@@ -219,8 +235,12 @@ CREATE TABLE point_order (
                              user_no     BIGINT        NOT NULL,                -- FK → user
                              product_id  BIGINT        NOT NULL,                -- FK → point_product
                              order_at    TIMESTAMP     NOT NULL DEFAULT NOW(),   -- 주문 시각
+<<<<<<< HEAD
+                             address     VARCHAR(255)                           -- 배송 주소
+=======
                              road_address      VARCHAR(255),                      -- 도로명 주소
                              number_address    VARCHAR(255)                       -- 지번 주소
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
 );
 
 -- 15) Consumption_Report (AI 소비 분석 리포트)
@@ -316,11 +336,14 @@ ALTER TABLE credit_card
     ADD CONSTRAINT fk_credit_card_user
         FOREIGN KEY (user_no) REFERENCES "user" (user_no) ON DELETE CASCADE;
 
+<<<<<<< HEAD
+=======
 -- Credit_Card → Account
 ALTER TABLE credit_card
     ADD CONSTRAINT fk_credit_card_account
         FOREIGN KEY (account_id) REFERENCES account (account_id) ON DELETE RESTRICT;
 
+>>>>>>> b041ecc5c38cb905e9bbb0e660a2c3b3d41da422
 -- Payment_Method → User
 ALTER TABLE payment_method
     ADD CONSTRAINT fk_payment_method_user

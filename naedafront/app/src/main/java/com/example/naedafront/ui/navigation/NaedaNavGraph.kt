@@ -1,0 +1,189 @@
+package com.example.naedafront.ui.navigation
+
+import com.example.naedafront.ui.screen.WelcomeScreen
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
+import com.example.naedafront.ui.navigation.Screen
+
+/**
+ * 내다(NAEDA) 전체 네비게이션 그래프
+ *
+ * 시작 화면: Welcome (본인인증 시작 화면)
+ * TODO: 토큰 확인 로직 추가 시 Splash → 분기 처리
+ */
+@Composable
+fun NaedaNavGraph(
+    navController: NavHostController,
+    modifier: Modifier = Modifier
+) {
+    NavHost(
+        navController = navController,
+        startDestination = Screen.Welcome.route,
+        modifier = modifier
+    ) {
+
+        // ═══════════════════════════════════════
+        // 인증 플로우
+        // ═══════════════════════════════════════
+
+        composable(Screen.Welcome.route) {
+              WelcomeScreen(
+                  onStartClick = { navController.navigate(Screen.SignUp.route) },
+                  onLoginClick = { navController.navigate(Screen.Login.route) }
+              )
+        }
+
+        composable(Screen.Login.route) {
+            PlaceholderScreen("로그인")
+        }
+
+        composable(Screen.SignUp.route) {
+            // TODO: 회원가입 완료 후 → Home으로 이동
+            //  navController.navigate(Screen.Home.route) {
+            //      popUpTo(Screen.Welcome.route) { inclusive = true }
+            //  }
+            PlaceholderScreen("회원가입")
+        }
+
+        // ═══════════════════════════════════════
+        // 메인 5탭
+        // ═══════════════════════════════════════
+
+        composable(Screen.Home.route) {
+            PlaceholderScreen("🏠 홈")
+        }
+
+        composable(Screen.Benefit.route) {
+            PlaceholderScreen("🎁 혜택")
+        }
+
+        composable(Screen.Scan.route) {
+            // TODO: 얼굴 등록 여부에 따라 분기
+            //  if (faceRegistered) GumiMapScreen() else FaceIntroScreen()
+            PlaceholderScreen("😀 스캔\n(얼굴등록 / 지도)")
+        }
+
+        composable(Screen.Asset.route) {
+            PlaceholderScreen("💰 자산")
+        }
+
+        composable(Screen.More.route) {
+            PlaceholderScreen("⋯ 더보기")
+        }
+
+        // ═══════════════════════════════════════
+        // 스캔 탭 하위 화면
+        // ═══════════════════════════════════════
+
+        composable(Screen.FaceIntro.route) {
+            PlaceholderScreen("페이스페이 소개")
+        }
+
+        composable(Screen.FaceGuide.route) {
+            PlaceholderScreen("촬영 가이드")
+        }
+
+        composable(Screen.FaceCapture.route) {
+            PlaceholderScreen("카메라 촬영")
+        }
+
+        composable(Screen.FaceAnalyzing.route) {
+            PlaceholderScreen("분석 중...")
+        }
+
+        composable(Screen.FaceComplete.route) {
+            PlaceholderScreen("등록 완료!")
+        }
+
+        composable(Screen.GumiMap.route) {
+            PlaceholderScreen("🗺️ 구미 맛집 지도")
+        }
+
+        composable(
+            route = Screen.StoreDetail.route,
+            arguments = listOf(navArgument("storeId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val storeId = backStackEntry.arguments?.getString("storeId") ?: ""
+            PlaceholderScreen("매장 상세: $storeId")
+        }
+
+        // ═══════════════════════════════════════
+        // 자산 탭 하위 화면
+        // ═══════════════════════════════════════
+
+        composable(
+            route = Screen.AccountDetail.route,
+            arguments = listOf(navArgument("accountId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val accountId = backStackEntry.arguments?.getString("accountId") ?: ""
+            PlaceholderScreen("계좌 상세: $accountId")
+        }
+
+        composable(Screen.Transfer.route) {
+            PlaceholderScreen("이체")
+        }
+
+        composable(Screen.Transaction.route) {
+            PlaceholderScreen("거래내역")
+        }
+
+        composable(Screen.Report.route) {
+            PlaceholderScreen("📊 소비 리포트")
+        }
+
+        // ═══════════════════════════════════════
+        // 혜택 탭 하위 화면
+        // ═══════════════════════════════════════
+
+        composable(Screen.Coupon.route) {
+            PlaceholderScreen("할인권 교환")
+        }
+
+        composable(Screen.Donation.route) {
+            PlaceholderScreen("후원하기")
+        }
+
+        // ═══════════════════════════════════════
+        // 더보기 탭 하위 화면
+        // ═══════════════════════════════════════
+
+        composable(Screen.Settings.route) {
+            PlaceholderScreen("⚙️ 설정")
+        }
+
+        composable(Screen.Notification.route) {
+            PlaceholderScreen("🔔 알림")
+        }
+
+        composable(Screen.Security.route) {
+            PlaceholderScreen("🔒 보안 내역")
+        }
+    }
+}
+
+/**
+ * 개발 중 임시 화면
+ * 실제 Screen Composable이 만들어지면 하나씩 교체
+ */
+@Composable
+private fun PlaceholderScreen(name: String) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = name,
+            fontSize = 24.sp
+        )
+    }
+}
