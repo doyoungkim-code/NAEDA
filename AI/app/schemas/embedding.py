@@ -6,6 +6,10 @@ class EmbeddingExtractResponse(BaseModel):
     dim: int
     model: str
     face_count: int = Field(alias="faceCount")
+    quality_score: float = Field(alias="qualityScore")
+    yaw: float
+    pitch: float
+    roll: float
     model_config = ConfigDict(populate_by_name=True)
 
 
