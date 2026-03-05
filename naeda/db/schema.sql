@@ -29,10 +29,12 @@ CREATE TABLE "user" (
                         user_id           VARCHAR(100)  NOT NULL UNIQUE,       -- 이메일 (로그인)
                         password          VARCHAR(255)  NOT NULL,               -- 비밀번호 (BCrypt)
                         username          VARCHAR(50)   NOT NULL,               -- 이름
+                        resident_no       VARCHAR(7)    NOT NULL,               -- 주민등록번호 앞 7자리
                         phone             VARCHAR(20)   NOT NULL UNIQUE,        -- 전화번호
                         institution_code  VARCHAR(50)   NOT NULL,               -- 기관코드
                         user_key          VARCHAR(255),                         -- SSAFY API 유저 키
                         face_registered   BOOLEAN       NOT NULL DEFAULT FALSE, -- 얼굴 등록 여부
+                        pin_password      VARCHAR(255),                         -- 6자리 Pin 비밀번호 (BCrypt)
                         created           TIMESTAMP     NOT NULL DEFAULT NOW(),
                         modified          TIMESTAMP
 );
