@@ -5,6 +5,7 @@ import com.ssafy.naeda.domain.face.client.dto.AiEmbeddingResult;
 import com.ssafy.naeda.domain.face.dto.response.CandidateDto;
 import com.ssafy.naeda.domain.face.dto.response.EnrollResponse;
 import com.ssafy.naeda.domain.face.dto.response.FaceMatchStatus;
+import com.ssafy.naeda.domain.face.dto.response.HeadPoseCheckResponse;
 import com.ssafy.naeda.domain.face.dto.response.SearchResponse;
 import com.ssafy.naeda.domain.face.entity.FaceEmbedding;
 import com.ssafy.naeda.domain.face.exception.FaceErrorCode;
@@ -37,6 +38,7 @@ public class FaceService {
     private float ambiguousThreshold;
 
     private static final Set<String> VALID_POSES = Set.of("front1", "front2", "front3", "left", "right", "up", "down");
+    private static final Set<String> VALID_HEADPOSE_DIRECTIONS = Set.of("front", "left", "right", "up", "down");
 
     /**
      * 얼굴 등록
@@ -123,6 +125,21 @@ public class FaceService {
             return FaceMatchStatus.AMBIGUOUS;
         }
         return FaceMatchStatus.NO_MATCH;
+    }
+
+    /**
+     * 얼굴 방향 검증
+     * 1. 기대 방향 유효성 검사
+     * 2. AI headpose API 호출
+     * 3. 방향 일치 여부 및 점수 반환
+     */
+    public HeadPoseCheckResponse checkHeadPoseDirection(String expectedDirection, MultipartFile image) {
+        String normalized = expectedDirection == null ? "" : expectedDirection.toLowerCase();
+        if (!VALID_HEADPOSE_DIRECTIONS.contains(normalized)) {
+            throw new FaceException(FaceErrorCode.INVALID_POSE);
+        }
+
+        return HeadPoseCheckResponse.from(aiClient.checkHeadPose(normalized, image));
     }
 
     /**

@@ -2,18 +2,27 @@ package com.ssafy.naeda.domain.face.entity;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 
 class FloatArrayConverterTest {
 
     private final FloatArrayConverter converter = new FloatArrayConverter();
+    private final EmbeddingEncryptor encryptor = mock(EmbeddingEncryptor.class);
+
+    FloatArrayConverterTest() {
+        ReflectionTestUtils.setField(converter, "encryptor", encryptor);
+    }
 
     @Test
     @DisplayName("환경키가 없으면 float[]를 JSON 문자열로 저장한다")
     void convertToDatabaseColumn_withoutKey_returnsJson() {
         float[] input = new float[]{0.12f, -0.03f, 0.9f};
+        given(encryptor.encrypt("[0.12,-0.03,0.9]")).willReturn("[0.12,-0.03,0.9]");
 
         String dbValue = converter.convertToDatabaseColumn(input);
 
