@@ -75,3 +75,4 @@
 [Story] BE-023 감사 로그/추적ID                                                | 3pt
 [Story] BE-024 외부 API 장애 대응                                              | 5pt
 [Story] BE-030 전역 config 작업                                               | 5pt
+[Story] BE-031 SSAFY API 공통 인프라 구축                                      | 3pt
