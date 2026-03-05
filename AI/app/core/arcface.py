@@ -20,7 +20,7 @@ def get_face_analyzer() -> FaceAnalysis:
     return analyzer
 
 
-def _extract_embedding_from_bytes(image_raw: bytes) -> list[float]:
+def _extract_embedding_from_bytes(image_raw: bytes) -> tuple[list[float], float, tuple[float, float, float]]:
     image_bytes = np.frombuffer(image_raw, dtype=np.uint8)
     bgr = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
     if bgr is None:
@@ -50,18 +50,36 @@ def _extract_embedding_from_bytes(image_raw: bytes) -> list[float]:
     if len(normalized) != 512:
         raise AIServiceError(status_code=503, code="AI_UNAVAILABLE", message="Embedding dimension mismatch")
 
-    return normalized
+    det_score = float(getattr(faces[0], "det_score", 0.0) or 0.0)
+    pose = getattr(faces[0], "pose", None)
+    if pose is not None and len(pose) >= 3:
+        yaw = float(pose[0])
+        pitch = float(pose[1])
+        roll = float(pose[2])
+    else:
+        yaw, pitch, roll = 0.0, 0.0, 0.0
+
+    # Normalize det_score to [0, 1] as a lightweight image/face quality signal.
+    quality_score = max(0.0, min(det_score, 1.0))
+    return normalized, quality_score, (yaw, pitch, roll)
 
 
-async def extract_embedding(upload_file: UploadFile, timeout_seconds: float) -> list[float]:
+async def extract_embedding(upload_file: UploadFile, timeout_seconds: float) -> dict:
     image_raw = await upload_file.read()
     if not image_raw:
         raise AIServiceError(status_code=400, code="EMPTY_IMAGE", message="Image file is empty")
 
     try:
-        return await asyncio.wait_for(
+        embedding, quality_score, (yaw, pitch, roll) = await asyncio.wait_for(
             run_in_threadpool(_extract_embedding_from_bytes, image_raw),
             timeout=timeout_seconds,
         )
+        return {
+            "embedding": embedding,
+            "quality_score": quality_score,
+            "yaw": yaw,
+            "pitch": pitch,
+            "roll": roll,
+        }
     except asyncio.TimeoutError as exc:
         raise AIServiceError(status_code=504, code="AI_TIMEOUT", message="AI request timeout") from exc

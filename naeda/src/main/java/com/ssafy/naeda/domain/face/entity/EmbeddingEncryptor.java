@@ -25,11 +25,18 @@ public class EmbeddingEncryptor {
 
     @PostConstruct
     void init() {
+        if (base64Key == null || base64Key.isBlank()) {
+            secretKey = null;
+            return;
+        }
         byte[] keyBytes = Base64.getDecoder().decode(base64Key);
         secretKey = new SecretKeySpec(keyBytes, "AES");
     }
 
     public String encrypt(String plainText) {
+        if (secretKey == null) {
+            return plainText;
+        }
         try {
             byte[] iv = new byte[IV_LENGTH];
             new SecureRandom().nextBytes(iv);
@@ -47,6 +54,9 @@ public class EmbeddingEncryptor {
     }
 
     public String decrypt(String encryptedData) {
+        if (secretKey == null) {
+            return encryptedData;
+        }
         try {
             String[] parts = encryptedData.split(":", 2);
             byte[] iv = Base64.getDecoder().decode(parts[0]);

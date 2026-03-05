@@ -20,6 +20,8 @@ ai:
   service-token: test-token
 
 face:
-  threshold: 0.7
+  threshold:
+    match: 0.7
+    ambiguous: 0.65
   top-k: 3
-  encrypt-key: ${FACE_ENCRYPT_KEY}
+  encrypt-key: ${FACE_ENCRYPT_KEY:}

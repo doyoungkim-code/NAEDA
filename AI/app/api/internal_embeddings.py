@@ -23,10 +23,15 @@ async def extract_face_embedding(
     _: None = Depends(verify_internal_service_token),
     settings: Settings = Depends(get_settings),
 ) -> EmbeddingExtractResponse:
-    embedding = await extract_embedding(image, timeout_seconds=settings.ai_timeout_seconds)
+    result = await extract_embedding(image, timeout_seconds=settings.ai_timeout_seconds)
+    embedding = result["embedding"]
     return EmbeddingExtractResponse(
         embedding=embedding,
         dim=len(embedding),
         model=f"arcface-{settings.arcface_model_name}",
         face_count=1,
+        quality_score=result["quality_score"],
+        yaw=result["yaw"],
+        pitch=result["pitch"],
+        roll=result["roll"],
     )
