@@ -1,0 +1,48 @@
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+.claude/
+
+# OS - macOS
+.DS_Store
+._*
+
+# OS - Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+*.stackdump
+
+# Environment
+.env
+*.secret
+.venv
+venv/
+env/
+
+
+# Python (AI 서버)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+dist/
+*.egg-info/
+*.egg
+.pytest_cache/
+.coverage
+.mypy_cache/
+.ruff_cache/
+
+# Java / Gradle (BE 서버)
+build/
+out/
+target/
+
+# Logs
+*.log

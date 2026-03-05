@@ -1,0 +1,20 @@
+{
+  "dataset_dir": "C:\\SSAFY\\S14P21D103\\AI\\tests\\sample_eval_dataset",
+  "gallery_registered_total": 1,
+  "gallery_register_success": 1,
+  "gallery_register_fail": 0,
+  "probe_total": 1,
+  "probe_valid": 1,
+  "probe_fail": 0,
+  "top1_accuracy": 1.0,
+  "best_threshold_by_acc": {
+    "threshold": 0.0,
+    "accuracy": 1.0,
+    "far": 0.0,
+    "frr": 0.0,
+    "tpr": 1.0,
+    "fpr": 0.0
+  },
+  "eer": 0.0,
+  "roc_auc": 0.0
+}

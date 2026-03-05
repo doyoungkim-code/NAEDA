@@ -1,0 +1,25 @@
+spring:
+  config:
+    import: optional:file:.env[.properties]
+  datasource:
+    url: jdbc:postgresql://localhost:${POSTGRES_PORT}/${TEST_POSTGRES_DB}
+    username: ${TEST_POSTGRES_USER}
+    password: ${TEST_POSTGRES_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: true
+
+ai:
+  base-url: http://localhost:8000
+  service-token: test-token
+
+face:
+  threshold: 0.7
+  top-k: 3
+  encrypt-key: ${FACE_ENCRYPT_KEY}

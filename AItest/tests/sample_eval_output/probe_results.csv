@@ -1,0 +1,2 @@
+user_id,image_path,best_user_id,similarity,is_correct_top1,error
+user1,C:\SSAFY\S14P21D103\AI\tests\sample_eval_dataset\probe\user1\probe1.jpg,user1,1.0000001192092896,1,
