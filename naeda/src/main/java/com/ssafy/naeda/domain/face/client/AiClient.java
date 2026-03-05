@@ -3,6 +3,7 @@ package com.ssafy.naeda.domain.face.client;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.naeda.domain.face.client.dto.AiEmbeddingResponse;
 import com.ssafy.naeda.domain.face.client.dto.AiErrorResponse;
+import com.ssafy.naeda.domain.face.client.dto.AiEmbeddingResult;
 import com.ssafy.naeda.domain.face.exception.FaceErrorCode;
 import com.ssafy.naeda.domain.face.exception.FaceException;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +30,7 @@ public class AiClient {
     /**
      * AI 서버에 이미지를 보내서 임베딩(512개 float 배열)을 받아옴
      */
-    public float[] extractEmbedding(MultipartFile image) {
+    public AiEmbeddingResult extractEmbedding(MultipartFile image) {
         try {
             byte[] imageBytes = image.getBytes();
 
@@ -68,7 +69,15 @@ public class AiClient {
                 throw new FaceException(FaceErrorCode.AI_UNAVAILABLE);
             }
 
-            return response.toFloatArray();
+            return AiEmbeddingResult.builder()
+                    .embedding(response.toFloatArray())
+                    .qualityScore(response.getQualityScore())
+                    .model(response.getModel())
+                    .faceCount(response.getFaceCount())
+                    .yaw(response.getYaw())
+                    .pitch(response.getPitch())
+                    .roll(response.getRoll())
+                    .build();
 
         } catch (FaceException e) {
             throw e;

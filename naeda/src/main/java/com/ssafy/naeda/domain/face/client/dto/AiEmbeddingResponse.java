@@ -11,7 +11,11 @@ import java.util.List;
  *   "embedding": [0.12, -0.03, ...],  <- 512개 float
  *   "dim": 512,
  *   "model": "arcface-buffalo_l",
- *   "faceCount": 1
+ *   "faceCount": 1,
+ *   "qualityScore": 0.95,
+ *   "yaw": 1.2,
+ *   "pitch": -0.8,
+ *   "roll": 0.1
  * }
  */
 @Getter
@@ -22,6 +26,10 @@ public class AiEmbeddingResponse {
     private int dim;
     private String model;
     private int faceCount;
+    private float qualityScore;
+    private float yaw;
+    private float pitch;
+    private float roll;
 
     public float[] toFloatArray() {
         float[] arr = new float[embedding.size()];

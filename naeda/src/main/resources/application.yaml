@@ -27,7 +27,9 @@ ai:
   timeout-seconds: ${AI_TIMEOUT_SECONDS:5}
 
 face:
-  threshold: 0.7
+  threshold:
+    match: 0.7
+    ambiguous: 0.65
   top-k: 3
 
 springdoc:
