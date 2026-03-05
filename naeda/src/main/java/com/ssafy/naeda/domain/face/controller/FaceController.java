@@ -64,7 +64,7 @@ public class FaceController {
     /**
      * 얼굴 검색
      * POST /api/v1/face/search
-     * multipart: image(파일), topK(숫자, 기본값 3)
+     * multipart: image(파일), topK(숫자, 기본값 3), amount(거래금액, 기본값 0)
      */
     @PostMapping(value = "/search", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "얼굴 검색", description = "입력 이미지와 저장된 얼굴 임베딩을 비교하여 유사한 사용자를 조회합니다.")
@@ -77,9 +77,12 @@ public class FaceController {
             @Parameter(description = "검색할 얼굴 이미지 파일", required = true)
             @RequestPart("image") MultipartFile image,
             @Parameter(description = "상위 후보 개수(미입력 시 3)", example = "3")
-            @RequestPart(value = "topK", required = false) String topK) {
+            @RequestPart(value = "topK", required = false) String topK,
+            @Parameter(description = "거래 금액(미입력 시 0)", example = "30000")
+            @RequestPart(value = "amount", required = false) String amount) {
         int k = (topK != null && !topK.isBlank()) ? Integer.parseInt(topK) : 3;
-        return ResponseEntity.ok(faceService.search(image, k));
+        long txnAmount = (amount != null && !amount.isBlank()) ? Long.parseLong(amount) : 0L;
+        return ResponseEntity.ok(faceService.search(image, k, txnAmount));
     }
 
     /**

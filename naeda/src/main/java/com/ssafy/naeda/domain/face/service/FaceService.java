@@ -11,6 +11,8 @@ import com.ssafy.naeda.domain.face.entity.FaceEmbedding;
 import com.ssafy.naeda.domain.face.exception.FaceErrorCode;
 import com.ssafy.naeda.domain.face.exception.FaceException;
 import com.ssafy.naeda.domain.face.repository.FaceEmbeddingRepository;
+import com.ssafy.naeda.domain.rba.dto.RbaResult;
+import com.ssafy.naeda.domain.rba.service.RbaEngine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,6 +32,7 @@ public class FaceService {
 
     private final AiClient aiClient;
     private final FaceEmbeddingRepository faceEmbeddingRepository;
+    private final RbaEngine rbaEngine;
 
     @Value("${face.threshold.match:0.7}")
     private float matchThreshold;
@@ -79,7 +82,7 @@ public class FaceService {
      * 2. DB의 모든 임베딩과 코사인 유사도 계산
      * 3. 유사도 높은 순으로 topK 반환, threshold(0.7) 이상이면 matched
      */
-    public SearchResponse search(MultipartFile image, int topK) {
+    public SearchResponse search(MultipartFile image, int topK, long amount) {
         AiEmbeddingResult probeResult = aiClient.extractEmbedding(image);
         float[] probe = probeResult.getEmbedding();
 
@@ -94,11 +97,12 @@ public class FaceService {
         CandidateDto best = candidates.isEmpty() ? null : candidates.get(0);
         float bestSimilarity = best != null ? best.getSimilarity() : 0f;
         FaceMatchStatus status = resolveStatus(bestSimilarity);
+        RbaResult rbaResult = rbaEngine.evaluate(amount, status, bestSimilarity);
         boolean matched = status == FaceMatchStatus.MATCH;
-        String nextAction = switch (status) {
-            case MATCH -> "PASS";
-            case AMBIGUOUS -> "REQUIRE_SECOND_FACTOR";
-            case NO_MATCH -> "RETRY_CAPTURE";
+        String nextAction = switch (rbaResult.getAuthLevel()) {
+            case FACE_ONLY -> "PASS";
+            case BLOCKED -> "BLOCK";
+            default -> "REQUIRE_SECOND_FACTOR";
         };
 
         return SearchResponse.builder()
@@ -113,6 +117,10 @@ public class FaceService {
                 .yaw(probeResult.getYaw())
                 .pitch(probeResult.getPitch())
                 .roll(probeResult.getRoll())
+                .authLevel(rbaResult.getAuthLevel())
+                .requiredMethods(rbaResult.getRequiredMethods())
+                .blocked(rbaResult.isBlocked())
+                .rbaReason(rbaResult.getReason())
                 .candidates(candidates)
                 .build();
     }

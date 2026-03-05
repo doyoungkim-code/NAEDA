@@ -3,8 +3,11 @@ package com.ssafy.naeda.domain.face.dto.response;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
+import com.ssafy.naeda.domain.rba.dto.AuthLevel;
+import com.ssafy.naeda.domain.rba.dto.AuthMethod;
 
 import java.util.List;
+import java.util.Set;
 
 @Getter
 @Builder
@@ -33,6 +36,14 @@ public class SearchResponse {
     private float pitch;
     @Schema(description = "AI 추정 roll(도)", example = "0.1")
     private float roll;
+    @Schema(description = "RBA 최종 인증 레벨", example = "FACE_PHONE")
+    private AuthLevel authLevel;
+    @Schema(description = "요구 인증 수단 목록")
+    private Set<AuthMethod> requiredMethods;
+    @Schema(description = "차단 여부", example = "false")
+    private boolean blocked;
+    @Schema(description = "RBA 판정 사유")
+    private String rbaReason;
     @Schema(description = "상위 유사 후보 목록")
     private List<CandidateDto> candidates;
 }

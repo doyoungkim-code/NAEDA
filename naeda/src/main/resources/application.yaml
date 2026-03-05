@@ -33,6 +33,9 @@ face:
   top-k: 3
   encrypt-key: ${FACE_ENCRYPT_KEY:}
 
+rba:
+  high-amount: 50000
+
 springdoc:
   api-docs:
     path: /api-docs
