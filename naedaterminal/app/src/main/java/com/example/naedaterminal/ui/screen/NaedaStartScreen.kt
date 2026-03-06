@@ -17,7 +17,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.naedaterminal.R
 import com.example.naedaterminal.ui.theme.Mint50
-import com.example.naedaterminal.ui.theme.OnSurfaceVariant
+
 
 @Composable
 fun NaedaStartScreen(
