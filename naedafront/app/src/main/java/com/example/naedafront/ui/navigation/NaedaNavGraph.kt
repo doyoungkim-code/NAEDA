@@ -1,6 +1,5 @@
 package com.example.naedafront.ui.navigation
 
-import com.example.naedafront.ui.screen.WelcomeScreen
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
@@ -13,6 +12,14 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.example.naedafront.ui.screen.WelcomeScreen
+import com.example.naedafront.ui.screen.SignUpNameScreen
+import com.example.naedafront.ui.screen.SignUpRrnScreen
+import com.example.naedafront.ui.screen.SignUpPhoneScreen
+import com.example.naedafront.ui.screen.SignUpVerifyScreen
+import com.example.naedafront.ui.screen.SignUpEmailScreen
+import com.example.naedafront.ui.screen.SignUpPasswordScreen
+import com.example.naedafront.ui.screen.SignUpPinScreen
 import com.example.naedafront.ui.navigation.Screen
 
 /**
@@ -32,27 +39,96 @@ fun NaedaNavGraph(
         modifier = modifier
     ) {
 
-        // ═══════════════════════════════════════
-        // 인증 플로우
-        // ═══════════════════════════════════════
+        // ═══ 인증 플로우 ═══
 
         composable(Screen.Welcome.route) {
-              WelcomeScreen(
-                  onStartClick = { navController.navigate(Screen.SignUp.route) },
-                  onLoginClick = { navController.navigate(Screen.Login.route) }
-              )
+            WelcomeScreen(
+                onStartClick = { navController.navigate(Screen.SignUp.route) },
+                onLoginClick = { navController.navigate(Screen.Login.route) }
+            )
         }
 
         composable(Screen.Login.route) {
             PlaceholderScreen("로그인")
         }
 
+// 1/8 이름
         composable(Screen.SignUp.route) {
-            // TODO: 회원가입 완료 후 → Home으로 이동
-            //  navController.navigate(Screen.Home.route) {
-            //      popUpTo(Screen.Welcome.route) { inclusive = true }
-            //  }
-            PlaceholderScreen("회원가입")
+            SignUpNameScreen(
+                onBackClick = { navController.popBackStack() },
+                onConfirmClick = { name ->
+                    navController.navigate(Screen.SignUpRrn.route)
+                }
+            )
+        }
+
+// 2/8 주민번호
+        composable(Screen.SignUpRrn.route) {
+            SignUpRrnScreen(
+                onBackClick = { navController.popBackStack() },
+                onConfirmClick = { rrn ->
+                    navController.navigate(Screen.SignUpPhone.route)
+                }
+            )
+        }
+
+// 3/8 휴대폰
+        composable(Screen.SignUpPhone.route) {
+            SignUpPhoneScreen(
+                onBackClick = { navController.popBackStack() },
+                onConfirmClick = { phone ->
+                    navController.navigate(Screen.SignUpVerify.createRoute(phone))
+                }
+            )
+        }
+
+// 4/8 인증번호
+        composable(
+            route = Screen.SignUpVerify.route,
+            arguments = listOf(navArgument("phone") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val phone = backStackEntry.arguments?.getString("phone") ?: ""
+            SignUpVerifyScreen(
+                phoneNumber = phone,
+                onBackClick = { navController.popBackStack() },
+                onConfirmClick = { code ->
+                    navController.navigate(Screen.SignUpEmail.route)
+                },
+                onResendClick = { }
+            )
+        }
+
+// 5/8 이메일
+        composable(Screen.SignUpEmail.route) {
+            SignUpEmailScreen(
+                onBackClick = { navController.popBackStack() },
+                onConfirmClick = { email ->
+                    navController.navigate(Screen.SignUpPassword.route)
+                }
+            )
+        }
+
+// 6/8 비밀번호
+        composable(Screen.SignUpPassword.route) {
+            SignUpPasswordScreen(
+                onBackClick = { navController.popBackStack() },
+                onConfirmClick = { password ->
+                    navController.navigate(Screen.SignUpPin.route)
+                }
+            )
+        }
+
+// 7/8 PIN
+        composable(Screen.SignUpPin.route) {
+            SignUpPinScreen(
+                onBackClick = { navController.popBackStack() },
+                onConfirmClick = { pin ->
+                    // 회원가입 완료 → 홈으로 (이전 스택 전부 제거)
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                    }
+                }
+            )
         }
 
         // ═══════════════════════════════════════

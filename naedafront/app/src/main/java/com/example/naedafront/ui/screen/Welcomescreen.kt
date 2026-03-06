@@ -1,7 +1,6 @@
 package com.example.naedafront.ui.screen
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -14,36 +13,28 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-// ── 색상 정의 ──
-private val MintLight = Color(0xFFB2DFDB)
-private val MintDark = Color(0xFF4DB6AC)
-private val ButtonGreen = Color(0xFF2E7D6E)
-private val SubTextGray = Color(0xFF9E9E9E)
-private val LinkGreen = Color(0xFF2E7D6E)
 
 @Composable
 fun WelcomeScreen(
     onStartClick: () -> Unit = {},
     onLoginClick: () -> Unit = {}
 ) {
+    val primaryContainer = MaterialTheme.colorScheme.primaryContainer
+    val surface = MaterialTheme.colorScheme.surface
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        MintLight.copy(alpha = 0.4f),
-                        Color.White
+                        primaryContainer.copy(alpha = 0.4f),
+                        surface
                     ),
                     startY = 0f,
                     endY = 800f
@@ -63,7 +54,7 @@ fun WelcomeScreen(
                 text = "내다를 시작하려면\n본인인증을 해주세요",
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black,
+                color = MaterialTheme.colorScheme.onSurface,
                 lineHeight = 36.sp,
                 textAlign = TextAlign.Start,
                 modifier = Modifier.fillMaxWidth()
@@ -75,7 +66,7 @@ fun WelcomeScreen(
             Text(
                 text = "신속하고 안전한 금융 서비스를 시작합니다.",
                 fontSize = 14.sp,
-                color = SubTextGray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Start,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -92,7 +83,7 @@ fun WelcomeScreen(
                         ambientColor = Color.Black.copy(alpha = 0.08f)
                     )
                     .clip(RoundedCornerShape(32.dp))
-                    .background(Color.White),
+                    .background(MaterialTheme.colorScheme.surface),
                 contentAlignment = Alignment.Center
             ) {
                 // 방법 1: 벡터 드로어블 사용 시
@@ -116,7 +107,7 @@ fun WelcomeScreen(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = ButtonGreen
+                    containerColor = MaterialTheme.colorScheme.primary
                 ),
                 elevation = ButtonDefaults.buttonElevation(
                     defaultElevation = 0.dp
@@ -126,7 +117,7 @@ fun WelcomeScreen(
                     text = "시작하기",
                     fontSize = 17.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
             }
 
@@ -141,14 +132,14 @@ fun WelcomeScreen(
                 Text(
                     text = "이미 계정이 있으신가요?",
                     fontSize = 14.sp,
-                    color = SubTextGray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "로그인",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = LinkGreen,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.clickable { onLoginClick() }
                 )
             }
@@ -163,19 +154,22 @@ fun WelcomeScreen(
  */
 @Composable
 private fun NaedaLogoPlaceholder() {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val onSurface = MaterialTheme.colorScheme.onSurface
+
     Canvas(modifier = Modifier.size(100.dp)) {
         val cornerRadius = 20.dp.toPx()
 
         // 민트색 둥근 사각형 테두리
         drawRoundRect(
-            color = Color(0xFF4DB6AC),
+            color = primaryColor,
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadius),
             style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx())
         )
 
         // 왼쪽 눈
         drawCircle(
-            color = Color(0xFF333333),
+            color = onSurface,
             radius = 5.dp.toPx(),
             center = androidx.compose.ui.geometry.Offset(
                 x = size.width * 0.35f,
@@ -185,7 +179,7 @@ private fun NaedaLogoPlaceholder() {
 
         // 오른쪽 눈
         drawCircle(
-            color = Color(0xFF333333),
+            color = onSurface,
             radius = 5.dp.toPx(),
             center = androidx.compose.ui.geometry.Offset(
                 x = size.width * 0.65f,
@@ -195,7 +189,7 @@ private fun NaedaLogoPlaceholder() {
 
         // 미소 (반원 아크)
         drawArc(
-            color = Color(0xFF333333),
+            color = onSurface,
             startAngle = 10f,
             sweepAngle = 160f,
             useCenter = false,

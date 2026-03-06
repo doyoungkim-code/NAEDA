@@ -10,6 +10,18 @@ sealed class Screen(val route: String) {
     object Splash : Screen("splash")
     object Welcome : Screen("welcome")
     object Login : Screen("login")
+
+    object SignUpRrn : Screen("signup_rrn")
+
+    object SignUpPhone : Screen("signup_phone")
+    object SignUpVerify : Screen("signup_verify/{phone}") {
+        fun createRoute(phone: String) = "signup_verify/$phone"
+    }
+
+    object SignUpEmail : Screen("signup_email")
+    object SignUpPassword : Screen("signup_password")
+    object SignUpPin : Screen("signup_pin")
+
     object SignUp : Screen("signup")
 
     // ── 메인 5탭 ──
