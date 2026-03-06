@@ -1,17 +1,18 @@
 spring:
   application:
     name: naeda
+
   servlet:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
-  #config:
-    #import: optional:file:.env[.properties]
+
   datasource:
-      url: jdbc:postgresql://localhost:5432/naeda
-      username: naedauser
-      password: "naeda1234!"
-      driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://127.0.0.1:${POSTGRES_PORT:5433}/${POSTGRES_DB:naeda_db}
+    username: ${POSTGRES_USER:user}
+    password: ${POSTGRES_PASSWORD:1234}
+    driver-class-name: org.postgresql.Driver
+
   jpa:
     hibernate:
       ddl-auto: update
