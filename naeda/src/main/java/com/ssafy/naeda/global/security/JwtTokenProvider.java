@@ -34,21 +34,22 @@ public class JwtTokenProvider {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String createAccessToken(String userId) {
-        return createToken(userId, accessTokenExpiry, "access");
+    public String createAccessToken(String userId, String userKey) {
+        return createToken(userId, userKey, accessTokenExpiry, "access");
     }
 
-    public String createRefreshToken(String userId) {
-        return createToken(userId, refreshTokenExpiry, "refresh");
+    public String createRefreshToken(String userId, String userKey) {
+        return createToken(userId, userKey, refreshTokenExpiry, "refresh");
     }
 
-    private String createToken(String userId, long expiry, String tokenType) {
+    private String createToken(String userId, String userKey, long expiry, String tokenType) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiry);
 
         return Jwts.builder()
                 .subject(userId)
                 .claim("type", tokenType)
+                .claim("userKey", userKey)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(key)
@@ -57,6 +58,10 @@ public class JwtTokenProvider {
 
     public String getUserId(String token) {
         return getClaims(token).getSubject();
+    }
+
+    public String getUserKey(String token) {
+        return (String) getClaims(token).get("userKey");
     }
 
     public boolean validateToken(String token) {

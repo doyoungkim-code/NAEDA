@@ -11,6 +11,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -22,8 +23,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    // TODO: JWT 구현 완료 후 JwtAuthenticationFilter 주입 및 addFilterBefore 복구
-    // private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -35,25 +35,25 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // TODO: JWT 구현 완료 후 아래 주석 해제하고 .anyRequest().permitAll() 제거
                 .authorizeHttpRequests(auth -> auth
-                        // .requestMatchers(
-                        //         "/api/auth/**",
-                        //         "/swagger-ui/**",
-                        //         "/api-docs/**",
-                        //         "/v3/api-docs/**",
-                        //         "/health"
-                        // ).permitAll()
-                        // .anyRequest().authenticated()
-                        .anyRequest().permitAll()
+                        .requestMatchers(
+                                "/api/auth/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/swagger-resources/**",
+                                "/api-docs/**",
+                                "/v3/api-docs/**",
+                                "/webjars/**",
+                                "/health"
+                        ).permitAll()
+                        .anyRequest().authenticated()
                 )
 
                 .formLogin(form -> form.disable())
-                .httpBasic(basic -> basic.disable());
+                .httpBasic(basic -> basic.disable())
 
-                // TODO: JWT 구현 완료 후 복구
-                // .addFilterBefore(jwtAuthenticationFilter,
-                //         UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
