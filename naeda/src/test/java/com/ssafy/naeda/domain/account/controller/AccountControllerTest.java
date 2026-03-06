@@ -4,6 +4,7 @@ import com.ssafy.naeda.domain.account.dto.response.AccountResponse;
 import com.ssafy.naeda.domain.account.service.AccountService;
 import com.ssafy.naeda.global.exception.GlobalExceptionHandler;
 import com.ssafy.naeda.global.exception.NotFoundException;
+import com.ssafy.naeda.global.security.SecurityConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AccountController.class)
-@Import(GlobalExceptionHandler.class)
+@Import({GlobalExceptionHandler.class, SecurityConfig.class})
 class AccountControllerTest {
 
     @Autowired
