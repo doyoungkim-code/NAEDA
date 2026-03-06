@@ -24,7 +24,7 @@ public class SsafyAccountListResponse {
         private String accountName;
         private String accountTypeCode;
         private String accountTypeName;
-        private String accountCreateDate;
+        private String accountCreatedDate;
         private String accountExpiryDate;
         private String dailyTransferLimit;
         private String oneTimeTransferLimit;
