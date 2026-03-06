@@ -14,6 +14,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -21,12 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Map;
-import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+
 
 @Slf4j
 @Service
@@ -38,12 +36,16 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final RestTemplate restTemplate;
+    private final RedisTemplate<String,String> redisTemplate;
 
     @Value("${ssafy.api.base-url}")
     private String ssafyBaseUrl;
 
     @Value("${ssafy.api.key}")
     private String ssafyApiKey;
+
+    @Value("${jwt.refresh-token-expiry}")
+    private long refreshTokenExpiry;
 
     @PostConstruct
     void checkApiKey() {
@@ -81,6 +83,14 @@ public class AuthService {
         String accessToken = jwtTokenProvider.createAccessToken(saved.getUserId(), userKey);
         String refreshToken = jwtTokenProvider.createRefreshToken(saved.getUserId(), userKey);
 
+        // 5. RefreshToken을 Redis에 저장 (key : "refresh:{userId}", TTL:7일)
+        redisTemplate.opsForValue().set(
+                "refresh:" + saved.getUserId(),
+                refreshToken,
+                refreshTokenExpiry,
+                TimeUnit.MILLISECONDS
+        );
+
         return SignupResponse.of(saved, accessToken, refreshToken);
     }
 
@@ -100,6 +110,19 @@ public class AuthService {
 
         String accessToken = jwtTokenProvider.createAccessToken(user.getUserId(),user.getUserKey());
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getUserId(), user.getUserKey());
+
+        //RefreshToken을 Redis에 저장(기존 토큰을 덮어쓰기 = 이전 세션 무효화)
+        redisTemplate.opsForValue().set(
+                "refresh:" + user.getUserId(),
+                refreshToken,
+                refreshTokenExpiry,
+                TimeUnit.MILLISECONDS
+        );
+//        key: "refresh:hong123@ssafy.co.kr" — userId별로 1개
+//        value: refreshToken 문자열
+//        timeout: 604800000 (7일, application.yaml의 refresh-token-expiry와 동일)
+//        unit: TimeUnit.MILLISECONDS
+//        재로그인하면 기존 토큰이 덮어씌워짐 → 이전 기기의 refreshToken은 자동으로 무효화. 이게 "단일 기기 로그인" 정책.
 
         return LoginResponse.of(user,accessToken,refreshToken);
 
