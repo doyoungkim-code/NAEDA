@@ -9,6 +9,11 @@ spring:
     import:
       - optional:file:.env[.properties]
       - optional:file:naeda/.env[.properties]
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: redis1234!
   datasource:
       url: jdbc:postgresql://localhost:5432/naeda
       username: naedauser
@@ -22,6 +27,7 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     show-sql: true
+
 
 ai:
   base-url: ${AI_BASE_URL:http://localhost:8000}
