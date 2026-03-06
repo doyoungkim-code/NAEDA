@@ -18,6 +18,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+<<<<<<< HEAD:naedafront/app/src/main/java/com/example/naedafront/ui/screen/Welcomescreen.kt
+=======
+import com.example.naedafront.ui.theme.Mint900
+>>>>>>> origin/S14P21D103-22-fe-002-회원가입-본인인증-화면:naedafront/app/src/main/java/com/example/naedafront/ui/screen/WelcomeScreen.kt
 
 @Composable
 fun WelcomeScreen(
@@ -107,7 +111,11 @@ fun WelcomeScreen(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
+<<<<<<< HEAD:naedafront/app/src/main/java/com/example/naedafront/ui/screen/Welcomescreen.kt
                     containerColor = MaterialTheme.colorScheme.primary
+=======
+                    containerColor = Mint900
+>>>>>>> origin/S14P21D103-22-fe-002-회원가입-본인인증-화면:naedafront/app/src/main/java/com/example/naedafront/ui/screen/WelcomeScreen.kt
                 ),
                 elevation = ButtonDefaults.buttonElevation(
                     defaultElevation = 0.dp

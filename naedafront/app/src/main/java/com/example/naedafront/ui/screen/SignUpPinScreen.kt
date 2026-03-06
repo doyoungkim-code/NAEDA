@@ -19,6 +19,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.naedafront.ui.common.SignUpProgressBar
+<<<<<<< HEAD
+=======
+import com.example.naedafront.ui.theme.Mint900
+>>>>>>> origin/S14P21D103-22-fe-002-회원가입-본인인증-화면
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,8 +115,13 @@ fun SignUpPinScreen(
                     enabled = isValid,
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
+<<<<<<< HEAD
                         containerColor = MaterialTheme.colorScheme.primary,
                         disabledContainerColor = MaterialTheme.colorScheme.primaryContainer
+=======
+                        containerColor = Mint900,
+                        disabledContainerColor = Mint900.copy(alpha = 0.38f)
+>>>>>>> origin/S14P21D103-22-fe-002-회원가입-본인인증-화면
                     )
                 ) {
                     Text("확인", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onPrimary)
