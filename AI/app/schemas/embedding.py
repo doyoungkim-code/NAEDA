@@ -10,6 +10,9 @@ class EmbeddingExtractResponse(BaseModel):
     yaw: float
     pitch: float
     roll: float
+    fallback_used: bool = Field(alias="fallbackUsed")
+    ai_status: str = Field(alias="aiStatus")
+    message: str
     model_config = ConfigDict(populate_by_name=True)
 
 

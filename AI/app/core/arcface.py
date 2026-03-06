@@ -20,6 +20,10 @@ def get_face_analyzer() -> FaceAnalysis:
     return analyzer
 
 
+def reset_face_analyzer() -> None:
+    get_face_analyzer.cache_clear()
+
+
 def _extract_embedding_from_bytes(image_raw: bytes) -> dict:
     image_bytes = np.frombuffer(image_raw, dtype=np.uint8)
     bgr = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
@@ -70,14 +74,39 @@ def _extract_embedding_from_bytes(image_raw: bytes) -> dict:
 
 
 async def extract_embedding(upload_file: UploadFile, timeout_seconds: float) -> dict:
+    settings = get_settings()
     image_raw = await upload_file.read()
     if not image_raw:
         raise AIServiceError(status_code=400, code="EMPTY_IMAGE", message="Image file is empty")
 
-    try:
-        return await asyncio.wait_for(
-            run_in_threadpool(_extract_embedding_from_bytes, image_raw),
-            timeout=timeout_seconds,
-        )
-    except asyncio.TimeoutError as exc:
-        raise AIServiceError(status_code=504, code="AI_TIMEOUT", message="AI request timeout") from exc
+    last_error: AIServiceError | None = None
+    total_attempts = max(1, settings.ai_retry_count + 1)
+
+    for attempt in range(1, total_attempts + 1):
+        try:
+            result = await asyncio.wait_for(
+                run_in_threadpool(_extract_embedding_from_bytes, image_raw),
+                timeout=timeout_seconds,
+            )
+            result["fallback_used"] = attempt > 1
+            result["ai_status"] = "FALLBACK_APPLIED" if attempt > 1 else "COMPLETED"
+            result["message"] = (
+                "Primary inference recovered after retry."
+                if attempt > 1
+                else "Primary inference succeeded."
+            )
+            return result
+        except asyncio.TimeoutError as exc:
+            last_error = AIServiceError(status_code=504, code="AI_TIMEOUT", message="AI request timeout")
+            if attempt >= total_attempts:
+                raise last_error from exc
+        except AIServiceError as exc:
+            last_error = exc
+            if exc.status_code < 500 or attempt >= total_attempts:
+                raise
+
+        reset_face_analyzer()
+        if settings.ai_retry_backoff_ms > 0:
+            await asyncio.sleep(settings.ai_retry_backoff_ms / 1000)
+
+    raise last_error or AIServiceError(status_code=503, code="AI_UNAVAILABLE", message="AI inference failed")

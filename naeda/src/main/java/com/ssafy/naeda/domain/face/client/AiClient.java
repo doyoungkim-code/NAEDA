@@ -78,6 +78,9 @@ public class AiClient {
                     .yaw(response.getYaw())
                     .pitch(response.getPitch())
                     .roll(response.getRoll())
+                    .fallbackUsed(response.isFallbackUsed())
+                    .aiStatus(response.getAiStatus())
+                    .message(response.getMessage())
                     .build();
 
         } catch (FaceException e) {
@@ -165,6 +168,7 @@ public class AiClient {
             case "EMPTY_IMAGE"     -> new FaceException(FaceErrorCode.EMPTY_IMAGE);
             case "INVALID_IMAGE"   -> new FaceException(FaceErrorCode.INVALID_IMAGE);
             case "INVALID_DIRECTION" -> new FaceException(FaceErrorCode.INVALID_POSE);
+            case "AI_TIMEOUT"      -> new FaceException(FaceErrorCode.AI_TIMEOUT);
             default                -> new FaceException(FaceErrorCode.AI_UNAVAILABLE);
         };
     }

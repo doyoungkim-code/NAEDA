@@ -20,13 +20,16 @@ public class EnrollResponse {
     private String pose;
     @Schema(description = "저장 시각", example = "2026-03-04T11:20:30")
     private LocalDateTime savedAt;
+    @Schema(description = "AI 처리 메타데이터")
+    private AiProcessingInfo aiProcessing;
 
-    public static EnrollResponse from(FaceEmbedding entity) {
+    public static EnrollResponse from(FaceEmbedding entity, AiProcessingInfo aiProcessing) {
         return EnrollResponse.builder()
                 .success(true)
                 .userId(entity.getUserId())
                 .pose(entity.getPose())
                 .savedAt(entity.getUpdatedAt())
+                .aiProcessing(aiProcessing)
                 .build();
     }
 }
