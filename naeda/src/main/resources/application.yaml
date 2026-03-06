@@ -5,8 +5,10 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
-  #config:
-    #import: optional:file:.env[.properties]
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:naeda/.env[.properties]
   datasource:
       url: jdbc:postgresql://localhost:5432/naeda
       username: naedauser
