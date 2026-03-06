@@ -17,7 +17,7 @@ import androidx.core.view.WindowCompat
 
 private val NaedaLightColorScheme = lightColorScheme(
     // Primary — 앱의 메인 색상 (버튼, FAB, 강조)
-    primary = Mint500,               // #009688 틸 그린
+    primary = Mint900,               // #00635A 딥 그린
     onPrimary = OnPrimary,           // 흰색 텍스트
     primaryContainer = Mint100,      // #44E3D3 연한 민트 (선택된 상태 배경)
     onPrimaryContainer = Mint900,    // #00635A 딥 그린
