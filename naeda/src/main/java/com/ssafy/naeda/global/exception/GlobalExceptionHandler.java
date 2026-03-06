@@ -103,4 +103,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(500)
                 .body(new ErrorResponse("INTERNAL_ERROR", "서버 오류가 발생했습니다."));
     }
+
+    @ExceptionHandler(AuthenticationFailedException.class)
+    public ResponseEntity<ErrorResponse> handleAuthenticationFailed(AuthenticationFailedException e){
+        log.warn("Authentication failed: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ErrorResponse("AUTHENTICATION_FAILED",e.getMessage()));
+    }
 }

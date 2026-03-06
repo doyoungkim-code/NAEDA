@@ -1,9 +1,12 @@
 package com.ssafy.naeda.domain.user.service;
 
+import com.ssafy.naeda.domain.user.dto.request.LoginRequest;
 import com.ssafy.naeda.domain.user.dto.request.SignupRequest;
+import com.ssafy.naeda.domain.user.dto.response.LoginResponse;
 import com.ssafy.naeda.domain.user.dto.response.SignupResponse;
 import com.ssafy.naeda.domain.user.entity.User;
 import com.ssafy.naeda.domain.user.repository.UserRepository;
+import com.ssafy.naeda.global.exception.AuthenticationFailedException;
 import com.ssafy.naeda.global.exception.DuplicateException;
 import com.ssafy.naeda.global.exception.SsafyApiException;
 import com.ssafy.naeda.global.security.JwtTokenProvider;
@@ -81,6 +84,29 @@ public class AuthService {
         return SignupResponse.of(saved, accessToken, refreshToken);
     }
 
+    @Transactional(readOnly = true)
+    public LoginResponse login(LoginRequest request){
+        User user = userRepository.findByUserId(request.getUserId())
+                .orElseThrow(() -> new AuthenticationFailedException(
+                        "아이디 또는 비밀번호가 일치하지 않습니다."
+                ));
+        //비밀번호 검증
+        if(!passwordEncoder.matches(request.getPassword(), user.getPassword())){
+            throw new AuthenticationFailedException("아이디 또는 비밀번호가 일치하지 않습니다.");
+        }
+
+        //SSAFY 금융망 사용자 검증
+        verifySsafyMember(user.getUserId());
+
+        String accessToken = jwtTokenProvider.createAccessToken(user.getUserId(),user.getUserKey());
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getUserId(), user.getUserKey());
+
+        return LoginResponse.of(user,accessToken,refreshToken);
+
+    }
+
+
+
     /**
      * SSAFY 금융망 사용자 계정 생성 API 호출.
      * 다른 SSAFY API와 달리 Header 래퍼 없이 apiKey + userId만 전송.
@@ -125,5 +151,42 @@ public class AuthService {
             log.error("[AuthService] SSAFY 회원가입 네트워크 오류: userId={}", userId, e);
             throw new SsafyApiException("NETWORK_ERROR", "SSAFY 회원가입 API 호출 실패: " + e.getMessage());
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void verifySsafyMember(String userId){
+        String url = ssafyBaseUrl + "/member/search";
+
+        Map<String,Object> body = Map.of(
+                "apiKey",ssafyApiKey,
+                "userId",userId
+        );
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String,Object>> request = new HttpEntity<>(body,headers);
+
+        log.info("[AuthService] SSAFY 회원 조회 요청: url={}, userId={}", url, userId);
+
+        try {
+            ResponseEntity<Map> responseEntity = restTemplate.exchange(
+                    url, HttpMethod.POST, request, Map.class
+            );
+
+            Map<String, Object> response = responseEntity.getBody();
+            if (response == null || !response.containsKey("userKey")) {
+                throw new SsafyApiException("SSAFY_VERIFY_FAIL", "SSAFY 회원 조회 응답에 userKey가 없습니다.");
+            }
+
+            log.info("[AuthService] SSAFY 회원 조회 성공: userId={}", userId);
+        }catch (HttpClientErrorException e) {
+            log.error("[AuthService] SSAFY 회원 조회 API 오류: status={}, body={}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new SsafyApiException("SSAFY_API_ERROR",
+                    "SSAFY 회원 조회 실패 (" + e.getStatusCode() + "): " + e.getResponseBodyAsString());
+        } catch (RestClientException e) {
+            log.error("[AuthService] SSAFY 회원 조회 네트워크 오류: userId={}", userId, e);
+            throw new SsafyApiException("NETWORK_ERROR", "SSAFY 회원 조회 API 호출 실패: " + e.getMessage());
+        }
+
     }
 }
