@@ -2,6 +2,7 @@ package com.ssafy.naeda.domain.face.service;
 
 import com.ssafy.naeda.domain.face.client.AiClient;
 import com.ssafy.naeda.domain.face.client.dto.AiEmbeddingResult;
+import com.ssafy.naeda.domain.face.dto.response.AiProcessingInfo;
 import com.ssafy.naeda.domain.face.dto.response.CandidateDto;
 import com.ssafy.naeda.domain.face.dto.response.EnrollResponse;
 import com.ssafy.naeda.domain.face.dto.response.FaceMatchStatus;
@@ -73,7 +74,7 @@ public class FaceService {
         faceEmbeddingRepository.save(entity);
 
         log.info("얼굴 등록 완료: userId={}, pose={}", userId, pose);
-        return EnrollResponse.from(entity);
+        return EnrollResponse.from(entity, AiProcessingInfo.from(embeddingResult));
     }
 
     /**
@@ -122,6 +123,7 @@ public class FaceService {
                 .blocked(rbaResult.isBlocked())
                 .rbaReason(rbaResult.getReason())
                 .candidates(candidates)
+                .aiProcessing(AiProcessingInfo.from(probeResult))
                 .build();
     }
 
