@@ -58,9 +58,18 @@ def test_extract_invalid_image_format():
 
 
 def test_extract_success(monkeypatch):
-    async def fake_extract_embedding(_, timeout_seconds: float) -> list[float]:
+    async def fake_extract_embedding(_, timeout_seconds: float) -> dict:
         assert timeout_seconds > 0
-        return [0.1] * 512
+        return {
+            "embedding": [0.1] * 512,
+            "quality_score": 0.97,
+            "yaw": 0.01,
+            "pitch": -0.02,
+            "roll": 0.0,
+            "fallback_used": False,
+            "ai_status": "COMPLETED",
+            "message": "Primary inference succeeded.",
+        }
 
     monkeypatch.setattr(embeddings_api, "extract_embedding", fake_extract_embedding)
 
@@ -76,6 +85,9 @@ def test_extract_success(monkeypatch):
     assert data["faceCount"] == 1
     assert data["model"] == "arcface-buffalo_l"
     assert len(data["embedding"]) == 512
+    assert data["fallbackUsed"] is False
+    assert data["aiStatus"] == "COMPLETED"
+    assert data["message"] == "Primary inference succeeded."
 
 
 def test_extract_propagates_ai_error(monkeypatch):

@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     arcface_provider: str = "CPUExecutionProvider"
     arcface_det_size: int = 320
     ai_timeout_seconds: float = 5.0
+    ai_retry_count: int = 1
+    ai_retry_backoff_ms: int = 150
 
     internal_service_token: str = "dev-internal-token"
 

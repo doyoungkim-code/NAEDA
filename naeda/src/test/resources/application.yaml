@@ -30,3 +30,8 @@ ssafy:
   api:
     base-url: https://finopenapi.ssafy.io/ssafy/api/v1
     key: ${SSAFY_API_KEY:}
+
+jwt:
+  secret: ${JWT_SECRET:dGVzdC1zZWNyZXQta2V5LWZvci1uYWVkYS1wcm9qZWN0LTEyMzQ1Njc4OQ==}
+  access-token-expiry: 3600000
+  refresh-token-expiry: 604800000

@@ -16,5 +16,10 @@ public class AiHeadPoseResponse {
     private float yaw;
     private float pitch;
     private float confidence;
+    @JsonProperty("fallbackUsed")
+    private boolean fallbackUsed;
+    @JsonProperty("aiStatus")
+    private String aiStatus;
+    private String message;
 }
 
