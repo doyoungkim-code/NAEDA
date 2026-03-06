@@ -9,6 +9,8 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "account")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder
 @Getter
 public class Account {
 
