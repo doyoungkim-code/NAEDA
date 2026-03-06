@@ -13,4 +13,7 @@ public class AiEmbeddingResult {
     private float yaw;
     private float pitch;
     private float roll;
+    private boolean fallbackUsed;
+    private String aiStatus;
+    private String message;
 }

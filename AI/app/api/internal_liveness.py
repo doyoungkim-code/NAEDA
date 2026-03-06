@@ -36,5 +36,8 @@ async def check_headpose_direction(
         yaw=result.yaw,
         pitch=result.pitch,
         confidence=result.confidence,
+        fallback_used=result.fallback_used,
+        ai_status=result.ai_status,
+        message=result.message,
     )
 
