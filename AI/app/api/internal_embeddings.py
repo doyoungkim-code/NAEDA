@@ -34,4 +34,7 @@ async def extract_face_embedding(
         yaw=result["yaw"],
         pitch=result["pitch"],
         roll=result["roll"],
+        fallback_used=result["fallback_used"],
+        ai_status=result["ai_status"],
+        message=result["message"],
     )

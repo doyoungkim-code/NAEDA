@@ -30,6 +30,9 @@ public class AiEmbeddingResponse {
     private float yaw;
     private float pitch;
     private float roll;
+    private boolean fallbackUsed;
+    private String aiStatus;
+    private String message;
 
     public float[] toFloatArray() {
         float[] arr = new float[embedding.size()];

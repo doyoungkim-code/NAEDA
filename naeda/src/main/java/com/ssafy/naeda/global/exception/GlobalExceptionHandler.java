@@ -20,8 +20,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(FaceException.class)
     public ResponseEntity<ErrorResponse> handleFaceException(FaceException e) {
         log.warn("FaceException: code={}, message={}", e.getCode(), e.getMessage());
+        boolean retryable = "AI_TIMEOUT".equals(e.getCode()) || "AI_UNAVAILABLE".equals(e.getCode());
         return ResponseEntity.status(e.getStatus())
-                .body(new ErrorResponse(e.getCode(), e.getMessage()));
+                .body(new ErrorResponse(
+                        e.getCode(),
+                        e.getMessage(),
+                        null,
+                        retryable ? "FAILED_RETRYABLE" : "FAILED",
+                        retryable ? Boolean.TRUE : null
+                ));
     }
 
     @ExceptionHandler(SsafyApiException.class)

@@ -27,6 +27,8 @@ public class HeadPoseCheckResponse {
 
     @Schema(description = "탐지 신뢰도(0~1)", example = "0.82")
     private float confidence;
+    @Schema(description = "AI 처리 메타데이터")
+    private AiProcessingInfo aiProcessing;
 
     public static HeadPoseCheckResponse from(AiHeadPoseResponse ai) {
         return HeadPoseCheckResponse.builder()
@@ -36,6 +38,7 @@ public class HeadPoseCheckResponse {
                 .yaw(ai.getYaw())
                 .pitch(ai.getPitch())
                 .confidence(ai.getConfidence())
+                .aiProcessing(AiProcessingInfo.from(ai))
                 .build();
     }
 }

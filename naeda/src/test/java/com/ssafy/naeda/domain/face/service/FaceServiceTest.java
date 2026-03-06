@@ -79,6 +79,9 @@ class FaceServiceTest {
         assertThat(response.getRequiredMethods()).containsExactly(AuthMethod.FACE);
         assertThat(response.getBestUserId()).isEqualTo("user-match");
         assertThat(response.getSimilarity()).isGreaterThanOrEqualTo(0.7f);
+        assertThat(response.getAiProcessing()).isNotNull();
+        assertThat(response.getAiProcessing().getAiStatus()).isEqualTo("COMPLETED");
+        assertThat(response.getAiProcessing().isFallbackUsed()).isFalse();
     }
 
     @Test
@@ -155,6 +158,9 @@ class FaceServiceTest {
                 .yaw(0.0f)
                 .pitch(0.0f)
                 .roll(0.0f)
+                .fallbackUsed(false)
+                .aiStatus("COMPLETED")
+                .message("Primary inference succeeded.")
                 .build();
     }
 

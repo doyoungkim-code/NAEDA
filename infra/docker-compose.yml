@@ -25,6 +25,32 @@ services:
       timeout: 5s
       retries: 5
 
+# ============================================================
+  # PostgreSQL DB (테스트용)
+  # ============================================================
+  postgres-test:
+    build:
+      context: .
+      dockerfile: postgres/Dockerfile
+    container_name: naeda-postgres-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: naeda_test
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: Asia/Seoul
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    networks:
+      - naeda-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d naeda_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ============================================================
   # Redis
   # ============================================================
@@ -77,6 +103,8 @@ services:
 # ============================================================
 volumes:
   postgres_data:
+    driver: local
+  postgres_test_data:        # ← 추가
     driver: local
   redis_data:
     driver: local

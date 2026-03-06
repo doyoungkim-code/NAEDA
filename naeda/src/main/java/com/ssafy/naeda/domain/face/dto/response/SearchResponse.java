@@ -46,4 +46,6 @@ public class SearchResponse {
     private String rbaReason;
     @Schema(description = "상위 유사 후보 목록")
     private List<CandidateDto> candidates;
+    @Schema(description = "AI 처리 메타데이터")
+    private AiProcessingInfo aiProcessing;
 }
