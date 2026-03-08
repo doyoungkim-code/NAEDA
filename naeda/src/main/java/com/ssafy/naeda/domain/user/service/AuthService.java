@@ -1,6 +1,7 @@
 package com.ssafy.naeda.domain.user.service;
 
 import com.ssafy.naeda.domain.user.dto.request.LoginRequest;
+import com.ssafy.naeda.domain.user.dto.request.RefreshTokenRequest;
 import com.ssafy.naeda.domain.user.dto.request.SignupRequest;
 import com.ssafy.naeda.domain.user.dto.response.LoginResponse;
 import com.ssafy.naeda.domain.user.dto.response.SignupResponse;
@@ -96,6 +97,7 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request){
+
         User user = userRepository.findByUserId(request.getUserId())
                 .orElseThrow(() -> new AuthenticationFailedException(
                         "아이디 또는 비밀번호가 일치하지 않습니다."
@@ -128,6 +130,42 @@ public class AuthService {
 
     }
 
+    public LoginResponse refresh(RefreshTokenRequest request){
+        String refreshToken = request.getRefreshToken();
+
+        // 1) RefreshToken JWT 자체 유효성 검증 (서명, 만료)
+        if(!jwtTokenProvider.validateToken(refreshToken)){
+            throw new AuthenticationFailedException("만료되었거나 유효하지 않은 리프레시 토큰입니다.");
+        }
+
+        // 2) 토큰에서 userId 추출
+        String userId = jwtTokenProvider.getUserId(refreshToken);
+
+        // 3) Redis에 저장된 RefreshToken과 비교
+        String savedToken = redisTemplate.opsForValue().get("refresh:" +userId);
+        if(savedToken == null || !savedToken.equals(refreshToken)){
+            throw new AuthenticationFailedException("유효하지 않은 리프레시 토큰입니다.");
+        }
+
+        // 4) DB에서 사용자 조회
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new AuthenticationFailedException("사용자를 찾을 수 없습니다."));
+
+        // 5) 새 토큰 발급
+        String newAccessToken = jwtTokenProvider.createAccessToken(user.getUserId(), user.getUserKey());
+        String newRefreshToken = jwtTokenProvider.createRefreshToken(user.getUserId(), user.getUserKey());
+
+        // 6) Redis에 새 refreshToken 저장 (기존 토큰 교체)
+        redisTemplate.opsForValue().set(
+                "refresh:" + user.getUserId(),
+                newRefreshToken,
+                refreshTokenExpiry,
+                TimeUnit.MILLISECONDS
+        );
+
+        return LoginResponse.of(user, newAccessToken, newRefreshToken);
+
+    }
 
 
     /**
