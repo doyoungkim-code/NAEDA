@@ -69,4 +69,16 @@ public class AuthController {
         LoginResponse response = authService.refresh(request);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/logout")
+    @Operation(summary = "로그아웃", description = "RefreshToken을 무효화하여 로그아웃합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "로그아웃 성공"),
+            @ApiResponse(responseCode = "401", description = "유효하지 않은 토큰",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest request){
+        authService.logout(request);
+        return ResponseEntity.ok().build();
+    }
 }

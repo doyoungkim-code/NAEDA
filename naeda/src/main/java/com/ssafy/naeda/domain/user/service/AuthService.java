@@ -167,6 +167,23 @@ public class AuthService {
 
     }
 
+    public void logout(RefreshTokenRequest request){
+        String refreshToken = request.getRefreshToken();
+
+        // 1) RefreshToken JWT 유효성 검증
+        if(!jwtTokenProvider.validateToken(refreshToken)){
+            throw new AuthenticationFailedException("유효하지 않은 리프레시 토큰입니다.");
+        }
+
+        // 2)토큰에서 userId 추출
+        String userId = jwtTokenProvider.getUserId(refreshToken);
+
+        // 3) Redis에서 RefreshToken 삭제
+        redisTemplate.delete("refresh:" +userId);
+
+        log.info("[AuthService] 로그아웃 완료: userId = {}", userId);
+    }
+
 
     /**
      * SSAFY 금융망 사용자 계정 생성 API 호출.
