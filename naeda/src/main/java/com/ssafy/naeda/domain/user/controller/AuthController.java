@@ -1,6 +1,7 @@
 package com.ssafy.naeda.domain.user.controller;
 
 import com.ssafy.naeda.domain.user.dto.request.LoginRequest;
+import com.ssafy.naeda.domain.user.dto.request.RefreshTokenRequest;
 import com.ssafy.naeda.domain.user.dto.request.SignupRequest;
 import com.ssafy.naeda.domain.user.dto.response.LoginResponse;
 import com.ssafy.naeda.domain.user.dto.response.SignupResponse;
@@ -54,6 +55,18 @@ public class AuthController {
     })
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request){
         LoginResponse response = authService.login(request);
+        return ResponseEntity.ok(response);
+    }
+
+
+    @PostMapping("/refresh")
+    @Operation(summary = "토큰 재발급", description = "RefreshToken으로 새로운 AccessToken과 RefreshToken을 발급합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "재발급 성공"),
+            @ApiResponse(responseCode = "401", description = "유효하지 않은 리프레시 토큰", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<LoginResponse> refresh(@Valid @RequestBody RefreshTokenRequest request){
+        LoginResponse response = authService.refresh(request);
         return ResponseEntity.ok(response);
     }
 }
