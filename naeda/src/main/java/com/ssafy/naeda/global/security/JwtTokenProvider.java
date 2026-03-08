@@ -83,4 +83,11 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token)
                 .getPayload();
     }
+
+    //AccessToken의 남은 수명을 밀리초로 반환 → 블랙리스트 TTL로 사용
+    public long getRemainingTime(String token){
+        Claims claims = getClaims(token);
+        Date expiration = claims.getExpiration();
+        return expiration.getTime() - System.currentTimeMillis();
+    }
 }

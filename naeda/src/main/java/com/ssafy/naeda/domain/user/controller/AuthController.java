@@ -6,6 +6,7 @@ import com.ssafy.naeda.domain.user.dto.request.SignupRequest;
 import com.ssafy.naeda.domain.user.dto.response.LoginResponse;
 import com.ssafy.naeda.domain.user.dto.response.SignupResponse;
 import com.ssafy.naeda.domain.user.service.AuthService;
+import com.ssafy.naeda.global.exception.AuthenticationFailedException;
 import com.ssafy.naeda.global.exception.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -13,14 +14,12 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -77,8 +76,19 @@ public class AuthController {
             @ApiResponse(responseCode = "401", description = "유효하지 않은 토큰",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
-    public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest request){
-        authService.logout(request);
+    public ResponseEntity<Void> logout(
+            HttpServletRequest httpRequest,
+            @Valid @RequestBody RefreshTokenRequest request
+    ){
+        String authHeader = httpRequest.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new AuthenticationFailedException("AccessToken이 필요합니다.");
+        }
+        String accessToken = authHeader.substring(7);
+        authService.logout(request, accessToken);
         return ResponseEntity.ok().build();
     }
 }
+
+
+//"accessToken": "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0MTBAc3NhZnkuY28ua3IiLCJ0eXBlIjoiYWNjZXNzIiwidXNlcktleSI6IjEwODVkZDYxLTQwODktNGVjZC05Yjc5LWI5NTMxMzhlYmI4YyIsImlhdCI6MTc3Mjk4NjMyMiwiZXhwIjoxNzcyOTg4MTIyfQ.g-RtPmaE8l6q4Slmw_HB7Z4w1_GmpVzMoGSD9Ho4luvQB9eRtPq21jbDymvzKb6u",   "refreshToken": "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0MTBAc3NhZnkuY28ua3IiLCJ0eXBlIjoicmVmcmVzaCIsInVzZXJLZXkiOiIxMDg1ZGQ2MS00MDg5LTRlY2QtOWI3OS1iOTUzMTM4ZWJiOGMiLCJpYXQiOjE3NzI5ODYzMjIsImV4cCI6MTc3MzU5MTEyMn0.xCyIrsSSVTbGqEVzYoJG8LLdosuUKqhnhrEAGm_pR8Mzm_ZoKWEJCLe7JNatUgHO"

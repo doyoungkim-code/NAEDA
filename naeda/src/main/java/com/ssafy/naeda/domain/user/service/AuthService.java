@@ -167,7 +167,7 @@ public class AuthService {
 
     }
 
-    public void logout(RefreshTokenRequest request){
+    public void logout(RefreshTokenRequest request, String accessToken){
         String refreshToken = request.getRefreshToken();
 
         // 1) RefreshToken JWT 유효성 검증
@@ -180,6 +180,17 @@ public class AuthService {
 
         // 3) Redis에서 RefreshToken 삭제
         redisTemplate.delete("refresh:" +userId);
+
+        // 4. AccessToken 블랙리스트 등록 (남은 만료시간만큼 TTL 설정)
+        long remainTime = jwtTokenProvider.getRemainingTime(accessToken);
+        if(remainTime > 0){
+            redisTemplate.opsForValue().set(
+                    "blacklist:" + accessToken,
+                    "logout",
+                    remainTime,
+                    TimeUnit.MILLISECONDS
+            );
+        }
 
         log.info("[AuthService] 로그아웃 완료: userId = {}", userId);
     }
