@@ -16,4 +16,6 @@ public interface CreditCardRepository extends JpaRepository<CreditCard, Long> {
 
     // 카드 중복 확인
     boolean existsByCardNo(String cardNo);
+
+    List<CreditCard> findByUserNoAndIsActiveTrue(Long userNo);
 }

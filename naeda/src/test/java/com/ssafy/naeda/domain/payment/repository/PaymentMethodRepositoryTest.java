@@ -103,4 +103,30 @@ class PaymentMethodRepositoryTest {
         assertThat(method.getIsDefault()).isTrue();
         assertThat(method.getIsFacePay()).isTrue();
     }
+
+    @Test
+    @DisplayName("creditCardId로 결제수단 조회")
+    void findByCreditCardId() {
+        paymentMethodRepository.save(PaymentMethod.builder()
+                .userNo(1L).methodType(MethodType.CREDIT_CARD).creditCardId(10L).build());
+        paymentMethodRepository.save(PaymentMethod.builder()
+                .userNo(1L).methodType(MethodType.CREDIT_CARD).creditCardId(20L).build());
+
+        List<PaymentMethod> methods = paymentMethodRepository.findByCreditCardId(10L);
+        assertThat(methods).hasSize(1);
+        assertThat(methods.get(0).getCreditCardId()).isEqualTo(10L);
+    }
+
+    @Test
+    @DisplayName("debitCardId로 결제수단 조회")
+    void findByDebitCardId() {
+        paymentMethodRepository.save(PaymentMethod.builder()
+                .userNo(1L).methodType(MethodType.DEBIT_CARD).debitCardId(5L).build());
+        paymentMethodRepository.save(PaymentMethod.builder()
+                .userNo(1L).methodType(MethodType.DEBIT_CARD).debitCardId(15L).build());
+
+        List<PaymentMethod> methods = paymentMethodRepository.findByDebitCardId(5L);
+        assertThat(methods).hasSize(1);
+        assertThat(methods.get(0).getDebitCardId()).isEqualTo(5L);
+    }
 }

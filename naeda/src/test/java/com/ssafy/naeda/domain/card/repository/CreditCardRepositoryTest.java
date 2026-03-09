@@ -90,4 +90,21 @@ class CreditCardRepositoryTest {
         assertThat(creditCardRepository.existsByCardNo("1003000000001111")).isTrue();
         assertThat(creditCardRepository.existsByCardNo("9999999999999999")).isFalse();
     }
+
+    @Test
+    @DisplayName("userNo + 활성 카드만 조회")
+    void findByUserNoAndIsActiveTrue() {
+        CreditCard active1 = creditCardRepository.save(buildCreditCard(1L, "1003000000001111"));
+        CreditCard active2 = creditCardRepository.save(buildCreditCard(1L, "1003000000002222"));
+        CreditCard inactive = creditCardRepository.save(buildCreditCard(1L, "1003000000003333"));
+        inactive.deactivate();
+        creditCardRepository.save(inactive);
+
+        creditCardRepository.save(buildCreditCard(2L, "1003000000004444"));
+
+        List<CreditCard> cards = creditCardRepository.findByUserNoAndIsActiveTrue(1L);
+        assertThat(cards).hasSize(2);
+        assertThat(cards).extracting(CreditCard::getCardNo)
+                .containsExactlyInAnyOrder("1003000000001111", "1003000000002222");
+    }
 }
