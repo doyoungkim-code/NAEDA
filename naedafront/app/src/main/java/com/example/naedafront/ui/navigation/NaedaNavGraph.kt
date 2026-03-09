@@ -23,7 +23,9 @@ import com.example.naedafront.ui.screen.SignUpEmailScreen
 import com.example.naedafront.ui.screen.SignUpPasswordScreen
 import com.example.naedafront.ui.screen.SignUpPinScreen
 import com.example.naedafront.ui.screen.home.HomeScreen
+import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
 import com.example.naedafront.ui.navigation.Screen
+import com.example.naedafront.ui.screen.home.HomeUiState
 
 /**
  * 내다(NAEDA) 전체 네비게이션 그래프
@@ -144,9 +146,10 @@ fun NaedaNavGraph(
 
         composable(Screen.Home.route) {
             HomeScreen(
+                uiState = HomeUiState(isFaceRegistered = AuthPrefs.isFaceRegistered(context)),
                 onTransferClick = { navController.navigate(Screen.Transfer.route) },
                 onTransactionClick = { navController.navigate(Screen.Transaction.route) },
-                onFacePaySettingClick = { navController.navigate(Screen.FaceIntro.route) },
+                onFacePaySettingClick = { navController.navigate(Screen.FaceRegister.route) },
                 onLinkAccountClick = { /* TODO: 계좌 연결 화면 */ },
                 onViewAllTransactionsClick = { navController.navigate(Screen.Transaction.route) },
                 onSearchClick = { /* TODO */ },
@@ -160,9 +163,7 @@ fun NaedaNavGraph(
         }
 
         composable(Screen.Scan.route) {
-            // TODO: 얼굴 등록 여부에 따라 분기
-            //  if (faceRegistered) GumiMapScreen() else FaceIntroScreen()
-            PlaceholderScreen("😀 스캔\n(얼굴등록 / 지도)")
+            PlaceholderScreen("🗺️ 구미 맛집 지도")
         }
 
         composable(Screen.Asset.route) {
@@ -176,6 +177,18 @@ fun NaedaNavGraph(
         // ═══════════════════════════════════════
         // 스캔 탭 하위 화면
         // ═══════════════════════════════════════
+
+        composable(Screen.FaceRegister.route) {
+            FaceRegisterScreen(
+                onBack = { navController.popBackStack() },
+                onRegisterComplete = {
+                    AuthPrefs.setFaceRegistered(context, true)
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Home.route) { inclusive = true }
+                    }
+                }
+            )
+        }
 
         composable(Screen.FaceIntro.route) {
             PlaceholderScreen("페이스페이 소개")
