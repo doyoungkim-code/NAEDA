@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -15,7 +16,6 @@ import java.time.LocalDateTime;
 public class Store {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "store_id")
     private Long storeId;
 
@@ -28,8 +28,11 @@ public class Store {
     @Column(name = "store_name", length = 100, nullable = false)
     private String storeName;
 
-    @Column(length = 30, nullable = false)
-    private String category;
+    @Column(name = "category", length = 30, nullable = false)
+    private String categoryId;     // SSAFY 카테고리 고유 ID (예: "CG-4fa85f6425ad1d3")
+
+    @Column(name = "category_name", length = 50)
+    private String categoryName;   // SSAFY 카테고리명 (예: "대형마트")
 
     @Column(name = "road_address", length = 255, nullable = false)
     private String roadAddress;

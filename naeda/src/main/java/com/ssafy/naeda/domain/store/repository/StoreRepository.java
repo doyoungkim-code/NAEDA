@@ -9,9 +9,9 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
 
     List<Store> findByUserNo(Long userNo);
 
-    List<Store> findByCategory(String category);
+    List<Store> findByCategoryId(String categoryId);
 
     List<Store> findByFacePayEnabledTrue();
 
-    List<Store> findByCategoryAndFacePayEnabledTrue(String category);
+    List<Store> findByCategoryIdAndFacePayEnabledTrue(String categoryId);
 }

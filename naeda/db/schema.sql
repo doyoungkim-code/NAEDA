@@ -128,11 +128,12 @@ CREATE TABLE payment_method (
 
 -- 8) Store (매장 정보)
 CREATE TABLE store (
-                       store_id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                       store_id          BIGINT         PRIMARY KEY,             -- SSAFY merchantId (외부 주입)
                        user_no           BIGINT         NOT NULL,                -- FK → user (사장님)
                        account_id        BIGINT,                                 -- FK → account (정산 계좌)
                        store_name        VARCHAR(100)   NOT NULL,                -- 매장명
-                       category          VARCHAR(30)    NOT NULL,                -- 한식/양식/카페/편의점 등
+                       category          VARCHAR(30)    NOT NULL,                -- SSAFY 카테고리 고유 ID (예: CG-4fa85f6425ad1d3)
+                       category_name     VARCHAR(50),                            -- SSAFY 카테고리명 (예: 대형마트)
                        road_address      VARCHAR(255)   NOT NULL,                -- 도로명 주소
                        number_address    VARCHAR(255),                           -- 지번 주소
                        latitude          FLOAT,                                  -- 위도
