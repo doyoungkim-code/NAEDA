@@ -10,6 +10,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.naedafront.ui.theme.NaedaTheme
@@ -31,6 +32,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun NaedaApp() {
+    val context = LocalContext.current
+    val startDestination = if (AuthPrefs.isLoggedIn(context)) Screen.Home.route else Screen.Welcome.route
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -58,6 +61,7 @@ fun NaedaApp() {
     ) { innerPadding ->
         NaedaNavGraph(
             navController = navController,
+            startDestination = startDestination,
             modifier = Modifier.padding(innerPadding)
         )
     }

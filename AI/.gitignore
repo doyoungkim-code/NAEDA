@@ -4,3 +4,10 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .env
+.coverage
+htmlcov/
+.idea/
+.vscode/
+*.log
+.env.*
+!.env.example

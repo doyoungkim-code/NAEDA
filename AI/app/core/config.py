@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     ai_timeout_seconds: float = 5.0
     ai_retry_count: int = 1
     ai_retry_backoff_ms: int = 150
+    ai_max_image_bytes: int = 3_145_728
 
     internal_service_token: str = "dev-internal-token"
 
