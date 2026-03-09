@@ -41,3 +41,7 @@ out/
 .env
 .env.*
 !.env.example
+test-output/
+reports/
+*.hprof
+hs_err_pid*

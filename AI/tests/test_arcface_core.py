@@ -23,9 +23,9 @@ def test_extract_embedding_from_bytes_normalizes_to_unit_length(monkeypatch):
     monkeypatch.setattr(arcface, "get_face_analyzer", lambda: _DummyAnalyzer([_DummyFace(embedding)]))
 
     result = arcface._extract_embedding_from_bytes(b"fake-image-binary")
-    result_arr = np.asarray(result, dtype=np.float32)
+    result_arr = np.asarray(result["embedding"], dtype=np.float32)
 
-    assert len(result) == 512
+    assert len(result["embedding"]) == 512
     assert np.isclose(np.linalg.norm(result_arr), 1.0, atol=1e-5)
 
 
