@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse, Response
 
 from app.api.internal_embeddings import router as internal_embeddings_router
 from app.api.internal_liveness import router as internal_liveness_router
+from app.api.internal_model_version import router as internal_model_version_router
 from app.core.config import get_settings
 from app.core.errors import AIServiceError
 from app.core.metrics import REQUEST_DURATION_SECONDS, REQUESTS_TOTAL, render_metrics
@@ -15,6 +16,7 @@ settings = get_settings()
 app = FastAPI(title=settings.app_name)
 app.include_router(internal_embeddings_router)
 app.include_router(internal_liveness_router)
+app.include_router(internal_model_version_router)
 
 
 @app.middleware("http")
