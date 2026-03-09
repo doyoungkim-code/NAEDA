@@ -211,6 +211,91 @@ SSAFY 카드 생성 API를 호출하여 카드를 등록한다. 응답의 cardTy
 
 ---
 
+## 4. 카드 결제 내역 조회
+
+SSAFY 카드 거래내역 조회 API를 호출하여 결제 내역을 반환한다. 조회된 거래는 transaction_log 테이블에 캐싱하며, 이미 저장된 거래는 DB에서 조회한다.
+
+| 항목 | 내용 |
+|------|------|
+| **Method** | `GET` |
+| **URL** | `/api/cards/{cardId}/transactions` |
+| **Auth** | - |
+
+### Path Parameters
+
+| 이름 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| cardId | Long | O | 조회할 카드 PK |
+
+### Query Parameters
+
+| 이름 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| userNo | Long | O | 사용자 번호 |
+| userKey | String | O | SSAFY API userKey |
+| startDate | String | O | 조회 시작일 (yyyyMMdd) |
+| endDate | String | O | 조회 종료일 (yyyyMMdd) |
+
+### Response
+
+**Status: `200 OK`**
+
+```json
+[
+  {
+    "logId": 1,
+    "transactionUniqueNo": "TX-001",
+    "categoryName": "식비",
+    "merchantName": "스타벅스",
+    "transactionDate": "2024-04-10",
+    "transactionTime": "14:30:00",
+    "amount": 5000,
+    "cardStatus": "승인"
+  },
+  {
+    "logId": 2,
+    "transactionUniqueNo": "TX-002",
+    "categoryName": "교통",
+    "merchantName": "카카오택시",
+    "transactionDate": "2024-04-11",
+    "transactionTime": "09:15:00",
+    "amount": 12000,
+    "cardStatus": "승인"
+  }
+]
+```
+
+### Response 필드 설명
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| logId | Long | 거래 로그 PK |
+| transactionUniqueNo | String | SSAFY 거래 고유번호 |
+| categoryName | String | 거래 카테고리 |
+| merchantName | String | 가맹점명 |
+| transactionDate | String | 거래 날짜 (yyyy-MM-dd) |
+| transactionTime | String | 거래 시간 (HH:mm:ss) |
+| amount | Long | 거래 금액 |
+| cardStatus | String | 카드 상태 (승인 등) |
+
+### Error
+
+| Status | 조건 | 메시지 |
+|--------|------|--------|
+| 400 | userNo, userKey, startDate, endDate 중 누락 | 요청 파라미터를 확인해주세요. |
+| 404 | 카드를 찾을 수 없음 | 카드를 찾을 수 없습니다: {cardId} |
+
+### 처리 흐름
+
+1. cardId로 credit_card → debit_card 순서로 탐색 + 소유자(userNo) 검증
+2. SSAFY inquireCreditCardTransactionList API 호출
+3. 각 거래에 대해 ssafyTransactionId 기준 중복 체크
+   - 이미 저장된 거래: DB에서 조회
+   - 새 거래: transaction_log에 저장
+4. CardTransactionResponse 리스트로 변환하여 반환
+
+---
+
 ## 카드 등록 처리 흐름
 
 1. SSAFY createCreditCard API 호출 (카드 생성)
