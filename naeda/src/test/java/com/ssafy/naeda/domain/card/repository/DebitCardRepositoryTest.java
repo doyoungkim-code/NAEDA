@@ -86,4 +86,21 @@ class DebitCardRepositoryTest {
         assertThat(debitCardRepository.existsByCardNo("1005000000001111")).isTrue();
         assertThat(debitCardRepository.existsByCardNo("9999999999999999")).isFalse();
     }
+
+    @Test
+    @DisplayName("userNo + 활성 카드만 조회")
+    void findByUserNoAndIsActiveTrue() {
+        debitCardRepository.save(buildDebitCard(1L, "1005000000001111"));
+        debitCardRepository.save(buildDebitCard(1L, "1005000000002222"));
+        DebitCard inactive = debitCardRepository.save(buildDebitCard(1L, "1005000000003333"));
+        inactive.deactivate();
+        debitCardRepository.save(inactive);
+
+        debitCardRepository.save(buildDebitCard(2L, "1005000000004444"));
+
+        List<DebitCard> cards = debitCardRepository.findByUserNoAndIsActiveTrue(1L);
+        assertThat(cards).hasSize(2);
+        assertThat(cards).extracting(DebitCard::getCardNo)
+                .containsExactlyInAnyOrder("1005000000001111", "1005000000002222");
+    }
 }

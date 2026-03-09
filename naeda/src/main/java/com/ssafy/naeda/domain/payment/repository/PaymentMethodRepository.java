@@ -13,4 +13,8 @@ public interface PaymentMethodRepository extends JpaRepository<PaymentMethod, Lo
 
     // 페이스페이 결제수단 조회
     Optional<PaymentMethod> findByUserNoAndIsFacePayTrue(Long userNo);
+
+    List<PaymentMethod> findByCreditCardId(Long creditCardId);
+
+    List<PaymentMethod> findByDebitCardId(Long debitCardId);
 }
