@@ -46,6 +46,9 @@ class FaceServiceTest {
     @Mock
     private RbaEngine rbaEngine;
 
+    @Mock
+    private FaceInputValidator faceInputValidator;
+
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(faceService, "matchThreshold", 0.7f);

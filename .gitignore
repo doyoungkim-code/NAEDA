@@ -25,6 +25,13 @@ $RECYCLE.BIN/
 .venv
 venv/
 env/
+**/.gradle-user/
+**/.pytest_cache/
+**/__pycache__/
+**/.venv/
+**/.env
+**/.env.*
+!**/.env.example
 
 
 # Python (AI 서버)

@@ -33,6 +33,7 @@ face:
     match: 0.7
     ambiguous: 0.65
   top-k: 3
+  max-image-bytes: 3145728
   encrypt-key: ${FACE_ENCRYPT_KEY:}
 
 rba:

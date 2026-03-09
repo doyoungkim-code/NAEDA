@@ -19,6 +19,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.SocketTimeoutException;
+import java.util.Arrays;
 
 @Slf4j
 @Component
@@ -32,15 +33,15 @@ public class AiClient {
      * AI 서버에 이미지를 보내서 임베딩(512개 float 배열)을 받아옴
      */
     public AiEmbeddingResult extractEmbedding(MultipartFile image) {
+        byte[] imageBytes = null;
         try {
-            byte[] imageBytes = image.getBytes();
+            imageBytes = image.getBytes();
 
             // MultipartFile -> ByteArrayResource (RestClient가 multipart로 전송할 수 있도록)
             ByteArrayResource imageResource = new ByteArrayResource(imageBytes) {
                 @Override
                 public String getFilename() {
-                    String name = image.getOriginalFilename();
-                    return (name != null && !name.isBlank()) ? name : "image.jpg";
+                    return "image.jpg";
                 }
             };
 
@@ -95,6 +96,10 @@ public class AiClient {
         } catch (Exception e) {
             log.error("AI 서버 호출 중 예외 발생", e);
             throw new FaceException(FaceErrorCode.AI_UNAVAILABLE);
+        } finally {
+            if (imageBytes != null) {
+                Arrays.fill(imageBytes, (byte) 0);
+            }
         }
     }
 
@@ -102,14 +107,14 @@ public class AiClient {
      * AI 서버에 이미지를 보내서 기대 방향과 탐지 방향 일치 여부를 검증
      */
     public AiHeadPoseResponse checkHeadPose(String expectedDirection, MultipartFile image) {
+        byte[] imageBytes = null;
         try {
-            byte[] imageBytes = image.getBytes();
+            imageBytes = image.getBytes();
 
             ByteArrayResource imageResource = new ByteArrayResource(imageBytes) {
                 @Override
                 public String getFilename() {
-                    String name = image.getOriginalFilename();
-                    return (name != null && !name.isBlank()) ? name : "image.jpg";
+                    return "image.jpg";
                 }
             };
 
@@ -154,6 +159,10 @@ public class AiClient {
         } catch (Exception e) {
             log.error("AI 서버 호출 중 예외 발생", e);
             throw new FaceException(FaceErrorCode.AI_UNAVAILABLE);
+        } finally {
+            if (imageBytes != null) {
+                Arrays.fill(imageBytes, (byte) 0);
+            }
         }
     }
 
