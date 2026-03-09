@@ -10,13 +10,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.naedafront.ui.theme.NaedaTheme
 import com.example.naedafront.ui.common.NaedaBottomNavBar
 import com.example.naedafront.ui.navigation.NaedaNavGraph
 import com.example.naedafront.ui.navigation.Screen
+import com.example.naedafront.ui.theme.NaedaTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,13 +31,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun NaedaApp() {
-    val context = LocalContext.current
-    val startDestination = if (AuthPrefs.isLoggedIn(context)) Screen.Home.route else Screen.Welcome.route
+    val startDestination = Screen.Scan.route
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // 인증 플로우에서는 하단 탭 숨김
     val bottomBarRoutes = listOf(
         Screen.Home.route,
         Screen.Benefit.route,
