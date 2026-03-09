@@ -11,6 +11,8 @@ import com.ssafy.naeda.domain.card.repository.DebitCardRepository;
 import com.ssafy.naeda.domain.payment.entity.MethodType;
 import com.ssafy.naeda.domain.payment.entity.PaymentMethod;
 import com.ssafy.naeda.domain.payment.repository.PaymentMethodRepository;
+import com.ssafy.naeda.domain.user.entity.User;
+import com.ssafy.naeda.domain.user.repository.UserRepository;
 import com.ssafy.naeda.global.exception.DuplicateException;
 import com.ssafy.naeda.global.exception.NotFoundException;
 import com.ssafy.naeda.global.ssafy.SsafyApiClient;
@@ -41,6 +43,7 @@ class CardServiceTest {
 
     @Mock private SsafyApiClient ssafyApiClient;
     @Mock private SsafyHeaderFactory ssafyHeaderFactory;
+    @Mock private UserRepository userRepository;
     @Mock private AccountRepository accountRepository;
     @Mock private CreditCardRepository creditCardRepository;
     @Mock private DebitCardRepository debitCardRepository;
@@ -54,6 +57,7 @@ class CardServiceTest {
     private static final String WITHDRAWAL_ACCOUNT_NO = "0320000000001234";
 
     private Account stubAccount;
+    private User stubUser;
 
     @BeforeEach
     void setUp() {
@@ -61,6 +65,16 @@ class CardServiceTest {
                 .userNo(USER_NO)
                 .bankCode("032").bankName("부산은행")
                 .accountNo(WITHDRAWAL_ACCOUNT_NO).accountName("내 계좌")
+                .build();
+        stubUser = User.builder()
+                .userNo(USER_NO)
+                .userId("test@example.com")
+                .password("pw")
+                .username("테스터")
+                .residentNo("9901011")
+                .phone("010-0000-0000")
+                .institutionCode("M220516185630")
+                .userKey(USER_KEY)
                 .build();
     }
 
@@ -71,6 +85,16 @@ class CardServiceTest {
         setField(request, "cardUniqueNo", "1003-unique-abc");
         setField(request, "withdrawalAccountNo", WITHDRAWAL_ACCOUNT_NO);
         setField(request, "withdrawalDate", "15");
+        setField(request, "cardTypeCode", "1");
+        return request;
+    }
+
+    private CardRegisterRequest createDebitRequest() throws Exception {
+        CardRegisterRequest request = new CardRegisterRequest();
+        setField(request, "cardUniqueNo", "1003-unique-abc");
+        setField(request, "withdrawalAccountNo", WITHDRAWAL_ACCOUNT_NO);
+        setField(request, "withdrawalDate", "15");
+        setField(request, "cardTypeCode", "2");
         return request;
     }
 
@@ -80,7 +104,7 @@ class CardServiceTest {
         field.set(target, value);
     }
 
-    private Map<String, Object> buildSsafyResponse(String cardTypeCode) {
+    private Map<String, Object> buildSsafyResponse() {
         Map<String, Object> rec = new HashMap<>();
         rec.put("cardNo", "1003622654847049");
         rec.put("cvc", "713");
@@ -89,7 +113,7 @@ class CardServiceTest {
         rec.put("cardIssuerName", "롯데카드");
         rec.put("cardName", "디지로카 SEOUL");
         rec.put("cardExpiryDate", "20290409");
-        rec.put("cardTypeCode", cardTypeCode);
+        // cardTypeCode는 API 25 응답에 포함되지 않음 — request.getCardTypeCode()에서 읽음
         rec.put("withdrawalAccountNo", WITHDRAWAL_ACCOUNT_NO);
         rec.put("withdrawalDate", "15");
         rec.put("maxBenefitLimit", "200000");
@@ -97,6 +121,7 @@ class CardServiceTest {
     }
 
     private void stubCommonMocks() {
+        given(userRepository.findById(USER_NO)).willReturn(Optional.of(stubUser));
         given(ssafyHeaderFactory.create(anyString(), anyString())).willReturn(Map.of());
         lenient().when(ssafyApiClient.buildBody(anyMap(), (Object[]) any())).thenReturn(Map.of());
     }
@@ -137,14 +162,14 @@ class CardServiceTest {
         CardRegisterRequest request = createRequest();
 
         stubCommonMocks();
-        given(ssafyApiClient.post(anyString(), anyMap())).willReturn(buildSsafyResponse("1"));
+        given(ssafyApiClient.post(anyString(), anyMap())).willReturn(buildSsafyResponse());
         given(creditCardRepository.existsByCardNo(anyString())).willReturn(false);
         given(debitCardRepository.existsByCardNo(anyString())).willReturn(false);
         stubAccountLookup();
         stubCreditCardSave();
         stubPaymentMethodSave();
 
-        CardRegisterResponse result = cardService.registerCard(USER_NO, USER_KEY, request);
+        CardRegisterResponse result = cardService.registerCard(USER_NO, request);
 
         assertThat(result.getCardNo()).isEqualTo("1003622654847049");
         assertThat(result.getCvc()).isEqualTo("713");
@@ -171,17 +196,17 @@ class CardServiceTest {
     @Test
     @DisplayName("체크카드 등록 성공 - cardTypeCode '2'이면 DebitCard 저장 및 PaymentMethod 생성")
     void registerCard_debitCard_success() throws Exception {
-        CardRegisterRequest request = createRequest();
+        CardRegisterRequest request = createDebitRequest();
 
         stubCommonMocks();
-        given(ssafyApiClient.post(anyString(), anyMap())).willReturn(buildSsafyResponse("2"));
+        given(ssafyApiClient.post(anyString(), anyMap())).willReturn(buildSsafyResponse());
         given(creditCardRepository.existsByCardNo(anyString())).willReturn(false);
         given(debitCardRepository.existsByCardNo(anyString())).willReturn(false);
         stubAccountLookup();
         stubDebitCardSave();
         stubPaymentMethodSave();
 
-        CardRegisterResponse result = cardService.registerCard(USER_NO, USER_KEY, request);
+        CardRegisterResponse result = cardService.registerCard(USER_NO, request);
 
         assertThat(result.getCardType()).isEqualTo("DEBIT");
         assertThat(result.getCardNo()).isEqualTo("1003622654847049");
@@ -204,10 +229,10 @@ class CardServiceTest {
         CardRegisterRequest request = createRequest();
 
         stubCommonMocks();
-        given(ssafyApiClient.post(anyString(), anyMap())).willReturn(buildSsafyResponse("1"));
+        given(ssafyApiClient.post(anyString(), anyMap())).willReturn(buildSsafyResponse());
         given(creditCardRepository.existsByCardNo("1003622654847049")).willReturn(true);
 
-        assertThatThrownBy(() -> cardService.registerCard(USER_NO, USER_KEY, request))
+        assertThatThrownBy(() -> cardService.registerCard(USER_NO, request))
                 .isInstanceOf(DuplicateException.class)
                 .hasMessageContaining("이미 등록된 카드입니다");
     }
@@ -215,14 +240,14 @@ class CardServiceTest {
     @Test
     @DisplayName("카드 등록 실패 - 이미 등록된 체크카드이면 DuplicateException")
     void registerCard_duplicateDebitCard() throws Exception {
-        CardRegisterRequest request = createRequest();
+        CardRegisterRequest request = createDebitRequest();
 
         stubCommonMocks();
-        given(ssafyApiClient.post(anyString(), anyMap())).willReturn(buildSsafyResponse("2"));
+        given(ssafyApiClient.post(anyString(), anyMap())).willReturn(buildSsafyResponse());
         given(creditCardRepository.existsByCardNo("1003622654847049")).willReturn(false);
         given(debitCardRepository.existsByCardNo("1003622654847049")).willReturn(true);
 
-        assertThatThrownBy(() -> cardService.registerCard(USER_NO, USER_KEY, request))
+        assertThatThrownBy(() -> cardService.registerCard(USER_NO, request))
                 .isInstanceOf(DuplicateException.class)
                 .hasMessageContaining("이미 등록된 카드입니다");
     }
@@ -235,12 +260,12 @@ class CardServiceTest {
         CardRegisterRequest request = createRequest();
 
         stubCommonMocks();
-        given(ssafyApiClient.post(anyString(), anyMap())).willReturn(buildSsafyResponse("1"));
+        given(ssafyApiClient.post(anyString(), anyMap())).willReturn(buildSsafyResponse());
         given(creditCardRepository.existsByCardNo(anyString())).willReturn(false);
         given(debitCardRepository.existsByCardNo(anyString())).willReturn(false);
         given(accountRepository.findByAccountNo(WITHDRAWAL_ACCOUNT_NO)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> cardService.registerCard(USER_NO, USER_KEY, request))
+        assertThatThrownBy(() -> cardService.registerCard(USER_NO, request))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("연결 계좌를 찾을 수 없습니다");
     }
@@ -260,7 +285,6 @@ class CardServiceTest {
         rec.put("cardIssuerName", "롯데카드");
         rec.put("cardName", "디지로카 SEOUL");
         rec.put("cardExpiryDate", "20290409");
-        rec.put("cardTypeCode", "1");
         rec.put("withdrawalAccountNo", WITHDRAWAL_ACCOUNT_NO);
         rec.put("withdrawalDate", "15");
         rec.put("maxBenefitLimit", null);
@@ -274,7 +298,7 @@ class CardServiceTest {
         stubCreditCardSave();
         stubPaymentMethodSave();
 
-        cardService.registerCard(USER_NO, USER_KEY, request);
+        cardService.registerCard(USER_NO, request);
 
         ArgumentCaptor<CreditCard> captor = ArgumentCaptor.forClass(CreditCard.class);
         verify(creditCardRepository).save(captor.capture());

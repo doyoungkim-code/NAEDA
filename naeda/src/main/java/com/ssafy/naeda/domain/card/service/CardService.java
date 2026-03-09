@@ -11,6 +11,8 @@ import com.ssafy.naeda.domain.card.repository.DebitCardRepository;
 import com.ssafy.naeda.domain.payment.entity.MethodType;
 import com.ssafy.naeda.domain.payment.entity.PaymentMethod;
 import com.ssafy.naeda.domain.payment.repository.PaymentMethodRepository;
+import com.ssafy.naeda.domain.user.entity.User;
+import com.ssafy.naeda.domain.user.repository.UserRepository;
 import com.ssafy.naeda.global.exception.DuplicateException;
 import com.ssafy.naeda.global.exception.NotFoundException;
 import com.ssafy.naeda.global.ssafy.SsafyApiClient;
@@ -27,7 +29,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class CardService {
 
-    private static final String API_PATH = "/edu/creditCard/createCreditCard";
+    // 명세서 API 25: URL 경로는 createCreditCardProduct, Header apiName은 createCreditCard
+    private static final String API_PATH = "/edu/creditCard/createCreditCardProduct";
     private static final String API_NAME = "createCreditCard";
 
     /** SSAFY cardTypeCode: "1" = 신용카드, "2" = 체크카드 */
@@ -35,6 +38,7 @@ public class CardService {
 
     private final SsafyApiClient ssafyApiClient;
     private final SsafyHeaderFactory ssafyHeaderFactory;
+    private final UserRepository userRepository;
     private final AccountRepository accountRepository;
     private final CreditCardRepository creditCardRepository;
     private final DebitCardRepository debitCardRepository;
@@ -43,20 +47,20 @@ public class CardService {
     /**
      * 카드 등록.
      *
-     * 1) SSAFY createCreditCard API 호출
-     * 2) 응답의 cardTypeCode에 따라 credit_card / debit_card 분기 저장
-     * 3) payment_method 자동 생성
-     *
-     * @param userNo  우리 DB의 user PK
-     * @param userKey SSAFY API userKey
-     * @param request 카드 등록 요청 DTO
-     * @return 카드 등록 결과
+     * 1) User 조회 → userKey 획득
+     * 2) SSAFY createCreditCard API 호출
+     * 3) request.cardTypeCode에 따라 credit_card / debit_card 분기 저장
+     * 4) payment_method 자동 생성
      */
     @Transactional
-    public CardRegisterResponse registerCard(Long userNo, String userKey, CardRegisterRequest request) {
+    public CardRegisterResponse registerCard(Long userNo, CardRegisterRequest request) {
 
-        // ── 1. SSAFY API 호출 ──
-        Map<String, Object> header = ssafyHeaderFactory.create(API_NAME, userKey);
+        // ── 1. User 조회 → userKey ──
+        User user = userRepository.findById(userNo)
+                .orElseThrow(() -> new NotFoundException("존재하지 않는 사용자입니다."));
+
+        // ── 2. SSAFY API 호출 ──
+        Map<String, Object> header = ssafyHeaderFactory.create(API_NAME, user.getUserKey());
         Map<String, Object> body = ssafyApiClient.buildBody(header,
                 "cardUniqueNo", request.getCardUniqueNo(),
                 "withdrawalAccountNo", request.getWithdrawalAccountNo(),
@@ -69,6 +73,7 @@ public class CardService {
         Map<String, Object> rec = (Map<String, Object>) response.get("REC");
 
         // ── 2. 공통 필드 추출 ──
+        // cardTypeCode는 API 25 응답에 포함되지 않으므로 요청값(request)에서 가져옴
         String cardNo         = (String) rec.get("cardNo");
         String cvc            = (String) rec.get("cvc");
         String cardUniqueNo   = (String) rec.get("cardUniqueNo");
@@ -76,7 +81,7 @@ public class CardService {
         String cardIssuerName = (String) rec.get("cardIssuerName");
         String cardName       = (String) rec.get("cardName");
         String cardExpiryDate = (String) rec.get("cardExpiryDate");
-        String cardTypeCode   = (String) rec.get("cardTypeCode");
+        String cardTypeCode   = request.getCardTypeCode();
         String withdrawalAccountNo = (String) rec.get("withdrawalAccountNo");
         String withdrawalDate      = (String) rec.get("withdrawalDate");
 

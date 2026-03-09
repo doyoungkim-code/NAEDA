@@ -17,16 +17,15 @@ public class CardController {
     private final CardService cardService;
 
     /**
-     * 카드 등록
-     * POST /api/cards
+     * POST /api/cards?userNo=1
+     * 카드 등록. userKey는 서버에서 DB 조회하여 사용.
      */
     @PostMapping
-    public ResponseEntity<CardRegisterResponse> cardRegister (
+    public ResponseEntity<CardRegisterResponse> cardRegister(
             @RequestParam Long userNo,
-            @RequestParam String userKey,
             @RequestBody @Valid CardRegisterRequest request
     ) {
-        CardRegisterResponse response = cardService.registerCard(userNo, userKey, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(cardService.registerCard(userNo, request));
     }
 }
