@@ -8,12 +8,14 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.naver.maps.geometry.LatLng
-import com.naver.maps.map.CameraPosition
+import com.naver.maps.geometry.LatLngBounds
 import com.naver.maps.map.CameraUpdate
 import com.naver.maps.map.LocationTrackingMode
 import com.naver.maps.map.MapView
@@ -23,32 +25,18 @@ import com.naver.maps.map.NaverMap
 fun MapScreen() {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val density = LocalDensity.current
+    val mapPaddingPx = with(density) { 32.dp.roundToPx() }
 
     val mapView = remember {
         MapView(context).apply {
             onCreate(Bundle())
 
             getMapAsync { naverMap ->
-                // 지도 느낌 바꾸기
-                naverMap.mapType = NaverMap.MapType.Navi
-                naverMap.isBuildingLayerGroupEnabled = true
-                naverMap.isTransitLayerGroupEnabled = false
-                naverMap.isBicycleLayerGroupEnabled = false
-                naverMap.isTrafficLayerGroupEnabled = false
+                setupMap(naverMap, mapPaddingPx)
 
-                // 기본 컨트롤 정리
-                naverMap.uiSettings.isZoomControlEnabled = false
-                naverMap.uiSettings.isScaleBarEnabled = false
-                naverMap.uiSettings.isCompassEnabled = false
-                naverMap.uiSettings.isIndoorLevelPickerEnabled = false
-                naverMap.uiSettings.isLocationButtonEnabled = false
-
-                // 카메라 테스트 위치
-                val gumi = LatLng(36.1195, 128.3446)
-                naverMap.cameraPosition = CameraPosition(gumi, 14.0)
-
-                // 위치 추적 나중에 붙일 거면 여기서 활성화 가능
-                naverMap.locationTrackingMode = LocationTrackingMode.NoFollow
+                // TODO:
+                // drawProvinceOverlays(naverMap)
             }
         }
     }
@@ -71,7 +59,31 @@ fun MapScreen() {
             factory = { mapView },
             modifier = Modifier.fillMaxSize()
         )
-
-        // 나중에 여기 위에 검색창, 필터칩, 하단 카드 올리면 앱 느낌 확 살아남
     }
+}
+
+private fun setupMap(
+    naverMap: NaverMap,
+    paddingPx: Int,
+) {
+    naverMap.mapType = NaverMap.MapType.Navi
+    naverMap.setLayerGroupEnabled(NaverMap.LAYER_GROUP_BUILDING, true)
+    naverMap.setLayerGroupEnabled(NaverMap.LAYER_GROUP_TRANSIT, false)
+    naverMap.setLayerGroupEnabled(NaverMap.LAYER_GROUP_BICYCLE, false)
+    naverMap.setLayerGroupEnabled(NaverMap.LAYER_GROUP_TRAFFIC, false)
+
+    naverMap.uiSettings.isZoomControlEnabled = false
+    naverMap.uiSettings.isScaleBarEnabled = false
+    naverMap.uiSettings.isCompassEnabled = false
+    naverMap.uiSettings.isIndoorLevelPickerEnabled = false
+    naverMap.uiSettings.isLocationButtonEnabled = false
+
+    naverMap.locationTrackingMode = LocationTrackingMode.NoFollow
+
+    val koreaBounds = LatLngBounds(
+        LatLng(33.0, 124.5),
+        LatLng(38.9, 131.0)
+    )
+
+    naverMap.moveCamera(CameraUpdate.fitBounds(koreaBounds, paddingPx))
 }

@@ -35,7 +35,8 @@ fun NaedaNavGraph(
 ) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Welcome.route,
+//        startDestination = Screen.Welcome.route,
+        startDestination = Screen.Scan.route,
         modifier = modifier
     ) {
 
