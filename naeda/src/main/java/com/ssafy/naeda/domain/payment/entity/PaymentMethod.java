@@ -1,4 +1,4 @@
-package com.ssafy.naeda.domain.card.entity;
+package com.ssafy.naeda.domain.payment.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

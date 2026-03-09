@@ -1,4 +1,4 @@
-package com.ssafy.naeda.domain.card.entity;
+package com.ssafy.naeda.domain.payment.entity;
 
 public enum MethodType {
     ACCOUNT,
