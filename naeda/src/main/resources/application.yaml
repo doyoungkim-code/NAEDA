@@ -45,6 +45,11 @@ face:
 rba:
   high-amount: 50000
 
+fds:
+  version:
+    feature: fds-feature-v1
+    rule: fds-rule-v1
+
 springdoc:
   api-docs:
     path: /api-docs
