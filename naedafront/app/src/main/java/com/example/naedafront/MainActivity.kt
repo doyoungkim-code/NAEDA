@@ -12,6 +12,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.naedafront.data.remote.ApiConfig
+import com.example.naedafront.ui.theme.NaedaTheme
 import com.example.naedafront.ui.common.NaedaBottomNavBar
 import com.example.naedafront.ui.navigation.NaedaNavGraph
 import com.example.naedafront.ui.navigation.Screen
@@ -20,6 +22,7 @@ import com.example.naedafront.ui.theme.NaedaTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ApiConfig.initialize(applicationContext)
         enableEdgeToEdge()
         setContent {
             NaedaTheme {
@@ -31,7 +34,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun NaedaApp() {
-    val startDestination = Screen.Scan.route
+    val context = LocalContext.current
+    val startDestination = if (AuthPrefs.hasSession(context)) Screen.Home.route else Screen.Welcome.route
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route

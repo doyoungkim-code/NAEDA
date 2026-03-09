@@ -7,7 +7,9 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "transaction_log")
+@Table(name = "transaction_log", indexes = {
+        @Index(name = "idx_transaction_log_account_id", columnList = "account_id")
+})
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
@@ -19,30 +21,39 @@ public class TransactionLog {
     @Column(name = "log_id")
     private Long logId;
 
-    @Column(name = "account_id")
+    @Column(name = "account_id", nullable = false)
     private Long accountId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "transaction_type")
+    @Column(name = "transaction_type", nullable = false)
     private TransactionType transactionType;
 
+    @Column(nullable = false)
     private Long amount;
 
-    @Column(name = "balance_after")
+    @Column(name = "balance_after", nullable = false)
     private Long balanceAfter;
 
     @Column(length = 100)
     private String counterpart;
 
+    @Column(length = 255)
     private String memo;
 
     @Column(length = 30)
     private String category;
 
-    @Column(name = "ssafy_transaction_id", length = 100)
+    @Column(name = "ai_category", length = 30)
+    private String aiCategory;
+
+    @Column(name = "ssafy_transaction_id", length = 100, unique = true)
     private String ssafyTransactionId;
 
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime transacted;
+
+    public void updateAiCategory(String aiCategory) {
+        this.aiCategory = aiCategory;
+    }
 }

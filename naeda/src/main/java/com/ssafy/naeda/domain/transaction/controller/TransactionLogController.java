@@ -3,9 +3,12 @@ package com.ssafy.naeda.domain.transaction.controller;
 import com.ssafy.naeda.domain.transaction.dto.response.TransactionLogResponse;
 import com.ssafy.naeda.domain.transaction.entity.TransactionType;
 import com.ssafy.naeda.domain.transaction.service.TransactionLogService;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -17,6 +20,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/transactions")
 @RequiredArgsConstructor
+@Validated
 public class TransactionLogController {
 
     private final TransactionLogService transactionLogService;
@@ -27,10 +31,11 @@ public class TransactionLogController {
      */
     @GetMapping
     public ResponseEntity<List<TransactionLogResponse>> getTransactions(
-            @RequestParam Long userNo,
-            @RequestParam Long accountId
+            @RequestParam @Positive Long userNo,
+            @RequestParam @Positive Long accountId,
+            @RequestParam(defaultValue = "100") @Positive @Max(500) int size
     ) {
-        return ResponseEntity.ok(transactionLogService.getTransactions(userNo, accountId));
+        return ResponseEntity.ok(transactionLogService.getTransactions(userNo, accountId).stream().limit(size).toList());
     }
 
     /**
@@ -39,13 +44,14 @@ public class TransactionLogController {
      */
     @GetMapping("/period")
     public ResponseEntity<List<TransactionLogResponse>> getTransactionsByPeriod(
-            @RequestParam Long userNo,
-            @RequestParam Long accountId,
+            @RequestParam @Positive Long userNo,
+            @RequestParam @Positive Long accountId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)LocalDateTime from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)LocalDateTime to
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)LocalDateTime to,
+            @RequestParam(defaultValue = "100") @Positive @Max(500) int size
     ) {
         return ResponseEntity.ok(
-                transactionLogService.getTransactionsByPeriod(userNo, accountId, from, to)
+                transactionLogService.getTransactionsByPeriod(userNo, accountId, from, to).stream().limit(size).toList()
         );
     }
 
@@ -55,12 +61,13 @@ public class TransactionLogController {
      */
     @GetMapping("/type")
     public ResponseEntity<List<TransactionLogResponse>> getTransactionsByType(
-            @RequestParam Long userNo,
-            @RequestParam Long accountId,
-            @RequestParam TransactionType transactionType
+            @RequestParam @Positive Long userNo,
+            @RequestParam @Positive Long accountId,
+            @RequestParam TransactionType transactionType,
+            @RequestParam(defaultValue = "100") @Positive @Max(500) int size
     ) {
         return ResponseEntity.ok(
-                transactionLogService.getTransactionsByType(userNo, accountId, transactionType)
+                transactionLogService.getTransactionsByType(userNo, accountId, transactionType).stream().limit(size).toList()
         );
     }
 }

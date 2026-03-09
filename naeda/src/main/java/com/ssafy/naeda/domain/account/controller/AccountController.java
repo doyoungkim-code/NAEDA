@@ -2,8 +2,10 @@ package com.ssafy.naeda.domain.account.controller;
 
 import com.ssafy.naeda.domain.account.dto.response.AccountResponse;
 import com.ssafy.naeda.domain.account.service.AccountService;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -11,6 +13,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/accounts")
 @RequiredArgsConstructor
+@Validated
 public class AccountController {
 
     private final AccountService accountService;
@@ -20,7 +23,7 @@ public class AccountController {
      */
     @GetMapping
     public ResponseEntity<List<AccountResponse>> getAccounts(
-            @RequestParam Long userNo
+            @RequestParam @Positive Long userNo
     ) {
         return ResponseEntity.ok(accountService.getAccounts(userNo));
     }
@@ -30,7 +33,7 @@ public class AccountController {
      */
     @GetMapping("/{accountNo}")
     public ResponseEntity<AccountResponse> getAccount(
-            @RequestParam Long userNo,
+            @RequestParam @Positive Long userNo,
             @PathVariable String accountNo
     ) {
         return ResponseEntity.ok(accountService.getAccount(userNo, accountNo));

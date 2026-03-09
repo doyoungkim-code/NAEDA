@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -28,9 +27,8 @@ public class TransactionLogService {
     public List<TransactionLogResponse> getTransactions(Long userNo, Long accountId) {
         validateOwnership(userNo, accountId);
 
-        return transactionLogRepository.findByAccountId(accountId)
+        return transactionLogRepository.findByAccountIdOrderByTransactedDesc(accountId)
                 .stream()
-                .sorted(Comparator.comparing(TransactionLog::getTransacted).reversed())
                 .map(TransactionLogResponse::from)
                 .toList();
     }
@@ -44,9 +42,8 @@ public class TransactionLogService {
     ) {
         validateOwnership(userNo, accountId);
 
-        return transactionLogRepository.findByAccountIdAndTransactedBetweenOrderByTransacted(accountId, from, to)
+        return transactionLogRepository.findByAccountIdAndTransactedBetweenOrderByTransactedDesc(accountId, from, to)
                 .stream()
-                .sorted(Comparator.comparing(TransactionLog::getTransacted).reversed())
                 .map(TransactionLogResponse::from)
                 .toList();
     }
@@ -61,9 +58,8 @@ public class TransactionLogService {
         validateOwnership(userNo, accountId);
 
         return transactionLogRepository
-                .findByAccountIdAndTransactionTypeOrderByTransacted(accountId, transactionType)
+                .findByAccountIdAndTransactionTypeOrderByTransactedDesc(accountId, transactionType)
                 .stream()
-                .sorted(Comparator.comparing(TransactionLog::getTransacted).reversed())
                 .map(TransactionLogResponse::from)
                 .toList();
     }

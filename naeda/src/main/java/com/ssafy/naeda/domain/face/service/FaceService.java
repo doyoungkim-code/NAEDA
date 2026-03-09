@@ -14,6 +14,7 @@ import com.ssafy.naeda.domain.face.exception.FaceException;
 import com.ssafy.naeda.domain.face.repository.FaceEmbeddingRepository;
 import com.ssafy.naeda.domain.rba.dto.RbaResult;
 import com.ssafy.naeda.domain.rba.service.RbaEngine;
+import com.ssafy.naeda.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,6 +36,7 @@ public class FaceService {
     private final FaceEmbeddingRepository faceEmbeddingRepository;
     private final RbaEngine rbaEngine;
     private final FaceInputValidator faceInputValidator;
+    private final UserRepository userRepository;
 
     @Value("${face.threshold.match:0.7}")
     private float matchThreshold;
@@ -94,7 +96,12 @@ public class FaceService {
         List<FaceEmbedding> all = faceEmbeddingRepository.findAll();
 
         List<CandidateDto> candidates = all.stream()
-                .map(e -> new CandidateDto(e.getUserId(), e.getPose(), cosineSimilarity(probe, e.getEmbedding())))
+                .map(e -> new CandidateDto(
+                        e.getUserId(),
+                        resolveUserNo(e.getUserId()),
+                        e.getPose(),
+                        cosineSimilarity(probe, e.getEmbedding())
+                ))
                 .sorted(Comparator.comparingDouble(CandidateDto::getSimilarity).reversed())
                 .limit(topK)
                 .toList();
@@ -115,6 +122,7 @@ public class FaceService {
                 .status(status)
                 .nextAction(nextAction)
                 .bestUserId(status == FaceMatchStatus.NO_MATCH || best == null ? null : best.getUserId())
+                .matchedUserNo(status == FaceMatchStatus.NO_MATCH || best == null ? null : best.getUserNo())
                 .similarity(bestSimilarity)
                 .matchThreshold(matchThreshold)
                 .ambiguousThreshold(ambiguousThreshold)
@@ -129,6 +137,12 @@ public class FaceService {
                 .candidates(candidates)
                 .aiProcessing(AiProcessingInfo.from(probeResult))
                 .build();
+    }
+
+    private Long resolveUserNo(String userId) {
+        return userRepository.findByUserId(userId)
+                .map(user -> user.getUserNo())
+                .orElse(null);
     }
 
     private FaceMatchStatus resolveStatus(float similarity) {

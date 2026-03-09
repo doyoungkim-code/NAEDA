@@ -53,4 +53,8 @@ public class DebitCard {
 
     @Column(name = "account_id", nullable = false)
     private Long accountId;
+
+    public void deactivate() {
+        this.isActive = false;
+    }
 }

@@ -29,7 +29,8 @@ CREATE TABLE "user" (
     user_id           VARCHAR(100)  NOT NULL UNIQUE,       -- 이메일 (로그인)
     password          VARCHAR(255)  NOT NULL,               -- 비밀번호 (BCrypt)
     username          VARCHAR(50)   NOT NULL,               -- 이름
-    resident_no       VARCHAR(7)    NOT NULL,               -- 주민등록번호 앞 7자리
+    resident_no       VARCHAR(7)    NOT NULL
+        CHECK (resident_no ~ '^[0-9]{7}$'),                -- 주민등록번호 앞 6자리 + 뒤 1자리 (총 7자리 숫자, 하이픈 제외)
     phone             VARCHAR(20)   NOT NULL UNIQUE,        -- 전화번호
     institution_code  VARCHAR(50)   NOT NULL,               -- 기관코드
     user_key          VARCHAR(255),                         -- SSAFY API 유저 키
@@ -161,8 +162,9 @@ CREATE TABLE transaction_log (
     amount               BIGINT                  NOT NULL,            -- 거래 금액
     balance_after        BIGINT                  NOT NULL,            -- 거래 후 잔액
     counterpart          VARCHAR(100),                                -- 상대방 (이체 시)
-    memo                 VARCHAR(255),                                -- AI 분류 태그
-    category             VARCHAR(30),                                 -- 식비/카페/교통/쇼핑 등 (AI 자동 분류)
+    memo                 VARCHAR(255),                                -- 거래 메모/상태
+    category             VARCHAR(30),                                 -- SSAFY 원본 카테고리
+    ai_category          VARCHAR(30),                                 -- AI 정규화 카테고리
     ssafy_transaction_id VARCHAR(100),                                -- SSAFY 거래 ID
     transacted           TIMESTAMP               NOT NULL DEFAULT NOW()
 );

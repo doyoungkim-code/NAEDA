@@ -3,6 +3,7 @@ package com.ssafy.naeda.domain.user.dto.request;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -32,8 +33,8 @@ public class SignupRequest {
     private String username;
 
     @NotBlank
-    @Size(max = 7)
-    @Schema(description = "주민등록번호 앞 7자리", example = "990101-")
+    @Pattern(regexp = "^\\d{7}$", message = "주민등록번호는 앞 6자리와 뒤 1자리를 붙인 숫자 7자리여야 합니다.")
+    @Schema(description = "주민등록번호 앞 6자리와 뒤 1자리(하이픈 제외)", example = "9901011")
     private String residentNo;
 
     @NotBlank
@@ -45,4 +46,9 @@ public class SignupRequest {
     @Size(max = 50)
     @Schema(description = "기관코드", example = "001")
     private String institutionCode;
+
+    @NotBlank
+    @Pattern(regexp = "\\d{6}", message = "PIN은 숫자 6자리여야 합니다.")
+    @Schema(description = "페이스페이 PIN 6자리", example = "123456")
+    private String pin;
 }

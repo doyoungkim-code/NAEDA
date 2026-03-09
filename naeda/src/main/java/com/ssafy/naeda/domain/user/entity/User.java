@@ -44,6 +44,10 @@ public class User {
     @Builder.Default
     private Boolean faceRegistered = false;
 
+    @Column(name = "secondary_auth_enabled")
+    @Builder.Default
+    private Boolean secondaryAuthEnabled = false;
+
     @Column(name = "pin_password")
     private String pinPassword;
 
@@ -62,7 +66,16 @@ public class User {
         this.faceRegistered = true;
     }
 
+    public void updateFacePaySettings(boolean faceRegistered, boolean secondaryAuthEnabled) {
+        this.faceRegistered = faceRegistered;
+        this.secondaryAuthEnabled = secondaryAuthEnabled;
+    }
+
     public void updateUserKey(String userKey) {
         this.userKey = userKey;
+    }
+
+    public void updatePinPassword(String pinPassword) {
+        this.pinPassword = pinPassword;
     }
 }

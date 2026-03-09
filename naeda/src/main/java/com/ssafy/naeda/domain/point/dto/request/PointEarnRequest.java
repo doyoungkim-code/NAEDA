@@ -1,6 +1,7 @@
 package com.ssafy.naeda.domain.point.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
@@ -18,6 +19,7 @@ public class PointEarnRequest {
 
     @NotNull
     @Positive
+    @Max(100_000_000)
     @Schema(description = "적립할 포인트", example = "1000", requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1")
     private Long amount;
 

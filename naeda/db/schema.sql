@@ -34,6 +34,7 @@ CREATE TABLE "user" (
                         institution_code  VARCHAR(50)   NOT NULL,               -- 기관코드
                         user_key          VARCHAR(255),                         -- SSAFY API 유저 키
                         face_registered   BOOLEAN       NOT NULL DEFAULT FALSE, -- 얼굴 등록 여부
+                        secondary_auth_enabled BOOLEAN   NOT NULL DEFAULT FALSE, -- PIN 2차 인증 사용 여부
                         pin_password      VARCHAR(255),                         -- 6자리 Pin 비밀번호 (BCrypt)
                         created           TIMESTAMP     NOT NULL DEFAULT NOW(),
                         modified          TIMESTAMP
@@ -173,8 +174,9 @@ CREATE TABLE transaction_log (
                                  amount               BIGINT                  NOT NULL,            -- 거래 금액
                                  balance_after        BIGINT                  NOT NULL,            -- 거래 후 잔액
                                  counterpart          VARCHAR(100),                                -- 상대방 (이체 시)
-                                 memo                 VARCHAR(255),                                -- AI 분류 태그
-                                 category             VARCHAR(30),                                 -- 식비/카페/교통/쇼핑 등 (AI 자동 분류)
+                                 memo                 VARCHAR(255),                                -- 거래 메모/상태
+                                 category             VARCHAR(30),                                 -- SSAFY 원본 카테고리
+                                 ai_category          VARCHAR(30),                                 -- AI 정규화 카테고리
                                  ssafy_transaction_id VARCHAR(100),                                -- SSAFY 거래 ID
                                  transacted           TIMESTAMP               NOT NULL DEFAULT NOW()
 );
