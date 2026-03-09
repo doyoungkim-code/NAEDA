@@ -18,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.security.Principal;
 import java.util.Map;
 
 @RestController
@@ -42,7 +43,7 @@ public class FaceController {
     /**
      * 얼굴 등록
      * POST /api/v1/face/enroll
-     * multipart: userId(String), pose(String), image(파일)
+     * multipart: pose(String), image(파일)
      */
     @PostMapping(value = "/enroll", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "얼굴 등록", description = "사용자 얼굴 이미지를 받아 임베딩을 저장합니다.")
@@ -52,13 +53,12 @@ public class FaceController {
             @ApiResponse(responseCode = "500", description = "서버 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<EnrollResponse> enroll(
-            @Parameter(description = "사용자 ID", example = "user-1001", required = true)
-            @RequestPart("userId") String userId,
             @Parameter(description = "얼굴 포즈(정면/좌/우 등)", example = "front", required = true)
             @RequestPart("pose") String pose,
             @Parameter(description = "얼굴 이미지 파일", required = true)
-            @RequestPart("image") MultipartFile image) {
-        return ResponseEntity.ok(faceService.enroll(userId, pose, image));
+            @RequestPart("image") MultipartFile image,
+            Principal principal) {
+        return ResponseEntity.ok(faceService.enroll(principal.getName(), pose, image));
     }
 
     /**
