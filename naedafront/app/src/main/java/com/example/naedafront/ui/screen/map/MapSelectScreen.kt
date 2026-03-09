@@ -310,29 +310,12 @@ private fun calculateInnerLabelPositions(
 }
 
 private fun gumiRegions(): List<MapRegion> = listOf(
-    MapRegion("muul", "무을면", Offset(0.12f, 0.25f)),
-    MapRegion("oksung", "옥성면", Offset(0.33f, 0.12f)),
-    MapRegion("dogae", "도개면", Offset(0.54f, 0.14f)),
-    MapRegion("haepyeong", "해평면", Offset(0.61f, 0.28f)),
-    MapRegion("seonsan", "선산읍", Offset(0.29f, 0.29f)),
+    MapRegion("muul", "무을면", Offset(0.12f, 0.33f)),
+    MapRegion("oksung", "옥성면", Offset(0.28f, 0.27f)),
+    MapRegion("dogae", "도개면", Offset(0.5f, 0.3f)),
+    MapRegion("haepyeong", "해평면", Offset(0.5f, 0.5f)),
+    MapRegion("seonsan", "선산읍", Offset(0.29f, 0.42f)),
     MapRegion("goa", "고아읍", Offset(0.37f, 0.47f)),
-    MapRegion("sandong", "산동읍", Offset(0.72f, 0.42f)),
+    MapRegion("sandong", "산동면", Offset(0.75f, 0.5f)),
     MapRegion("jangcheon", "장천면", Offset(0.81f, 0.58f)),
-    MapRegion("wonpyeong", "원평동", Offset(0.28f, 0.59f)),
-    MapRegion("jisan", "지산동", Offset(0.35f, 0.58f)),
-    MapRegion("doryang", "도량동", Offset(0.43f, 0.59f)),
-    MapRegion("seonjuwonnam", "선주원남동", Offset(0.29f, 0.68f)),
-    MapRegion("songjeong", "송정동", Offset(0.37f, 0.67f)),
-    MapRegion("hyeonggok1", "형곡1동", Offset(0.33f, 0.76f)),
-    MapRegion("hyeonggok2", "형곡2동", Offset(0.42f, 0.75f)),
-    MapRegion("gwangpyeong", "광평동", Offset(0.50f, 0.72f)),
-    MapRegion("sangmosagok", "상모사곡동", Offset(0.41f, 0.85f)),
-    MapRegion("imo", "임오동", Offset(0.54f, 0.85f)),
-    MapRegion("bisan", "비산동", Offset(0.59f, 0.69f)),
-    MapRegion("gongdan", "공단동", Offset(0.60f, 0.79f)),
-    MapRegion("sinpyeong1", "신평1동", Offset(0.61f, 0.88f)),
-    MapRegion("sinpyeong2", "신평2동", Offset(0.66f, 0.61f)),
-    MapRegion("yangpo", "양포동", Offset(0.72f, 0.72f)),
-    MapRegion("jinmi", "진미동", Offset(0.73f, 0.82f)),
-    MapRegion("indong", "인동동", Offset(0.84f, 0.81f))
-)
+    MapRegion("wonpyeong", "원평동", Offset(0.28f, 0.59f)),)

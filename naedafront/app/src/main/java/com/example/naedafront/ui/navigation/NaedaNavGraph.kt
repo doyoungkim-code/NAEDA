@@ -32,6 +32,8 @@ import com.example.naedafront.ui.screen.facepay.FaceMatchResultScreen
 import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
 import com.example.naedafront.ui.screen.home.HomeScreen
 import com.example.naedafront.ui.screen.home.HomeUiState
+import com.example.naedafront.ui.screen.map.MapRegion
+import com.example.naedafront.ui.screen.map.MapSelectScreen
 import com.example.naedafront.ui.screen.mypage.MyPageScreen
 import com.example.naedafront.ui.screen.mypage.MyPageViewModel
 import com.example.naedafront.ui.screen.signup.SignUpEmailScreen
@@ -43,9 +45,6 @@ import com.example.naedafront.ui.screen.signup.SignUpRrnScreen
 import com.example.naedafront.ui.screen.signup.SignUpVerifyScreen
 import com.example.naedafront.ui.screen.signup.SignUpViewModel
 
-/**
- * 내다(NAEDA) 전체 네비게이션 그래프
- */
 @Composable
 fun NaedaNavGraph(
     navController: NavHostController,
@@ -53,8 +52,6 @@ fun NaedaNavGraph(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-
-    // 회원가입 플로우 전체에서 공유할 ViewModel
     val signUpViewModel: SignUpViewModel = viewModel()
 
     NavHost(
@@ -62,7 +59,6 @@ fun NaedaNavGraph(
         startDestination = startDestination,
         modifier = modifier
     ) {
-
         composable(Screen.Welcome.route) {
             WelcomeScreen(
                 onStartClick = { navController.navigate(Screen.SignUp.route) },
@@ -163,8 +159,6 @@ fun NaedaNavGraph(
             )
         }
 
-        // ═══ 메인 5탭 ═══
-
         composable(Screen.Home.route) {
             val displayName = AuthPrefs.getUsername(context)
                 ?.takeUnless { it.isBlank() }
@@ -210,7 +204,7 @@ fun NaedaNavGraph(
         composable(Screen.Scan.route) {
             MapSelectScreen(
                 onBack = { navController.popBackStack() },
-                onRestaurantClick = { region, restaurantName ->
+                onRestaurantClick = { region: MapRegion, restaurantName: String ->
                     navController.currentBackStackEntry
                         ?.savedStateHandle
                         ?.set("selectedRegion", region.label)
@@ -250,8 +244,6 @@ fun NaedaNavGraph(
         composable(Screen.More.route) {
             PlaceholderScreen("⋯ 더보기")
         }
-
-        // ═══ 스캔 탭 하위 ═══
 
         composable(Screen.FaceRegister.route) {
             FaceRegisterScreen(
@@ -335,8 +327,6 @@ fun NaedaNavGraph(
             val storeId = backStackEntry.arguments?.getString("storeId") ?: ""
             PlaceholderScreen("매장 상세: $storeId")
         }
-
-        // ═══ 자산 탭 하위 ═══
 
         composable(
             route = Screen.AccountList.route,
@@ -435,8 +425,6 @@ fun NaedaNavGraph(
             PlaceholderScreen("📊 소비 리포트")
         }
 
-        // ═══ 혜택 탭 하위 ═══
-
         composable(Screen.Coupon.route) {
             PlaceholderScreen("할인권 교환")
         }
@@ -444,8 +432,6 @@ fun NaedaNavGraph(
         composable(Screen.Donation.route) {
             PlaceholderScreen("후원하기")
         }
-
-        // ═══ 마이페이지 / 더보기 하위 ═══
 
         composable(Screen.MyPage.route) {
             val myPageViewModel: MyPageViewModel = viewModel()
