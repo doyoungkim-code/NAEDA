@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface TransactionLogRepository extends JpaRepository<TransactionLog, Long> {
 
@@ -18,4 +19,8 @@ public interface TransactionLogRepository extends JpaRepository<TransactionLog, 
     List<TransactionLog> findByAccountIdAndTransactionTypeOrderByTransacted(
             Long accountId, TransactionType transactionType
     );
+
+    boolean existsBySsafyTransactionId(String ssafyTransactionId);
+
+    Optional<TransactionLog> findBySsafyTransactionId(String ssafyTransactionId);
 }

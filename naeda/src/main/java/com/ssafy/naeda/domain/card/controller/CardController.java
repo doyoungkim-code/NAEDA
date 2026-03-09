@@ -1,8 +1,10 @@
 package com.ssafy.naeda.domain.card.controller;
 
 import com.ssafy.naeda.domain.card.dto.request.CardRegisterRequest;
+import com.ssafy.naeda.domain.card.dto.request.CardTransactionRequest;
 import com.ssafy.naeda.domain.card.dto.response.CardRegisterResponse;
 import com.ssafy.naeda.domain.card.dto.response.CardResponse;
+import com.ssafy.naeda.domain.card.dto.response.CardTransactionResponse;
 import com.ssafy.naeda.domain.card.service.CardService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -56,6 +58,20 @@ public class CardController {
     ) {
         cardService.deleteCard(userNo, cardId, cardType);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 카드 결제 내역 조회
+     * GET /api/cards/{cardId}/transactions
+     */
+    @GetMapping("/{cardId}/transactions")
+    public ResponseEntity<List<CardTransactionResponse>> getCardTransactions (
+            @PathVariable Long cardId,
+            @RequestParam Long userNo,
+            @RequestParam String userKey,
+            @ModelAttribute @Valid CardTransactionRequest request
+    ) {
+        return ResponseEntity.ok(cardService.getCardTransactions(userNo, userKey, cardId, request));
     }
 }
 
