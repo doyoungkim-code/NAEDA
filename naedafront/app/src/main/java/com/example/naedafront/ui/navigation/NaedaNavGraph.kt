@@ -20,7 +20,7 @@ import com.example.naedafront.ui.screen.SignUpVerifyScreen
 import com.example.naedafront.ui.screen.SignUpEmailScreen
 import com.example.naedafront.ui.screen.SignUpPasswordScreen
 import com.example.naedafront.ui.screen.SignUpPinScreen
-import com.example.naedafront.ui.navigation.Screen
+import com.example.naedafront.ui.screen.map.MapScreen
 
 /**
  * 내다(NAEDA) 전체 네비게이션 그래프
@@ -52,7 +52,7 @@ fun NaedaNavGraph(
             PlaceholderScreen("로그인")
         }
 
-// 1/8 이름
+        // 1/8 이름
         composable(Screen.SignUp.route) {
             SignUpNameScreen(
                 onBackClick = { navController.popBackStack() },
@@ -62,7 +62,7 @@ fun NaedaNavGraph(
             )
         }
 
-// 2/8 주민번호
+        // 2/8 주민번호
         composable(Screen.SignUpRrn.route) {
             SignUpRrnScreen(
                 onBackClick = { navController.popBackStack() },
@@ -72,7 +72,7 @@ fun NaedaNavGraph(
             )
         }
 
-// 3/8 휴대폰
+        // 3/8 휴대폰
         composable(Screen.SignUpPhone.route) {
             SignUpPhoneScreen(
                 onBackClick = { navController.popBackStack() },
@@ -82,7 +82,7 @@ fun NaedaNavGraph(
             )
         }
 
-// 4/8 인증번호
+        // 4/8 인증번호
         composable(
             route = Screen.SignUpVerify.route,
             arguments = listOf(navArgument("phone") { type = NavType.StringType })
@@ -98,7 +98,7 @@ fun NaedaNavGraph(
             )
         }
 
-// 5/8 이메일
+        // 5/8 이메일
         composable(Screen.SignUpEmail.route) {
             SignUpEmailScreen(
                 onBackClick = { navController.popBackStack() },
@@ -108,7 +108,7 @@ fun NaedaNavGraph(
             )
         }
 
-// 6/8 비밀번호
+        // 6/8 비밀번호
         composable(Screen.SignUpPassword.route) {
             SignUpPasswordScreen(
                 onBackClick = { navController.popBackStack() },
@@ -118,12 +118,11 @@ fun NaedaNavGraph(
             )
         }
 
-// 7/8 PIN
+        // 7/8 PIN
         composable(Screen.SignUpPin.route) {
             SignUpPinScreen(
                 onBackClick = { navController.popBackStack() },
                 onConfirmClick = { pin ->
-                    // 회원가입 완료 → 홈으로 (이전 스택 전부 제거)
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Welcome.route) { inclusive = true }
                     }
@@ -131,10 +130,7 @@ fun NaedaNavGraph(
             )
         }
 
-        // ═══════════════════════════════════════
         // 메인 5탭
-        // ═══════════════════════════════════════
-
         composable(Screen.Home.route) {
             PlaceholderScreen("🏠 홈")
         }
@@ -144,9 +140,7 @@ fun NaedaNavGraph(
         }
 
         composable(Screen.Scan.route) {
-            // TODO: 얼굴 등록 여부에 따라 분기
-            //  if (faceRegistered) GumiMapScreen() else FaceIntroScreen()
-            PlaceholderScreen("😀 스캔\n(얼굴등록 / 지도)")
+            MapScreen()
         }
 
         composable(Screen.Asset.route) {
@@ -157,10 +151,7 @@ fun NaedaNavGraph(
             PlaceholderScreen("⋯ 더보기")
         }
 
-        // ═══════════════════════════════════════
         // 스캔 탭 하위 화면
-        // ═══════════════════════════════════════
-
         composable(Screen.FaceIntro.route) {
             PlaceholderScreen("페이스페이 소개")
         }
@@ -193,10 +184,7 @@ fun NaedaNavGraph(
             PlaceholderScreen("매장 상세: $storeId")
         }
 
-        // ═══════════════════════════════════════
         // 자산 탭 하위 화면
-        // ═══════════════════════════════════════
-
         composable(
             route = Screen.AccountDetail.route,
             arguments = listOf(navArgument("accountId") { type = NavType.StringType })
@@ -217,10 +205,7 @@ fun NaedaNavGraph(
             PlaceholderScreen("📊 소비 리포트")
         }
 
-        // ═══════════════════════════════════════
         // 혜택 탭 하위 화면
-        // ═══════════════════════════════════════
-
         composable(Screen.Coupon.route) {
             PlaceholderScreen("할인권 교환")
         }
@@ -229,10 +214,7 @@ fun NaedaNavGraph(
             PlaceholderScreen("후원하기")
         }
 
-        // ═══════════════════════════════════════
         // 더보기 탭 하위 화면
-        // ═══════════════════════════════════════
-
         composable(Screen.Settings.route) {
             PlaceholderScreen("⚙️ 설정")
         }
