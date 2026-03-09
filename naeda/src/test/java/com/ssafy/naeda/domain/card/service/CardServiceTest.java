@@ -3,7 +3,9 @@ package com.ssafy.naeda.domain.card.service;
 import com.ssafy.naeda.domain.account.entity.Account;
 import com.ssafy.naeda.domain.account.repository.AccountRepository;
 import com.ssafy.naeda.domain.card.dto.request.CardRegisterRequest;
+import com.ssafy.naeda.domain.card.dto.request.CardTransactionRequest;
 import com.ssafy.naeda.domain.card.dto.response.CardRegisterResponse;
+import com.ssafy.naeda.domain.card.dto.response.CardTransactionResponse;
 import com.ssafy.naeda.domain.card.entity.CreditCard;
 import com.ssafy.naeda.domain.card.entity.DebitCard;
 import com.ssafy.naeda.domain.card.repository.CreditCardRepository;
@@ -11,6 +13,9 @@ import com.ssafy.naeda.domain.card.repository.DebitCardRepository;
 import com.ssafy.naeda.domain.payment.entity.MethodType;
 import com.ssafy.naeda.domain.payment.entity.PaymentMethod;
 import com.ssafy.naeda.domain.payment.repository.PaymentMethodRepository;
+import com.ssafy.naeda.domain.transaction.entity.TransactionLog;
+import com.ssafy.naeda.domain.transaction.entity.TransactionType;
+import com.ssafy.naeda.domain.transaction.repository.TransactionLogRepository;
 import com.ssafy.naeda.global.exception.DuplicateException;
 import com.ssafy.naeda.global.exception.NotFoundException;
 import com.ssafy.naeda.global.ssafy.SsafyApiClient;
@@ -25,6 +30,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Field;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,8 +41,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
+
 
 @ExtendWith(MockitoExtension.class)
 class CardServiceTest {
@@ -46,6 +53,7 @@ class CardServiceTest {
     @Mock private CreditCardRepository creditCardRepository;
     @Mock private DebitCardRepository debitCardRepository;
     @Mock private PaymentMethodRepository paymentMethodRepository;
+    @Mock private TransactionLogRepository transactionLogRepository;
 
     @InjectMocks
     private CardService cardService;
@@ -392,5 +400,133 @@ class CardServiceTest {
         assertThatThrownBy(() -> cardService.deleteCard(USER_NO, 100L, "INVALID"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("잘못된 카드 타입입니다");
+    }
+
+    // ── getCardTransactions ──
+
+    private CardTransactionRequest createTransactionRequest() throws Exception {
+        CardTransactionRequest request = new CardTransactionRequest();
+        setField(request, "startDate", "20240401");
+        setField(request, "endDate", "20240430");
+        return request;
+    }
+
+    private Map<String, Object> buildSsafyTransactionResponse(int count) {
+        List<Map<String, Object>> txList = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            Map<String, Object> tx = new HashMap<>();
+            tx.put("transactionUniqueNo", "TX-" + i);
+            tx.put("categoryName", "식비");
+            tx.put("merchantName", "스타벅스");
+            tx.put("transactionDate", "20240410");
+            tx.put("transactionTime", "143000");
+            tx.put("transactionBalance", "5000");
+            tx.put("cardStatus", "승인");
+            txList.add(tx);
+        }
+        Map<String, Object> rec = new HashMap<>();
+        rec.put("transactionList", txList);
+        return Map.of("REC", rec);
+    }
+
+    private void stubTransactionLogSave() {
+        given(transactionLogRepository.save(any(TransactionLog.class))).willAnswer(invocation -> {
+            TransactionLog log = invocation.getArgument(0);
+            setField(log, "logId", 1L);
+            return log;
+        });
+    }
+
+    @Test
+    @DisplayName("카드 결제 내역 조회 성공 - 신용카드 거래내역 조회 및 DB 저장")
+    void getCardTransactions_creditCard_success() throws Exception {
+        CreditCard card = buildCreditCard(100L, USER_NO, "1003000000001111");
+        given(creditCardRepository.findById(100L)).willReturn(Optional.of(card));
+
+        stubCommonMocks();
+        given(ssafyApiClient.post(anyString(), anyMap())).willReturn(buildSsafyTransactionResponse(2));
+        given(transactionLogRepository.findBySsafyTransactionId(anyString())).willReturn(Optional.empty());
+        stubTransactionLogSave();
+
+        List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, USER_KEY, 100L, createTransactionRequest());
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getCategoryName()).isEqualTo("식비");
+        assertThat(result.get(0).getMerchantName()).isEqualTo("스타벅스");
+        assertThat(result.get(0).getAmount()).isEqualTo(5000L);
+        verify(transactionLogRepository, times(2)).save(any(TransactionLog.class));
+    }
+
+    @Test
+    @DisplayName("카드 결제 내역 조회 성공 - 체크카드 거래내역 조회")
+    void getCardTransactions_debitCard_success() throws Exception {
+        given(creditCardRepository.findById(200L)).willReturn(Optional.empty());
+        DebitCard card = buildDebitCard(200L, USER_NO, "1005000000002222");
+        given(debitCardRepository.findById(200L)).willReturn(Optional.of(card));
+
+        stubCommonMocks();
+        given(ssafyApiClient.post(anyString(), anyMap())).willReturn(buildSsafyTransactionResponse(1));
+        given(transactionLogRepository.findBySsafyTransactionId(anyString())).willReturn(Optional.empty());
+        stubTransactionLogSave();
+
+        List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, USER_KEY, 200L, createTransactionRequest());
+
+        assertThat(result).hasSize(1);
+        verify(transactionLogRepository, times(1)).save(any(TransactionLog.class));
+    }
+
+    @Test
+    @DisplayName("카드 결제 내역 조회 - 빈 거래 목록이면 빈 리스트 반환")
+    void getCardTransactions_emptyList() throws Exception {
+        CreditCard card = buildCreditCard(100L, USER_NO, "1003000000001111");
+        given(creditCardRepository.findById(100L)).willReturn(Optional.of(card));
+
+        stubCommonMocks();
+        Map<String, Object> rec = new HashMap<>();
+        rec.put("transactionList", List.of());
+        given(ssafyApiClient.post(anyString(), anyMap())).willReturn(Map.of("REC", rec));
+
+        List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, USER_KEY, 100L, createTransactionRequest());
+
+        assertThat(result).isEmpty();
+        verify(transactionLogRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("카드 결제 내역 조회 실패 - 카드를 찾을 수 없으면 NotFoundException")
+    void getCardTransactions_cardNotFound() throws Exception {
+        given(creditCardRepository.findById(999L)).willReturn(Optional.empty());
+        given(debitCardRepository.findById(999L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> cardService.getCardTransactions(USER_NO, USER_KEY, 999L, createTransactionRequest()))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("카드를 찾을 수 없습니다");
+    }
+
+    @Test
+    @DisplayName("카드 결제 내역 조회 - 이미 캐싱된 거래는 DB에서 조회하고 새로 저장하지 않음")
+    void getCardTransactions_existingTransaction_noSave() throws Exception {
+        CreditCard card = buildCreditCard(100L, USER_NO, "1003000000001111");
+        given(creditCardRepository.findById(100L)).willReturn(Optional.of(card));
+
+        stubCommonMocks();
+        given(ssafyApiClient.post(anyString(), anyMap())).willReturn(buildSsafyTransactionResponse(1));
+
+        TransactionLog existingLog = TransactionLog.builder()
+                .accountId(1L).transactionType(TransactionType.WITHDRAW)
+                .amount(5000L).balanceAfter(0L)
+                .counterpart("스타벅스").category("식비").memo("승인")
+                .ssafyTransactionId("TX-0")
+                .transacted(LocalDateTime.of(2024, 4, 10, 14, 30, 0))
+                .build();
+        setField(existingLog, "logId", 10L);
+
+        given(transactionLogRepository.findBySsafyTransactionId("TX-0")).willReturn(Optional.of(existingLog));
+
+        List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, USER_KEY, 100L, createTransactionRequest());
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getLogId()).isEqualTo(10L);
+        verify(transactionLogRepository, never()).save(any(TransactionLog.class));
     }
 }
