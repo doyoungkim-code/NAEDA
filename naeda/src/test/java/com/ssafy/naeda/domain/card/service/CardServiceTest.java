@@ -16,6 +16,8 @@ import com.ssafy.naeda.domain.payment.repository.PaymentMethodRepository;
 import com.ssafy.naeda.domain.transaction.entity.TransactionLog;
 import com.ssafy.naeda.domain.transaction.entity.TransactionType;
 import com.ssafy.naeda.domain.transaction.repository.TransactionLogRepository;
+import com.ssafy.naeda.domain.user.entity.User;
+import com.ssafy.naeda.domain.user.repository.UserRepository;
 import com.ssafy.naeda.global.exception.DuplicateException;
 import com.ssafy.naeda.global.exception.NotFoundException;
 import com.ssafy.naeda.global.ssafy.SsafyApiClient;
@@ -128,7 +130,7 @@ class CardServiceTest {
     }
 
     private void stubCommonMocks() {
-        given(userRepository.findById(USER_NO)).willReturn(Optional.of(stubUser));
+        lenient().when(userRepository.findById(USER_NO)).thenReturn(Optional.of(stubUser));
         given(ssafyHeaderFactory.create(anyString(), anyString())).willReturn(Map.of());
         lenient().when(ssafyApiClient.buildBody(anyMap(), (Object[]) any())).thenReturn(Map.of());
     }

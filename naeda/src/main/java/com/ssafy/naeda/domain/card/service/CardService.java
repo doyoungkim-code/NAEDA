@@ -17,6 +17,8 @@ import com.ssafy.naeda.domain.payment.repository.PaymentMethodRepository;
 import com.ssafy.naeda.domain.transaction.entity.TransactionLog;
 import com.ssafy.naeda.domain.transaction.entity.TransactionType;
 import com.ssafy.naeda.domain.transaction.repository.TransactionLogRepository;
+import com.ssafy.naeda.domain.user.entity.User;
+import com.ssafy.naeda.domain.user.repository.UserRepository;
 import com.ssafy.naeda.global.exception.DuplicateException;
 import com.ssafy.naeda.global.exception.NotFoundException;
 import com.ssafy.naeda.global.ssafy.SsafyApiClient;
