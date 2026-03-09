@@ -16,6 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
@@ -27,6 +28,9 @@ class FaceControllerTest {
 
     @Mock
     private FaceService faceService;
+
+    @Mock
+    private java.security.Principal principal;
 
     @Test
     @DisplayName("search: topK/amount 미입력 시 기본값(3, 0)으로 FaceService를 호출한다")
@@ -57,5 +61,16 @@ class FaceControllerTest {
         then(faceService).should().search(any(), topKCaptor.capture(), amountCaptor.capture());
         assertThat(topKCaptor.getValue()).isEqualTo(5);
         assertThat(amountCaptor.getValue()).isEqualTo(70_000L);
+    }
+
+    @Test
+    @DisplayName("enroll: 요청 userId 대신 인증 사용자 ID로 FaceService를 호출한다")
+    void enroll_usesAuthenticatedUserId() {
+        MockMultipartFile image = new MockMultipartFile("image", "face.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        given(principal.getName()).willReturn("auth-user");
+
+        faceController.enroll("front1", image, principal);
+
+        then(faceService).should().enroll(eq("auth-user"), eq("front1"), any());
     }
 }

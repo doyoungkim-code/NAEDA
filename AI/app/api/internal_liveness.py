@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile
 from app.core.config import Settings, get_settings
 from app.core.headpose import check_headpose
 from app.core.security import verify_internal_service_token
+from app.core.upload_validation import validate_upload_metadata
 from app.schemas.headpose import HeadPoseCheckResponse
 
 router = APIRouter(prefix="/internal/v1/liveness", tags=["internal-liveness"])
@@ -24,6 +25,7 @@ async def check_headpose_direction(
     _: None = Depends(verify_internal_service_token),
     settings: Settings = Depends(get_settings),
 ) -> HeadPoseCheckResponse:
+    validate_upload_metadata(image, settings.ai_max_image_bytes)
     result = await check_headpose(
         upload_file=image,
         expected_direction=expected_direction.lower(),
