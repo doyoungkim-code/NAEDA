@@ -4,10 +4,12 @@ import com.ssafy.naeda.domain.account.dto.response.AccountResponse;
 import com.ssafy.naeda.domain.account.service.AccountService;
 import com.ssafy.naeda.global.exception.GlobalExceptionHandler;
 import com.ssafy.naeda.global.exception.NotFoundException;
-import com.ssafy.naeda.global.security.SecurityConfig;
+import com.ssafy.naeda.global.security.JwtAuthenticationFilter;
+import com.ssafy.naeda.global.security.JwtTokenProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -21,7 +23,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AccountController.class)
-@Import({GlobalExceptionHandler.class, SecurityConfig.class})
+@AutoConfigureMockMvc(addFilters = false)
+@Import(GlobalExceptionHandler.class)
 class AccountControllerTest {
 
     @Autowired
@@ -29,6 +32,12 @@ class AccountControllerTest {
 
     @MockitoBean
     private AccountService accountService;
+
+    @MockitoBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockitoBean
+    private JwtTokenProvider jwtTokenProvider;
 
     // ── GET /api/accounts ────────────────────────────────────────────────
 

@@ -1,0 +1,38 @@
+package com.ssafy.naeda.global.config;
+
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Contact;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class SwaggerConfig {
+
+    @Bean
+    public OpenAPI naedaOpenApi() {
+
+        String schemaName = "bearerAuth";
+
+        return new OpenAPI()
+                .addSecurityItem(new SecurityRequirement().addList(schemaName))
+                .components(new Components()
+                        .addSecuritySchemes(schemaName,
+                                new SecurityScheme()
+                                        .name(schemaName)
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")
+                        ))
+                .info(new Info()
+                        .title("NAEDA API 문서")
+                        .description("NAEDA 백엔드 API 명세입니다. 얼굴 인식과 포인트 기능을 제공합니다.")
+                        .version("v1")
+                        .contact(new Contact().name("NAEDA Backend Team"))
+                        .license(new License().name("Internal Use")));
+    }
+}

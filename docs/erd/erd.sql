@@ -119,6 +119,7 @@ CREATE TABLE payment_method (
 CREATE TABLE store (
     store_id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_no           BIGINT         NOT NULL,                -- FK → user (사장님)
+    account_id        BIGINT,                                 -- FK → account (정산 계좌)
     store_name        VARCHAR(100)   NOT NULL,                -- 매장명
     category          VARCHAR(30)    NOT NULL,                -- 한식/양식/카페/편의점 등
     road_address      VARCHAR(255)   NOT NULL,                -- 도로명 주소
@@ -329,6 +330,11 @@ ALTER TABLE payment_method
 ALTER TABLE store
     ADD CONSTRAINT fk_store_user
     FOREIGN KEY (user_no) REFERENCES "user" (user_no) ON DELETE CASCADE;
+
+-- Store → Account
+ALTER TABLE store
+    ADD CONSTRAINT fk_store_account
+    FOREIGN KEY (account_id) REFERENCES account (account_id) ON DELETE SET NULL;
 
 -- Payment → User
 ALTER TABLE payment

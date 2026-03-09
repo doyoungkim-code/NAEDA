@@ -34,6 +34,7 @@ public class FaceService {
     private final AiClient aiClient;
     private final FaceEmbeddingRepository faceEmbeddingRepository;
     private final RbaEngine rbaEngine;
+    private final FaceInputValidator faceInputValidator;
 
     @Value("${face.threshold.match:0.7}")
     private float matchThreshold;
@@ -52,7 +53,9 @@ public class FaceService {
      */
     @Transactional
     public EnrollResponse enroll(String userId, String pose, MultipartFile image) {
-        if (!VALID_POSES.contains(pose)) {
+        faceInputValidator.validateImage(image);
+        String normalizedPose = pose == null ? "" : pose.toLowerCase();
+        if (!VALID_POSES.contains(normalizedPose)) {
             throw new FaceException(FaceErrorCode.INVALID_POSE);
         }
 
@@ -60,20 +63,20 @@ public class FaceService {
         float[] embedding = embeddingResult.getEmbedding();
 
         // 이미 등록된 (userId, pose) 조합이면 업데이트, 없으면 새로 저장
-        FaceEmbedding entity = faceEmbeddingRepository.findByUserIdAndPose(userId, pose)
+        FaceEmbedding entity = faceEmbeddingRepository.findByUserIdAndPose(userId, normalizedPose)
                 .map(existing -> {
                     existing.updateEmbedding(embedding);
                     return existing;
                 })
                 .orElseGet(() -> FaceEmbedding.builder()
                         .userId(userId)
-                        .pose(pose)
+                        .pose(normalizedPose)
                         .embedding(embedding)
                         .build());
 
         faceEmbeddingRepository.save(entity);
 
-        log.info("얼굴 등록 완료: userId={}, pose={}", userId, pose);
+        log.info("얼굴 등록 완료: userId={}, pose={}", userId, normalizedPose);
         return EnrollResponse.from(entity, AiProcessingInfo.from(embeddingResult));
     }
 
@@ -84,6 +87,7 @@ public class FaceService {
      * 3. 유사도 높은 순으로 topK 반환, threshold(0.7) 이상이면 matched
      */
     public SearchResponse search(MultipartFile image, int topK, long amount) {
+        faceInputValidator.validateImage(image);
         AiEmbeddingResult probeResult = aiClient.extractEmbedding(image);
         float[] probe = probeResult.getEmbedding();
 
@@ -144,6 +148,7 @@ public class FaceService {
      * 3. 방향 일치 여부 및 점수 반환
      */
     public HeadPoseCheckResponse checkHeadPoseDirection(String expectedDirection, MultipartFile image) {
+        faceInputValidator.validateImage(image);
         String normalized = expectedDirection == null ? "" : expectedDirection.toLowerCase();
         if (!VALID_HEADPOSE_DIRECTIONS.contains(normalized)) {
             throw new FaceException(FaceErrorCode.INVALID_POSE);
