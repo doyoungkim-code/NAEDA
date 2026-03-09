@@ -26,6 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -279,5 +280,117 @@ class CardServiceTest {
         ArgumentCaptor<CreditCard> captor = ArgumentCaptor.forClass(CreditCard.class);
         verify(creditCardRepository).save(captor.capture());
         assertThat(captor.getValue().getCreditLimit()).isEqualTo(0L);
+    }
+
+    // ── getMyCards ──
+
+    private CreditCard buildCreditCard(Long id, Long userNo, String cardNo) throws Exception {
+        CreditCard card = CreditCard.builder()
+                .userNo(userNo).cardNo(cardNo).cvc("123")
+                .cardUniqueNo("1003-unique-" + cardNo)
+                .cardIssuerCode("1003").cardIssuerName("롯데카드")
+                .cardName("테스트 신용카드").cardExpiryDate("20290101")
+                .creditLimit(1_000_000L).billingDate(15).accountId(1L)
+                .build();
+        setField(card, "creditCardId", id);
+        return card;
+    }
+
+    private DebitCard buildDebitCard(Long id, Long userNo, String cardNo) throws Exception {
+        DebitCard card = DebitCard.builder()
+                .userNo(userNo).cardNo(cardNo).cvc("456")
+                .cardUniqueNo("1005-unique-" + cardNo)
+                .cardIssuerCode("1005").cardIssuerName("신한카드")
+                .cardName("테스트 체크카드").cardExpiryDate("20290101")
+                .accountId(1L)
+                .build();
+        setField(card, "debitCardId", id);
+        return card;
+    }
+
+    @Test
+    @DisplayName("내 카드 목록 조회 - 신용카드 + 체크카드 합쳐서 반환")
+    void getMyCards_success() throws Exception {
+        given(creditCardRepository.findByUserNoAndIsActiveTrue(USER_NO))
+                .willReturn(List.of(buildCreditCard(1L, USER_NO, "1003000000001111")));
+        given(debitCardRepository.findByUserNoAndIsActiveTrue(USER_NO))
+                .willReturn(List.of(buildDebitCard(2L, USER_NO, "1005000000002222")));
+
+        var cards = cardService.getMyCards(USER_NO);
+
+        assertThat(cards).hasSize(2);
+        assertThat(cards).extracting("cardType").containsExactly("CREDIT", "DEBIT");
+    }
+
+    @Test
+    @DisplayName("내 카드 목록 조회 - 카드가 없으면 빈 리스트 반환")
+    void getMyCards_empty() {
+        given(creditCardRepository.findByUserNoAndIsActiveTrue(USER_NO)).willReturn(List.of());
+        given(debitCardRepository.findByUserNoAndIsActiveTrue(USER_NO)).willReturn(List.of());
+
+        var cards = cardService.getMyCards(USER_NO);
+
+        assertThat(cards).isEmpty();
+    }
+
+    // ── deleteCard ──
+
+    @Test
+    @DisplayName("신용카드 삭제 성공 - 비활성화 및 PaymentMethod 삭제")
+    void deleteCard_creditCard_success() throws Exception {
+        CreditCard card = buildCreditCard(100L, USER_NO, "1003000000001111");
+        given(creditCardRepository.findById(100L)).willReturn(Optional.of(card));
+        given(paymentMethodRepository.findByCreditCardId(100L)).willReturn(List.of(
+                PaymentMethod.builder().userNo(USER_NO).methodType(MethodType.CREDIT_CARD).creditCardId(100L).build()
+        ));
+
+        cardService.deleteCard(USER_NO, 100L, "CREDIT");
+
+        assertThat(card.getIsActive()).isFalse();
+        verify(paymentMethodRepository).deleteAll(anyList());
+    }
+
+    @Test
+    @DisplayName("체크카드 삭제 성공 - 비활성화 및 PaymentMethod 삭제")
+    void deleteCard_debitCard_success() throws Exception {
+        DebitCard card = buildDebitCard(200L, USER_NO, "1005000000002222");
+        given(debitCardRepository.findById(200L)).willReturn(Optional.of(card));
+        given(paymentMethodRepository.findByDebitCardId(200L)).willReturn(List.of(
+                PaymentMethod.builder().userNo(USER_NO).methodType(MethodType.DEBIT_CARD).debitCardId(200L).build()
+        ));
+
+        cardService.deleteCard(USER_NO, 200L, "DEBIT");
+
+        assertThat(card.getIsActive()).isFalse();
+        verify(paymentMethodRepository).deleteAll(anyList());
+    }
+
+    @Test
+    @DisplayName("카드 삭제 실패 - 카드를 찾을 수 없으면 NotFoundException")
+    void deleteCard_notFound() {
+        given(creditCardRepository.findById(999L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> cardService.deleteCard(USER_NO, 999L, "CREDIT"))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("카드를 찾을 수 없습니다");
+    }
+
+    @Test
+    @DisplayName("카드 삭제 실패 - 소유자가 다르면 NotFoundException")
+    void deleteCard_ownershipMismatch() throws Exception {
+        CreditCard card = buildCreditCard(100L, 999L, "1003000000001111");
+        given(creditCardRepository.findById(100L)).willReturn(Optional.of(card));
+
+        assertThatThrownBy(() -> cardService.deleteCard(USER_NO, 100L, "CREDIT"))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("카드를 찾을 수 없습니다");
+    }
+
+    @Test
+    @DisplayName("카드 삭제 실패 - 잘못된 카드 타입이면 IllegalArgumentException")
+    void deleteCard_invalidCardType() {
+        assertThatThrownBy(() -> cardService.deleteCard(USER_NO, 100L, "INVALID"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("잘못된 카드 타입입니다");
     }
 }

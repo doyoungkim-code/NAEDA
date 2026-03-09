@@ -58,4 +58,8 @@ public class CreditCard {
 
     @Column(name = "account_id", nullable = false)
     private Long accountId;
+
+    public void deactivate() {
+        this.isActive = false;
+    }
 }

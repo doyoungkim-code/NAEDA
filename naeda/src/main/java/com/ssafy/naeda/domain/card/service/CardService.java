@@ -2,6 +2,7 @@ package com.ssafy.naeda.domain.card.service;
 
 import com.ssafy.naeda.domain.card.dto.request.CardRegisterRequest;
 import com.ssafy.naeda.domain.card.dto.response.CardRegisterResponse;
+import com.ssafy.naeda.domain.card.dto.response.CardResponse;
 import com.ssafy.naeda.domain.card.entity.CreditCard;
 import com.ssafy.naeda.domain.card.entity.DebitCard;
 import com.ssafy.naeda.domain.account.entity.Account;
@@ -20,6 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -187,6 +190,55 @@ public class CardService {
 
         return CardRegisterResponse.fromDebitCard(
                 debitCard, withdrawalAccountNo, withdrawalDate, paymentMethod.getPaymentMethodId());
+    }
+
+    @Transactional(readOnly = true)
+    public List<CardResponse> getMyCards(Long userNo) {
+        List<CardResponse> cards = new ArrayList<>();
+
+        creditCardRepository.findByUserNoAndIsActiveTrue(userNo)
+                .stream()
+                .map(CardResponse::fromCreditCard)
+                .forEach(cards::add);
+
+        debitCardRepository.findByUserNoAndIsActiveTrue(userNo)
+                .stream()
+                .map(CardResponse::fromDebitCard)
+                .forEach(cards::add);
+
+        return cards;
+    }
+
+    @Transactional
+    public void deleteCard(Long userNo, Long cardId, String cardType) {
+        if ("CREDIT".equals(cardType)) {
+            // 1. 카드 조회 + 소유자 검증
+            CreditCard creditCard = creditCardRepository.findById(cardId)
+                    .filter(card -> card.getUserNo().equals(userNo))
+                    .orElseThrow(() -> new NotFoundException("카드를 찾을 수 없습니다: " + cardId));
+
+            creditCard.deactivate();
+
+            List<PaymentMethod> methods = paymentMethodRepository.findByCreditCardId(cardId);
+            paymentMethodRepository.deleteAll(methods);
+
+            log.info("[CardService] 신용카드 삭제: userNo={}, cardId={}", userNo, cardId);
+
+        } else if ("DEBIT".equals(cardType)) {
+            DebitCard debitCard = debitCardRepository.findById(cardId)
+                    .filter(card -> card.getUserNo().equals(userNo))
+                    .orElseThrow(() -> new NotFoundException("카드를 찾을 수 없습니다: " + cardId));
+
+            debitCard.deactivate();
+
+            List<PaymentMethod> methods = paymentMethodRepository.findByDebitCardId(cardId);
+            paymentMethodRepository.deleteAll(methods);
+
+            log.info("[CardService] 체크카드 삭제: userNo={}, cardId={}", userNo, cardId);
+
+        } else {
+            throw new IllegalArgumentException("잘못된 카드 타입입니다: " + cardType);
+        }
     }
 
     // ── 유틸 ──
