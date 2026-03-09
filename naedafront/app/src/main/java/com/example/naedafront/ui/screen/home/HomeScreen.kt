@@ -125,7 +125,7 @@ fun HomeScreen(
 
             // 페이스페이 배너 (등록 여부에 따라 분기)
             if (uiState.isFaceRegistered) {
-                FacePayBenefitCard()
+                FacePayBenefitCard(onReRegisterClick = onFacePaySettingClick)
             } else {
                 FacePayBannerCard(onFacePaySettingClick = onFacePaySettingClick)
             }
@@ -481,7 +481,7 @@ private fun FacePayBannerCard(onFacePaySettingClick: () -> Unit) {
 // ────────────────────────────────────────
 
 @Composable
-private fun FacePayBenefitCard() {
+private fun FacePayBenefitCard(onReRegisterClick: () -> Unit = {}) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -534,6 +534,15 @@ private fun FacePayBenefitCard() {
                     text = "내다 페이스페이로 결제하면\n결제 금액의 5%가 포인트로 적립돼요.",
                     style = MaterialTheme.typography.bodySmall,
                     color = OnBackground.copy(alpha = 0.55f)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "얼굴 재등록",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Medium
+                    ),
+                    color = Mint900.copy(alpha = 0.7f),
+                    modifier = Modifier.clickable { onReRegisterClick() }
                 )
             }
 
