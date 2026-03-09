@@ -37,13 +37,12 @@ public class CardController {
      * POST /api/cards
      */
     @PostMapping
-    public ResponseEntity<CardRegisterResponse> cardRegister (
+    public ResponseEntity<CardRegisterResponse> cardRegister(
             @RequestParam Long userNo,
-            @RequestParam String userKey,
             @RequestBody @Valid CardRegisterRequest request
     ) {
-        CardRegisterResponse response = cardService.registerCard(userNo, userKey, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(cardService.registerCard(userNo, request));
     }
 
     /**

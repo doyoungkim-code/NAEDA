@@ -16,4 +16,11 @@ public class CardRegisterRequest {
 
     @NotBlank
     private String withdrawalDate;
+
+    /**
+     * SSAFY 카드 상품 타입 코드 (API 24 카드 상품 조회에서 확인).
+     * "1" = 신용카드, "2" = 체크카드
+     */
+    @NotBlank
+    private String cardTypeCode;
 }

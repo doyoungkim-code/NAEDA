@@ -38,7 +38,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class CardService {
 
-    private static final String API_PATH = "/edu/creditCard/createCreditCard";
+    // 명세서 API 25: URL 경로는 createCreditCardProduct, Header apiName은 createCreditCard
+    private static final String API_PATH = "/edu/creditCard/createCreditCardProduct";
     private static final String API_NAME = "createCreditCard";
 
     private static final String CARD_TX_PATH = "/edu/creditCard/inquireCreditCardTransactionList";
@@ -49,6 +50,7 @@ public class CardService {
 
     private final SsafyApiClient ssafyApiClient;
     private final SsafyHeaderFactory ssafyHeaderFactory;
+    private final UserRepository userRepository;
     private final AccountRepository accountRepository;
     private final CreditCardRepository creditCardRepository;
     private final DebitCardRepository debitCardRepository;
@@ -56,13 +58,22 @@ public class CardService {
     private final TransactionLogRepository transactionLogRepository;
 
     /**
-     * 카드 등록
+     * 카드 등록.
+     *
+     * 1) User 조회 → userKey 획득
+     * 2) SSAFY createCreditCard API 호출
+     * 3) request.cardTypeCode에 따라 credit_card / debit_card 분기 저장
+     * 4) payment_method 자동 생성
      */
     @Transactional
-    public CardRegisterResponse registerCard(Long userNo, String userKey, CardRegisterRequest request) {
+    public CardRegisterResponse registerCard(Long userNo, CardRegisterRequest request) {
 
-        // ── 1. SSAFY API 호출 ──
-        Map<String, Object> header = ssafyHeaderFactory.create(API_NAME, userKey);
+        // ── 1. User 조회 → userKey ──
+        User user = userRepository.findById(userNo)
+                .orElseThrow(() -> new NotFoundException("존재하지 않는 사용자입니다."));
+
+        // ── 2. SSAFY API 호출 ──
+        Map<String, Object> header = ssafyHeaderFactory.create(API_NAME, user.getUserKey());
         Map<String, Object> body = ssafyApiClient.buildBody(header,
                 "cardUniqueNo", request.getCardUniqueNo(),
                 "withdrawalAccountNo", request.getWithdrawalAccountNo(),
@@ -75,6 +86,7 @@ public class CardService {
         Map<String, Object> rec = (Map<String, Object>) response.get("REC");
 
         // ── 2. 공통 필드 추출 ──
+        // cardTypeCode는 API 25 응답에 포함되지 않으므로 요청값(request)에서 가져옴
         String cardNo         = (String) rec.get("cardNo");
         String cvc            = (String) rec.get("cvc");
         String cardUniqueNo   = (String) rec.get("cardUniqueNo");
@@ -82,7 +94,7 @@ public class CardService {
         String cardIssuerName = (String) rec.get("cardIssuerName");
         String cardName       = (String) rec.get("cardName");
         String cardExpiryDate = (String) rec.get("cardExpiryDate");
-        String cardTypeCode   = (String) rec.get("cardTypeCode");
+        String cardTypeCode   = request.getCardTypeCode();
         String withdrawalAccountNo = (String) rec.get("withdrawalAccountNo");
         String withdrawalDate      = (String) rec.get("withdrawalDate");
 

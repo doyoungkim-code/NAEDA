@@ -57,7 +57,7 @@ class CardControllerTest {
     @Test
     @DisplayName("카드 등록 성공 - 201 CREATED와 등록 결과를 반환한다")
     void registerCard_returns201() throws Exception {
-        given(cardService.registerCard(eq(1L), eq("test-user-key"), any())).willReturn(
+        given(cardService.registerCard(eq(1L), any())).willReturn(
                 CardRegisterResponse.builder()
                         .cardId(100L)
                         .cardNo("1003622654847049")
@@ -77,12 +77,12 @@ class CardControllerTest {
         String body = objectMapper.writeValueAsString(Map.of(
                 "cardUniqueNo", "1003-unique-abc",
                 "withdrawalAccountNo", "0320000000001234",
-                "withdrawalDate", "15"
+                "withdrawalDate", "15",
+                "cardTypeCode", "1"
         ));
 
         mockMvc.perform(post("/api/cards")
                         .param("userNo", "1")
-                        .param("userKey", "test-user-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
@@ -100,18 +100,18 @@ class CardControllerTest {
     @Test
     @DisplayName("카드 등록 실패 - 중복 카드이면 409를 반환한다")
     void registerCard_duplicate_returns409() throws Exception {
-        given(cardService.registerCard(eq(1L), eq("test-user-key"), any()))
+        given(cardService.registerCard(eq(1L), any()))
                 .willThrow(new DuplicateException("이미 등록된 카드입니다: 1003622654847049"));
 
         String body = objectMapper.writeValueAsString(Map.of(
                 "cardUniqueNo", "1003-unique-abc",
                 "withdrawalAccountNo", "0320000000001234",
-                "withdrawalDate", "15"
+                "withdrawalDate", "15",
+                "cardTypeCode", "1"
         ));
 
         mockMvc.perform(post("/api/cards")
                         .param("userNo", "1")
-                        .param("userKey", "test-user-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isConflict())
@@ -124,18 +124,18 @@ class CardControllerTest {
     @Test
     @DisplayName("카드 등록 실패 - 연결 계좌 없으면 404를 반환한다")
     void registerCard_accountNotFound_returns404() throws Exception {
-        given(cardService.registerCard(eq(1L), eq("test-user-key"), any()))
+        given(cardService.registerCard(eq(1L), any()))
                 .willThrow(new NotFoundException("연결 계좌를 찾을 수 없습니다: 0320000000001234"));
 
         String body = objectMapper.writeValueAsString(Map.of(
                 "cardUniqueNo", "1003-unique-abc",
                 "withdrawalAccountNo", "0320000000001234",
-                "withdrawalDate", "15"
+                "withdrawalDate", "15",
+                "cardTypeCode", "1"
         ));
 
         mockMvc.perform(post("/api/cards")
                         .param("userNo", "1")
-                        .param("userKey", "test-user-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isNotFound())
@@ -151,27 +151,11 @@ class CardControllerTest {
         String body = objectMapper.writeValueAsString(Map.of(
                 "cardUniqueNo", "1003-unique-abc",
                 "withdrawalAccountNo", "0320000000001234",
-                "withdrawalDate", "15"
+                "withdrawalDate", "15",
+                "cardTypeCode", "1"
         ));
 
         mockMvc.perform(post("/api/cards")
-                        .param("userKey", "test-user-key")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    @DisplayName("카드 등록 실패 - userKey 누락 시 400을 반환한다")
-    void registerCard_missingUserKey_returns400() throws Exception {
-        String body = objectMapper.writeValueAsString(Map.of(
-                "cardUniqueNo", "1003-unique-abc",
-                "withdrawalAccountNo", "0320000000001234",
-                "withdrawalDate", "15"
-        ));
-
-        mockMvc.perform(post("/api/cards")
-                        .param("userNo", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest());
@@ -182,12 +166,12 @@ class CardControllerTest {
     void registerCard_missingCardUniqueNo_returns400() throws Exception {
         String body = objectMapper.writeValueAsString(Map.of(
                 "withdrawalAccountNo", "0320000000001234",
-                "withdrawalDate", "15"
+                "withdrawalDate", "15",
+                "cardTypeCode", "1"
         ));
 
         mockMvc.perform(post("/api/cards")
                         .param("userNo", "1")
-                        .param("userKey", "test-user-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest());
@@ -198,12 +182,12 @@ class CardControllerTest {
     void registerCard_missingWithdrawalAccountNo_returns400() throws Exception {
         String body = objectMapper.writeValueAsString(Map.of(
                 "cardUniqueNo", "1003-unique-abc",
-                "withdrawalDate", "15"
+                "withdrawalDate", "15",
+                "cardTypeCode", "1"
         ));
 
         mockMvc.perform(post("/api/cards")
                         .param("userNo", "1")
-                        .param("userKey", "test-user-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest());
@@ -214,12 +198,28 @@ class CardControllerTest {
     void registerCard_missingWithdrawalDate_returns400() throws Exception {
         String body = objectMapper.writeValueAsString(Map.of(
                 "cardUniqueNo", "1003-unique-abc",
-                "withdrawalAccountNo", "0320000000001234"
+                "withdrawalAccountNo", "0320000000001234",
+                "cardTypeCode", "1"
         ));
 
         mockMvc.perform(post("/api/cards")
                         .param("userNo", "1")
-                        .param("userKey", "test-user-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("카드 등록 실패 - cardTypeCode 누락 시 400을 반환한다")
+    void registerCard_missingCardTypeCode_returns400() throws Exception {
+        String body = objectMapper.writeValueAsString(Map.of(
+                "cardUniqueNo", "1003-unique-abc",
+                "withdrawalAccountNo", "0320000000001234",
+                "withdrawalDate", "15"
+        ));
+
+        mockMvc.perform(post("/api/cards")
+                        .param("userNo", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest());
