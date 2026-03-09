@@ -5,6 +5,7 @@ import com.ssafy.naeda.domain.face.client.dto.AiEmbeddingResponse;
 import com.ssafy.naeda.domain.face.client.dto.AiErrorResponse;
 import com.ssafy.naeda.domain.face.client.dto.AiEmbeddingResult;
 import com.ssafy.naeda.domain.face.client.dto.AiHeadPoseResponse;
+import com.ssafy.naeda.domain.fds.service.AiInferenceMonitoringService;
 import com.ssafy.naeda.domain.face.exception.FaceErrorCode;
 import com.ssafy.naeda.domain.face.exception.FaceException;
 import lombok.RequiredArgsConstructor;
@@ -26,14 +27,19 @@ import java.util.Arrays;
 @RequiredArgsConstructor
 public class AiClient {
 
+    private static final String EMBEDDINGS_ENDPOINT = "embeddings_extract";
+    private static final String HEADPOSE_ENDPOINT = "headpose_check";
+
     private final RestClient aiRestClient;
     private final ObjectMapper objectMapper;
+    private final AiInferenceMonitoringService aiInferenceMonitoringService;
 
     /**
      * AI 서버에 이미지를 보내서 임베딩(512개 float 배열)을 받아옴
      */
     public AiEmbeddingResult extractEmbedding(MultipartFile image) {
         byte[] imageBytes = null;
+        long startedAt = System.currentTimeMillis();
         try {
             imageBytes = image.getBytes();
 
@@ -71,7 +77,7 @@ public class AiClient {
                 throw new FaceException(FaceErrorCode.AI_UNAVAILABLE);
             }
 
-            return AiEmbeddingResult.builder()
+            AiEmbeddingResult result = AiEmbeddingResult.builder()
                     .embedding(response.toFloatArray())
                     .qualityScore(response.getQualityScore())
                     .model(response.getModel())
@@ -83,18 +89,44 @@ public class AiClient {
                     .aiStatus(response.getAiStatus())
                     .message(response.getMessage())
                     .build();
+            aiInferenceMonitoringService.recordSuccess(
+                    EMBEDDINGS_ENDPOINT,
+                    System.currentTimeMillis() - startedAt,
+                    result.isFallbackUsed()
+            );
+            return result;
 
         } catch (FaceException e) {
+            aiInferenceMonitoringService.recordFailure(
+                    EMBEDDINGS_ENDPOINT,
+                    e.getCode(),
+                    System.currentTimeMillis() - startedAt
+            );
             throw e;
         } catch (ResourceAccessException e) {
             if (e.getCause() instanceof SocketTimeoutException) {
                 log.warn("AI 서버 timeout");
+                aiInferenceMonitoringService.recordFailure(
+                        EMBEDDINGS_ENDPOINT,
+                        FaceErrorCode.AI_TIMEOUT.getCode(),
+                        System.currentTimeMillis() - startedAt
+                );
                 throw new FaceException(FaceErrorCode.AI_TIMEOUT);
             }
             log.warn("AI 서버 연결 실패: {}", e.getMessage());
+            aiInferenceMonitoringService.recordFailure(
+                    EMBEDDINGS_ENDPOINT,
+                    FaceErrorCode.AI_UNAVAILABLE.getCode(),
+                    System.currentTimeMillis() - startedAt
+            );
             throw new FaceException(FaceErrorCode.AI_UNAVAILABLE);
         } catch (Exception e) {
             log.error("AI 서버 호출 중 예외 발생", e);
+            aiInferenceMonitoringService.recordFailure(
+                    EMBEDDINGS_ENDPOINT,
+                    FaceErrorCode.AI_UNAVAILABLE.getCode(),
+                    System.currentTimeMillis() - startedAt
+            );
             throw new FaceException(FaceErrorCode.AI_UNAVAILABLE);
         } finally {
             if (imageBytes != null) {
@@ -108,6 +140,7 @@ public class AiClient {
      */
     public AiHeadPoseResponse checkHeadPose(String expectedDirection, MultipartFile image) {
         byte[] imageBytes = null;
+        long startedAt = System.currentTimeMillis();
         try {
             imageBytes = image.getBytes();
 
@@ -145,19 +178,44 @@ public class AiClient {
                 throw new FaceException(FaceErrorCode.AI_UNAVAILABLE);
             }
 
+            aiInferenceMonitoringService.recordSuccess(
+                    HEADPOSE_ENDPOINT,
+                    System.currentTimeMillis() - startedAt,
+                    response.isFallbackUsed()
+            );
             return response;
 
         } catch (FaceException e) {
+            aiInferenceMonitoringService.recordFailure(
+                    HEADPOSE_ENDPOINT,
+                    e.getCode(),
+                    System.currentTimeMillis() - startedAt
+            );
             throw e;
         } catch (ResourceAccessException e) {
             if (e.getCause() instanceof SocketTimeoutException) {
                 log.warn("AI 서버 timeout");
+                aiInferenceMonitoringService.recordFailure(
+                        HEADPOSE_ENDPOINT,
+                        FaceErrorCode.AI_TIMEOUT.getCode(),
+                        System.currentTimeMillis() - startedAt
+                );
                 throw new FaceException(FaceErrorCode.AI_TIMEOUT);
             }
             log.warn("AI 서버 연결 실패: {}", e.getMessage());
+            aiInferenceMonitoringService.recordFailure(
+                    HEADPOSE_ENDPOINT,
+                    FaceErrorCode.AI_UNAVAILABLE.getCode(),
+                    System.currentTimeMillis() - startedAt
+            );
             throw new FaceException(FaceErrorCode.AI_UNAVAILABLE);
         } catch (Exception e) {
             log.error("AI 서버 호출 중 예외 발생", e);
+            aiInferenceMonitoringService.recordFailure(
+                    HEADPOSE_ENDPOINT,
+                    FaceErrorCode.AI_UNAVAILABLE.getCode(),
+                    System.currentTimeMillis() - startedAt
+            );
             throw new FaceException(FaceErrorCode.AI_UNAVAILABLE);
         } finally {
             if (imageBytes != null) {

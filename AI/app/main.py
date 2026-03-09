@@ -9,7 +9,7 @@ from app.api.internal_liveness import router as internal_liveness_router
 from app.api.internal_model_version import router as internal_model_version_router
 from app.core.config import get_settings
 from app.core.errors import AIServiceError
-from app.core.metrics import REQUEST_DURATION_SECONDS, REQUESTS_TOTAL, render_metrics
+from app.core.metrics import INFERENCE_ERRORS_TOTAL, REQUEST_DURATION_SECONDS, REQUESTS_TOTAL, render_metrics
 from app.core.request_context import ensure_request_id, get_request_id
 
 settings = get_settings()
@@ -42,6 +42,8 @@ async def metrics_middleware(request: Request, call_next):
 
 @app.exception_handler(AIServiceError)
 async def handle_ai_service_error(request: Request, exc: AIServiceError):
+    endpoint = request.url.path
+    INFERENCE_ERRORS_TOTAL.labels(endpoint=endpoint, code=exc.code).inc()
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -54,6 +56,7 @@ async def handle_ai_service_error(request: Request, exc: AIServiceError):
 
 @app.exception_handler(RequestValidationError)
 async def handle_validation_error(request: Request, _: RequestValidationError):
+    INFERENCE_ERRORS_TOTAL.labels(endpoint=request.url.path, code="INVALID_IMAGE").inc()
     return JSONResponse(
         status_code=400,
         content={
@@ -66,6 +69,7 @@ async def handle_validation_error(request: Request, _: RequestValidationError):
 
 @app.exception_handler(Exception)
 async def handle_unexpected_error(request: Request, _: Exception):
+    INFERENCE_ERRORS_TOTAL.labels(endpoint=request.url.path, code="AI_UNAVAILABLE").inc()
     return JSONResponse(
         status_code=503,
         content={
