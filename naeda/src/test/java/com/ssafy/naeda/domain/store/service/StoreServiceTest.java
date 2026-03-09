@@ -5,6 +5,7 @@ import com.ssafy.naeda.domain.store.dto.response.StoreResponse;
 import com.ssafy.naeda.domain.store.entity.Store;
 import com.ssafy.naeda.domain.store.repository.StoreRepository;
 import com.ssafy.naeda.global.exception.NotFoundException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.naeda.global.ssafy.SsafyApiClient;
 import com.ssafy.naeda.global.ssafy.SsafyHeaderFactory;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
@@ -24,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class StoreServiceTest {
@@ -39,6 +42,9 @@ class StoreServiceTest {
 
     @Mock
     private SsafyHeaderFactory ssafyHeaderFactory;
+
+    @Spy
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     private List<Map<String, Object>> ssafyRec;
 
@@ -177,6 +183,7 @@ class StoreServiceTest {
         given(storeRepository.save(any(Store.class))).willReturn(savedStore);
 
         StoreCreateRequest request = new StoreCreateRequest();
+        ReflectionTestUtils.setField(request, "storeName", "코스트코");
 
         StoreResponse result = storeService.createStore(request);
 

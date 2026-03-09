@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -99,7 +100,7 @@ public class StoreService {
         // 2. 응답에서 신규 등록된 가맹점 추출 (merchantName 매칭)
         List<SsafyMerchantRec> merchants = parseMerchantList(response);
         SsafyMerchantRec created = merchants.stream()
-                .filter(rec -> request.getStoreName().equals(rec.getMerchantName()))
+                .filter(rec -> Objects.equals(request.getStoreName(), rec.getMerchantName()))
                 .reduce((first, second) -> second)  // 동명 가맹점이 있을 경우 마지막(최신) 항목
                 .orElseThrow(() -> new NotFoundException("SSAFY 가맹점 등록 응답에서 매장을 찾을 수 없습니다."));
 
