@@ -67,10 +67,9 @@ public class CardController {
     public ResponseEntity<List<CardTransactionResponse>> getCardTransactions (
             @PathVariable Long cardId,
             @RequestParam Long userNo,
-            @RequestParam String userKey,
             @ModelAttribute @Valid CardTransactionRequest request
     ) {
-        return ResponseEntity.ok(cardService.getCardTransactions(userNo, userKey, cardId, request));
+        return ResponseEntity.ok(cardService.getCardTransactions(userNo, cardId, request));
     }
 }
 

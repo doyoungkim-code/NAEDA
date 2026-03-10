@@ -61,7 +61,6 @@ class CardControllerTest {
                 CardRegisterResponse.builder()
                         .cardId(100L)
                         .cardNo("1003622654847049")
-                        .cvc("713")
                         .cardUniqueNo("1003-unique-abc")
                         .cardIssuerCode("1003")
                         .cardIssuerName("롯데카드")
@@ -88,7 +87,6 @@ class CardControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.cardId").value(100))
                 .andExpect(jsonPath("$.cardNo").value("1003622654847049"))
-                .andExpect(jsonPath("$.cvc").value("713"))
                 .andExpect(jsonPath("$.cardType").value("CREDIT"))
                 .andExpect(jsonPath("$.cardIssuerName").value("롯데카드"))
                 .andExpect(jsonPath("$.withdrawalAccountNo").value("0320000000001234"))
@@ -232,13 +230,13 @@ class CardControllerTest {
     void getCards_returns200() throws Exception {
         given(cardService.getMyCards(1L)).willReturn(List.of(
                 CardResponse.builder()
-                        .cardId(100L).cardNo("1003000000001111").cvc("123")
+                        .cardId(100L).cardNo("1003000000001111")
                         .cardIssuerName("롯데카드").cardName("디지로카 SEOUL")
                         .cardType("CREDIT").isActive(true)
                         .creditLimit(1_000_000L).billingDate(15)
                         .build(),
                 CardResponse.builder()
-                        .cardId(200L).cardNo("1005000000002222").cvc("456")
+                        .cardId(200L).cardNo("1005000000002222")
                         .cardIssuerName("신한카드").cardName("신한 체크카드")
                         .cardType("DEBIT").isActive(true)
                         .build()
@@ -319,7 +317,7 @@ class CardControllerTest {
     @Test
     @DisplayName("카드 결제 내역 조회 성공 - 200 OK와 거래 내역 리스트를 반환한다")
     void getCardTransactions_returns200() throws Exception {
-        given(cardService.getCardTransactions(eq(1L), eq("test-user-key"), eq(100L), any()))
+        given(cardService.getCardTransactions(eq(1L), eq(100L), any()))
                 .willReturn(List.of(
                         CardTransactionResponse.builder()
                                 .logId(1L).transactionUniqueNo("TX-001")
@@ -337,7 +335,6 @@ class CardControllerTest {
 
         mockMvc.perform(get("/api/cards/100/transactions")
                         .param("userNo", "1")
-                        .param("userKey", "test-user-key")
                         .param("startDate", "20240401")
                         .param("endDate", "20240430"))
                 .andExpect(status().isOk())
@@ -353,12 +350,11 @@ class CardControllerTest {
     @Test
     @DisplayName("카드 결제 내역 조회 - 거래 없으면 빈 리스트 반환")
     void getCardTransactions_empty() throws Exception {
-        given(cardService.getCardTransactions(eq(1L), eq("test-user-key"), eq(100L), any()))
+        given(cardService.getCardTransactions(eq(1L), eq(100L), any()))
                 .willReturn(List.of());
 
         mockMvc.perform(get("/api/cards/100/transactions")
                         .param("userNo", "1")
-                        .param("userKey", "test-user-key")
                         .param("startDate", "20240401")
                         .param("endDate", "20240430"))
                 .andExpect(status().isOk())
@@ -368,12 +364,11 @@ class CardControllerTest {
     @Test
     @DisplayName("카드 결제 내역 조회 실패 - 카드 없으면 404를 반환한다")
     void getCardTransactions_notFound_returns404() throws Exception {
-        given(cardService.getCardTransactions(eq(1L), eq("test-user-key"), eq(999L), any()))
+        given(cardService.getCardTransactions(eq(1L), eq(999L), any()))
                 .willThrow(new NotFoundException("카드를 찾을 수 없습니다: 999"));
 
         mockMvc.perform(get("/api/cards/999/transactions")
                         .param("userNo", "1")
-                        .param("userKey", "test-user-key")
                         .param("startDate", "20240401")
                         .param("endDate", "20240430"))
                 .andExpect(status().isNotFound())
@@ -384,17 +379,6 @@ class CardControllerTest {
     @DisplayName("카드 결제 내역 조회 실패 - userNo 누락 시 400을 반환한다")
     void getCardTransactions_missingUserNo_returns400() throws Exception {
         mockMvc.perform(get("/api/cards/100/transactions")
-                        .param("userKey", "test-user-key")
-                        .param("startDate", "20240401")
-                        .param("endDate", "20240430"))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    @DisplayName("카드 결제 내역 조회 실패 - userKey 누락 시 400을 반환한다")
-    void getCardTransactions_missingUserKey_returns400() throws Exception {
-        mockMvc.perform(get("/api/cards/100/transactions")
-                        .param("userNo", "1")
                         .param("startDate", "20240401")
                         .param("endDate", "20240430"))
                 .andExpect(status().isBadRequest());

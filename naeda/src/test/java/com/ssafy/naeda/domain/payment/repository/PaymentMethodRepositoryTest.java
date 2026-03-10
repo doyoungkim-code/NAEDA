@@ -56,7 +56,7 @@ class PaymentMethodRepositoryTest {
         paymentMethodRepository.save(PaymentMethod.builder()
                 .userNo(2L).methodType(MethodType.DEBIT_CARD).debitCardId(5L).build());
 
-        List<PaymentMethod> methods = paymentMethodRepository.findByUserNo(1L);
+        List<PaymentMethod> methods = paymentMethodRepository.findByUserNoAndIsActiveTrue(1L);
         assertThat(methods).hasSize(2);
         assertThat(methods).extracting(PaymentMethod::getUserNo).containsOnly(1L);
     }
@@ -72,7 +72,7 @@ class PaymentMethodRepositoryTest {
         paymentMethodRepository.save(PaymentMethod.builder()
                 .userNo(1L).methodType(MethodType.ACCOUNT).accountId(1L).build());
 
-        Optional<PaymentMethod> found = paymentMethodRepository.findByUserNoAndIsFacePayTrue(1L);
+        Optional<PaymentMethod> found = paymentMethodRepository.findByUserNoAndIsFacePayTrueAndIsActiveTrue(1L);
         assertThat(found).isPresent();
         assertThat(found.get().getIsFacePay()).isTrue();
         assertThat(found.get().getIsDefault()).isTrue();
@@ -85,7 +85,7 @@ class PaymentMethodRepositoryTest {
         paymentMethodRepository.save(PaymentMethod.builder()
                 .userNo(1L).methodType(MethodType.ACCOUNT).accountId(1L).build());
 
-        Optional<PaymentMethod> found = paymentMethodRepository.findByUserNoAndIsFacePayTrue(1L);
+        Optional<PaymentMethod> found = paymentMethodRepository.findByUserNoAndIsFacePayTrueAndIsActiveTrue(1L);
         assertThat(found).isEmpty();
     }
 
@@ -106,26 +106,26 @@ class PaymentMethodRepositoryTest {
 
     @Test
     @DisplayName("creditCardId로 결제수단 조회")
-    void findByCreditCardId() {
+    void findByCreditCardIdAndIsActiveTrue() {
         paymentMethodRepository.save(PaymentMethod.builder()
                 .userNo(1L).methodType(MethodType.CREDIT_CARD).creditCardId(10L).build());
         paymentMethodRepository.save(PaymentMethod.builder()
                 .userNo(1L).methodType(MethodType.CREDIT_CARD).creditCardId(20L).build());
 
-        List<PaymentMethod> methods = paymentMethodRepository.findByCreditCardId(10L);
+        List<PaymentMethod> methods = paymentMethodRepository.findByCreditCardIdAndIsActiveTrue(10L);
         assertThat(methods).hasSize(1);
         assertThat(methods.get(0).getCreditCardId()).isEqualTo(10L);
     }
 
     @Test
     @DisplayName("debitCardId로 결제수단 조회")
-    void findByDebitCardId() {
+    void findByDebitCardIdAndIsActiveTrue() {
         paymentMethodRepository.save(PaymentMethod.builder()
                 .userNo(1L).methodType(MethodType.DEBIT_CARD).debitCardId(5L).build());
         paymentMethodRepository.save(PaymentMethod.builder()
                 .userNo(1L).methodType(MethodType.DEBIT_CARD).debitCardId(15L).build());
 
-        List<PaymentMethod> methods = paymentMethodRepository.findByDebitCardId(5L);
+        List<PaymentMethod> methods = paymentMethodRepository.findByDebitCardIdAndIsActiveTrue(5L);
         assertThat(methods).hasSize(1);
         assertThat(methods.get(0).getDebitCardId()).isEqualTo(5L);
     }

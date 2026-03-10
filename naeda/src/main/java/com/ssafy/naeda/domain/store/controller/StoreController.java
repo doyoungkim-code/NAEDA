@@ -5,6 +5,7 @@ import com.ssafy.naeda.domain.store.dto.response.StoreResponse;
 import com.ssafy.naeda.domain.store.service.StoreService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import org.springframework.http.HttpStatus;
@@ -41,7 +42,7 @@ public class StoreController {
      * POST /api/stores
      */
     @PostMapping
-    public ResponseEntity<StoreResponse> createStore(@RequestBody StoreCreateRequest request) {
+    public ResponseEntity<StoreResponse> createStore(@Valid @RequestBody StoreCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(storeService.createStore(request));
     }
 }

@@ -28,9 +28,10 @@ public class TransactionLogController {
     @GetMapping
     public ResponseEntity<List<TransactionLogResponse>> getTransactions(
             @RequestParam Long userNo,
-            @RequestParam Long accountId
+            @RequestParam Long accountId,
+            @RequestParam(defaultValue = "100") int size
     ) {
-        return ResponseEntity.ok(transactionLogService.getTransactions(userNo, accountId));
+        return ResponseEntity.ok(transactionLogService.getTransactions(userNo, accountId).stream().limit(size).toList());
     }
 
     /**
@@ -42,10 +43,11 @@ public class TransactionLogController {
             @RequestParam Long userNo,
             @RequestParam Long accountId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)LocalDateTime from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)LocalDateTime to
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)LocalDateTime to,
+            @RequestParam(defaultValue = "100") int size
     ) {
         return ResponseEntity.ok(
-                transactionLogService.getTransactionsByPeriod(userNo, accountId, from, to)
+                transactionLogService.getTransactionsByPeriod(userNo, accountId, from, to).stream().limit(size).toList()
         );
     }
 
@@ -57,10 +59,11 @@ public class TransactionLogController {
     public ResponseEntity<List<TransactionLogResponse>> getTransactionsByType(
             @RequestParam Long userNo,
             @RequestParam Long accountId,
-            @RequestParam TransactionType transactionType
+            @RequestParam TransactionType transactionType,
+            @RequestParam(defaultValue = "100") int size
     ) {
         return ResponseEntity.ok(
-                transactionLogService.getTransactionsByType(userNo, accountId, transactionType)
+                transactionLogService.getTransactionsByType(userNo, accountId, transactionType).stream().limit(size).toList()
         );
     }
 }

@@ -58,27 +58,21 @@ class CreditCardRepositoryTest {
     }
 
     @Test
-    @DisplayName("userNo로 신용카드 목록 조회")
-    void findByUserNo() {
-        creditCardRepository.save(buildCreditCard(1L, "1003000000001111"));
-        creditCardRepository.save(buildCreditCard(1L, "1003000000002222"));
-        creditCardRepository.save(buildCreditCard(2L, "1003000000003333"));
+    @DisplayName("카드번호로 활성 카드 단건 조회")
+    void findByCardNoAndIsActiveTrue() {
+        CreditCard card = creditCardRepository.save(buildCreditCard(1L, "1003000000001111"));
 
-        List<CreditCard> cards = creditCardRepository.findByUserNo(1L);
-        assertThat(cards).hasSize(2);
-        assertThat(cards).extracting(CreditCard::getUserNo).containsOnly(1L);
-    }
-
-    @Test
-    @DisplayName("카드번호로 단건 조회")
-    void findByCardNo() {
-        creditCardRepository.save(buildCreditCard(1L, "1003000000001111"));
-
-        Optional<CreditCard> found = creditCardRepository.findByCardNo("1003000000001111");
+        Optional<CreditCard> found = creditCardRepository.findByCardNoAndIsActiveTrue("1003000000001111");
         assertThat(found).isPresent();
         assertThat(found.get().getUserNo()).isEqualTo(1L);
 
-        Optional<CreditCard> notFound = creditCardRepository.findByCardNo("9999999999999999");
+        // 비활성화 후 조회 시 빈 결과
+        card.deactivate();
+        creditCardRepository.save(card);
+        Optional<CreditCard> deactivated = creditCardRepository.findByCardNoAndIsActiveTrue("1003000000001111");
+        assertThat(deactivated).isEmpty();
+
+        Optional<CreditCard> notFound = creditCardRepository.findByCardNoAndIsActiveTrue("9999999999999999");
         assertThat(notFound).isEmpty();
     }
 

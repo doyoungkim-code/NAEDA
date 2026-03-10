@@ -234,7 +234,7 @@ class PaymentControllerTest {
     @Test
     @DisplayName("결제 단건 조회 - 200 OK와 결제 정보를 반환한다")
     void getPayment_returns200() throws Exception {
-        given(paymentService.getPayment(1L)).willReturn(
+        given(paymentService.getPayment(1L, 1L)).willReturn(
                 PaymentResponse.builder()
                         .paymentId(1L).userNo(10L).storeId(100L).amount(15000L)
                         .status("SUCCESS").authMethod("FACE_PAY").authLevel("FACE_ONLY")
@@ -242,7 +242,7 @@ class PaymentControllerTest {
                         .build()
         );
 
-        mockMvc.perform(get("/api/payments/1"))
+        mockMvc.perform(get("/api/payments/1").param("userNo", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.paymentId").value(1))
                 .andExpect(jsonPath("$.amount").value(15000))
@@ -253,10 +253,10 @@ class PaymentControllerTest {
     @Test
     @DisplayName("결제 단건 조회 - 존재하지 않는 paymentId면 404를 반환한다")
     void getPayment_notFound_returns404() throws Exception {
-        given(paymentService.getPayment(999L))
+        given(paymentService.getPayment(1L, 999L))
                 .willThrow(new NotFoundException("존재하지 않는 결제 내역입니다."));
 
-        mockMvc.perform(get("/api/payments/999"))
+        mockMvc.perform(get("/api/payments/999").param("userNo", "1"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("존재하지 않는 결제 내역입니다."));

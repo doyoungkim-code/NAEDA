@@ -104,7 +104,7 @@ class TransferServiceTest {
         TransferRequest request = createRequest(WITHDRAWAL_ACCOUNT, DEPOSIT_ACCOUNT, 50_000L, "용돈");
 
         given(userRepository.findById(USER_NO)).willReturn(Optional.of(stubUser));
-        given(accountRepository.findByAccountNo(WITHDRAWAL_ACCOUNT)).willReturn(Optional.of(stubAccount));
+        given(accountRepository.findByAccountNoForUpdate(WITHDRAWAL_ACCOUNT)).willReturn(Optional.of(stubAccount));
         given(ssafyHeaderFactory.create(anyString(), anyString())).willReturn(Map.of());
         lenient().when(ssafyApiClient.buildBody(anyMap(), (Object[]) any())).thenReturn(Map.of());
         given(ssafyApiClient.post(eq("/edu/demandDeposit/updateDemandDepositAccountTransfer"), anyMap()))
@@ -138,7 +138,7 @@ class TransferServiceTest {
         TransferRequest request = createRequest(WITHDRAWAL_ACCOUNT, DEPOSIT_ACCOUNT, 10_000L, null);
 
         given(userRepository.findById(USER_NO)).willReturn(Optional.of(stubUser));
-        given(accountRepository.findByAccountNo(WITHDRAWAL_ACCOUNT)).willReturn(Optional.of(stubAccount));
+        given(accountRepository.findByAccountNoForUpdate(WITHDRAWAL_ACCOUNT)).willReturn(Optional.of(stubAccount));
         given(ssafyHeaderFactory.create(anyString(), anyString())).willReturn(Map.of());
         lenient().when(ssafyApiClient.buildBody(anyMap(), (Object[]) any())).thenReturn(Map.of());
         given(ssafyApiClient.post(eq("/edu/demandDeposit/updateDemandDepositAccountTransfer"), anyMap()))
@@ -162,7 +162,7 @@ class TransferServiceTest {
         Map<String, Object> nullBalanceResponse = Map.of("REC", nullBalanceRec);
 
         given(userRepository.findById(USER_NO)).willReturn(Optional.of(stubUser));
-        given(accountRepository.findByAccountNo(WITHDRAWAL_ACCOUNT)).willReturn(Optional.of(stubAccount));
+        given(accountRepository.findByAccountNoForUpdate(WITHDRAWAL_ACCOUNT)).willReturn(Optional.of(stubAccount));
         given(ssafyHeaderFactory.create(anyString(), anyString())).willReturn(Map.of());
         lenient().when(ssafyApiClient.buildBody(anyMap(), (Object[]) any())).thenReturn(Map.of());
         given(ssafyApiClient.post(eq("/edu/demandDeposit/updateDemandDepositAccountTransfer"), anyMap()))
@@ -183,7 +183,7 @@ class TransferServiceTest {
         TransferRequest request = createRequest(WITHDRAWAL_ACCOUNT, DEPOSIT_ACCOUNT, 30_000L, "테스트");
 
         given(userRepository.findById(USER_NO)).willReturn(Optional.of(stubUser));
-        given(accountRepository.findByAccountNo(WITHDRAWAL_ACCOUNT)).willReturn(Optional.of(stubAccount));
+        given(accountRepository.findByAccountNoForUpdate(WITHDRAWAL_ACCOUNT)).willReturn(Optional.of(stubAccount));
         given(ssafyHeaderFactory.create(anyString(), anyString())).willReturn(Map.of());
         lenient().when(ssafyApiClient.buildBody(anyMap(), (Object[]) any())).thenReturn(Map.of());
         given(ssafyApiClient.post(eq("/edu/demandDeposit/updateDemandDepositAccountTransfer"), anyMap()))
@@ -218,7 +218,7 @@ class TransferServiceTest {
         TransferRequest request = createRequest(WITHDRAWAL_ACCOUNT, DEPOSIT_ACCOUNT, 50_000L, null);
 
         given(userRepository.findById(USER_NO)).willReturn(Optional.of(stubUser));
-        given(accountRepository.findByAccountNo(WITHDRAWAL_ACCOUNT)).willReturn(Optional.empty());
+        given(accountRepository.findByAccountNoForUpdate(WITHDRAWAL_ACCOUNT)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> transferService.transfer(USER_NO, request))
                 .isInstanceOf(NotFoundException.class)
@@ -236,7 +236,7 @@ class TransferServiceTest {
                 .build();
 
         given(userRepository.findById(USER_NO)).willReturn(Optional.of(stubUser));
-        given(accountRepository.findByAccountNo(WITHDRAWAL_ACCOUNT)).willReturn(Optional.of(otherAccount));
+        given(accountRepository.findByAccountNoForUpdate(WITHDRAWAL_ACCOUNT)).willReturn(Optional.of(otherAccount));
 
         assertThatThrownBy(() -> transferService.transfer(USER_NO, request))
                 .isInstanceOf(NotFoundException.class)

@@ -75,7 +75,10 @@ public class PointController {
     @GetMapping("/wallet/{userNo}/histories")
     @Operation(summary = "포인트 이력 조회", description = "사용자 포인트 적립/사용 이력을 최신순으로 조회합니다.")
     @ApiResponse(responseCode = "200", description = "조회 성공")
-    public ResponseEntity<List<PointHistoryResponse>> getHistories(@PathVariable Long userNo) {
-        return ResponseEntity.ok(pointService.getHistories(userNo));
+    public ResponseEntity<List<PointHistoryResponse>> getHistories(
+            @PathVariable Long userNo,
+            @RequestParam(defaultValue = "100") int size
+    ) {
+        return ResponseEntity.ok(pointService.getHistories(userNo).stream().limit(size).toList());
     }
 }

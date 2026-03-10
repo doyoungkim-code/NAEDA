@@ -180,8 +180,7 @@ class CardServiceTest {
 
         CardRegisterResponse result = cardService.registerCard(USER_NO, request);
 
-        assertThat(result.getCardNo()).isEqualTo("1003622654847049");
-        assertThat(result.getCvc()).isEqualTo("713");
+        assertThat(result.getCardNo()).isEqualTo("1003****7049");
         assertThat(result.getCardIssuerName()).isEqualTo("롯데카드");
         assertThat(result.getCardType()).isEqualTo("CREDIT");
         assertThat(result.getWithdrawalAccountNo()).isEqualTo(WITHDRAWAL_ACCOUNT_NO);
@@ -218,7 +217,7 @@ class CardServiceTest {
         CardRegisterResponse result = cardService.registerCard(USER_NO, request);
 
         assertThat(result.getCardType()).isEqualTo("DEBIT");
-        assertThat(result.getCardNo()).isEqualTo("1003622654847049");
+        assertThat(result.getCardNo()).isEqualTo("1003****7049");
         assertThat(result.getPaymentMethodId()).isEqualTo(50L);
 
         ArgumentCaptor<DebitCard> cardCaptor = ArgumentCaptor.forClass(DebitCard.class);
@@ -372,14 +371,14 @@ class CardServiceTest {
     void deleteCard_creditCard_success() throws Exception {
         CreditCard card = buildCreditCard(100L, USER_NO, "1003000000001111");
         given(creditCardRepository.findById(100L)).willReturn(Optional.of(card));
-        given(paymentMethodRepository.findByCreditCardId(100L)).willReturn(List.of(
+        given(paymentMethodRepository.findByCreditCardIdAndIsActiveTrue(100L)).willReturn(List.of(
                 PaymentMethod.builder().userNo(USER_NO).methodType(MethodType.CREDIT_CARD).creditCardId(100L).build()
         ));
 
         cardService.deleteCard(USER_NO, 100L, "CREDIT");
 
         assertThat(card.getIsActive()).isFalse();
-        verify(paymentMethodRepository).deleteAll(anyList());
+        verify(paymentMethodRepository).findByCreditCardIdAndIsActiveTrue(100L);
     }
 
     @Test
@@ -387,14 +386,14 @@ class CardServiceTest {
     void deleteCard_debitCard_success() throws Exception {
         DebitCard card = buildDebitCard(200L, USER_NO, "1005000000002222");
         given(debitCardRepository.findById(200L)).willReturn(Optional.of(card));
-        given(paymentMethodRepository.findByDebitCardId(200L)).willReturn(List.of(
+        given(paymentMethodRepository.findByDebitCardIdAndIsActiveTrue(200L)).willReturn(List.of(
                 PaymentMethod.builder().userNo(USER_NO).methodType(MethodType.DEBIT_CARD).debitCardId(200L).build()
         ));
 
         cardService.deleteCard(USER_NO, 200L, "DEBIT");
 
         assertThat(card.getIsActive()).isFalse();
-        verify(paymentMethodRepository).deleteAll(anyList());
+        verify(paymentMethodRepository).findByDebitCardIdAndIsActiveTrue(200L);
     }
 
     @Test
@@ -472,7 +471,7 @@ class CardServiceTest {
         given(transactionLogRepository.findBySsafyTransactionId(anyString())).willReturn(Optional.empty());
         stubTransactionLogSave();
 
-        List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, USER_KEY, 100L, createTransactionRequest());
+        List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, 100L, createTransactionRequest());
 
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getCategoryName()).isEqualTo("식비");
@@ -493,7 +492,7 @@ class CardServiceTest {
         given(transactionLogRepository.findBySsafyTransactionId(anyString())).willReturn(Optional.empty());
         stubTransactionLogSave();
 
-        List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, USER_KEY, 200L, createTransactionRequest());
+        List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, 200L, createTransactionRequest());
 
         assertThat(result).hasSize(1);
         verify(transactionLogRepository, times(1)).save(any(TransactionLog.class));
@@ -510,7 +509,7 @@ class CardServiceTest {
         rec.put("transactionList", List.of());
         given(ssafyApiClient.post(anyString(), anyMap())).willReturn(Map.of("REC", rec));
 
-        List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, USER_KEY, 100L, createTransactionRequest());
+        List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, 100L, createTransactionRequest());
 
         assertThat(result).isEmpty();
         verify(transactionLogRepository, never()).save(any());
@@ -519,10 +518,11 @@ class CardServiceTest {
     @Test
     @DisplayName("카드 결제 내역 조회 실패 - 카드를 찾을 수 없으면 NotFoundException")
     void getCardTransactions_cardNotFound() throws Exception {
+        given(userRepository.findById(USER_NO)).willReturn(Optional.of(stubUser));
         given(creditCardRepository.findById(999L)).willReturn(Optional.empty());
         given(debitCardRepository.findById(999L)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> cardService.getCardTransactions(USER_NO, USER_KEY, 999L, createTransactionRequest()))
+        assertThatThrownBy(() -> cardService.getCardTransactions(USER_NO, 999L, createTransactionRequest()))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("카드를 찾을 수 없습니다");
     }
@@ -547,7 +547,7 @@ class CardServiceTest {
 
         given(transactionLogRepository.findBySsafyTransactionId("TX-0")).willReturn(Optional.of(existingLog));
 
-        List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, USER_KEY, 100L, createTransactionRequest());
+        List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, 100L, createTransactionRequest());
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getLogId()).isEqualTo(10L);

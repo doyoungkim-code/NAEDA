@@ -11,7 +11,6 @@ public class CardResponse {
 
     private Long cardId;
     private String cardNo;
-    private String cvc;
     private String cardUniqueNo;
     private String cardIssuerCode;
     private String cardIssuerName;
@@ -26,8 +25,7 @@ public class CardResponse {
     public static CardResponse fromCreditCard(CreditCard card) {
         return builder()
                 .cardId(card.getCreditCardId())
-                .cardNo(card.getCardNo())
-                .cvc(card.getCvc())
+                .cardNo(maskCardNo(card.getCardNo()))
                 .cardUniqueNo(card.getCardUniqueNo())
                 .cardIssuerCode(card.getCardIssuerCode())
                 .cardIssuerName(card.getCardIssuerName())
@@ -44,8 +42,7 @@ public class CardResponse {
     public static CardResponse fromDebitCard(DebitCard card) {
         return builder()
                 .cardId(card.getDebitCardId())
-                .cardNo(card.getCardNo())
-                .cvc(card.getCvc())
+                .cardNo(maskCardNo(card.getCardNo()))
                 .cardUniqueNo(card.getCardUniqueNo())
                 .cardIssuerCode(card.getCardIssuerCode())
                 .cardIssuerName(card.getCardIssuerName())
@@ -55,5 +52,10 @@ public class CardResponse {
                 .accountId(card.getAccountId())
                 .cardType("DEBIT")
                 .build();
+    }
+
+    private static String maskCardNo(String cardNo) {
+        if (cardNo == null || cardNo.length() < 8) return cardNo;
+        return cardNo.substring(0, 4) + "****" + cardNo.substring(cardNo.length() - 4);
     }
 }

@@ -51,9 +51,10 @@ public class PaymentController {
     public ResponseEntity<List<PaymentResponse>> getPayments(
             @RequestParam Long userNo,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(defaultValue = "100") int size
     ) {
-        return ResponseEntity.ok(paymentService.getPayments(userNo, from, to));
+        return ResponseEntity.ok(paymentService.getPayments(userNo, from, to).stream().limit(size).toList());
     }
 
     /**
@@ -62,7 +63,10 @@ public class PaymentController {
      */
     @Operation(summary = "결제 단건 조회", description = "결제 ID로 단건 결제 내역을 조회합니다.")
     @GetMapping("/{paymentId}")
-    public ResponseEntity<PaymentResponse> getPayment(@PathVariable Long paymentId) {
-        return ResponseEntity.ok(paymentService.getPayment(paymentId));
+    public ResponseEntity<PaymentResponse> getPayment(
+            @RequestParam Long userNo,
+            @PathVariable Long paymentId
+    ) {
+        return ResponseEntity.ok(paymentService.getPayment(userNo, paymentId));
     }
 }

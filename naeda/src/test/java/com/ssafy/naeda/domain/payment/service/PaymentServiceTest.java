@@ -167,7 +167,7 @@ class PaymentServiceTest {
         given(storeRepository.findById(STORE_ID)).willReturn(Optional.of(facePayStore));
         given(faceService.search(any(), anyInt(), anyLong())).willReturn(faceResult);
         given(userRepository.findByUserId(USER_ID)).willReturn(Optional.of(stubUser));
-        given(paymentMethodRepository.findByUserNoAndIsFacePayTrue(USER_NO))
+        given(paymentMethodRepository.findByUserNoAndIsFacePayTrueAndIsActiveTrue(USER_NO))
                 .willReturn(Optional.of(creditPaymentMethod));
         given(creditCardRepository.findById(CARD_ID)).willReturn(Optional.of(stubCreditCard));
         given(ssafyHeaderFactory.create(anyString(), anyString())).willReturn(Map.of());
@@ -196,7 +196,7 @@ class PaymentServiceTest {
         given(storeRepository.findById(STORE_ID)).willReturn(Optional.of(facePayStore));
         given(faceService.search(any(), anyInt(), anyLong())).willReturn(faceResult);
         given(userRepository.findByUserId(USER_ID)).willReturn(Optional.of(stubUser));
-        given(paymentMethodRepository.findByUserNoAndIsFacePayTrue(USER_NO))
+        given(paymentMethodRepository.findByUserNoAndIsFacePayTrueAndIsActiveTrue(USER_NO))
                 .willReturn(Optional.of(creditPaymentMethod));
         given(creditCardRepository.findById(CARD_ID)).willReturn(Optional.of(stubCreditCard));
         given(ssafyHeaderFactory.create(anyString(), anyString())).willReturn(Map.of());
@@ -251,7 +251,7 @@ class PaymentServiceTest {
         given(storeRepository.findById(STORE_ID)).willReturn(Optional.of(facePayStore));
         given(faceService.search(any(), anyInt(), anyLong())).willReturn(faceResult);
         given(userRepository.findByUserId(USER_ID)).willReturn(Optional.of(stubUser));
-        given(paymentMethodRepository.findByUserNoAndIsFacePayTrue(USER_NO))
+        given(paymentMethodRepository.findByUserNoAndIsFacePayTrueAndIsActiveTrue(USER_NO))
                 .willReturn(Optional.of(creditPaymentMethod));
         given(creditCardRepository.findById(CARD_ID)).willReturn(Optional.of(stubCreditCard));
         Payment failedP = Payment.builder()
@@ -307,7 +307,7 @@ class PaymentServiceTest {
         given(storeRepository.findById(STORE_ID)).willReturn(Optional.of(facePayStore));
         given(faceService.search(any(), anyInt(), anyLong())).willReturn(faceResult);
         given(userRepository.findByUserId(USER_ID)).willReturn(Optional.of(stubUser));
-        given(paymentMethodRepository.findByUserNoAndIsFacePayTrue(USER_NO))
+        given(paymentMethodRepository.findByUserNoAndIsFacePayTrueAndIsActiveTrue(USER_NO))
                 .willReturn(Optional.empty());
 
         assertThatThrownBy(() -> paymentService.pay(buildRequest(), faceImage))
@@ -352,7 +352,7 @@ class PaymentServiceTest {
         Payment p = savedPayment(1L);
         given(paymentRepository.findById(1L)).willReturn(Optional.of(p));
 
-        PaymentResponse result = paymentService.getPayment(1L);
+        PaymentResponse result = paymentService.getPayment(USER_NO, 1L);
 
         assertThat(result.getPaymentId()).isEqualTo(1L);
         assertThat(result.getStatus()).isEqualTo("SUCCESS");
@@ -363,7 +363,7 @@ class PaymentServiceTest {
     void getPayment_notFound() {
         given(paymentRepository.findById(999L)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> paymentService.getPayment(999L))
+        assertThatThrownBy(() -> paymentService.getPayment(USER_NO, 999L))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("존재하지 않는 결제 내역입니다.");
     }

@@ -48,8 +48,8 @@ public class TransferService {
         User user = userRepository.findById(userNo)
                 .orElseThrow(() -> new NotFoundException("존재하지 않는 사용자입니다."));
 
-        // 2. 출금 계좌 소유권 검증
-        Long withdrawalAccountId = accountRepository.findByAccountNo(request.getWithdrawalAccountNo())
+        // 2. 출금 계좌 소유권 검증 (비관적 잠금)
+        Long withdrawalAccountId = accountRepository.findByAccountNoForUpdate(request.getWithdrawalAccountNo())
                 .filter(account -> account.getUserNo().equals(userNo))
                 .orElseThrow(() -> new NotFoundException("계좌를 찾을 수 없거나 접근 권한이 없습니다."))
                 .getAccountId();
@@ -103,8 +103,16 @@ public class TransferService {
         );
         Map<String, Object> balanceResponse = ssafyApiClient.post(BALANCE_API, balanceBody);
         Map<String, Object> rec = (Map<String, Object>) balanceResponse.get("REC");
+        if (rec == null) {
+            return 0L;
+        }
         String balance = (String) rec.get("accountBalance");
-        return balance != null ? Long.parseLong(balance) : 0L;
+        if (balance == null) return 0L;
+        try {
+            return Long.parseLong(balance);
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
     }
 
     /**
@@ -137,6 +145,7 @@ public class TransferService {
     @SuppressWarnings("unchecked")
     private String extractTransactionDate(List<Map<String, Object>> recList) {
         if (recList == null || recList.isEmpty()) return null;
-        return (String) recList.get(0).get("transactionDate");
+        Object value = recList.get(0).get("transactionDate");
+        return value != null ? value.toString() : null;
     }
 }
