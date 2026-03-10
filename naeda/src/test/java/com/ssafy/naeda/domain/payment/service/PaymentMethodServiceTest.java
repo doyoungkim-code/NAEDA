@@ -63,7 +63,7 @@ class PaymentMethodServiceTest {
         PaymentMethod creditPm = buildMethod(10L, USER_NO, MethodType.CREDIT_CARD, false);
         PaymentMethod debitPm  = buildMethod(20L, USER_NO, MethodType.DEBIT_CARD, true);
 
-        given(paymentMethodRepository.findByUserNo(USER_NO)).willReturn(List.of(creditPm, debitPm));
+        given(paymentMethodRepository.findByUserNoAndIsActiveTrue(USER_NO)).willReturn(List.of(creditPm, debitPm));
 
         List<PaymentMethod> result = paymentMethodService.getPaymentMethods(USER_NO);
 
@@ -76,7 +76,7 @@ class PaymentMethodServiceTest {
     @Test
     @DisplayName("결제 수단 목록 조회 - 등록된 수단이 없으면 빈 목록을 반환한다")
     void getPaymentMethods_empty() {
-        given(paymentMethodRepository.findByUserNo(USER_NO)).willReturn(List.of());
+        given(paymentMethodRepository.findByUserNoAndIsActiveTrue(USER_NO)).willReturn(List.of());
 
         List<PaymentMethod> result = paymentMethodService.getPaymentMethods(USER_NO);
 
@@ -92,7 +92,7 @@ class PaymentMethodServiceTest {
         PaymentMethod target   = buildMethod(PM_ID, USER_NO, MethodType.CREDIT_CARD, false);
 
         given(paymentMethodRepository.findById(PM_ID)).willReturn(Optional.of(target));
-        given(paymentMethodRepository.findByUserNoAndIsFacePayTrue(USER_NO)).willReturn(Optional.of(existing));
+        given(paymentMethodRepository.findByUserNoAndIsFacePayTrueAndIsActiveTrue(USER_NO)).willReturn(Optional.of(existing));
 
         paymentMethodService.setFacePayMethod(USER_NO, PM_ID);
 
@@ -107,7 +107,7 @@ class PaymentMethodServiceTest {
         PaymentMethod target = buildMethod(PM_ID, USER_NO, MethodType.CREDIT_CARD, false);
 
         given(paymentMethodRepository.findById(PM_ID)).willReturn(Optional.of(target));
-        given(paymentMethodRepository.findByUserNoAndIsFacePayTrue(USER_NO)).willReturn(Optional.empty());
+        given(paymentMethodRepository.findByUserNoAndIsFacePayTrueAndIsActiveTrue(USER_NO)).willReturn(Optional.empty());
 
         paymentMethodService.setFacePayMethod(USER_NO, PM_ID);
 

@@ -95,7 +95,7 @@ public class PaymentService {
         User user = userRepository.findByUserId(faceResult.getBestUserId())
                 .orElseThrow(() -> new NotFoundException("얼굴 인식된 사용자를 찾을 수 없습니다."));
 
-        PaymentMethod paymentMethod = paymentMethodRepository.findByUserNoAndIsFacePayTrue(user.getUserNo())
+        PaymentMethod paymentMethod = paymentMethodRepository.findByUserNoAndIsFacePayTrueAndIsActiveTrue(user.getUserNo())
                 .orElseThrow(() -> new NotFoundException("페이스페이 결제 수단이 등록되지 않았습니다."));
 
         String[] cardInfo = resolveCardInfo(paymentMethod);
@@ -129,6 +129,11 @@ public class PaymentService {
         );
         Map<String, Object> ssafyResponse = ssafyApiClient.post(CREDIT_CARD_API, body);
         String transactionId = extractTransactionId(ssafyResponse);
+
+        // 6-1. 중복 결제 방지 (동일 transactionId)
+        if (transactionId != null && paymentRepository.existsBySsafyTransactionId(transactionId)) {
+            throw new BadRequestException("이미 처리된 결제입니다: " + transactionId);
+        }
 
         // 7. 포인트 계산 및 Payment 저장
         int earnedPoints = (int) (request.getAmount() * pointRate);
@@ -178,8 +183,9 @@ public class PaymentService {
     /**
      * 결제 단건 조회.
      */
-    public PaymentResponse getPayment(Long paymentId) {
+    public PaymentResponse getPayment(Long userNo, Long paymentId) {
         Payment payment = paymentRepository.findById(paymentId)
+                .filter(p -> p.getUserNo().equals(userNo))
                 .orElseThrow(() -> new NotFoundException("존재하지 않는 결제 내역입니다."));
         return PaymentResponse.from(payment);
     }
@@ -189,10 +195,12 @@ public class PaymentService {
     private String[] resolveCardInfo(PaymentMethod paymentMethod) {
         if (paymentMethod.getMethodType() == MethodType.CREDIT_CARD) {
             CreditCard card = creditCardRepository.findById(paymentMethod.getCreditCardId())
+                    .filter(c -> Boolean.TRUE.equals(c.getIsActive()))
                     .orElseThrow(() -> new NotFoundException("신용카드 정보를 찾을 수 없습니다."));
             return new String[]{card.getCardNo(), card.getCvc()};
         } else if (paymentMethod.getMethodType() == MethodType.DEBIT_CARD) {
             DebitCard card = debitCardRepository.findById(paymentMethod.getDebitCardId())
+                    .filter(c -> Boolean.TRUE.equals(c.getIsActive()))
                     .orElseThrow(() -> new NotFoundException("체크카드 정보를 찾을 수 없습니다."));
             return new String[]{card.getCardNo(), card.getCvc()};
         }

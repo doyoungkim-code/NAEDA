@@ -34,6 +34,7 @@ public class PointWallet {
     @Builder.Default
     private Long totalUsed = 0L;
 
+    @Column(name = "updated")
     private LocalDateTime updated;
 
     public void earn(Long amount) {

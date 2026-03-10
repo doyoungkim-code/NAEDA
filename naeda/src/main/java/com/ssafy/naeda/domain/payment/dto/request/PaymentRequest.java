@@ -1,6 +1,7 @@
 package com.ssafy.naeda.domain.payment.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.Getter;
@@ -17,6 +18,7 @@ public class PaymentRequest {
 
     @NotNull
     @Positive
+    @Max(100_000_000)
     @Schema(description = "결제 금액 (원)", example = "15000", requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1")
     private Long amount;
 }

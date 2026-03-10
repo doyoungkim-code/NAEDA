@@ -11,7 +11,6 @@ public class CardRegisterResponse {
 
     private Long cardId;
     private String cardNo;
-    private String cvc;
     private String cardUniqueNo;
     private String cardIssuerCode;
     private String cardIssuerName;
@@ -25,8 +24,7 @@ public class CardRegisterResponse {
     public static CardRegisterResponse fromCreditCard(CreditCard card, String withdrawalAccountNo, String withdrawalDate, Long paymentMethodId) {
         return builder()
                 .cardId(card.getCreditCardId())
-                .cardNo(card.getCardNo())
-                .cvc(card.getCvc())
+                .cardNo(maskCardNo(card.getCardNo()))
                 .cardUniqueNo(card.getCardUniqueNo())
                 .cardIssuerCode(card.getCardIssuerCode())
                 .cardIssuerName(card.getCardIssuerName())
@@ -42,8 +40,7 @@ public class CardRegisterResponse {
     public static CardRegisterResponse fromDebitCard(DebitCard card, String withdrawalAccountNo, String withdrawalDate, Long paymentMethodId) {
         return builder()
                 .cardId(card.getDebitCardId())
-                .cardNo(card.getCardNo())
-                .cvc(card.getCvc())
+                .cardNo(maskCardNo(card.getCardNo()))
                 .cardUniqueNo(card.getCardUniqueNo())
                 .cardIssuerCode(card.getCardIssuerCode())
                 .cardIssuerName(card.getCardIssuerName())
@@ -56,4 +53,8 @@ public class CardRegisterResponse {
                 .build();
     }
 
+    private static String maskCardNo(String cardNo) {
+        if (cardNo == null || cardNo.length() < 8) return cardNo;
+        return cardNo.substring(0, 4) + "****" + cardNo.substring(cardNo.length() - 4);
+    }
 }

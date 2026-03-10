@@ -21,7 +21,7 @@ public class PaymentMethodService {
      * 사용자의 결제 수단 목록 조회.
      */
     public List<PaymentMethod> getPaymentMethods(Long userNo) {
-        return paymentMethodRepository.findByUserNo(userNo);
+        return paymentMethodRepository.findByUserNoAndIsActiveTrue(userNo);
     }
 
     /**
@@ -38,7 +38,7 @@ public class PaymentMethodService {
         }
 
         // 기존 페이스페이 수단 해제
-        paymentMethodRepository.findByUserNoAndIsFacePayTrue(userNo)
+        paymentMethodRepository.findByUserNoAndIsFacePayTrueAndIsActiveTrue(userNo)
                 .ifPresent(PaymentMethod::clearFacePay);
 
         target.setAsFacePay();

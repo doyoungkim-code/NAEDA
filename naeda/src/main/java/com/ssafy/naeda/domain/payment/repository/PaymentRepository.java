@@ -16,4 +16,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findByStoreIdOrderByPaidDesc(Long storeId);
 
     List<Payment> findByUserNoAndStatus(Long userNo, PaymentStatus status);
+
+    boolean existsBySsafyTransactionId(String ssafyTransactionId);
 }

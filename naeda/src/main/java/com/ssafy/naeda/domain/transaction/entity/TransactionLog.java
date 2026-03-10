@@ -19,21 +19,23 @@ public class TransactionLog {
     @Column(name = "log_id")
     private Long logId;
 
-    @Column(name = "account_id")
+    @Column(name = "account_id", nullable = false)
     private Long accountId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "transaction_type")
+    @Column(name = "transaction_type", nullable = false)
     private TransactionType transactionType;
 
+    @Column(nullable = false)
     private Long amount;
 
-    @Column(name = "balance_after")
+    @Column(name = "balance_after", nullable = false)
     private Long balanceAfter;
 
     @Column(length = 100)
     private String counterpart;
 
+    @Column(length = 255)
     private String memo;
 
     @Column(length = 30)

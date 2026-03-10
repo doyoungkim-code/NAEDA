@@ -86,19 +86,25 @@ public class CardService {
 
         @SuppressWarnings("unchecked")
         Map<String, Object> rec = (Map<String, Object>) response.get("REC");
+        if (rec == null) {
+            throw new NotFoundException("SSAFY API 응답에 REC이 없습니다.");
+        }
 
         // ── 2. 공통 필드 추출 ──
-        // cardTypeCode는 API 25 응답에 포함되지 않으므로 요청값(request)에서 가져옴
-        String cardNo         = (String) rec.get("cardNo");
-        String cvc            = (String) rec.get("cvc");
-        String cardUniqueNo   = (String) rec.get("cardUniqueNo");
-        String cardIssuerCode = (String) rec.get("cardIssuerCode");
-        String cardIssuerName = (String) rec.get("cardIssuerName");
-        String cardName       = (String) rec.get("cardName");
-        String cardExpiryDate = (String) rec.get("cardExpiryDate");
+        String cardNo         = (String) rec.getOrDefault("cardNo", null);
+        String cvc            = (String) rec.getOrDefault("cvc", null);
+        String cardUniqueNo   = (String) rec.getOrDefault("cardUniqueNo", null);
+        String cardIssuerCode = (String) rec.getOrDefault("cardIssuerCode", null);
+        String cardIssuerName = (String) rec.getOrDefault("cardIssuerName", null);
+        String cardName       = (String) rec.getOrDefault("cardName", null);
+        String cardExpiryDate = (String) rec.getOrDefault("cardExpiryDate", null);
         String cardTypeCode   = request.getCardTypeCode();
-        String withdrawalAccountNo = (String) rec.get("withdrawalAccountNo");
-        String withdrawalDate      = (String) rec.get("withdrawalDate");
+        String withdrawalAccountNo = (String) rec.getOrDefault("withdrawalAccountNo", null);
+        String withdrawalDate      = (String) rec.getOrDefault("withdrawalDate", null);
+
+        if (cardNo == null || cvc == null) {
+            throw new NotFoundException("SSAFY API 응답에 필수 카드 정보가 없습니다.");
+        }
 
         // ── 3. 중복 체크 ──
         if (creditCardRepository.existsByCardNo(cardNo) || debitCardRepository.existsByCardNo(cardNo)) {
@@ -236,8 +242,8 @@ public class CardService {
 
             creditCard.deactivate();
 
-            List<PaymentMethod> methods = paymentMethodRepository.findByCreditCardId(cardId);
-            paymentMethodRepository.deleteAll(methods);
+            List<PaymentMethod> methods = paymentMethodRepository.findByCreditCardIdAndIsActiveTrue(cardId);
+            methods.forEach(PaymentMethod::deactivate);
 
             log.info("[CardService] 신용카드 삭제: userNo={}, cardId={}", userNo, cardId);
 
@@ -248,8 +254,8 @@ public class CardService {
 
             debitCard.deactivate();
 
-            List<PaymentMethod> methods = paymentMethodRepository.findByDebitCardId(cardId);
-            paymentMethodRepository.deleteAll(methods);
+            List<PaymentMethod> methods = paymentMethodRepository.findByDebitCardIdAndIsActiveTrue(cardId);
+            methods.forEach(PaymentMethod::deactivate);
 
             log.info("[CardService] 체크카드 삭제: userNo={}, cardId={}", userNo, cardId);
 
@@ -259,13 +265,16 @@ public class CardService {
     }
 
     @Transactional
-    public List<CardTransactionResponse> getCardTransactions(Long userNo, String userKey,
+    public List<CardTransactionResponse> getCardTransactions(Long userNo,
                                                              Long cardId, CardTransactionRequest request) {
+
+        User user = userRepository.findById(userNo)
+                .orElseThrow(() -> new NotFoundException("존재하지 않는 사용자입니다."));
 
         CardInfo cardInfo = findCardByIdAndUserNo(cardId, userNo);
 
         // SSAFY API 호출
-        Map<String, Object> header = ssafyHeaderFactory.create(CARD_TX_API, userKey);
+        Map<String, Object> header = ssafyHeaderFactory.create(CARD_TX_API, user.getUserKey());
         Map<String, Object> body = ssafyApiClient.buildBody(header,
                 "cardNo", cardInfo.cardNo(),
                 "cvc", cardInfo.cvc(),
@@ -277,6 +286,9 @@ public class CardService {
 
         @SuppressWarnings("unchecked")
         Map<String, Object> rec = (Map<String, Object>) response.get("REC");
+        if (rec == null) {
+            return List.of();
+        }
 
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> transactionList =
@@ -298,11 +310,11 @@ public class CardService {
                 continue;
             }
 
-            String categoryName = (String) tx.get("categoryName");
-            String merchantName = (String) tx.get("merchantName");
-            String txDate       = (String) tx.get("transactionDate");
-            String txTime       = (String) tx.get("transactionTime");
-            String cardStatus   = (String) tx.get("cardStatus");
+            String categoryName = (String) tx.getOrDefault("categoryName", "");
+            String merchantName = (String) tx.getOrDefault("merchantName", "");
+            String txDate       = (String) tx.getOrDefault("transactionDate", "");
+            String txTime       = (String) tx.getOrDefault("transactionTime", "");
+            String cardStatus   = (String) tx.getOrDefault("cardStatus", "");
             Long txAmount       = parseLongOrDefault(tx.get("transactionBalance"), 0L);
 
             LocalDateTime transacted = parseTransactionDateTime(txDate, txTime);
@@ -342,12 +354,12 @@ public class CardService {
     private CardInfo findCardByIdAndUserNo(Long cardId, Long userNo) {
         // credit_card에서 먼저 탐색
         return creditCardRepository.findById(cardId)
-                .filter(card -> card.getUserNo().equals(userNo))
+                .filter(card -> card.getUserNo().equals(userNo) && Boolean.TRUE.equals(card.getIsActive()))
                 .map(card -> new CardInfo(card.getCardNo(), card.getCvc(), card.getAccountId()))
                 .orElseGet(() ->
                         // credit에 없으면 debit_card에서 탐색
                         debitCardRepository.findById(cardId)
-                                .filter(card -> card.getUserNo().equals(userNo))
+                                .filter(card -> card.getUserNo().equals(userNo) && Boolean.TRUE.equals(card.getIsActive()))
                                 .map(card -> new CardInfo(card.getCardNo(), card.getCvc(), card.getAccountId()))
                                 .orElseThrow(() -> new NotFoundException("카드를 찾을 수 없습니다: " + cardId))
                 );

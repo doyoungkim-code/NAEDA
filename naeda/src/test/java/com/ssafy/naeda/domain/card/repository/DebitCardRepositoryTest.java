@@ -54,27 +54,21 @@ class DebitCardRepositoryTest {
     }
 
     @Test
-    @DisplayName("userNo로 체크카드 목록 조회")
-    void findByUserNo() {
-        debitCardRepository.save(buildDebitCard(1L, "1005000000001111"));
-        debitCardRepository.save(buildDebitCard(1L, "1005000000002222"));
-        debitCardRepository.save(buildDebitCard(2L, "1005000000003333"));
+    @DisplayName("카드번호로 활성 카드 단건 조회")
+    void findByCardNoAndIsActiveTrue() {
+        DebitCard card = debitCardRepository.save(buildDebitCard(1L, "1005000000001111"));
 
-        List<DebitCard> cards = debitCardRepository.findByUserNo(1L);
-        assertThat(cards).hasSize(2);
-        assertThat(cards).extracting(DebitCard::getUserNo).containsOnly(1L);
-    }
-
-    @Test
-    @DisplayName("카드번호로 단건 조회")
-    void findByCardNo() {
-        debitCardRepository.save(buildDebitCard(1L, "1005000000001111"));
-
-        Optional<DebitCard> found = debitCardRepository.findByCardNo("1005000000001111");
+        Optional<DebitCard> found = debitCardRepository.findByCardNoAndIsActiveTrue("1005000000001111");
         assertThat(found).isPresent();
         assertThat(found.get().getUserNo()).isEqualTo(1L);
 
-        Optional<DebitCard> notFound = debitCardRepository.findByCardNo("9999999999999999");
+        // 비활성화 후 조회 시 빈 결과
+        card.deactivate();
+        debitCardRepository.save(card);
+        Optional<DebitCard> deactivated = debitCardRepository.findByCardNoAndIsActiveTrue("1005000000001111");
+        assertThat(deactivated).isEmpty();
+
+        Optional<DebitCard> notFound = debitCardRepository.findByCardNoAndIsActiveTrue("9999999999999999");
         assertThat(notFound).isEmpty();
     }
 
