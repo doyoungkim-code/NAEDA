@@ -2,7 +2,9 @@ package com.ssafy.naeda.domain.payment.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.naeda.domain.payment.dto.PaymentRequestData;
+import com.ssafy.naeda.domain.payment.dto.response.ProcessPaymentResponse;
 import com.ssafy.naeda.domain.payment.entity.PaymentRequestStatus;
+import com.ssafy.naeda.domain.payment.service.PaymentProcessService;
 import com.ssafy.naeda.domain.payment.service.PaymentRequestService;
 import com.ssafy.naeda.global.exception.BadRequestException;
 import com.ssafy.naeda.global.exception.GlobalExceptionHandler;
@@ -16,16 +18,16 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 import java.util.Map;
 
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -42,6 +44,9 @@ class PaymentRequestControllerTest {
 
     @MockitoBean
     private PaymentRequestService paymentRequestService;
+
+    @MockitoBean
+    private PaymentProcessService paymentProcessService;
 
     @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -194,6 +199,115 @@ class PaymentRequestControllerTest {
     @DisplayName("매장별 목록 조회 - storeId 누락 시 400을 반환한다")
     void getRequestsByStore_missingStoreId_returns400() throws Exception {
         mockMvc.perform(get("/api/payment-requests"))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ── POST /api/payment-requests/{requestId}/process ────────────────────
+
+    @Test
+    @DisplayName("결제 처리 - 성공 시 200과 SUCCESS를 반환한다")
+    void processPayment_returns200() throws Exception {
+        ProcessPaymentResponse response = ProcessPaymentResponse.builder()
+                .requestId("test-uuid").paymentId(50L).status("SUCCESS")
+                .nextAction("PASS").storeId(STORE_ID).amount(AMOUNT)
+                .earnedPoints(750).ssafyTransactionId("TXN-001")
+                .similarity(0.95).build();
+
+        given(paymentProcessService.processPayment(eq("test-uuid"), any(), any()))
+                .willReturn(response);
+
+        MockMultipartFile requestPart = new MockMultipartFile(
+                "request", "", MediaType.APPLICATION_JSON_VALUE,
+                "{\"userNo\":10}".getBytes());
+        MockMultipartFile faceImage = new MockMultipartFile(
+                "faceImage", "face.jpg", MediaType.IMAGE_JPEG_VALUE,
+                "fake-image".getBytes());
+
+        mockMvc.perform(multipart("/api/payment-requests/test-uuid/process")
+                        .file(requestPart)
+                        .file(faceImage))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SUCCESS"))
+                .andExpect(jsonPath("$.paymentId").value(50))
+                .andExpect(jsonPath("$.earnedPoints").value(750))
+                .andExpect(jsonPath("$.nextAction").value("PASS"));
+    }
+
+    @Test
+    @DisplayName("결제 처리 - 얼굴 차단 시 200과 BLOCKED를 반환한다")
+    void processPayment_blocked_returns200() throws Exception {
+        ProcessPaymentResponse response = ProcessPaymentResponse.builder()
+                .requestId("test-uuid").status("BLOCKED")
+                .nextAction("BLOCK").storeId(STORE_ID).amount(AMOUNT)
+                .similarity(0.3).build();
+
+        given(paymentProcessService.processPayment(eq("test-uuid"), any(), any()))
+                .willReturn(response);
+
+        MockMultipartFile requestPart = new MockMultipartFile(
+                "request", "", MediaType.APPLICATION_JSON_VALUE,
+                "{\"userNo\":10}".getBytes());
+        MockMultipartFile faceImage = new MockMultipartFile(
+                "faceImage", "face.jpg", MediaType.IMAGE_JPEG_VALUE,
+                "fake-image".getBytes());
+
+        mockMvc.perform(multipart("/api/payment-requests/test-uuid/process")
+                        .file(requestPart)
+                        .file(faceImage))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("BLOCKED"))
+                .andExpect(jsonPath("$.nextAction").value("BLOCK"));
+    }
+
+    @Test
+    @DisplayName("결제 처리 - 요청 만료 시 404를 반환한다")
+    void processPayment_expired_returns404() throws Exception {
+        given(paymentProcessService.processPayment(eq("expired-uuid"), any(), any()))
+                .willThrow(new NotFoundException("결제 요청이 만료되었거나 존재하지 않습니다."));
+
+        MockMultipartFile requestPart = new MockMultipartFile(
+                "request", "", MediaType.APPLICATION_JSON_VALUE,
+                "{\"userNo\":10}".getBytes());
+        MockMultipartFile faceImage = new MockMultipartFile(
+                "faceImage", "face.jpg", MediaType.IMAGE_JPEG_VALUE,
+                "fake-image".getBytes());
+
+        mockMvc.perform(multipart("/api/payment-requests/expired-uuid/process")
+                        .file(requestPart)
+                        .file(faceImage))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("결제 처리 - 이미 처리 중인 요청이면 400을 반환한다")
+    void processPayment_alreadyProcessing_returns400() throws Exception {
+        given(paymentProcessService.processPayment(eq("processing-uuid"), any(), any()))
+                .willThrow(new BadRequestException("이미 처리 중이거나 완료된 결제 요청입니다."));
+
+        MockMultipartFile requestPart = new MockMultipartFile(
+                "request", "", MediaType.APPLICATION_JSON_VALUE,
+                "{\"userNo\":10}".getBytes());
+        MockMultipartFile faceImage = new MockMultipartFile(
+                "faceImage", "face.jpg", MediaType.IMAGE_JPEG_VALUE,
+                "fake-image".getBytes());
+
+        mockMvc.perform(multipart("/api/payment-requests/processing-uuid/process")
+                        .file(requestPart)
+                        .file(faceImage))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+    }
+
+    @Test
+    @DisplayName("결제 처리 - 얼굴 이미지 누락 시 400을 반환한다")
+    void processPayment_missingFaceImage_returns400() throws Exception {
+        MockMultipartFile requestPart = new MockMultipartFile(
+                "request", "", MediaType.APPLICATION_JSON_VALUE,
+                "{\"userNo\":10}".getBytes());
+
+        mockMvc.perform(multipart("/api/payment-requests/test-uuid/process")
+                        .file(requestPart))
                 .andExpect(status().isBadRequest());
     }
 }
