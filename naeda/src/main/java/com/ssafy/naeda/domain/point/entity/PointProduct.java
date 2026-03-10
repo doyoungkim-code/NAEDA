@@ -76,4 +76,17 @@ public class PointProduct {
         }
         return true;
     }
+
+    public void deductStock(int quantity) {
+        if (this.status != PointProductStatus.ON_SALE) {
+            throw new IllegalStateException("판매 중인 상품만 재고 차감이 가능합니다.");
+        }
+        if (this.stockQuantity < quantity) {
+            throw new IllegalStateException("재고가 부족합니다. 현재 재고: " + this.stockQuantity);
+        }
+        this.stockQuantity -= quantity;
+        if (this.stockQuantity == 0) {
+            this.status = PointProductStatus.SOLD_OUT;
+        }
+    }
 }

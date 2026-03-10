@@ -322,6 +322,131 @@ GET /api/products/available?category=카페&keyword=아메리카노     # 카페
 
 ---
 
+## 7. 포인트 상품 구매
+
+포인트를 사용하여 상품을 구매한다. 포인트 차감, 재고 차감, 포인트 이력 기록, 주문 생성이 하나의 트랜잭션으로 처리된다.
+
+| 항목 | 내용 |
+|------|------|
+| **Method** | `POST` |
+| **URL** | `/api/orders` |
+| **Auth** | - |
+
+### Query Parameters
+
+| 이름 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| userNo | Long | O | 사용자 번호 |
+
+### Request Body
+
+```json
+{
+  "productId": 1,
+  "roadAddress": "구미시 인동중앙로 100",
+  "numberAddress": "인동동 123-4"
+}
+```
+
+| 필드 | 타입 | 필수 | 검증 | 설명 |
+|------|------|------|------|------|
+| productId | Long | O | NotNull | 상품 ID |
+| roadAddress | String | X | - | 도로명 주소 |
+| numberAddress | String | X | - | 지번 주소 |
+
+### Response
+
+**Status: `201 Created`**
+
+```json
+{
+  "orderId": 1,
+  "userNo": 1,
+  "productId": 1,
+  "productName": "아메리카노 쿠폰",
+  "pointPrice": 3000,
+  "roadAddress": "구미시 인동중앙로 100",
+  "numberAddress": "인동동 123-4",
+  "orderAt": "2026-03-10T15:30:00"
+}
+```
+
+### Error
+
+| Status | 조건 | 메시지 |
+|--------|------|--------|
+| 400 | productId 누락 | Validation 에러 |
+| 400 | userNo 누락 | 요청 파라미터를 확인해주세요 |
+| 400 | 포인트 잔액 부족 | 포인트 잔액이 부족합니다 |
+| 404 | 상품이 존재하지 않는 경우 | 포인트 상품을 찾을 수 없습니다 |
+| 404 | 포인트 지갑이 없는 경우 | 포인트 지갑을 찾을 수 없습니다 |
+| 500 | 판매 불가 상품 (SOLD_OUT/기간 외) | 현재 구매할 수 없는 상품입니다 |
+
+---
+
+## 8. 내 주문 내역 조회
+
+사용자의 포인트 상품 주문 내역을 최신순으로 조회한다.
+
+| 항목 | 내용 |
+|------|------|
+| **Method** | `GET` |
+| **URL** | `/api/orders` |
+| **Auth** | - |
+
+### Query Parameters
+
+| 이름 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| userNo | Long | O | 사용자 번호 |
+
+### 사용 예시
+
+```
+GET /api/orders?userNo=1
+```
+
+### Request Body
+
+없음
+
+### Response
+
+**Status: `200 OK`**
+
+```json
+[
+  {
+    "orderId": 2,
+    "userNo": 1,
+    "productId": 3,
+    "productName": "치킨 교환권",
+    "pointPrice": 15000,
+    "roadAddress": "구미시 인동중앙로 200",
+    "numberAddress": "인동동 456-7",
+    "orderAt": "2026-03-10T16:00:00"
+  },
+  {
+    "orderId": 1,
+    "userNo": 1,
+    "productId": 1,
+    "productName": "아메리카노 쿠폰",
+    "pointPrice": 3000,
+    "roadAddress": "구미시 인동중앙로 100",
+    "numberAddress": "인동동 123-4",
+    "orderAt": "2026-03-10T15:30:00"
+  }
+]
+```
+
+### Error
+
+| Status | 조건 | 메시지 |
+|--------|------|--------|
+| 400 | userNo 누락 | 요청 파라미터를 확인해주세요 |
+
+---
+
 ## PointProductStatus enum
 
 | 값 | 설명 |
