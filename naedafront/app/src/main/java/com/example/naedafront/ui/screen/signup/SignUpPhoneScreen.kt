@@ -173,7 +173,8 @@ private fun formatPhone(digits: String): String {
 @Composable
 fun NumberKeypad(
     onNumberClick: (String) -> Unit,
-    onDeleteClick: () -> Unit
+    onDeleteClick: () -> Unit,
+    textColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface
 ) {
     val keys = listOf(
         listOf("1", "2", "3"),
@@ -210,7 +211,7 @@ fun NumberKeypad(
                                 text = key,
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = textColor
                             )
                         }
                     }
