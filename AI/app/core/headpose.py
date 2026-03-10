@@ -10,6 +10,7 @@ from fastapi.concurrency import run_in_threadpool
 from app.core.arcface import get_face_analyzer, reset_face_analyzer
 from app.core.config import get_settings
 from app.core.errors import AIServiceError
+from app.core.upload_validation import validate_image_bytes
 
 Direction = Literal["front", "left", "right", "up", "down"]
 VALID_DIRECTIONS: set[str] = {"front", "left", "right", "up", "down"}
@@ -155,41 +156,44 @@ def _extract_headpose_from_bytes(image_raw: bytes, expected_direction: str) -> H
 async def check_headpose(upload_file: UploadFile, expected_direction: str, timeout_seconds: float) -> HeadPoseResult:
     settings = get_settings()
     image_raw = await upload_file.read()
-    if not image_raw:
-        raise AIServiceError(status_code=400, code="EMPTY_IMAGE", message="Image file is empty")
+    await upload_file.close()
+    validate_image_bytes(image_raw, settings.ai_max_image_bytes)
 
-    last_error: AIServiceError | None = None
-    total_attempts = max(1, settings.ai_retry_count + 1)
+    try:
+        last_error: AIServiceError | None = None
+        total_attempts = max(1, settings.ai_retry_count + 1)
 
-    for attempt in range(1, total_attempts + 1):
-        try:
-            result = await asyncio.wait_for(
-                run_in_threadpool(_extract_headpose_from_bytes, image_raw, expected_direction),
-                timeout=timeout_seconds,
-            )
-            if attempt > 1 and not result.fallback_used:
-                return _build_result(
-                    expected_direction=result.expected_direction,
-                    detected_direction=result.detected_direction,
-                    yaw=result.yaw,
-                    pitch=result.pitch,
-                    confidence=result.confidence,
-                    fallback_used=True,
-                    message="Primary head pose inference recovered after retry.",
+        for attempt in range(1, total_attempts + 1):
+            try:
+                result = await asyncio.wait_for(
+                    run_in_threadpool(_extract_headpose_from_bytes, image_raw, expected_direction),
+                    timeout=timeout_seconds,
                 )
-            return result
-        except asyncio.TimeoutError as exc:
-            last_error = AIServiceError(status_code=504, code="AI_TIMEOUT", message="AI request timeout")
-            if attempt >= total_attempts:
-                raise last_error from exc
-        except AIServiceError as exc:
-            last_error = exc
-            if exc.status_code < 500 or attempt >= total_attempts:
-                raise
+                if attempt > 1 and not result.fallback_used:
+                    return _build_result(
+                        expected_direction=result.expected_direction,
+                        detected_direction=result.detected_direction,
+                        yaw=result.yaw,
+                        pitch=result.pitch,
+                        confidence=result.confidence,
+                        fallback_used=True,
+                        message="Primary head pose inference recovered after retry.",
+                    )
+                return result
+            except asyncio.TimeoutError as exc:
+                last_error = AIServiceError(status_code=504, code="AI_TIMEOUT", message="AI request timeout")
+                if attempt >= total_attempts:
+                    raise last_error from exc
+            except AIServiceError as exc:
+                last_error = exc
+                if exc.status_code < 500 or attempt >= total_attempts:
+                    raise
 
-        reset_face_analyzer()
-        if settings.ai_retry_backoff_ms > 0:
-            await asyncio.sleep(settings.ai_retry_backoff_ms / 1000)
+            reset_face_analyzer()
+            if settings.ai_retry_backoff_ms > 0:
+                await asyncio.sleep(settings.ai_retry_backoff_ms / 1000)
 
-    raise last_error or AIServiceError(status_code=503, code="AI_UNAVAILABLE", message="AI inference failed")
+        raise last_error or AIServiceError(status_code=503, code="AI_UNAVAILABLE", message="AI inference failed")
+    finally:
+        del image_raw
 

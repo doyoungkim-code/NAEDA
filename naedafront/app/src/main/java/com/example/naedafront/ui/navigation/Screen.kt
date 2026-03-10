@@ -32,6 +32,7 @@ sealed class Screen(val route: String) {
     object More : Screen("more")
 
     // ── 스캔 탭 하위 ──
+    object FaceRegister : Screen("face_register")
     object FaceIntro : Screen("face_intro")
     object FaceGuide : Screen("face_guide")
     object FaceCapture : Screen("face_capture")

@@ -6,12 +6,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.example.naedafront.AuthPrefs
 import com.example.naedafront.ui.screen.WelcomeScreen
 import com.example.naedafront.ui.screen.SignUpNameScreen
 import com.example.naedafront.ui.screen.SignUpRrnScreen
@@ -20,7 +22,10 @@ import com.example.naedafront.ui.screen.SignUpVerifyScreen
 import com.example.naedafront.ui.screen.SignUpEmailScreen
 import com.example.naedafront.ui.screen.SignUpPasswordScreen
 import com.example.naedafront.ui.screen.SignUpPinScreen
+import com.example.naedafront.ui.screen.home.HomeScreen
+import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
 import com.example.naedafront.ui.navigation.Screen
+import com.example.naedafront.ui.screen.home.HomeUiState
 
 /**
  * 내다(NAEDA) 전체 네비게이션 그래프
@@ -31,11 +36,14 @@ import com.example.naedafront.ui.navigation.Screen
 @Composable
 fun NaedaNavGraph(
     navController: NavHostController,
+    startDestination: String = Screen.Welcome.route,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+
     NavHost(
         navController = navController,
-        startDestination = Screen.Welcome.route,
+        startDestination = startDestination,
         modifier = modifier
     ) {
 
@@ -123,7 +131,8 @@ fun NaedaNavGraph(
             SignUpPinScreen(
                 onBackClick = { navController.popBackStack() },
                 onConfirmClick = { pin ->
-                    // 회원가입 완료 → 홈으로 (이전 스택 전부 제거)
+                    // 회원가입 완료 → 로그인 상태 저장 후 홈으로 (이전 스택 전부 제거)
+                    AuthPrefs.setLoggedIn(context, true)
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Welcome.route) { inclusive = true }
                     }
@@ -136,7 +145,17 @@ fun NaedaNavGraph(
         // ═══════════════════════════════════════
 
         composable(Screen.Home.route) {
-            PlaceholderScreen("🏠 홈")
+            HomeScreen(
+                uiState = HomeUiState(isFaceRegistered = AuthPrefs.isFaceRegistered(context)),
+                onTransferClick = { navController.navigate(Screen.Transfer.route) },
+                onTransactionClick = { navController.navigate(Screen.Transaction.route) },
+                onFacePaySettingClick = { navController.navigate(Screen.FaceRegister.route) },
+                onLinkAccountClick = { /* TODO: 계좌 연결 화면 */ },
+                onViewAllTransactionsClick = { navController.navigate(Screen.Transaction.route) },
+                onSearchClick = { /* TODO */ },
+                onAlarmClick = { navController.navigate(Screen.Notification.route) },
+                onProfileClick = { navController.navigate(Screen.Settings.route) }
+            )
         }
 
         composable(Screen.Benefit.route) {
@@ -144,9 +163,7 @@ fun NaedaNavGraph(
         }
 
         composable(Screen.Scan.route) {
-            // TODO: 얼굴 등록 여부에 따라 분기
-            //  if (faceRegistered) GumiMapScreen() else FaceIntroScreen()
-            PlaceholderScreen("😀 스캔\n(얼굴등록 / 지도)")
+            PlaceholderScreen("🗺️ 구미 맛집 지도")
         }
 
         composable(Screen.Asset.route) {
@@ -160,6 +177,18 @@ fun NaedaNavGraph(
         // ═══════════════════════════════════════
         // 스캔 탭 하위 화면
         // ═══════════════════════════════════════
+
+        composable(Screen.FaceRegister.route) {
+            FaceRegisterScreen(
+                onBack = { navController.popBackStack() },
+                onRegisterComplete = {
+                    AuthPrefs.setFaceRegistered(context, true)
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Home.route) { inclusive = true }
+                    }
+                }
+            )
+        }
 
         composable(Screen.FaceIntro.route) {
             PlaceholderScreen("페이스페이 소개")

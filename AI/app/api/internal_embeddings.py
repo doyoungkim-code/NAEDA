@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, File, UploadFile
 from app.core.arcface import extract_embedding
 from app.core.config import Settings, get_settings
 from app.core.security import verify_internal_service_token
+from app.core.upload_validation import validate_upload_metadata
 from app.schemas.embedding import EmbeddingExtractResponse
 
 router = APIRouter(prefix="/internal/v1/embeddings", tags=["internal-embeddings"])
@@ -23,6 +24,7 @@ async def extract_face_embedding(
     _: None = Depends(verify_internal_service_token),
     settings: Settings = Depends(get_settings),
 ) -> EmbeddingExtractResponse:
+    validate_upload_metadata(image, settings.ai_max_image_bytes)
     result = await extract_embedding(image, timeout_seconds=settings.ai_timeout_seconds)
     embedding = result["embedding"]
     return EmbeddingExtractResponse(

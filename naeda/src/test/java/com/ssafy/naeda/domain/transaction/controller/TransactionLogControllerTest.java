@@ -5,10 +5,12 @@ import com.ssafy.naeda.domain.transaction.entity.TransactionType;
 import com.ssafy.naeda.domain.transaction.service.TransactionLogService;
 import com.ssafy.naeda.global.exception.GlobalExceptionHandler;
 import com.ssafy.naeda.global.exception.NotFoundException;
-import com.ssafy.naeda.global.security.SecurityConfig;
+import com.ssafy.naeda.global.security.JwtAuthenticationFilter;
+import com.ssafy.naeda.global.security.JwtTokenProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -23,7 +25,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(TransactionLogController.class)
-@Import({GlobalExceptionHandler.class, SecurityConfig.class})
+@AutoConfigureMockMvc(addFilters = false)
+@Import(GlobalExceptionHandler.class)
 class TransactionLogControllerTest {
 
     @Autowired
@@ -31,6 +34,12 @@ class TransactionLogControllerTest {
 
     @MockitoBean
     private TransactionLogService transactionLogService;
+
+    @MockitoBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockitoBean
+    private JwtTokenProvider jwtTokenProvider;
 
     private TransactionLogResponse stubResponse(Long logId, TransactionType type, Long amount) {
         return TransactionLogResponse.builder()
