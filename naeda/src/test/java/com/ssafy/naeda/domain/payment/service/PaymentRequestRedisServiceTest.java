@@ -46,6 +46,7 @@ class PaymentRequestRedisServiceTest {
     @BeforeEach
     void setUp() throws Exception {
         setField(service, "ttlSeconds", 30L);
+        setField(service, "processTtlSeconds", 300L);
         setField(service, "objectMapper", objectMapper);
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         lenient().when(redisTemplate.opsForSet()).thenReturn(setOperations);
@@ -139,7 +140,7 @@ class PaymentRequestRedisServiceTest {
         verify(valueOperations).set(
                 eq("payment:request:test-uuid"),
                 anyString(),
-                eq(30L),
+                eq(300L),
                 eq(TimeUnit.SECONDS)
         );
     }
@@ -219,7 +220,7 @@ class PaymentRequestRedisServiceTest {
         assertThat(result.getFailureReason()).isNull();
 
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
-        verify(valueOperations).set(eq("payment:request:test-uuid"), jsonCaptor.capture(), eq(30L), eq(TimeUnit.SECONDS));
+        verify(valueOperations).set(eq("payment:request:test-uuid"), jsonCaptor.capture(), eq(300L), eq(TimeUnit.SECONDS));
 
         PaymentRequestData saved = objectMapper.readValue(jsonCaptor.getValue(), PaymentRequestData.class);
         assertThat(saved.getUserNo()).isEqualTo(10L);
@@ -261,6 +262,34 @@ class PaymentRequestRedisServiceTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getRequestId()).isEqualTo("valid-uuid");
         verify(setOperations).remove("payment:store:" + STORE_ID + ":requests", "expired-uuid");
+    }
+
+    // ── tryAcquireProcessingLock / releaseProcessingLock ───────────────────
+
+    @Test
+    @DisplayName("분산 락 획득 - SETNX 성공 시 true를 반환한다")
+    void tryAcquireProcessingLock_success() {
+        given(valueOperations.setIfAbsent("payment:lock:test-uuid", "1", 300L, TimeUnit.SECONDS))
+                .willReturn(true);
+
+        assertThat(service.tryAcquireProcessingLock("test-uuid")).isTrue();
+    }
+
+    @Test
+    @DisplayName("분산 락 획득 - 이미 락이 존재하면 false를 반환한다")
+    void tryAcquireProcessingLock_alreadyLocked() {
+        given(valueOperations.setIfAbsent("payment:lock:test-uuid", "1", 300L, TimeUnit.SECONDS))
+                .willReturn(false);
+
+        assertThat(service.tryAcquireProcessingLock("test-uuid")).isFalse();
+    }
+
+    @Test
+    @DisplayName("분산 락 해제 - Redis에서 락 키를 삭제한다")
+    void releaseProcessingLock_deletesKey() {
+        service.releaseProcessingLock("test-uuid");
+
+        verify(redisTemplate).delete("payment:lock:test-uuid");
     }
 
     // ── deleteRequest ─────────────────────────────────────────────────────
