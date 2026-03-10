@@ -115,6 +115,54 @@ class PointProductServiceTest {
     }
 
     @Test
+    @DisplayName("판매중 상품 조회 - 파라미터 없음")
+    void getAvailableProducts_noParams() {
+        given(pointProductRepository.findByStatus(PointProductStatus.ON_SALE))
+                .willReturn(List.of(buildProduct(1L)));
+
+        List<PointProductResponse> result = pointProductService.getAvailableProducts(null, null);
+
+        assertThat(result).hasSize(1);
+        then(pointProductRepository).should().findByStatus(PointProductStatus.ON_SALE);
+    }
+
+    @Test
+    @DisplayName("판매중 상품 조회 - category만")
+    void getAvailableProducts_categoryOnly() {
+        given(pointProductRepository.findByCategoryAndStatus("카페", PointProductStatus.ON_SALE))
+                .willReturn(List.of(buildProduct(1L)));
+
+        List<PointProductResponse> result = pointProductService.getAvailableProducts("카페", null);
+
+        assertThat(result).hasSize(1);
+        then(pointProductRepository).should().findByCategoryAndStatus("카페", PointProductStatus.ON_SALE);
+    }
+
+    @Test
+    @DisplayName("판매중 상품 조회 - keyword만")
+    void getAvailableProducts_keywordOnly() {
+        given(pointProductRepository.findByProductNameContainingAndStatus("쿠폰", PointProductStatus.ON_SALE))
+                .willReturn(List.of(buildProduct(1L)));
+
+        List<PointProductResponse> result = pointProductService.getAvailableProducts(null, "쿠폰");
+
+        assertThat(result).hasSize(1);
+        then(pointProductRepository).should().findByProductNameContainingAndStatus("쿠폰", PointProductStatus.ON_SALE);
+    }
+
+    @Test
+    @DisplayName("판매중 상품 조회 - category + keyword")
+    void getAvailableProducts_categoryAndKeyword() {
+        given(pointProductRepository.findByProductNameContainingAndCategoryAndStatus("쿠폰", "카페", PointProductStatus.ON_SALE))
+                .willReturn(List.of(buildProduct(1L)));
+
+        List<PointProductResponse> result = pointProductService.getAvailableProducts("카페", "쿠폰");
+
+        assertThat(result).hasSize(1);
+        then(pointProductRepository).should().findByProductNameContainingAndCategoryAndStatus("쿠폰", "카페", PointProductStatus.ON_SALE);
+    }
+
+    @Test
     @DisplayName("상품 수정 성공")
     void updateProduct() {
         PointProduct product = buildProduct(1L);

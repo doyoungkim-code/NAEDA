@@ -19,4 +19,10 @@ public interface PointProductRepository extends JpaRepository<PointProduct, Long
 
     // 상품명 검색 (부분 일치)
     List<PointProduct> findByProductNameContaining(String keyword);
+
+    // 상품명 검색 + 상태 조합
+    List<PointProduct> findByProductNameContainingAndStatus(String keyword, PointProductStatus status);
+
+    // 상품명 검색 + 카테고리 + 상태 조합
+    List<PointProduct> findByProductNameContainingAndCategoryAndStatus(String keyword, String category, PointProductStatus status);
 }

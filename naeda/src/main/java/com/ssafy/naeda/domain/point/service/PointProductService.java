@@ -4,6 +4,7 @@ import com.ssafy.naeda.domain.point.dto.request.PointProductCreateRequest;
 import com.ssafy.naeda.domain.point.dto.request.PointProductUpdateRequest;
 import com.ssafy.naeda.domain.point.dto.response.PointProductResponse;
 import com.ssafy.naeda.domain.point.entity.PointProduct;
+import com.ssafy.naeda.domain.point.entity.PointProductStatus;
 import com.ssafy.naeda.domain.point.repository.PointProductRepository;
 import com.ssafy.naeda.global.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,24 @@ public class PointProductService {
 
     public List<PointProductResponse> getAllProducts() {
         return pointProductRepository.findAll().stream()
+                .map(PointProductResponse::from)
+                .toList();
+    }
+
+    public List<PointProductResponse> getAvailableProducts(String category, String keyword) {
+        List<PointProduct> products;
+
+        if (keyword != null && category != null) {
+            products = pointProductRepository.findByProductNameContainingAndCategoryAndStatus(keyword, category, PointProductStatus.ON_SALE);
+        } else if (keyword != null) {
+            products = pointProductRepository.findByProductNameContainingAndStatus(keyword, PointProductStatus.ON_SALE);
+        } else if (category != null) {
+            products = pointProductRepository.findByCategoryAndStatus(category, PointProductStatus.ON_SALE);
+        } else {
+            products = pointProductRepository.findByStatus(PointProductStatus.ON_SALE);
+        }
+
+        return products.stream()
                 .map(PointProductResponse::from)
                 .toList();
     }
