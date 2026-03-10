@@ -7,9 +7,11 @@ import com.ssafy.naeda.domain.card.dto.response.CardResponse;
 import com.ssafy.naeda.domain.card.dto.response.CardTransactionResponse;
 import com.ssafy.naeda.domain.card.service.CardService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,6 +19,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/cards")
 @RequiredArgsConstructor
+@Validated
 public class CardController {
 
     private final CardService cardService;
@@ -27,7 +30,7 @@ public class CardController {
      */
     @GetMapping
     public ResponseEntity<List<CardResponse>> getCards(
-            @RequestParam Long userNo
+            @RequestParam @Positive Long userNo
     ) {
         return ResponseEntity.ok(cardService.getMyCards(userNo));
     }
@@ -38,7 +41,7 @@ public class CardController {
      */
     @PostMapping
     public ResponseEntity<CardRegisterResponse> cardRegister(
-            @RequestParam Long userNo,
+            @RequestParam @Positive Long userNo,
             @RequestBody @Valid CardRegisterRequest request
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -52,7 +55,7 @@ public class CardController {
     @DeleteMapping("/{cardId}")
     public ResponseEntity<Void> deleteCard(
             @PathVariable Long cardId,
-            @RequestParam Long userNo,
+            @RequestParam @Positive Long userNo,
             @RequestParam String cardType
     ) {
         cardService.deleteCard(userNo, cardId, cardType);
@@ -66,7 +69,7 @@ public class CardController {
     @GetMapping("/{cardId}/transactions")
     public ResponseEntity<List<CardTransactionResponse>> getCardTransactions (
             @PathVariable Long cardId,
-            @RequestParam Long userNo,
+            @RequestParam @Positive Long userNo,
             @ModelAttribute @Valid CardTransactionRequest request
     ) {
         return ResponseEntity.ok(cardService.getCardTransactions(userNo, cardId, request));

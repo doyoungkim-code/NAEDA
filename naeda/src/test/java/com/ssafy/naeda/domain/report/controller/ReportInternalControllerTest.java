@@ -5,6 +5,8 @@ import com.ssafy.naeda.domain.report.dto.request.ReportSaveRequest;
 import com.ssafy.naeda.domain.report.entity.LocalGrade;
 import com.ssafy.naeda.domain.report.entity.PeriodType;
 import com.ssafy.naeda.domain.report.repository.ConsumptionReportRepository;
+import com.ssafy.naeda.domain.user.entity.User;
+import com.ssafy.naeda.domain.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,16 +40,31 @@ class ReportInternalControllerTest {
     @Autowired
     private ConsumptionReportRepository consumptionReportRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    private Long testUserNo;
+
     @BeforeEach
     void setUp() {
         consumptionReportRepository.deleteAll();
+        User testUser = userRepository.save(User.builder()
+                .userId("internal-test@test.com")
+                .password("pw")
+                .username("테스터")
+                .residentNo("9901011")
+                .phone("010-1111-1111")
+                .institutionCode("M220516185630")
+                .userKey("test-key")
+                .build());
+        testUserNo = testUser.getUserNo();
     }
 
     @Test
     @DisplayName("POST /api/internal/reports - 리포트 저장 201")
     void saveReport() throws Exception {
         ReportSaveRequest request = ReportSaveRequest.builder()
-                .userNo(1L)
+                .userNo(testUserNo)
                 .periodType(PeriodType.MONTHLY)
                 .periodStart(LocalDate.of(2026, 2, 1))
                 .periodEnd(LocalDate.of(2026, 2, 28))

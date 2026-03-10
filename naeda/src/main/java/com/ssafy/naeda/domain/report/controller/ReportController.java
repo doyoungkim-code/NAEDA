@@ -7,8 +7,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -19,6 +21,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/reports")
 @RequiredArgsConstructor
+@Validated
 @Tag(name = "소비 리포트", description = "소비 리포트 조회 API")
 public class ReportController {
 
@@ -29,7 +32,7 @@ public class ReportController {
     @ApiResponse(responseCode = "200", description = "조회 성공")
     public ResponseEntity<ReportResponse> getLatestReport(
             @Parameter(description = "사용자 번호", example = "1", required = true)
-            @RequestParam Long userNo,
+            @RequestParam @Positive Long userNo,
             @Parameter(description = "리포트 기간 유형", example = "WEEKLY", required = true)
             @RequestParam PeriodType periodType) {
         return ResponseEntity.ok(reportService.getLatestReport(userNo, periodType));
@@ -40,7 +43,7 @@ public class ReportController {
     @ApiResponse(responseCode = "200", description = "조회 성공")
     public ResponseEntity<List<ReportResponse>> getReportHistory(
             @Parameter(description = "사용자 번호", example = "1", required = true)
-            @RequestParam Long userNo,
+            @RequestParam @Positive Long userNo,
             @Parameter(description = "리포트 기간 유형", example = "MONTHLY", required = true)
             @RequestParam PeriodType periodType) {
         return ResponseEntity.ok(reportService.getReportHistory(userNo, periodType));

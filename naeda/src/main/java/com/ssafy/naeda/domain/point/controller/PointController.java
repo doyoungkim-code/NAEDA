@@ -14,9 +14,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,6 +27,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/points")
 @RequiredArgsConstructor
+@Validated
 @Tag(name = "포인트", description = "포인트 지갑 생성, 적립, 사용, 조회 API")
 public class PointController {
 
@@ -35,14 +39,14 @@ public class PointController {
             @ApiResponse(responseCode = "201", description = "생성 성공"),
             @ApiResponse(responseCode = "400", description = "요청 값 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
-    public ResponseEntity<PointWalletResponse> createWallet(@PathVariable Long userNo) {
+    public ResponseEntity<PointWalletResponse> createWallet(@PathVariable @Positive Long userNo) {
         return ResponseEntity.status(HttpStatus.CREATED).body(pointService.createWallet(userNo));
     }
 
     @GetMapping("/wallet/{userNo}")
     @Operation(summary = "포인트 지갑 조회", description = "사용자 포인트 잔액 및 누적 정보를 조회합니다.")
     @ApiResponse(responseCode = "200", description = "조회 성공")
-    public ResponseEntity<PointWalletResponse> getWallet(@PathVariable Long userNo) {
+    public ResponseEntity<PointWalletResponse> getWallet(@PathVariable @Positive Long userNo) {
         return ResponseEntity.ok(pointService.getWallet(userNo));
     }
 
@@ -54,7 +58,7 @@ public class PointController {
     })
     public ResponseEntity<PointWalletResponse> earnPoints(
             @Parameter(description = "사용자 번호", example = "1", required = true)
-            @PathVariable Long userNo,
+            @PathVariable @Positive Long userNo,
             @Valid @RequestBody PointEarnRequest request) {
         return ResponseEntity.ok(pointService.earnPoints(userNo, request));
     }
@@ -67,7 +71,7 @@ public class PointController {
     })
     public ResponseEntity<PointWalletResponse> usePoints(
             @Parameter(description = "사용자 번호", example = "1", required = true)
-            @PathVariable Long userNo,
+            @PathVariable @Positive Long userNo,
             @Valid @RequestBody PointUseRequest request) {
         return ResponseEntity.ok(pointService.usePoints(userNo, request));
     }
@@ -76,8 +80,8 @@ public class PointController {
     @Operation(summary = "포인트 이력 조회", description = "사용자 포인트 적립/사용 이력을 최신순으로 조회합니다.")
     @ApiResponse(responseCode = "200", description = "조회 성공")
     public ResponseEntity<List<PointHistoryResponse>> getHistories(
-            @PathVariable Long userNo,
-            @RequestParam(defaultValue = "100") int size
+            @PathVariable @Positive Long userNo,
+            @RequestParam(defaultValue = "100") @Positive @Max(500) int size
     ) {
         return ResponseEntity.ok(pointService.getHistories(userNo).stream().limit(size).toList());
     }

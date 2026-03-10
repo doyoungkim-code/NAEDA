@@ -83,8 +83,8 @@ class PointOrderServiceTest {
         PointWallet wallet = buildWallet(10000L);
         PointOrderCreateRequest request = buildRequest(1L);
 
-        given(pointProductRepository.findById(1L)).willReturn(Optional.of(product));
-        given(pointWalletRepository.findByUserNo(1L)).willReturn(Optional.of(wallet));
+        given(pointProductRepository.findByIdForUpdate(1L)).willReturn(Optional.of(product));
+        given(pointWalletRepository.findByUserNoForUpdate(1L)).willReturn(Optional.of(wallet));
         given(pointOrderRepository.save(any(PointOrder.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         // when
@@ -108,7 +108,7 @@ class PointOrderServiceTest {
     void purchaseProduct_productNotFound() {
         // given
         PointOrderCreateRequest request = buildRequest(999L);
-        given(pointProductRepository.findById(999L)).willReturn(Optional.empty());
+        given(pointProductRepository.findByIdForUpdate(999L)).willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> pointOrderService.purchaseProduct(1L, request))
@@ -127,7 +127,7 @@ class PointOrderServiceTest {
                 .build();
         PointOrderCreateRequest request = buildRequest(1L);
 
-        given(pointProductRepository.findById(1L)).willReturn(Optional.of(soldOutProduct));
+        given(pointProductRepository.findByIdForUpdate(1L)).willReturn(Optional.of(soldOutProduct));
 
         // when & then
         assertThatThrownBy(() -> pointOrderService.purchaseProduct(1L, request))
@@ -142,8 +142,8 @@ class PointOrderServiceTest {
         PointProduct product = buildAvailableProduct();
         PointOrderCreateRequest request = buildRequest(1L);
 
-        given(pointProductRepository.findById(1L)).willReturn(Optional.of(product));
-        given(pointWalletRepository.findByUserNo(1L)).willReturn(Optional.empty());
+        given(pointProductRepository.findByIdForUpdate(1L)).willReturn(Optional.of(product));
+        given(pointWalletRepository.findByUserNoForUpdate(1L)).willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> pointOrderService.purchaseProduct(1L, request))
@@ -159,8 +159,8 @@ class PointOrderServiceTest {
         PointWallet wallet = buildWallet(1000L); // 잔액 1000 < 가격 3000
         PointOrderCreateRequest request = buildRequest(1L);
 
-        given(pointProductRepository.findById(1L)).willReturn(Optional.of(product));
-        given(pointWalletRepository.findByUserNo(1L)).willReturn(Optional.of(wallet));
+        given(pointProductRepository.findByIdForUpdate(1L)).willReturn(Optional.of(product));
+        given(pointWalletRepository.findByUserNoForUpdate(1L)).willReturn(Optional.of(wallet));
 
         // when & then
         assertThatThrownBy(() -> pointOrderService.purchaseProduct(1L, request))
@@ -180,8 +180,8 @@ class PointOrderServiceTest {
         PointWallet wallet = buildWallet(10000L);
         PointOrderCreateRequest request = buildRequest(1L);
 
-        given(pointProductRepository.findById(1L)).willReturn(Optional.of(product));
-        given(pointWalletRepository.findByUserNo(1L)).willReturn(Optional.of(wallet));
+        given(pointProductRepository.findByIdForUpdate(1L)).willReturn(Optional.of(product));
+        given(pointWalletRepository.findByUserNoForUpdate(1L)).willReturn(Optional.of(wallet));
 
         // when & then
         assertThatThrownBy(() -> pointOrderService.purchaseProduct(1L, request))
@@ -204,8 +204,8 @@ class PointOrderServiceTest {
         PointWallet wallet = buildWallet(10000L);
         PointOrderCreateRequest request = buildRequest(1L);
 
-        given(pointProductRepository.findById(1L)).willReturn(Optional.of(product));
-        given(pointWalletRepository.findByUserNo(1L)).willReturn(Optional.of(wallet));
+        given(pointProductRepository.findByIdForUpdate(1L)).willReturn(Optional.of(product));
+        given(pointWalletRepository.findByUserNoForUpdate(1L)).willReturn(Optional.of(wallet));
         given(pointOrderRepository.save(any(PointOrder.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         // when
@@ -226,8 +226,8 @@ class PointOrderServiceTest {
                 .productId(1L)
                 .build();
 
-        given(pointProductRepository.findById(1L)).willReturn(Optional.of(product));
-        given(pointWalletRepository.findByUserNo(1L)).willReturn(Optional.of(wallet));
+        given(pointProductRepository.findByIdForUpdate(1L)).willReturn(Optional.of(product));
+        given(pointWalletRepository.findByUserNoForUpdate(1L)).willReturn(Optional.of(wallet));
         given(pointOrderRepository.save(any(PointOrder.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         // when
@@ -253,34 +253,38 @@ class PointOrderServiceTest {
                 .orderAt(LocalDateTime.now().minusHours(1))
                 .roadAddress("주소2").build();
 
-        // orderAt에 직접 접근 불가하므로 리플렉션 없이 정렬은 서비스 내부에서 처리
-        PointProduct product1 = buildAvailableProduct();
+        PointProduct product1 = PointProduct.builder()
+                .productId(1L)
+                .productName("아메리카노 쿠폰")
+                .pointPrice(3000L)
+                .stockQuantity(10)
+                .status(PointProductStatus.ON_SALE)
+                .build();
         PointProduct product2 = PointProduct.builder()
+                .productId(2L)
                 .productName("치킨 교환권")
                 .pointPrice(15000L)
                 .stockQuantity(50)
                 .status(PointProductStatus.ON_SALE)
                 .build();
 
-        given(pointOrderRepository.findByUserNo(1L)).willReturn(List.of(order1, order2));
-        given(pointProductRepository.findById(1L)).willReturn(Optional.of(product1));
-        given(pointProductRepository.findById(2L)).willReturn(Optional.of(product2));
+        given(pointOrderRepository.findByUserNoOrderByOrderAtDesc(1L)).willReturn(List.of(order1, order2));
+        given(pointProductRepository.findAllById(List.of(1L, 2L))).willReturn(List.of(product1, product2));
 
         // when
         List<PointOrderResponse> result = pointOrderService.getMyOrders(1L);
 
         // then
         assertThat(result).hasSize(2);
-        then(pointOrderRepository).should().findByUserNo(1L);
-        then(pointProductRepository).should().findById(1L);
-        then(pointProductRepository).should().findById(2L);
+        then(pointOrderRepository).should().findByUserNoOrderByOrderAtDesc(1L);
+        then(pointProductRepository).should().findAllById(List.of(1L, 2L));
     }
 
     @Test
     @DisplayName("내 주문 내역 조회 - 주문 없으면 빈 리스트")
     void getMyOrders_empty() {
         // given
-        given(pointOrderRepository.findByUserNo(1L)).willReturn(List.of());
+        given(pointOrderRepository.findByUserNoOrderByOrderAtDesc(1L)).willReturn(List.of());
 
         // when
         List<PointOrderResponse> result = pointOrderService.getMyOrders(1L);

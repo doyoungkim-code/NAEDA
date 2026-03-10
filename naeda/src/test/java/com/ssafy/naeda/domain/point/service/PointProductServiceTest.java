@@ -163,6 +163,26 @@ class PointProductServiceTest {
     }
 
     @Test
+    @DisplayName("판매중 상품 조회 - 재고가 0인 상품은 제외")
+    void getAvailableProducts_excludeZeroStock() {
+        PointProduct inStock = buildProduct(1L);
+        PointProduct outOfStock = PointProduct.builder()
+                .productName("품절 상품")
+                .category("카페")
+                .pointPrice(5000L)
+                .stockQuantity(0)
+                .build();
+
+        given(pointProductRepository.findByStatus(PointProductStatus.ON_SALE))
+                .willReturn(List.of(inStock, outOfStock));
+
+        List<PointProductResponse> result = pointProductService.getAvailableProducts(null, null);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getProductName()).isEqualTo("아메리카노 쿠폰");
+    }
+
+    @Test
     @DisplayName("상품 수정 성공")
     void updateProduct() {
         PointProduct product = buildProduct(1L);

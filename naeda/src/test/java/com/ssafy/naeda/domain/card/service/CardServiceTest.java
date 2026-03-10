@@ -468,7 +468,7 @@ class CardServiceTest {
 
         stubCommonMocks();
         given(ssafyApiClient.post(anyString(), anyMap())).willReturn(buildSsafyTransactionResponse(2));
-        given(transactionLogRepository.findBySsafyTransactionId(anyString())).willReturn(Optional.empty());
+        given(transactionLogRepository.findBySsafyTransactionIdIn(anyList())).willReturn(List.of());
         stubTransactionLogSave();
 
         List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, 100L, createTransactionRequest());
@@ -489,7 +489,7 @@ class CardServiceTest {
 
         stubCommonMocks();
         given(ssafyApiClient.post(anyString(), anyMap())).willReturn(buildSsafyTransactionResponse(1));
-        given(transactionLogRepository.findBySsafyTransactionId(anyString())).willReturn(Optional.empty());
+        given(transactionLogRepository.findBySsafyTransactionIdIn(anyList())).willReturn(List.of());
         stubTransactionLogSave();
 
         List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, 200L, createTransactionRequest());
@@ -528,6 +528,39 @@ class CardServiceTest {
     }
 
     @Test
+    @DisplayName("카드 결제 내역 조회 - transactionDate가 null이면 현재 시각으로 대체")
+    void getCardTransactions_nullDate_usesCurrentTime() throws Exception {
+        CreditCard card = buildCreditCard(100L, USER_NO, "1003000000001111");
+        given(creditCardRepository.findById(100L)).willReturn(Optional.of(card));
+
+        stubCommonMocks();
+
+        List<Map<String, Object>> txList = new ArrayList<>();
+        Map<String, Object> tx = new HashMap<>();
+        tx.put("transactionUniqueNo", "TX-NULL-DATE");
+        tx.put("categoryName", "식비");
+        tx.put("merchantName", "스타벅스");
+        tx.put("transactionDate", null);
+        tx.put("transactionTime", null);
+        tx.put("transactionBalance", "5000");
+        tx.put("cardStatus", "승인");
+        txList.add(tx);
+        Map<String, Object> rec = new HashMap<>();
+        rec.put("transactionList", txList);
+
+        given(ssafyApiClient.post(anyString(), anyMap())).willReturn(Map.of("REC", rec));
+        given(transactionLogRepository.findBySsafyTransactionIdIn(anyList())).willReturn(List.of());
+        stubTransactionLogSave();
+
+        List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, 100L, createTransactionRequest());
+
+        assertThat(result).hasSize(1);
+        ArgumentCaptor<TransactionLog> captor = ArgumentCaptor.forClass(TransactionLog.class);
+        verify(transactionLogRepository).save(captor.capture());
+        assertThat(captor.getValue().getTransacted()).isNotNull();
+    }
+
+    @Test
     @DisplayName("카드 결제 내역 조회 - 이미 캐싱된 거래는 DB에서 조회하고 새로 저장하지 않음")
     void getCardTransactions_existingTransaction_noSave() throws Exception {
         CreditCard card = buildCreditCard(100L, USER_NO, "1003000000001111");
@@ -545,7 +578,7 @@ class CardServiceTest {
                 .build();
         setField(existingLog, "logId", 10L);
 
-        given(transactionLogRepository.findBySsafyTransactionId("TX-0")).willReturn(Optional.of(existingLog));
+        given(transactionLogRepository.findBySsafyTransactionIdIn(List.of("TX-0"))).willReturn(List.of(existingLog));
 
         List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, 100L, createTransactionRequest());
 

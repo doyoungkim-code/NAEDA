@@ -7,9 +7,11 @@ import com.ssafy.naeda.domain.payment.service.PaymentRequestService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +20,7 @@ import java.util.List;
 @RequestMapping("/api/payment-requests")
 @RequiredArgsConstructor
 @Tag(name = "Payment Request", description = "결제 요청 API (단말기 폴링)")
+@Validated
 public class PaymentRequestController {
 
     private final PaymentRequestService paymentRequestService;
@@ -45,7 +48,7 @@ public class PaymentRequestController {
     @Operation(summary = "매장별 결제 요청 목록 조회", description = "매장 ID로 현재 활성 결제 요청 목록을 조회합니다.")
     @GetMapping
     public ResponseEntity<List<PaymentRequestResponse>> getRequestsByStore(
-            @RequestParam Long storeId
+            @RequestParam @Positive Long storeId
     ) {
         List<PaymentRequestData> dataList = paymentRequestService.getPaymentRequestsByStore(storeId);
         List<PaymentRequestResponse> responses = dataList.stream()
