@@ -18,10 +18,12 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -185,5 +187,47 @@ class PointOrderControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.roadAddress").doesNotExist())
                 .andExpect(jsonPath("$.numberAddress").doesNotExist());
+    }
+
+    // === getMyOrders 테스트 ===
+
+    @Test
+    @DisplayName("내 주문 내역 조회 성공 - 200")
+    void getMyOrders_success() throws Exception {
+        PointOrderResponse response1 = PointOrderResponse.builder()
+                .orderId(1L).userNo(1L).productId(1L)
+                .productName("아메리카노 쿠폰").pointPrice(3000L)
+                .orderAt(LocalDateTime.now()).build();
+        PointOrderResponse response2 = PointOrderResponse.builder()
+                .orderId(2L).userNo(1L).productId(2L)
+                .productName("치킨 교환권").pointPrice(15000L)
+                .orderAt(LocalDateTime.now()).build();
+
+        given(pointOrderService.getMyOrders(1L)).willReturn(List.of(response1, response2));
+
+        mockMvc.perform(get("/api/orders")
+                        .param("userNo", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].productName").value("아메리카노 쿠폰"))
+                .andExpect(jsonPath("$[1].productName").value("치킨 교환권"));
+    }
+
+    @Test
+    @DisplayName("내 주문 내역 조회 - 주문 없으면 빈 배열")
+    void getMyOrders_empty() throws Exception {
+        given(pointOrderService.getMyOrders(1L)).willReturn(List.of());
+
+        mockMvc.perform(get("/api/orders")
+                        .param("userNo", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("내 주문 내역 조회 - userNo 누락 400")
+    void getMyOrders_missingUserNo() throws Exception {
+        mockMvc.perform(get("/api/orders"))
+                .andExpect(status().isBadRequest());
     }
 }

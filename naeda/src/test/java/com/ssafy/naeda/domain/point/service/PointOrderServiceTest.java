@@ -17,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -235,5 +236,56 @@ class PointOrderServiceTest {
         // then
         assertThat(response.getRoadAddress()).isNull();
         assertThat(response.getNumberAddress()).isNull();
+    }
+
+    // === getMyOrders 테스트 ===
+
+    @Test
+    @DisplayName("내 주문 내역 조회 - 최신순 정렬")
+    void getMyOrders_success() {
+        // given
+        PointOrder order1 = PointOrder.builder()
+                .userNo(1L).productId(1L)
+                .orderAt(LocalDateTime.now().minusHours(2))
+                .roadAddress("주소1").build();
+        PointOrder order2 = PointOrder.builder()
+                .userNo(1L).productId(2L)
+                .orderAt(LocalDateTime.now().minusHours(1))
+                .roadAddress("주소2").build();
+
+        // orderAt에 직접 접근 불가하므로 리플렉션 없이 정렬은 서비스 내부에서 처리
+        PointProduct product1 = buildAvailableProduct();
+        PointProduct product2 = PointProduct.builder()
+                .productName("치킨 교환권")
+                .pointPrice(15000L)
+                .stockQuantity(50)
+                .status(PointProductStatus.ON_SALE)
+                .build();
+
+        given(pointOrderRepository.findByUserNo(1L)).willReturn(List.of(order1, order2));
+        given(pointProductRepository.findById(1L)).willReturn(Optional.of(product1));
+        given(pointProductRepository.findById(2L)).willReturn(Optional.of(product2));
+
+        // when
+        List<PointOrderResponse> result = pointOrderService.getMyOrders(1L);
+
+        // then
+        assertThat(result).hasSize(2);
+        then(pointOrderRepository).should().findByUserNo(1L);
+        then(pointProductRepository).should().findById(1L);
+        then(pointProductRepository).should().findById(2L);
+    }
+
+    @Test
+    @DisplayName("내 주문 내역 조회 - 주문 없으면 빈 리스트")
+    void getMyOrders_empty() {
+        // given
+        given(pointOrderRepository.findByUserNo(1L)).willReturn(List.of());
+
+        // when
+        List<PointOrderResponse> result = pointOrderService.getMyOrders(1L);
+
+        // then
+        assertThat(result).isEmpty();
     }
 }

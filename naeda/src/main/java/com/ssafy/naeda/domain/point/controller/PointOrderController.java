@@ -9,6 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
@@ -23,5 +25,12 @@ public class PointOrderController {
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(pointOrderService.purchaseProduct(userNo, request));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<PointOrderResponse>> getMyOrders(
+            @RequestParam Long userNo
+    ) {
+        return ResponseEntity.ok(pointOrderService.getMyOrders(userNo));
     }
 }

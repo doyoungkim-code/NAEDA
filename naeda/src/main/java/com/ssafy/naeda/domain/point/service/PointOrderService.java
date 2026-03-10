@@ -9,6 +9,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class PointOrderService {
@@ -60,5 +63,20 @@ public class PointOrderService {
 
         // 7. 응답 반환
         return PointOrderResponse.from(product, order);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PointOrderResponse> getMyOrders(Long userNo) {
+        List<PointOrder> orders = pointOrderRepository.findByUserNo(userNo);
+
+        return orders.stream()
+                .sorted(Comparator.comparing(PointOrder::getOrderAt).reversed())
+                .map(order -> {
+                    PointProduct product = pointProductRepository.findById(order.getProductId())
+                            .orElseThrow(() -> new NotFoundException("포인트 상품을 찾을 수 없습니다. id=" + order.getProductId()));
+
+                    return PointOrderResponse.from(product, order);
+                })
+                .toList();
     }
 }
