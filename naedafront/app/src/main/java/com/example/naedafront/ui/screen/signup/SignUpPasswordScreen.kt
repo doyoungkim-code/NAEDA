@@ -1,4 +1,4 @@
-package com.example.naedafront.ui.screen
+package com.example.naedafront.ui.screen.signup
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape

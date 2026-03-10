@@ -1,6 +1,7 @@
-package com.example.naedafront.ui.screen
+package com.example.naedafront.ui.screen.signup
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -125,7 +126,7 @@ fun SignUpNameScreen(
                     .fillMaxWidth()
                     .height(56.dp),
                 enabled = isNameValid,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Mint900,
                     disabledContainerColor = Mint900.copy(alpha = 0.38f)
