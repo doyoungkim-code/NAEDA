@@ -34,6 +34,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -284,29 +286,42 @@ public class CardService {
 
         Map<String, Object> response = ssafyApiClient.post(CARD_TX_PATH, body);
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> rec = (Map<String, Object>) response.get("REC");
-        if (rec == null) {
+        Object recRaw = response.get("REC");
+        if (recRaw == null || !(recRaw instanceof Map)) {
             return List.of();
         }
-
         @SuppressWarnings("unchecked")
-        List<Map<String, Object>> transactionList =
-                (List<Map<String, Object>>) rec.get("transactionList");
+        Map<String, Object> rec = (Map<String, Object>) recRaw;
+
+        Object txListRaw = rec.get("transactionList");
+        if (txListRaw == null || !(txListRaw instanceof List)) {
+            return List.of();
+        }
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> transactionList = (List<Map<String, Object>>) txListRaw;
 
         if (transactionList == null || transactionList.isEmpty()) {
             return List.of();
         }
 
-        // 각 거래를 transaction_log에 캐싱 (중복 스킵)
+        // 각 거래를 transaction_log에 캐싱 (중복 스킵) - 배치 조회로 N+1 방지
+        List<String> allTxUniqueNos = transactionList.stream()
+                .map(tx -> (String) tx.get("transactionUniqueNo"))
+                .filter(id -> id != null)
+                .toList();
+
+        Map<String, TransactionLog> existingLogMap = transactionLogRepository
+                .findBySsafyTransactionIdIn(allTxUniqueNos).stream()
+                .collect(Collectors.toMap(TransactionLog::getSsafyTransactionId, Function.identity()));
+
         List<TransactionLog> savedLogs = new ArrayList<>();
 
         for (Map<String, Object> tx : transactionList) {
             String txUniqueNo = (String) tx.get("transactionUniqueNo");
 
-            Optional<TransactionLog> existing = transactionLogRepository.findBySsafyTransactionId(txUniqueNo);
-            if (existing.isPresent()) {
-                savedLogs.add(existing.get());
+            TransactionLog existing = existingLogMap.get(txUniqueNo);
+            if (existing != null) {
+                savedLogs.add(existing);
                 continue;
             }
 
@@ -370,6 +385,10 @@ public class CardService {
      */
     private LocalDateTime parseTransactionDateTime(String date, String time) {
         try {
+            if (date == null || date.isBlank()) {
+                log.warn("[CardService] 거래 날짜가 없습니다. 현재 시각으로 대체합니다.");
+                return LocalDateTime.now();
+            }
             if (time == null || time.isBlank()) {
                 time = "000000";
             }

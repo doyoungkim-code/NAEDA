@@ -5,6 +5,8 @@ import com.ssafy.naeda.domain.report.entity.LocalGrade;
 import com.ssafy.naeda.domain.report.entity.PeriodType;
 import com.ssafy.naeda.domain.report.repository.ConsumptionReportRepository;
 import com.ssafy.naeda.domain.report.service.ReportService;
+import com.ssafy.naeda.domain.user.entity.User;
+import com.ssafy.naeda.domain.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,18 +39,31 @@ class ReportControllerTest {
     @Autowired
     private ConsumptionReportRepository consumptionReportRepository;
 
-    private static final Long USER_NO = 1L;
+    @Autowired
+    private UserRepository userRepository;
+
+    private Long userNo;
 
     @BeforeEach
     void setUp() {
         consumptionReportRepository.deleteAll();
+        User testUser = userRepository.save(User.builder()
+                .userId("report-test@test.com")
+                .password("pw")
+                .username("테스터")
+                .residentNo("9901011")
+                .phone("010-0000-0000")
+                .institutionCode("M220516185630")
+                .userKey("test-key")
+                .build());
+        userNo = testUser.getUserNo();
     }
 
     @Test
     @DisplayName("GET /api/reports/latest - 최신 리포트 조회 200")
     void getLatestReport() throws Exception {
         reportService.saveReport(ReportSaveRequest.builder()
-                .userNo(USER_NO)
+                .userNo(userNo)
                 .periodType(PeriodType.MONTHLY)
                 .periodStart(LocalDate.of(2026, 2, 1))
                 .periodEnd(LocalDate.of(2026, 2, 28))
@@ -61,7 +76,7 @@ class ReportControllerTest {
                 .build());
 
         mockMvc.perform(get("/api/reports/latest")
-                        .param("userNo", USER_NO.toString())
+                        .param("userNo", userNo.toString())
                         .param("periodType", "MONTHLY"))
                 .andDo(print())
                 .andExpect(status().isOk())
@@ -74,14 +89,14 @@ class ReportControllerTest {
     @DisplayName("GET /api/reports - 리포트 히스토리 조회 200")
     void getReportHistory() throws Exception {
         reportService.saveReport(ReportSaveRequest.builder()
-                .userNo(USER_NO)
+                .userNo(userNo)
                 .periodType(PeriodType.MONTHLY)
                 .periodStart(LocalDate.of(2026, 1, 1))
                 .periodEnd(LocalDate.of(2026, 1, 31))
                 .totalSpending(400000L)
                 .build());
         reportService.saveReport(ReportSaveRequest.builder()
-                .userNo(USER_NO)
+                .userNo(userNo)
                 .periodType(PeriodType.MONTHLY)
                 .periodStart(LocalDate.of(2026, 2, 1))
                 .periodEnd(LocalDate.of(2026, 2, 28))
@@ -89,7 +104,7 @@ class ReportControllerTest {
                 .build());
 
         mockMvc.perform(get("/api/reports")
-                        .param("userNo", USER_NO.toString())
+                        .param("userNo", userNo.toString())
                         .param("periodType", "MONTHLY"))
                 .andDo(print())
                 .andExpect(status().isOk())

@@ -145,7 +145,7 @@ class PointOrderControllerTest {
     }
 
     @Test
-    @DisplayName("구매 실패 - 판매 불가 상품 500")
+    @DisplayName("구매 실패 - 판매 불가 상품 400")
     void purchaseProduct_notAvailable() throws Exception {
         PointOrderCreateRequest request = PointOrderCreateRequest.builder()
                 .productId(1L)
@@ -158,7 +158,7 @@ class PointOrderControllerTest {
                         .param("userNo", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isBadRequest());
     }
 
     @Test

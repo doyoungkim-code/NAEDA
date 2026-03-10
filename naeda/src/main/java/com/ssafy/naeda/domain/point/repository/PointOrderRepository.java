@@ -7,8 +7,8 @@ import java.util.List;
 
 public interface PointOrderRepository extends JpaRepository<PointOrder, Long> {
 
-    // 사용자별 주문 내역 조회
-    List<PointOrder> findByUserNo(Long userNo);
+    // 사용자별 주문 내역 조회 (최신순)
+    List<PointOrder> findByUserNoOrderByOrderAtDesc(Long userNo);
 
     // 상품별 주문 수 조회
     Long countByProductId(Long productId);

@@ -52,6 +52,7 @@ public class PointProductService {
         }
 
         return products.stream()
+                .filter(p -> p.getStockQuantity() > 0)
                 .map(PointProductResponse::from)
                 .toList();
     }

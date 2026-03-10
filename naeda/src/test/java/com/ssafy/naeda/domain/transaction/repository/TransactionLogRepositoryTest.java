@@ -68,7 +68,7 @@ class TransactionLogRepositoryTest {
                 .accountId(2L).transactionType(TransactionType.DEPOSIT)
                 .amount(30_000L).balanceAfter(30_000L).build());
 
-        List<TransactionLog> logs = transactionLogRepository.findByAccountId(1L);
+        List<TransactionLog> logs = transactionLogRepository.findByAccountIdOrderByTransactedDesc(1L);
         assertThat(logs).hasSize(2);
         assertThat(logs).extracting(TransactionLog::getAccountId).containsOnly(1L);
     }
@@ -90,13 +90,13 @@ class TransactionLogRepositoryTest {
         em.flush();
 
         List<TransactionLog> logs = transactionLogRepository
-                .findByAccountIdAndTransactedBetweenOrderByTransacted(
+                .findByAccountIdAndTransactedBetweenOrderByTransactedDesc(
                         1L, now.minusMinutes(1), now.plusMinutes(1)
                 );
         assertThat(logs).hasSize(2);
 
         List<TransactionLog> empty = transactionLogRepository
-                .findByAccountIdAndTransactedBetweenOrderByTransacted(
+                .findByAccountIdAndTransactedBetweenOrderByTransactedDesc(
                         1L, now.minusDays(10), now.minusDays(9)
                 );
         assertThat(empty).isEmpty();
@@ -116,13 +116,13 @@ class TransactionLogRepositoryTest {
                 .amount(20_000L).balanceAfter(60_000L).build());
 
         List<TransactionLog> deposits = transactionLogRepository
-                .findByAccountIdAndTransactionTypeOrderByTransacted(1L, TransactionType.DEPOSIT);
+                .findByAccountIdAndTransactionTypeOrderByTransactedDesc(1L, TransactionType.DEPOSIT);
         assertThat(deposits).hasSize(2);
         assertThat(deposits).extracting(TransactionLog::getTransactionType)
                 .containsOnly(TransactionType.DEPOSIT);
 
         List<TransactionLog> withdrawals = transactionLogRepository
-                .findByAccountIdAndTransactionTypeOrderByTransacted(1L, TransactionType.WITHDRAW);
+                .findByAccountIdAndTransactionTypeOrderByTransactedDesc(1L, TransactionType.WITHDRAW);
         assertThat(withdrawals).hasSize(1);
     }
 }

@@ -12,12 +12,14 @@ import com.ssafy.naeda.global.exception.NotFoundException;
 import com.ssafy.naeda.global.ssafy.SsafyApiClient;
 import com.ssafy.naeda.global.ssafy.SsafyHeaderFactory;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TransferService {
@@ -71,6 +73,9 @@ public class TransferService {
         // 5. TransactionLog 저장
         List<Map<String, Object>> recList = (List<Map<String, Object>>) transferResponse.get("REC");
         String ssafyTransactionId = extractWithdrawalTransactionNo(recList);
+        if (ssafyTransactionId == null) {
+            log.warn("[TransferService] 출금 거래번호를 추출할 수 없습니다. withdrawalAccountNo={}", request.getWithdrawalAccountNo());
+        }
 
         transactionLogRepository.save(TransactionLog.builder()
                 .accountId(withdrawalAccountId)
@@ -104,13 +109,18 @@ public class TransferService {
         Map<String, Object> balanceResponse = ssafyApiClient.post(BALANCE_API, balanceBody);
         Map<String, Object> rec = (Map<String, Object>) balanceResponse.get("REC");
         if (rec == null) {
+            log.warn("[TransferService] 잔액 조회 응답에 REC이 없습니다. accountNo={}", accountNo);
             return 0L;
         }
         String balance = (String) rec.get("accountBalance");
-        if (balance == null) return 0L;
+        if (balance == null) {
+            log.warn("[TransferService] 잔액 값이 null입니다. accountNo={}", accountNo);
+            return 0L;
+        }
         try {
             return Long.parseLong(balance);
         } catch (NumberFormatException e) {
+            log.warn("[TransferService] 잔액 파싱 실패: balance={}, accountNo={}", balance, accountNo);
             return 0L;
         }
     }
@@ -145,7 +155,9 @@ public class TransferService {
     @SuppressWarnings("unchecked")
     private String extractTransactionDate(List<Map<String, Object>> recList) {
         if (recList == null || recList.isEmpty()) return null;
-        Object value = recList.get(0).get("transactionDate");
+        Map<String, Object> first = recList.get(0);
+        if (first == null) return null;
+        Object value = first.get("transactionDate");
         return value != null ? value.toString() : null;
     }
 }

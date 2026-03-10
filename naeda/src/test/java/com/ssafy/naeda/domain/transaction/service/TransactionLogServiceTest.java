@@ -67,11 +67,11 @@ class TransactionLogServiceTest {
         LocalDateTime now = LocalDateTime.now();
         given(accountRepository.findById(ACCOUNT_ID))
                 .willReturn(Optional.of(stubAccount()));
-        given(transactionLogRepository.findByAccountId(ACCOUNT_ID))
+        given(transactionLogRepository.findByAccountIdOrderByTransactedDesc(ACCOUNT_ID))
                 .willReturn(List.of(
-                        stubLog(TransactionType.DEPOSIT, 10_000L, now.minusHours(2)),
+                        stubLog(TransactionType.DEPOSIT, 20_000L, now),
                         stubLog(TransactionType.WITHDRAW, 5_000L, now.minusHours(1)),
-                        stubLog(TransactionType.DEPOSIT, 20_000L, now)
+                        stubLog(TransactionType.DEPOSIT, 10_000L, now.minusHours(2))
                 ));
 
         List<TransactionLogResponse> result = transactionLogService.getTransactions(USER_NO, ACCOUNT_ID);
@@ -86,7 +86,7 @@ class TransactionLogServiceTest {
     void getTransactions_emptyList() {
         given(accountRepository.findById(ACCOUNT_ID))
                 .willReturn(Optional.of(stubAccount()));
-        given(transactionLogRepository.findByAccountId(ACCOUNT_ID))
+        given(transactionLogRepository.findByAccountIdOrderByTransactedDesc(ACCOUNT_ID))
                 .willReturn(List.of());
 
         List<TransactionLogResponse> result = transactionLogService.getTransactions(USER_NO, ACCOUNT_ID);
@@ -129,10 +129,10 @@ class TransactionLogServiceTest {
         given(accountRepository.findById(ACCOUNT_ID))
                 .willReturn(Optional.of(stubAccount()));
         given(transactionLogRepository
-                .findByAccountIdAndTransactedBetweenOrderByTransacted(ACCOUNT_ID, from, to))
+                .findByAccountIdAndTransactedBetweenOrderByTransactedDesc(ACCOUNT_ID, from, to))
                 .willReturn(List.of(
-                        stubLog(TransactionType.DEPOSIT, 10_000L, now.minusDays(3)),
-                        stubLog(TransactionType.WITHDRAW, 5_000L, now.minusDays(1))
+                        stubLog(TransactionType.WITHDRAW, 5_000L, now.minusDays(1)),
+                        stubLog(TransactionType.DEPOSIT, 10_000L, now.minusDays(3))
                 ));
 
         List<TransactionLogResponse> result =
@@ -162,10 +162,10 @@ class TransactionLogServiceTest {
         given(accountRepository.findById(ACCOUNT_ID))
                 .willReturn(Optional.of(stubAccount()));
         given(transactionLogRepository
-                .findByAccountIdAndTransactionTypeOrderByTransacted(ACCOUNT_ID, TransactionType.DEPOSIT))
+                .findByAccountIdAndTransactionTypeOrderByTransactedDesc(ACCOUNT_ID, TransactionType.DEPOSIT))
                 .willReturn(List.of(
-                        stubLog(TransactionType.DEPOSIT, 10_000L, now.minusHours(2)),
-                        stubLog(TransactionType.DEPOSIT, 20_000L, now)
+                        stubLog(TransactionType.DEPOSIT, 20_000L, now),
+                        stubLog(TransactionType.DEPOSIT, 10_000L, now.minusHours(2))
                 ));
 
         List<TransactionLogResponse> result =

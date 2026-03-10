@@ -88,11 +88,11 @@ class PointOrderRepositoryTest {
 
     @Test
     @DisplayName("사용자별 주문 내역 조회")
-    void findByUserNo() {
+    void findByUserNoOrderByOrderAtDesc() {
         pointOrderRepository.save(buildOrder(testUser.getUserNo(), testProduct.getProductId()));
         pointOrderRepository.save(buildOrder(testUser.getUserNo(), testProduct2.getProductId()));
 
-        List<PointOrder> orders = pointOrderRepository.findByUserNo(testUser.getUserNo());
+        List<PointOrder> orders = pointOrderRepository.findByUserNoOrderByOrderAtDesc(testUser.getUserNo());
         assertThat(orders).hasSize(2);
         assertThat(orders).extracting(PointOrder::getUserNo)
                 .containsOnly(testUser.getUserNo());
@@ -101,7 +101,7 @@ class PointOrderRepositoryTest {
     @Test
     @DisplayName("사용자별 주문 내역 - 없는 경우 빈 리스트")
     void findByUserNo_empty() {
-        List<PointOrder> orders = pointOrderRepository.findByUserNo(99999L);
+        List<PointOrder> orders = pointOrderRepository.findByUserNoOrderByOrderAtDesc(99999L);
         assertThat(orders).isEmpty();
     }
 

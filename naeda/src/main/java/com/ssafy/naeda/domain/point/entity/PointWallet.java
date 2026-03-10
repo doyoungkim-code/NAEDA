@@ -38,6 +38,15 @@ public class PointWallet {
     private LocalDateTime updated;
 
     public void earn(Long amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("적립 금액은 0보다 커야 합니다.");
+        }
+        if (Long.MAX_VALUE - this.balance < amount) {
+            throw new IllegalStateException("포인트 잔액이 최대치를 초과합니다.");
+        }
+        if (Long.MAX_VALUE - this.totalEarned < amount) {
+            throw new IllegalStateException("누적 적립 포인트가 최대치를 초과합니다.");
+        }
         this.balance += amount;
         this.totalEarned += amount;
         this.updated = LocalDateTime.now();
@@ -47,6 +56,9 @@ public class PointWallet {
         if(this.balance < amount) {
             throw new InsufficientBalanceException("포인트 잔액이 부족합니다. 현재 잔액: " + this.balance);
         }
+        if (Long.MAX_VALUE - this.totalUsed < amount) {
+            throw new IllegalStateException("누적 사용 포인트가 최대치를 초과합니다.");
+        }
 
         this.balance -= amount;
         this.totalUsed += amount;
@@ -54,6 +66,15 @@ public class PointWallet {
     }
 
     public void charge(Long amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("충전 금액은 0보다 커야 합니다.");
+        }
+        if (Long.MAX_VALUE - this.balance < amount) {
+            throw new IllegalStateException("포인트 잔액이 최대치를 초과합니다.");
+        }
+        if (Long.MAX_VALUE - this.totalEarned < amount) {
+            throw new IllegalStateException("누적 적립 포인트가 최대치를 초과합니다.");
+        }
         this.balance += amount;
         this.totalEarned += amount;
         this.updated = LocalDateTime.now();

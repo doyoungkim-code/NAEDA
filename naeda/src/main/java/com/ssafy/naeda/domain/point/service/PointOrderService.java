@@ -9,8 +9,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -24,16 +26,16 @@ public class PointOrderService {
     @Transactional
     public PointOrderResponse purchaseProduct(Long userNo, PointOrderCreateRequest request) {
 
-        // 1. 상품 조회 + 구매 가능 여부 검증
-        PointProduct product = pointProductRepository.findById(request.getProductId())
+        // 1. 상품 조회 (비관적 잠금) + 구매 가능 여부 검증
+        PointProduct product = pointProductRepository.findByIdForUpdate(request.getProductId())
                 .orElseThrow(() -> new NotFoundException("포인트 상품을 찾을 수 없습니다. id = " + request.getProductId()));
 
         if (!product.isAvailable()) {
             throw new IllegalStateException("현재 구매할 수 없는 상품입니다.");
         }
 
-        // 2. 포인트 지갑 조회
-        PointWallet wallet = pointWalletRepository.findByUserNo(userNo)
+        // 2. 포인트 지갑 조회 (비관적 잠금)
+        PointWallet wallet = pointWalletRepository.findByUserNoForUpdate(userNo)
                 .orElseThrow(() -> new NotFoundException("포인트 지갑을 찾을 수 없습니다. userNo=" + userNo));
 
         // 3. 포인트 차감 (잔액 부족하면 use() 내부에서 예외 발생)
@@ -67,14 +69,26 @@ public class PointOrderService {
 
     @Transactional(readOnly = true)
     public List<PointOrderResponse> getMyOrders(Long userNo) {
-        List<PointOrder> orders = pointOrderRepository.findByUserNo(userNo);
+        List<PointOrder> orders = pointOrderRepository.findByUserNoOrderByOrderAtDesc(userNo);
+
+        if (orders.isEmpty()) {
+            return List.of();
+        }
+
+        // 상품 ID 목록 추출 후 한 번에 조회 (N+1 방지)
+        List<Long> productIds = orders.stream()
+                .map(PointOrder::getProductId)
+                .distinct()
+                .toList();
+        Map<Long, PointProduct> productMap = pointProductRepository.findAllById(productIds).stream()
+                .collect(Collectors.toMap(PointProduct::getProductId, Function.identity()));
 
         return orders.stream()
-                .sorted(Comparator.comparing(PointOrder::getOrderAt).reversed())
                 .map(order -> {
-                    PointProduct product = pointProductRepository.findById(order.getProductId())
-                            .orElseThrow(() -> new NotFoundException("포인트 상품을 찾을 수 없습니다. id=" + order.getProductId()));
-
+                    PointProduct product = productMap.get(order.getProductId());
+                    if (product == null) {
+                        throw new NotFoundException("포인트 상품을 찾을 수 없습니다. id=" + order.getProductId());
+                    }
                     return PointOrderResponse.from(product, order);
                 })
                 .toList();
