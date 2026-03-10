@@ -163,7 +163,60 @@
 
 ---
 
-## 4. 상품 수정
+## 4. 판매중 상품 목록 조회
+
+판매중(ON_SALE) 상태의 포인트 상품을 조회한다. 카테고리 필터와 키워드 검색을 선택적으로 사용할 수 있다.
+
+| 항목 | 내용 |
+|------|------|
+| **Method** | `GET` |
+| **URL** | `/api/products/available` |
+| **Auth** | - |
+
+### Query Parameters
+
+| 이름 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| category | String | X | 카테고리 필터 (예: 카페, 음식) |
+| keyword | String | X | 상품명 부분 검색 |
+
+### 사용 예시
+
+```
+GET /api/products/available                                    # 전체 판매중 상품
+GET /api/products/available?category=카페                       # 카페 카테고리만
+GET /api/products/available?keyword=쿠폰                       # "쿠폰" 포함 검색
+GET /api/products/available?category=카페&keyword=아메리카노     # 카페 + "아메리카노" 검색
+```
+
+### Request Body
+
+없음
+
+### Response
+
+**Status: `200 OK`**
+
+```json
+[
+  {
+    "productId": 1,
+    "productName": "아메리카노 쿠폰",
+    "description": "스타벅스 아메리카노 교환권",
+    "category": "카페",
+    "imageUrl": "https://example.com/image.png",
+    "pointPrice": 3000,
+    "stockQuantity": 100,
+    "status": "ON_SALE",
+    "startsAt": "2026-01-01T00:00:00",
+    "endsAt": "2026-12-31T23:59:00"
+  }
+]
+```
+
+---
+
+## 5. 상품 수정
 
 포인트 상품 정보를 수정한다.
 
@@ -235,7 +288,7 @@
 
 ---
 
-## 5. 상품 삭제
+## 6. 상품 삭제
 
 포인트 상품을 삭제한다.
 
