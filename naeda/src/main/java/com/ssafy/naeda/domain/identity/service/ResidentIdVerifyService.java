@@ -30,10 +30,13 @@ public class ResidentIdVerifyService {
         ResidentIdOcrResponse ocrResponse = residentIdOcrClient.extractResidentId(image);
 
         return ResidentIdExtractResponse.builder()
+                .documentType(ocrResponse.getDocumentType())
+                .documentMatched(ocrResponse.isDocumentMatched())
                 .name(ocrResponse.getName())
                 .residentFront6(ocrResponse.getResidentFront6())
                 .residentBackFirst1(ocrResponse.getResidentBackFirst1())
                 .provider(ocrResponse.getProvider())
+                .confidence(ocrResponse.getConfidence())
                 .build();
     }
 

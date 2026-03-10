@@ -41,20 +41,26 @@ class ResidentIdVerifyServiceTest {
     @DisplayName("OCR 추출 결과를 그대로 확인 화면에 전달한다")
     void extract_success() throws Exception {
         ResidentIdOcrResponse response = new ResidentIdOcrResponse();
+        setField(response, "documentType", "DRIVER_LICENSE");
+        setField(response, "documentMatched", true);
         setField(response, "name", "홍길동");
         setField(response, "residentFront6", "900101");
         setField(response, "residentBackFirst1", "1");
         setField(response, "provider", "mock");
+        setField(response, "confidence", 0.91d);
         given(residentIdOcrClient.extractResidentId(any())).willReturn(response);
 
         ResidentIdExtractResponse result = residentIdVerifyService.extract(
                 new MockMultipartFile("image", "card.jpg", "image/jpeg", new byte[]{1, 2, 3})
         );
 
+        assertThat(result.getDocumentType()).isEqualTo("DRIVER_LICENSE");
+        assertThat(result.isDocumentMatched()).isTrue();
         assertThat(result.getName()).isEqualTo("홍길동");
         assertThat(result.getResidentFront6()).isEqualTo("900101");
         assertThat(result.getResidentBackFirst1()).isEqualTo("1");
         assertThat(result.getProvider()).isEqualTo("mock");
+        assertThat(result.getConfidence()).isEqualTo(0.91d);
     }
 
     @Test
@@ -118,6 +124,18 @@ class ResidentIdVerifyServiceTest {
     }
 
     private static void setField(Object target, String name, String value) throws Exception {
+        Field field = target.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        field.set(target, value);
+    }
+
+    private static void setField(Object target, String name, boolean value) throws Exception {
+        Field field = target.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        field.set(target, value);
+    }
+
+    private static void setField(Object target, String name, double value) throws Exception {
         Field field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);
         field.set(target, value);

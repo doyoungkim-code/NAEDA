@@ -35,10 +35,13 @@ class ResidentIdVerifyControllerTest {
     void extract_returnsServiceResponse() {
         given(residentIdVerifyService.extract(any())).willReturn(
                 ResidentIdExtractResponse.builder()
+                        .documentType("RESIDENT_ID")
+                        .documentMatched(true)
                         .name("홍길동")
                         .residentFront6("900101")
                         .residentBackFirst1("1")
                         .provider("mock")
+                        .confidence(0.95d)
                         .build()
         );
 
@@ -48,6 +51,7 @@ class ResidentIdVerifyControllerTest {
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getDocumentType()).isEqualTo("RESIDENT_ID");
         assertThat(response.getBody().getName()).isEqualTo("홍길동");
     }
 

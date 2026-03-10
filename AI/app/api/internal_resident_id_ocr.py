@@ -4,7 +4,7 @@ from app.core.resident_ocr import extract_resident_id_fields
 from app.core.security import verify_internal_service_token
 from app.schemas.resident_id_ocr import ResidentIdOcrResponse
 
-router = APIRouter(prefix="/internal/v1/ocr/resident-id", tags=["internal-resident-id-ocr"])
+router = APIRouter(prefix="/internal/v1/ocr/id-card", tags=["internal-id-card-ocr"])
 
 
 @router.post(
@@ -22,8 +22,11 @@ async def extract_resident_id(
 ) -> ResidentIdOcrResponse:
     result = await extract_resident_id_fields(image)
     return ResidentIdOcrResponse(
+        document_type=result["documentType"],
+        document_matched=result["documentMatched"],
         name=result["name"],
         resident_front6=result["residentFront6"],
         resident_back_first1=result["residentBackFirst1"],
         provider=result["provider"],
+        confidence=result["confidence"],
     )

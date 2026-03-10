@@ -8,6 +8,12 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ResidentIdOcrResponse {
 
+    @JsonProperty("documentType")
+    private String documentType;
+
+    @JsonProperty("documentMatched")
+    private boolean documentMatched;
+
     private String name;
 
     @JsonProperty("residentFront6")
@@ -17,4 +23,6 @@ public class ResidentIdOcrResponse {
     private String residentBackFirst1;
 
     private String provider;
+
+    private double confidence;
 }
