@@ -5,7 +5,6 @@ import com.ssafy.naeda.domain.account.repository.AccountRepository;
 import com.ssafy.naeda.domain.face.dto.response.SearchResponse;
 import com.ssafy.naeda.domain.face.service.FaceService;
 import com.ssafy.naeda.domain.payment.dto.PaymentRequestData;
-import com.ssafy.naeda.domain.payment.dto.request.ProcessPaymentRequest;
 import com.ssafy.naeda.domain.payment.dto.response.ProcessPaymentResponse;
 import com.ssafy.naeda.domain.payment.entity.*;
 import com.ssafy.naeda.domain.payment.repository.PaymentMethodRepository;
@@ -59,7 +58,6 @@ public class PaymentProcessService {
     @SuppressWarnings("unchecked")
     @Transactional
     public ProcessPaymentResponse processPayment(String requestId,
-                                                  ProcessPaymentRequest request,
                                                   MultipartFile faceImage) {
         // 1. Redis에서 결제 요청 조회 + PENDING 확인
         PaymentRequestData data = redisService.getRequest(requestId);
@@ -70,7 +68,10 @@ public class PaymentProcessService {
             throw new BadRequestException("이미 처리 중이거나 완료된 결제 요청입니다.");
         }
 
-        // 2. PENDING → PROCESSING
+        // 2. 분산 락 획득 + PENDING → PROCESSING
+        if (!redisService.tryAcquireProcessingLock(requestId)) {
+            throw new BadRequestException("이미 처리 중이거나 완료된 결제 요청입니다.");
+        }
         redisService.updateStatus(requestId, PaymentRequestStatus.PROCESSING);
 
         // 3. 매장 조회
@@ -224,7 +225,13 @@ public class PaymentProcessService {
         payment = paymentRepository.save(payment);
 
         // 13. TransactionLog 저장
-        long balanceAfter = getBalanceAfter(user.getUserKey(), withdrawalAccount.getAccountNo());
+        long balanceAfter;
+        try {
+            balanceAfter = getBalanceAfter(user.getUserKey(), withdrawalAccount.getAccountNo());
+        } catch (Exception e) {
+            log.warn("잔액 조회 실패 (결제는 정상 처리됨): requestId={}", requestId, e);
+            balanceAfter = 0L;
+        }
         transactionLogRepository.save(TransactionLog.builder()
                 .accountId(withdrawalAccount.getAccountId())
                 .transactionType(TransactionType.WITHDRAW)

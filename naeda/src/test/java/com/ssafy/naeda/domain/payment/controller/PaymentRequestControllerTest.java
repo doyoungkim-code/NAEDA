@@ -213,18 +213,14 @@ class PaymentRequestControllerTest {
                 .earnedPoints(750).ssafyTransactionId("TXN-001")
                 .similarity(0.95).build();
 
-        given(paymentProcessService.processPayment(eq("test-uuid"), any(), any()))
+        given(paymentProcessService.processPayment(eq("test-uuid"), any()))
                 .willReturn(response);
 
-        MockMultipartFile requestPart = new MockMultipartFile(
-                "request", "", MediaType.APPLICATION_JSON_VALUE,
-                "{\"userNo\":10}".getBytes());
         MockMultipartFile faceImage = new MockMultipartFile(
                 "faceImage", "face.jpg", MediaType.IMAGE_JPEG_VALUE,
                 "fake-image".getBytes());
 
         mockMvc.perform(multipart("/api/payment-requests/test-uuid/process")
-                        .file(requestPart)
                         .file(faceImage))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SUCCESS"))
@@ -241,18 +237,14 @@ class PaymentRequestControllerTest {
                 .nextAction("BLOCK").storeId(STORE_ID).amount(AMOUNT)
                 .similarity(0.3).build();
 
-        given(paymentProcessService.processPayment(eq("test-uuid"), any(), any()))
+        given(paymentProcessService.processPayment(eq("test-uuid"), any()))
                 .willReturn(response);
 
-        MockMultipartFile requestPart = new MockMultipartFile(
-                "request", "", MediaType.APPLICATION_JSON_VALUE,
-                "{\"userNo\":10}".getBytes());
         MockMultipartFile faceImage = new MockMultipartFile(
                 "faceImage", "face.jpg", MediaType.IMAGE_JPEG_VALUE,
                 "fake-image".getBytes());
 
         mockMvc.perform(multipart("/api/payment-requests/test-uuid/process")
-                        .file(requestPart)
                         .file(faceImage))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("BLOCKED"))
@@ -262,18 +254,14 @@ class PaymentRequestControllerTest {
     @Test
     @DisplayName("결제 처리 - 요청 만료 시 404를 반환한다")
     void processPayment_expired_returns404() throws Exception {
-        given(paymentProcessService.processPayment(eq("expired-uuid"), any(), any()))
+        given(paymentProcessService.processPayment(eq("expired-uuid"), any()))
                 .willThrow(new NotFoundException("결제 요청이 만료되었거나 존재하지 않습니다."));
 
-        MockMultipartFile requestPart = new MockMultipartFile(
-                "request", "", MediaType.APPLICATION_JSON_VALUE,
-                "{\"userNo\":10}".getBytes());
         MockMultipartFile faceImage = new MockMultipartFile(
                 "faceImage", "face.jpg", MediaType.IMAGE_JPEG_VALUE,
                 "fake-image".getBytes());
 
         mockMvc.perform(multipart("/api/payment-requests/expired-uuid/process")
-                        .file(requestPart)
                         .file(faceImage))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
@@ -282,18 +270,14 @@ class PaymentRequestControllerTest {
     @Test
     @DisplayName("결제 처리 - 이미 처리 중인 요청이면 400을 반환한다")
     void processPayment_alreadyProcessing_returns400() throws Exception {
-        given(paymentProcessService.processPayment(eq("processing-uuid"), any(), any()))
+        given(paymentProcessService.processPayment(eq("processing-uuid"), any()))
                 .willThrow(new BadRequestException("이미 처리 중이거나 완료된 결제 요청입니다."));
 
-        MockMultipartFile requestPart = new MockMultipartFile(
-                "request", "", MediaType.APPLICATION_JSON_VALUE,
-                "{\"userNo\":10}".getBytes());
         MockMultipartFile faceImage = new MockMultipartFile(
                 "faceImage", "face.jpg", MediaType.IMAGE_JPEG_VALUE,
                 "fake-image".getBytes());
 
         mockMvc.perform(multipart("/api/payment-requests/processing-uuid/process")
-                        .file(requestPart)
                         .file(faceImage))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
@@ -302,12 +286,7 @@ class PaymentRequestControllerTest {
     @Test
     @DisplayName("결제 처리 - 얼굴 이미지 누락 시 400을 반환한다")
     void processPayment_missingFaceImage_returns400() throws Exception {
-        MockMultipartFile requestPart = new MockMultipartFile(
-                "request", "", MediaType.APPLICATION_JSON_VALUE,
-                "{\"userNo\":10}".getBytes());
-
-        mockMvc.perform(multipart("/api/payment-requests/test-uuid/process")
-                        .file(requestPart))
+        mockMvc.perform(multipart("/api/payment-requests/test-uuid/process"))
                 .andExpect(status().isBadRequest());
     }
 }

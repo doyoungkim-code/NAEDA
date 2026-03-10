@@ -5,7 +5,6 @@ import com.ssafy.naeda.domain.account.repository.AccountRepository;
 import com.ssafy.naeda.domain.face.dto.response.SearchResponse;
 import com.ssafy.naeda.domain.face.service.FaceService;
 import com.ssafy.naeda.domain.payment.dto.PaymentRequestData;
-import com.ssafy.naeda.domain.payment.dto.request.ProcessPaymentRequest;
 import com.ssafy.naeda.domain.payment.dto.response.ProcessPaymentResponse;
 import com.ssafy.naeda.domain.payment.entity.*;
 import com.ssafy.naeda.domain.payment.repository.PaymentMethodRepository;
@@ -72,12 +71,12 @@ class PaymentProcessServiceTest {
     void processPayment_success() {
         // given
         MultipartFile faceImage = mock(MultipartFile.class);
-        ProcessPaymentRequest request = mock(ProcessPaymentRequest.class);
 
         PaymentRequestData data = PaymentRequestData.builder()
                 .requestId(REQUEST_ID).storeId(STORE_ID).amount(AMOUNT)
                 .status(PaymentRequestStatus.PENDING).build();
         given(redisService.getRequest(REQUEST_ID)).willReturn(data);
+        given(redisService.tryAcquireProcessingLock(REQUEST_ID)).willReturn(true);
 
         Store store = Store.builder().storeId(STORE_ID).storeName("테스트 매장").accountId(200L).build();
         given(storeRepository.findById(STORE_ID)).willReturn(Optional.of(store));
@@ -119,7 +118,7 @@ class PaymentProcessServiceTest {
         given(paymentRepository.save(any(Payment.class))).willReturn(savedPayment);
 
         // when
-        ProcessPaymentResponse response = service.processPayment(REQUEST_ID, request, faceImage);
+        ProcessPaymentResponse response = service.processPayment(REQUEST_ID, faceImage);
 
         // then
         assertThat(response.getStatus()).isEqualTo("SUCCESS");
@@ -127,6 +126,7 @@ class PaymentProcessServiceTest {
         assertThat(response.getRequestId()).isEqualTo(REQUEST_ID);
         assertThat(response.getStoreId()).isEqualTo(STORE_ID);
         assertThat(response.getAmount()).isEqualTo(AMOUNT);
+        verify(redisService).tryAcquireProcessingLock(REQUEST_ID);
         verify(redisService).updateStatus(REQUEST_ID, PaymentRequestStatus.PROCESSING);
         verify(redisService).updateStatus(REQUEST_ID, PaymentRequestStatus.SUCCESS);
     }
@@ -137,11 +137,10 @@ class PaymentProcessServiceTest {
     @DisplayName("결제 처리 실패 - 요청이 만료되었거나 존재하지 않으면 NotFoundException")
     void processPayment_requestNotFound() {
         MultipartFile faceImage = mock(MultipartFile.class);
-        ProcessPaymentRequest request = mock(ProcessPaymentRequest.class);
 
         given(redisService.getRequest(REQUEST_ID)).willReturn(null);
 
-        assertThatThrownBy(() -> service.processPayment(REQUEST_ID, request, faceImage))
+        assertThatThrownBy(() -> service.processPayment(REQUEST_ID, faceImage))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("결제 요청이 만료되었거나 존재하지 않습니다");
     }
@@ -152,14 +151,13 @@ class PaymentProcessServiceTest {
     @DisplayName("결제 처리 실패 - PENDING이 아니면 BadRequestException")
     void processPayment_notPending() {
         MultipartFile faceImage = mock(MultipartFile.class);
-        ProcessPaymentRequest request = mock(ProcessPaymentRequest.class);
 
         PaymentRequestData data = PaymentRequestData.builder()
                 .requestId(REQUEST_ID).storeId(STORE_ID).amount(AMOUNT)
                 .status(PaymentRequestStatus.PROCESSING).build();
         given(redisService.getRequest(REQUEST_ID)).willReturn(data);
 
-        assertThatThrownBy(() -> service.processPayment(REQUEST_ID, request, faceImage))
+        assertThatThrownBy(() -> service.processPayment(REQUEST_ID, faceImage))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("이미 처리 중이거나 완료된 결제 요청입니다");
     }
@@ -170,12 +168,12 @@ class PaymentProcessServiceTest {
     @DisplayName("결제 처리 - 얼굴 인증 차단 시 BLOCKED 반환")
     void processPayment_blocked() {
         MultipartFile faceImage = mock(MultipartFile.class);
-        ProcessPaymentRequest request = mock(ProcessPaymentRequest.class);
 
         PaymentRequestData data = PaymentRequestData.builder()
                 .requestId(REQUEST_ID).storeId(STORE_ID).amount(AMOUNT)
                 .status(PaymentRequestStatus.PENDING).build();
         given(redisService.getRequest(REQUEST_ID)).willReturn(data);
+        given(redisService.tryAcquireProcessingLock(REQUEST_ID)).willReturn(true);
 
         Store store = Store.builder().storeId(STORE_ID).storeName("테스트 매장").build();
         given(storeRepository.findById(STORE_ID)).willReturn(Optional.of(store));
@@ -185,7 +183,7 @@ class PaymentProcessServiceTest {
                 .similarity(0.3f).blocked(true).authLevel(AuthLevel.BLOCKED).build();
         given(faceService.search(any(), eq(1), eq(AMOUNT))).willReturn(faceResult);
 
-        ProcessPaymentResponse response = service.processPayment(REQUEST_ID, request, faceImage);
+        ProcessPaymentResponse response = service.processPayment(REQUEST_ID, faceImage);
 
         assertThat(response.getStatus()).isEqualTo("BLOCKED");
         assertThat(response.getNextAction()).isEqualTo("BLOCK");
@@ -198,12 +196,12 @@ class PaymentProcessServiceTest {
     @DisplayName("결제 처리 - 2차 인증 필요 시 FAILED + nextAction 반환")
     void processPayment_requireSecondFactor() {
         MultipartFile faceImage = mock(MultipartFile.class);
-        ProcessPaymentRequest request = mock(ProcessPaymentRequest.class);
 
         PaymentRequestData data = PaymentRequestData.builder()
                 .requestId(REQUEST_ID).storeId(STORE_ID).amount(AMOUNT)
                 .status(PaymentRequestStatus.PENDING).build();
         given(redisService.getRequest(REQUEST_ID)).willReturn(data);
+        given(redisService.tryAcquireProcessingLock(REQUEST_ID)).willReturn(true);
 
         Store store = Store.builder().storeId(STORE_ID).storeName("테스트 매장").build();
         given(storeRepository.findById(STORE_ID)).willReturn(Optional.of(store));
@@ -227,7 +225,7 @@ class PaymentProcessServiceTest {
                 .build();
         given(paymentRepository.save(any(Payment.class))).willReturn(savedPayment);
 
-        ProcessPaymentResponse response = service.processPayment(REQUEST_ID, request, faceImage);
+        ProcessPaymentResponse response = service.processPayment(REQUEST_ID, faceImage);
 
         assertThat(response.getStatus()).isEqualTo("FAILED");
         assertThat(response.getNextAction()).isEqualTo("REQUIRE_PIN");
@@ -241,12 +239,12 @@ class PaymentProcessServiceTest {
     @DisplayName("결제 처리 실패 - 페이스페이 결제수단이 없으면 NotFoundException")
     void processPayment_paymentMethodNotFound() {
         MultipartFile faceImage = mock(MultipartFile.class);
-        ProcessPaymentRequest request = mock(ProcessPaymentRequest.class);
 
         PaymentRequestData data = PaymentRequestData.builder()
                 .requestId(REQUEST_ID).storeId(STORE_ID).amount(AMOUNT)
                 .status(PaymentRequestStatus.PENDING).build();
         given(redisService.getRequest(REQUEST_ID)).willReturn(data);
+        given(redisService.tryAcquireProcessingLock(REQUEST_ID)).willReturn(true);
 
         Store store = Store.builder().storeId(STORE_ID).storeName("테스트 매장").build();
         given(storeRepository.findById(STORE_ID)).willReturn(Optional.of(store));
@@ -262,7 +260,7 @@ class PaymentProcessServiceTest {
         given(paymentMethodRepository.findByUserNoAndIsFacePayTrueAndIsActiveTrue(USER_NO))
                 .willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.processPayment(REQUEST_ID, request, faceImage))
+        assertThatThrownBy(() -> service.processPayment(REQUEST_ID, faceImage))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("페이스페이 결제 수단이 등록되지 않았습니다");
     }
@@ -273,12 +271,12 @@ class PaymentProcessServiceTest {
     @DisplayName("결제 처리 실패 - 결제수단이 ACCOUNT가 아니면 BadRequestException")
     void processPayment_notAccountType() {
         MultipartFile faceImage = mock(MultipartFile.class);
-        ProcessPaymentRequest request = mock(ProcessPaymentRequest.class);
 
         PaymentRequestData data = PaymentRequestData.builder()
                 .requestId(REQUEST_ID).storeId(STORE_ID).amount(AMOUNT)
                 .status(PaymentRequestStatus.PENDING).build();
         given(redisService.getRequest(REQUEST_ID)).willReturn(data);
+        given(redisService.tryAcquireProcessingLock(REQUEST_ID)).willReturn(true);
 
         Store store = Store.builder().storeId(STORE_ID).storeName("테스트 매장").build();
         given(storeRepository.findById(STORE_ID)).willReturn(Optional.of(store));
@@ -296,7 +294,7 @@ class PaymentProcessServiceTest {
         given(paymentMethodRepository.findByUserNoAndIsFacePayTrueAndIsActiveTrue(USER_NO))
                 .willReturn(Optional.of(pm));
 
-        assertThatThrownBy(() -> service.processPayment(REQUEST_ID, request, faceImage))
+        assertThatThrownBy(() -> service.processPayment(REQUEST_ID, faceImage))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("계좌 결제 수단만 지원합니다");
     }
@@ -307,12 +305,12 @@ class PaymentProcessServiceTest {
     @DisplayName("결제 처리 실패 - 출금 계좌를 찾을 수 없으면 NotFoundException")
     void processPayment_withdrawalAccountNotFound() {
         MultipartFile faceImage = mock(MultipartFile.class);
-        ProcessPaymentRequest request = mock(ProcessPaymentRequest.class);
 
         PaymentRequestData data = PaymentRequestData.builder()
                 .requestId(REQUEST_ID).storeId(STORE_ID).amount(AMOUNT)
                 .status(PaymentRequestStatus.PENDING).build();
         given(redisService.getRequest(REQUEST_ID)).willReturn(data);
+        given(redisService.tryAcquireProcessingLock(REQUEST_ID)).willReturn(true);
 
         Store store = Store.builder().storeId(STORE_ID).storeName("테스트 매장").accountId(200L).build();
         given(storeRepository.findById(STORE_ID)).willReturn(Optional.of(store));
@@ -332,7 +330,7 @@ class PaymentProcessServiceTest {
 
         given(accountRepository.findById(300L)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.processPayment(REQUEST_ID, request, faceImage))
+        assertThatThrownBy(() -> service.processPayment(REQUEST_ID, faceImage))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("출금 계좌를 찾을 수 없습니다");
     }
@@ -343,12 +341,12 @@ class PaymentProcessServiceTest {
     @DisplayName("결제 처리 실패 - SSAFY 이체 API 오류 시 FAILED 반환")
     void processPayment_ssafyApiFailed() {
         MultipartFile faceImage = mock(MultipartFile.class);
-        ProcessPaymentRequest request = mock(ProcessPaymentRequest.class);
 
         PaymentRequestData data = PaymentRequestData.builder()
                 .requestId(REQUEST_ID).storeId(STORE_ID).amount(AMOUNT)
                 .status(PaymentRequestStatus.PENDING).build();
         given(redisService.getRequest(REQUEST_ID)).willReturn(data);
+        given(redisService.tryAcquireProcessingLock(REQUEST_ID)).willReturn(true);
 
         Store store = Store.builder().storeId(STORE_ID).storeName("테스트 매장").accountId(200L).build();
         given(storeRepository.findById(STORE_ID)).willReturn(Optional.of(store));
@@ -376,7 +374,7 @@ class PaymentProcessServiceTest {
         given(ssafyApiClient.post(eq("/edu/demandDeposit/updateDemandDepositAccountTransfer"), any()))
                 .willThrow(new RuntimeException("SSAFY 서버 오류"));
 
-        ProcessPaymentResponse response = service.processPayment(REQUEST_ID, request, faceImage);
+        ProcessPaymentResponse response = service.processPayment(REQUEST_ID, faceImage);
 
         assertThat(response.getStatus()).isEqualTo("FAILED");
         assertThat(response.getFailureReason()).contains("SSAFY API 오류");
@@ -388,12 +386,12 @@ class PaymentProcessServiceTest {
     @DisplayName("결제 처리 실패 - 이미 처리된 거래 ID이면 BadRequestException")
     void processPayment_duplicateTransaction() {
         MultipartFile faceImage = mock(MultipartFile.class);
-        ProcessPaymentRequest request = mock(ProcessPaymentRequest.class);
 
         PaymentRequestData data = PaymentRequestData.builder()
                 .requestId(REQUEST_ID).storeId(STORE_ID).amount(AMOUNT)
                 .status(PaymentRequestStatus.PENDING).build();
         given(redisService.getRequest(REQUEST_ID)).willReturn(data);
+        given(redisService.tryAcquireProcessingLock(REQUEST_ID)).willReturn(true);
 
         Store store = Store.builder().storeId(STORE_ID).storeName("테스트 매장").accountId(200L).build();
         given(storeRepository.findById(STORE_ID)).willReturn(Optional.of(store));
@@ -424,8 +422,26 @@ class PaymentProcessServiceTest {
                 .willReturn(Map.of("REC", List.of(transferRec)));
         given(paymentRepository.existsBySsafyTransactionId("TXN-DUP")).willReturn(true);
 
-        assertThatThrownBy(() -> service.processPayment(REQUEST_ID, request, faceImage))
+        assertThatThrownBy(() -> service.processPayment(REQUEST_ID, faceImage))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("이미 처리된 결제입니다");
+    }
+
+    // ── 동시 요청 (분산 락) ─────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("결제 처리 실패 - 동시 요청 시 락 획득 실패하면 BadRequestException")
+    void processPayment_concurrentRequest_lockFailed() {
+        MultipartFile faceImage = mock(MultipartFile.class);
+
+        PaymentRequestData data = PaymentRequestData.builder()
+                .requestId(REQUEST_ID).storeId(STORE_ID).amount(AMOUNT)
+                .status(PaymentRequestStatus.PENDING).build();
+        given(redisService.getRequest(REQUEST_ID)).willReturn(data);
+        given(redisService.tryAcquireProcessingLock(REQUEST_ID)).willReturn(false);
+
+        assertThatThrownBy(() -> service.processPayment(REQUEST_ID, faceImage))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("이미 처리 중이거나 완료된 결제 요청입니다");
     }
 }

@@ -68,6 +68,7 @@ payment:
     rate: 0.05
   request:
     ttl-seconds: 30
+    process-ttl-seconds: 300
 
 jwt:
   secret: ${JWT_SECRET:naeda-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}

@@ -22,6 +22,7 @@ public class PaymentRequestRedisService {
 
     private static final String REQUEST_KEY_PREFIX = "payment:request:";
     private static final String STORE_INDEX_PREFIX = "payment:store:";
+    private static final String LOCK_KEY_PREFIX = "payment:lock:";
 
     private static final Map<PaymentRequestStatus, Set<PaymentRequestStatus>> VALID_TRANSITIONS = Map.of(
             PaymentRequestStatus.PENDING, Set.of(PaymentRequestStatus.PROCESSING),
@@ -36,6 +37,9 @@ public class PaymentRequestRedisService {
 
     @Value("${payment.request.ttl-seconds:30}")
     private long ttlSeconds;
+
+    @Value("${payment.request.process-ttl-seconds:300}")
+    private long processTtlSeconds;
 
     /**
      * 결제 요청 생성 — PENDING 상태로 Redis에 저장.
@@ -118,7 +122,8 @@ public class PaymentRequestRedisService {
                 .updatedAt(System.currentTimeMillis())
                 .build();
 
-        redisTemplate.opsForValue().set(requestKey(requestId), toJson(updated), ttlSeconds, TimeUnit.SECONDS);
+        long ttl = (newStatus == PaymentRequestStatus.PENDING) ? ttlSeconds : processTtlSeconds;
+        redisTemplate.opsForValue().set(requestKey(requestId), toJson(updated), ttl, TimeUnit.SECONDS);
 
         log.info("결제 요청 상태 변경: requestId={}, {} → {}", requestId, data.getStatus(), newStatus);
         return updated;
@@ -147,7 +152,7 @@ public class PaymentRequestRedisService {
                 .updatedAt(System.currentTimeMillis())
                 .build();
 
-        redisTemplate.opsForValue().set(requestKey(requestId), toJson(updated), ttlSeconds, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set(requestKey(requestId), toJson(updated), processTtlSeconds, TimeUnit.SECONDS);
 
         log.info("결제 요청 결과 반영: requestId={}, userNo={}, nextAction={}", requestId, userNo, nextAction);
         return updated;
@@ -163,6 +168,24 @@ public class PaymentRequestRedisService {
             redisTemplate.opsForSet().remove(storeIndexKey(data.getStoreId()), requestId);
         }
         log.info("결제 요청 삭제: requestId={}", requestId);
+    }
+
+    // ── 분산 락 ──────────────────────────────────────────────────────────
+
+    /**
+     * 결제 처리 락 획득. SETNX로 원자적 획득 — 이미 락이 있으면 false 반환.
+     */
+    public boolean tryAcquireProcessingLock(String requestId) {
+        Boolean acquired = redisTemplate.opsForValue()
+                .setIfAbsent(LOCK_KEY_PREFIX + requestId, "1", processTtlSeconds, TimeUnit.SECONDS);
+        return Boolean.TRUE.equals(acquired);
+    }
+
+    /**
+     * 결제 처리 락 해제.
+     */
+    public void releaseProcessingLock(String requestId) {
+        redisTemplate.delete(LOCK_KEY_PREFIX + requestId);
     }
 
     // ── 내부 헬퍼 ──────────────────────────────────────────────────────────

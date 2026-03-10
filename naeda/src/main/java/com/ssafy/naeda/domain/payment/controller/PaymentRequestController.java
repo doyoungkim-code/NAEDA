@@ -2,7 +2,6 @@ package com.ssafy.naeda.domain.payment.controller;
 
 import com.ssafy.naeda.domain.payment.dto.PaymentRequestData;
 import com.ssafy.naeda.domain.payment.dto.request.CreatePaymentRequestRequest;
-import com.ssafy.naeda.domain.payment.dto.request.ProcessPaymentRequest;
 import com.ssafy.naeda.domain.payment.dto.response.PaymentRequestResponse;
 import com.ssafy.naeda.domain.payment.dto.response.ProcessPaymentResponse;
 import com.ssafy.naeda.domain.payment.service.PaymentProcessService;
@@ -52,10 +51,9 @@ public class PaymentRequestController {
     @PostMapping(value = "/{requestId}/process", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProcessPaymentResponse> processPayment(
             @PathVariable String requestId,
-            @RequestPart("request") @Valid ProcessPaymentRequest request,
             @RequestPart("faceImage") MultipartFile faceImage
     ) {
-        ProcessPaymentResponse response = paymentProcessService.processPayment(requestId, request, faceImage);
+        ProcessPaymentResponse response = paymentProcessService.processPayment(requestId, faceImage);
         return ResponseEntity.ok(response);
     }
 
