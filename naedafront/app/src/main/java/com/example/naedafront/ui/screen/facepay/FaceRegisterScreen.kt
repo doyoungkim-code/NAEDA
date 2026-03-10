@@ -11,6 +11,8 @@ import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -42,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import com.example.naedafront.ui.screen.signup.NumberKeypad
 import com.example.naedafront.ui.theme.*
 import kotlinx.coroutines.delay
 
@@ -74,6 +77,10 @@ sealed class FaceRegisterStep {
         val issueDate: String = "2023.10.15"
     ) : FaceRegisterStep()
     object PinSetup : FaceRegisterStep()
+    object PinVerify : FaceRegisterStep()
+    object PinResetPassword : FaceRegisterStep()
+    object PinResetNew : FaceRegisterStep()
+    object PinResetConfirm : FaceRegisterStep()
     object Success : FaceRegisterStep()
 }
 
@@ -201,8 +208,21 @@ fun FaceRegisterScreen(
                     onConfirm = { step = FaceRegisterStep.PinSetup }
                 )
                 is FaceRegisterStep.PinSetup -> PinSetupContent(
-                    onUsePin = { step = FaceRegisterStep.Success },
+                    onUsePin = { step = FaceRegisterStep.PinVerify },
                     onSkip = { step = FaceRegisterStep.Success }
+                )
+                is FaceRegisterStep.PinVerify -> PinVerifyContent(
+                    onSuccess = { step = FaceRegisterStep.Success },
+                    onReset = { step = FaceRegisterStep.PinResetPassword }
+                )
+                is FaceRegisterStep.PinResetPassword -> PinResetPasswordContent(
+                    onConfirmed = { step = FaceRegisterStep.PinResetNew }
+                )
+                is FaceRegisterStep.PinResetNew -> PinResetNewContent(
+                    onNext = { step = FaceRegisterStep.PinResetConfirm }
+                )
+                is FaceRegisterStep.PinResetConfirm -> PinResetConfirmContent(
+                    onComplete = { step = FaceRegisterStep.Success }
                 )
                 is FaceRegisterStep.Success -> SuccessContent(onComplete = onRegisterComplete)
             }
@@ -1147,5 +1167,400 @@ private fun SuccessContent(onComplete: () -> Unit) {
             Text("홈으로 이동", fontFamily = NaedaFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Color.White)
         }
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+// ─── 공통: 6자리 PIN 키패드 ───────────────────────────────────────
+@Composable
+private fun PinKeypad(
+    onNumber: (String) -> Unit,
+    onDelete: () -> Unit
+) {
+    val keys = listOf("1","2","3","4","5","6","7","8","9","","0","⌫")
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        keys.chunked(3).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                row.forEach { key ->
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (key.isEmpty()) Color.Transparent
+                                else Color.White.copy(alpha = 0.07f)
+                            )
+                            .then(
+                                if (key.isNotEmpty()) Modifier.clickableNoRipple {
+                                    if (key == "⌫") onDelete() else onNumber(key)
+                                } else Modifier
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (key.isNotEmpty()) {
+                            Text(
+                                text = key,
+                                fontFamily = NaedaFontFamily,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = if (key == "⌫") 20.sp else 22.sp,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// 리플 없는 클릭 modifier
+@Composable
+private fun Modifier.clickableNoRipple(onClick: () -> Unit): Modifier {
+    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    return this.then(
+        Modifier.clickable(
+            indication = null,
+            interactionSource = interactionSource,
+            onClick = onClick
+        )
+    )
+}
+
+// 6자리 PIN 도트 표시
+@Composable
+private fun PinDots(pinLength: Int, hasError: Boolean = false) {
+    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        repeat(6) { index ->
+            Box(
+                modifier = Modifier
+                    .size(14.dp)
+                    .clip(CircleShape)
+                    .background(
+                        when {
+                            hasError -> Color(0xFFF2522E)
+                            index < pinLength -> Color(0xFF009688)
+                            else -> Color.White.copy(alpha = 0.25f)
+                        }
+                    )
+            )
+        }
+    }
+}
+
+// ─── PIN 입력 화면 (회원가입 때 설정한 PIN 확인) ──────────────────
+@Composable
+private fun PinVerifyContent(
+    onSuccess: () -> Unit,
+    onReset: () -> Unit
+) {
+    // 실제 연동 시 ViewModel에서 저장된 PIN 가져와야 함
+    val CORRECT_PIN = "123456"
+    val MAX_ATTEMPTS = 5
+
+    var pin by remember { mutableStateOf("") }
+    var failCount by remember { mutableStateOf(0) }
+    var isShaking by remember { mutableStateOf(false) }  // 도트 빨간색 표시 중
+    var showError by remember { mutableStateOf(false) }  // 에러 메시지 표시 여부
+
+    // 5회 실패 시 자동으로 재설정 이동
+    LaunchedEffect(failCount) {
+        if (failCount >= MAX_ATTEMPTS) {
+            delay(600L)
+            onReset()
+        }
+    }
+
+    // 틀렸을 때: 도트 빨개짐(400ms) → pin 클리어 → 에러 메시지는 유지
+    LaunchedEffect(isShaking) {
+        if (isShaking) {
+            delay(400L)
+            pin = ""
+            isShaking = false
+        }
+    }
+
+    fun onNumberInput(num: String) {
+        if (isShaking) return
+        // 새로 입력 시작하면 에러 메시지 숨김
+        if (pin.isEmpty()) showError = false
+        if (pin.length >= 6) return
+        val newPin = pin + num
+        pin = newPin
+        if (newPin.length == 6) {
+            if (newPin == CORRECT_PIN) {
+                onSuccess()
+            } else {
+                failCount++
+                isShaking = true
+                showError = true
+            }
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0D1A1A))) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(Modifier.height(60.dp))
+            Text(
+                "PIN 번호를 입력해 주세요",
+                fontFamily = NaedaFontFamily, fontWeight = FontWeight.Bold,
+                fontSize = 22.sp, color = Color.White, textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "등록 완료를 위해 설정한 PIN 번호를 입력해 주세요",
+                fontFamily = NaedaFontFamily, fontWeight = FontWeight.Normal,
+                fontSize = 14.sp, color = Color.White.copy(alpha = 0.55f), textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(40.dp))
+
+            // PIN 도트 (틀리면 빨간색, 400ms 후 클리어)
+            PinDots(pinLength = pin.length, hasError = isShaking)
+
+            Spacer(Modifier.height(16.dp))
+
+            // 에러 메시지: 틀린 순간부터 표시, 다음 입력 시작 시 사라짐
+            AnimatedVisibility(visible = showError && !isShaking) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = if (failCount >= MAX_ATTEMPTS) "PIN 번호 5회 오류. 재설정이 필요합니다."
+                        else "PIN 번호가 일치하지 않습니다. ($failCount/$MAX_ATTEMPTS)",
+                        fontFamily = NaedaFontFamily, fontWeight = FontWeight.Normal,
+                        fontSize = 13.sp, color = Color(0xFFF2522E), textAlign = TextAlign.Center
+                    )
+                    if (failCount in 1 until MAX_ATTEMPTS) {
+                        Spacer(Modifier.height(8.dp))
+                        TextButton(onClick = onReset) {
+                            Text(
+                                "PIN 번호를 잊으셨나요?",
+                                fontFamily = NaedaFontFamily, fontWeight = FontWeight.Medium,
+                                fontSize = 14.sp,
+                                color = Color(0xFF44E3D3),
+                                style = androidx.compose.ui.text.TextStyle(
+                                    textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.weight(1f))
+
+            NumberKeypad(
+                onNumberClick = { onNumberInput(it) },
+                onDeleteClick = {
+                    if (!isShaking && pin.isNotEmpty()) {
+                        pin = pin.dropLast(1)
+                        if (pin.isEmpty()) showError = false
+                    }
+                },
+                textColor = Color.White
+            )
+
+            Spacer(Modifier.height(40.dp))
+        }
+    }
+}
+
+// ─── PIN 재설정 - 비밀번호 확인 ───────────────────────────────────
+@Composable
+private fun PinResetPasswordContent(onConfirmed: () -> Unit) {
+    var password by remember { mutableStateOf("") }
+    var hasError by remember { mutableStateOf(false) }
+    var isVisible by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.Start
+    ) {
+        Spacer(Modifier.height(24.dp))
+        Text(
+            "본인 확인이 필요해요",
+            fontFamily = NaedaFontFamily, fontWeight = FontWeight.Bold,
+            fontSize = 24.sp, color = OnBackground
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "PIN 재설정을 위해 현재 비밀번호를 입력해 주세요.",
+            fontFamily = NaedaFontFamily, fontWeight = FontWeight.Normal,
+            fontSize = 14.sp, color = OnSurfaceVariant, lineHeight = 22.sp
+        )
+        Spacer(Modifier.height(36.dp))
+
+        Text("비밀번호", fontFamily = NaedaFontFamily, fontWeight = FontWeight.Medium, fontSize = 14.sp, color = OnSurfaceVariant)
+        Spacer(Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = password,
+            onValueChange = {
+                password = it
+                hasError = false
+            },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("비밀번호 입력", color = OnSurfaceVariant) },
+            visualTransformation = if (isVisible)
+                androidx.compose.ui.text.input.VisualTransformation.None
+            else
+                androidx.compose.ui.text.input.PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { isVisible = !isVisible }) {
+                    Text(if (isVisible) "🙈" else "👁️", fontSize = 18.sp)
+                }
+            },
+            isError = hasError,
+            shape = RoundedCornerShape(12.dp),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Mint500,
+                unfocusedBorderColor = Outline,
+                errorBorderColor = Color(0xFFF2522E),
+                focusedTextColor = OnBackground,
+                unfocusedTextColor = OnBackground
+            ),
+            singleLine = true
+        )
+
+        if (hasError) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "비밀번호가 일치하지 않습니다.",
+                fontFamily = NaedaFontFamily, fontWeight = FontWeight.Normal,
+                fontSize = 12.sp, color = Color(0xFFF2522E)
+            )
+        }
+
+        Spacer(Modifier.weight(1f))
+
+        Button(
+            onClick = {
+                // 실제 연동 시 ViewModel에서 비밀번호 검증
+                // 임시: 비어있지 않으면 통과
+                if (password.isNotBlank()) onConfirmed()
+                else hasError = true
+            },
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (password.isNotBlank()) Mint900 else SurfaceVariant
+            )
+        ) {
+            Text("확인", fontFamily = NaedaFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Color.White)
+        }
+        Spacer(Modifier.height(24.dp))
+    }
+}
+
+// ─── PIN 재설정 - 새 PIN 입력 ─────────────────────────────────────
+@Composable
+private fun PinResetNewContent(onNext: (String) -> Unit) {
+    var pin by remember { mutableStateOf("") }
+
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0D1A1A))) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(Modifier.height(60.dp))
+            Text(
+                "새 PIN 번호를 입력해 주세요",
+                fontFamily = NaedaFontFamily, fontWeight = FontWeight.Bold,
+                fontSize = 22.sp, color = Color.White, textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "6자리 숫자로 새 PIN 번호를 설정해 주세요",
+                fontFamily = NaedaFontFamily, fontWeight = FontWeight.Normal,
+                fontSize = 14.sp, color = Color.White.copy(alpha = 0.55f), textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(40.dp))
+
+            PinDots(pinLength = pin.length)
+
+            Spacer(Modifier.weight(1f))
+
+            NumberKeypad(
+                onNumberClick = {
+                    if (pin.length < 6) {
+                        pin += it
+                        if (pin.length == 6) onNext(pin)
+                    }
+                },
+                onDeleteClick = { if (pin.isNotEmpty()) pin = pin.dropLast(1) },
+                textColor = Color.White
+            )
+            Spacer(Modifier.height(40.dp))
+        }
+    }
+}
+
+// ─── PIN 재설정 - 새 PIN 확인 ─────────────────────────────────────
+@Composable
+private fun PinResetConfirmContent(onComplete: () -> Unit) {
+    // 실제 연동 시 이전 단계에서 입력한 newPin을 ViewModel로 전달
+    var pin by remember { mutableStateOf("") }
+    var hasError by remember { mutableStateOf(false) }
+
+    LaunchedEffect(hasError) {
+        if (hasError) {
+            delay(500L)
+            pin = ""
+            hasError = false
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0D1A1A))) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(Modifier.height(60.dp))
+            Text(
+                "PIN 번호를 한 번 더\n입력해 주세요",
+                fontFamily = NaedaFontFamily, fontWeight = FontWeight.Bold,
+                fontSize = 22.sp, color = Color.White, textAlign = TextAlign.Center, lineHeight = 32.sp
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "확인을 위해 새 PIN 번호를 다시 입력해 주세요",
+                fontFamily = NaedaFontFamily, fontWeight = FontWeight.Normal,
+                fontSize = 14.sp, color = Color.White.copy(alpha = 0.55f), textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(40.dp))
+
+            PinDots(pinLength = pin.length, hasError = hasError)
+
+            Spacer(Modifier.height(12.dp))
+
+            androidx.compose.animation.AnimatedVisibility(visible = hasError) {
+                Text(
+                    "PIN 번호가 일치하지 않습니다. 다시 입력해 주세요.",
+                    fontFamily = NaedaFontFamily, fontWeight = FontWeight.Normal,
+                    fontSize = 13.sp, color = Color(0xFFF2522E), textAlign = TextAlign.Center
+                )
+            }
+
+            Spacer(Modifier.weight(1f))
+
+            NumberKeypad(
+                onNumberClick = {
+                    if (pin.length < 6 && !hasError) {
+                        pin += it
+                        if (pin.length == 6) {
+                            // 실제 연동 시 ViewModel의 newPin과 비교
+                            // 임시: 그냥 완료 처리
+                            onComplete()
+                        }
+                    }
+                },
+                onDeleteClick = { if (pin.isNotEmpty()) pin = pin.dropLast(1) },
+                textColor = Color.White
+            )
+            Spacer(Modifier.height(40.dp))
+        }
     }
 }
