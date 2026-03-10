@@ -1,5 +1,6 @@
 package com.example.naedafront.ui.screen.signup
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -11,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -18,6 +20,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.naedafront.ui.common.SignUpProgressBar
 import com.example.naedafront.ui.theme.Mint900
+import kotlinx.coroutines.delay
+
+private val DarkBg = Color(0xFF0D1A1A)
+private val PinFilled = Color(0xFF009688)
+private val PinEmpty = Color.White.copy(alpha = 0.25f)
+private val PinError = Color(0xFFF2522E)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,31 +33,87 @@ fun SignUpPinScreen(
     onBackClick: () -> Unit = {},
     onConfirmClick: (String) -> Unit = {}
 ) {
-    var pin by remember { mutableStateOf("") }
-    val isValid = pin.length == 6
+    // 1단계: 입력 / 2단계: 확인
+    var firstPin by remember { mutableStateOf("") }
+    var confirmPin by remember { mutableStateOf("") }
+    var isConfirming by remember { mutableStateOf(false) }
+    var hasError by remember { mutableStateOf(false) }
+
+    val currentPin = if (isConfirming) confirmPin else firstPin
+    val currentStep = if (isConfirming) 8 else 7
+
+    // 에러 시 확인 PIN 초기화
+    LaunchedEffect(hasError) {
+        if (hasError) {
+            delay(500L)
+            confirmPin = ""
+            hasError = false
+        }
+    }
+
+    fun onNumberInput(digit: String) {
+        if (hasError) return
+        if (isConfirming) {
+            if (confirmPin.length >= 6) return
+            val newPin = confirmPin + digit
+            confirmPin = newPin
+            if (newPin.length == 6) {
+                if (newPin == firstPin) {
+                    onConfirmClick(firstPin)
+                } else {
+                    hasError = true
+                }
+            }
+        } else {
+            if (firstPin.length < 6) {
+                val newPin = firstPin + digit
+                firstPin = newPin
+                if (newPin.length == 6) {
+                    isConfirming = true
+                }
+            }
+        }
+    }
+
+    fun onDelete() {
+        if (hasError) return
+        if (isConfirming) {
+            if (confirmPin.isNotEmpty()) confirmPin = confirmPin.dropLast(1)
+        } else {
+            if (firstPin.isNotEmpty()) firstPin = firstPin.dropLast(1)
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {},
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, "뒤로가기", tint = MaterialTheme.colorScheme.onSurface)
+                    IconButton(onClick = {
+                        if (isConfirming) {
+                            // 확인 단계에서 뒤로 → 입력 단계로
+                            confirmPin = ""
+                            hasError = false
+                            isConfirming = false
+                        } else {
+                            onBackClick()
+                        }
+                    }) {
+                        Icon(Icons.Default.ArrowBack, "뒤로가기", tint = Color.White)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBg)
             )
         },
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = DarkBg
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // 프로그레스 바 (7/8 단계) — PIN 확인까지 8단계
             SignUpProgressBar(
-                currentStep = 7,
+                currentStep = currentStep,
                 modifier = Modifier.padding(horizontal = 24.dp)
             )
 
@@ -61,27 +125,27 @@ fun SignUpPinScreen(
             ) {
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // 타이틀
                 Text(
-                    text = "PIN 6자리를 입력해주세요",
+                    text = if (isConfirming) "PIN 번호를 한 번 더\n입력해주세요" else "PIN 6자리를\n입력해주세요",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 34.sp
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "2차 인증 비밀번호로 사용할 예정입니다",
+                    text = if (isConfirming) "확인을 위해 PIN 번호를 다시 입력해주세요" else "2차 인증 비밀번호로 사용할 예정입니다",
                     fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.outline,
+                    color = Color.White.copy(alpha = 0.55f),
                     textAlign = TextAlign.Center
                 )
 
                 Spacer(modifier = Modifier.height(40.dp))
 
-                // PIN 6자리 점 표시
+                // PIN 도트
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -92,45 +156,35 @@ fun SignUpPinScreen(
                                 .size(16.dp)
                                 .clip(CircleShape)
                                 .background(
-                                    if (index < pin.length) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.outlineVariant
+                                    when {
+                                        hasError -> PinError
+                                        index < currentPin.length -> PinFilled
+                                        else -> PinEmpty
+                                    }
                                 )
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(40.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // 확인 버튼
-                Button(
-                    onClick = { onConfirmClick(pin) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    enabled = isValid,
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Mint900,
-                        disabledContainerColor = Mint900.copy(alpha = 0.38f)
+                // 불일치 에러 메시지
+                AnimatedVisibility(visible = hasError) {
+                    Text(
+                        text = "PIN 번호가 일치하지 않습니다. 다시 입력해주세요.",
+                        fontSize = 13.sp,
+                        color = PinError,
+                        textAlign = TextAlign.Center
                     )
-                ) {
-                    Text("확인", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onPrimary)
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
 
                 // 숫자 키패드
                 NumberKeypad(
-                    onNumberClick = { digit ->
-                        if (pin.length < 6) {
-                            pin += digit
-                        }
-                    },
-                    onDeleteClick = {
-                        if (pin.isNotEmpty()) {
-                            pin = pin.dropLast(1)
-                        }
-                    }
+                    onNumberClick = { onNumberInput(it) },
+                    onDeleteClick = { onDelete() },
+                    textColor = Color.White
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
