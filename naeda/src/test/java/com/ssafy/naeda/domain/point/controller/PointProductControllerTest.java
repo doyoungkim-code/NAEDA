@@ -176,6 +176,54 @@ class PointProductControllerTest {
     }
 
     @Test
+    @DisplayName("GET /api/products/available - 파라미터 없이 조회")
+    void getAvailableProducts_noParams() throws Exception {
+        given(pointProductService.getAvailableProducts(null, null))
+                .willReturn(List.of(buildResponse(1L)));
+
+        mockMvc.perform(get("/api/products/available"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].productName").value("아메리카노 쿠폰"));
+    }
+
+    @Test
+    @DisplayName("GET /api/products/available?category=카페 - 카테고리 필터")
+    void getAvailableProducts_withCategory() throws Exception {
+        given(pointProductService.getAvailableProducts("카페", null))
+                .willReturn(List.of(buildResponse(1L)));
+
+        mockMvc.perform(get("/api/products/available").param("category", "카페"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    @DisplayName("GET /api/products/available?keyword=쿠폰 - 키워드 검색")
+    void getAvailableProducts_withKeyword() throws Exception {
+        given(pointProductService.getAvailableProducts(null, "쿠폰"))
+                .willReturn(List.of(buildResponse(1L)));
+
+        mockMvc.perform(get("/api/products/available").param("keyword", "쿠폰"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    @DisplayName("GET /api/products/available?category=카페&keyword=아메리카노 - 카테고리 + 키워드")
+    void getAvailableProducts_withCategoryAndKeyword() throws Exception {
+        given(pointProductService.getAvailableProducts("카페", "아메리카노"))
+                .willReturn(List.of(buildResponse(1L)));
+
+        mockMvc.perform(get("/api/products/available")
+                        .param("category", "카페")
+                        .param("keyword", "아메리카노"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].productName").value("아메리카노 쿠폰"));
+    }
+
+    @Test
     @DisplayName("PUT /api/products/{id} - 수정 성공")
     void updateProduct() throws Exception {
         PointProductUpdateRequest request = PointProductUpdateRequest.builder()

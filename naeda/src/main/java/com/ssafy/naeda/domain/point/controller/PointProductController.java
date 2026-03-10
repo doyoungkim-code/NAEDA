@@ -39,6 +39,14 @@ public class PointProductController {
         return ResponseEntity.ok(pointProductService.getAllProducts());
     }
 
+    @GetMapping("/available")
+    public ResponseEntity<List<PointProductResponse>> getAvailableProducts(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String keyword
+    ) {
+        return ResponseEntity.ok(pointProductService.getAvailableProducts(category, keyword));
+    }
+
     @PutMapping("/{productId}")
     public ResponseEntity<PointProductResponse> updateProduct (
             @PathVariable Long productId,

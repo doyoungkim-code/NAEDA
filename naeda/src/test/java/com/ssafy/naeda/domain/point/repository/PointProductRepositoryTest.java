@@ -123,6 +123,34 @@ class PointProductRepositoryTest {
     }
 
     @Test
+    @DisplayName("상품명 검색 + ON_SALE 상태 조합")
+    void findByProductNameContainingAndStatus() {
+        pointProductRepository.save(buildProduct("아메리카노 쿠폰", "카페", PointProductStatus.ON_SALE));
+        pointProductRepository.save(buildProduct("카페라떼 쿠폰", "카페", PointProductStatus.SOLD_OUT));
+        pointProductRepository.save(buildProduct("치킨 교환권", "음식", PointProductStatus.ON_SALE));
+
+        List<PointProduct> result = pointProductRepository.findByProductNameContainingAndStatus("쿠폰", PointProductStatus.ON_SALE);
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getProductName()).isEqualTo("아메리카노 쿠폰");
+    }
+
+    @Test
+    @DisplayName("상품명 검색 + 카테고리 + ON_SALE 상태 조합")
+    void findByProductNameContainingAndCategoryAndStatus() {
+        pointProductRepository.save(buildProduct("아메리카노 쿠폰", "카페", PointProductStatus.ON_SALE));
+        pointProductRepository.save(buildProduct("카페라떼 쿠폰", "카페", PointProductStatus.ON_SALE));
+        pointProductRepository.save(buildProduct("치킨 쿠폰", "음식", PointProductStatus.ON_SALE));
+
+        List<PointProduct> result = pointProductRepository.findByProductNameContainingAndCategoryAndStatus("쿠폰", "카페", PointProductStatus.ON_SALE);
+        assertThat(result).hasSize(2);
+        assertThat(result).extracting(PointProduct::getCategory).containsOnly("카페");
+
+        List<PointProduct> foodResult = pointProductRepository.findByProductNameContainingAndCategoryAndStatus("쿠폰", "음식", PointProductStatus.ON_SALE);
+        assertThat(foodResult).hasSize(1);
+        assertThat(foodResult.get(0).getProductName()).isEqualTo("치킨 쿠폰");
+    }
+
+    @Test
     @DisplayName("상품 수정 (update 메서드)")
     void updateProduct() {
         PointProduct saved = pointProductRepository.save(buildProduct("원래 상품", "카페", PointProductStatus.ON_SALE));
