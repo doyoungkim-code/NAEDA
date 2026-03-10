@@ -65,4 +65,8 @@ public class User {
     public void updateUserKey(String userKey) {
         this.userKey = userKey;
     }
+
+    public void updatePinPassword(String pinPassword) {
+        this.pinPassword = pinPassword;
+    }
 }
