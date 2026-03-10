@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     ai_model_algorithm: str = "RULE_ENGINE"
     ai_model_artifact_path: str = "N/A"
     ai_model_updated_at: str = "2026-03-09T00:00:00"
+    resident_ocr_provider: str = "disabled"
+    resident_ocr_mock_name: str = "홍길동"
+    resident_ocr_mock_front6: str = "900101"
+    resident_ocr_mock_back1: str = "1"
 
     internal_service_token: str = "dev-internal-token"
 
