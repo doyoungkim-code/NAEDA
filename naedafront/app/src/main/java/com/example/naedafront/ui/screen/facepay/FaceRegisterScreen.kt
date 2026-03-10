@@ -398,7 +398,7 @@ private fun GuideContent(onStart: () -> Unit) {
     }
 }
 
-// ─── 얼굴 스캔 화면 (Canvas 구멍) ────────────────────────────────
+// ─── 얼굴 스캔 화면 (얼굴형 타원 구멍 + 스캔라인 + 방향 가이드라인) ──
 @Composable
 private fun ScanningContent(directionIndex: Int, totalCount: Int) {
     val context = LocalContext.current
@@ -406,15 +406,53 @@ private fun ScanningContent(directionIndex: Int, totalCount: Int) {
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     val direction = ALL_DIRECTIONS[directionIndex]
 
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val infiniteTransition = rememberInfiniteTransition(label = "scan")
+
+    // 테두리 펄스
     val pulseAlpha by infiniteTransition.animateFloat(
         initialValue = 0.5f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(800, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "pulseAlpha"
+        animationSpec = infiniteRepeatable(tween(900, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "pulse"
+    )
+
+    // 스캔라인 y 위치: 0f(타원 상단) → 1f(타원 하단) 반복
+    val scanLineProgress by infiniteTransition.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1800, easing = LinearEasing), RepeatMode.Reverse),
+        label = "scanLine"
+    )
+
+    // 방향 전환 시 가이드라인 페이드인
+    val guideAlpha by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = tween(500, easing = FastOutSlowInEasing),
+        label = "guideAlpha"
+    )
+
+    // 방향별 코 중심선 오프셋 애니메이션
+    // LEFT/RIGHT → 수평 이동, UP/DOWN → 수직 이동
+    val noseOffsetX by animateFloatAsState(
+        targetValue = when (direction) {
+            FaceDirection.LEFT  -> -0.35f   // 왼쪽으로 호
+            FaceDirection.RIGHT -> 0.35f    // 오른쪽으로 호
+            else                -> 0f
+        },
+        animationSpec = tween(600, easing = FastOutSlowInEasing),
+        label = "noseX"
+    )
+    val noseOffsetY by animateFloatAsState(
+        targetValue = when (direction) {
+            FaceDirection.UP   -> -0.3f    // 위로 호
+            FaceDirection.DOWN -> 0.3f     // 아래로 호
+            else               -> 0f
+        },
+        animationSpec = tween(600, easing = FastOutSlowInEasing),
+        label = "noseY"
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // 카메라 풀스크린
+
+        // ① 카메라 풀스크린
         AndroidView(
             factory = { ctx ->
                 val previewView = PreviewView(ctx)
@@ -428,45 +466,203 @@ private fun ScanningContent(directionIndex: Int, totalCount: Int) {
             },
             modifier = Modifier.fillMaxSize()
         )
-        // 어두운 오버레이 + 원형 구멍
+
+        // ② 어두운 오버레이 + 얼굴형 타원 구멍 (BlendMode.Clear)
         androidx.compose.foundation.Canvas(
-            modifier = Modifier.fillMaxSize().graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+            modifier = Modifier.fillMaxSize()
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
         ) {
-            val r = 160.dp.toPx()
             val cx = size.width / 2f
-            val cy = size.height / 2f - 40.dp.toPx()
-            drawRect(color = Color(0xFF1A1A1A).copy(alpha = 0.72f))
-            drawCircle(color = Color.Transparent, radius = r, center = androidx.compose.ui.geometry.Offset(cx, cy), blendMode = androidx.compose.ui.graphics.BlendMode.Clear)
-        }
-        // 원형 테두리
-        Box(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier.size(320.dp).align(Alignment.Center).offset(y = (-40).dp)
-                    .border(2.5.dp, SolidColor(Mint500.copy(alpha = pulseAlpha)), CircleShape)
+            val cy = size.height / 2f - 30.dp.toPx()
+            val ovalW = 260.dp.toPx()   // 가로 반경
+            val ovalH = 320.dp.toPx()   // 세로 반경 (얼굴형 - 세로가 더 긺)
+
+            // 전체 어두운 오버레이
+            drawRect(color = Color(0xFF0D1A1A).copy(alpha = 0.78f))
+
+            // 얼굴형 타원 구멍
+            drawOval(
+                color = Color.Transparent,
+                topLeft = androidx.compose.ui.geometry.Offset(cx - ovalW / 2f, cy - ovalH / 2f),
+                size = androidx.compose.ui.geometry.Size(ovalW, ovalH),
+                blendMode = androidx.compose.ui.graphics.BlendMode.Clear
             )
         }
-        // 상단 스텝
-        Box(modifier = Modifier.fillMaxWidth().padding(top = 52.dp).align(Alignment.TopCenter), contentAlignment = Alignment.Center) {
-            Text("STEP ${directionIndex + 1} OF $totalCount", fontFamily = NaedaFontFamily, fontWeight = FontWeight.Medium, fontSize = 13.sp, color = Color.White.copy(alpha = 0.7f))
+
+        // ③ 얼굴형 타원 테두리 + 스캔라인 + 방향 가이드라인 (별도 Canvas - 오버레이 위에)
+        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+            val cx = size.width / 2f
+            val cy = size.height / 2f - 30.dp.toPx()
+            val ovalW = 260.dp.toPx()
+            val ovalH = 320.dp.toPx()
+            val left   = cx - ovalW / 2f
+            val top    = cy - ovalH / 2f
+            val right  = cx + ovalW / 2f
+            val bottom = cy + ovalH / 2f
+
+            val mintColor   = Color(0xFF009688)
+            val mintGlow    = Color(0xFF44E3D3)
+
+            // ── 얼굴형 타원 테두리
+            drawOval(
+                color = mintColor.copy(alpha = pulseAlpha),
+                topLeft = androidx.compose.ui.geometry.Offset(left, top),
+                size = androidx.compose.ui.geometry.Size(ovalW, ovalH),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5.dp.toPx())
+            )
+
+            // ── 스캔라인 (타원 안에서만 보이도록 clipping 활용)
+            val scanY = top + ovalH * scanLineProgress
+            // 현재 scanY에서 타원 내 가로 너비 계산 (타원 방정식)
+            val relY = (scanY - cy) / (ovalH / 2f)
+            if (relY in -1f..1f) {
+                val halfW = (ovalW / 2f) * kotlin.math.sqrt(1f - relY * relY)
+                // 글로우 라인 (두껍고 흐릿한 바깥)
+                drawLine(
+                    color = mintGlow.copy(alpha = 0.25f),
+                    start = androidx.compose.ui.geometry.Offset(cx - halfW, scanY),
+                    end   = androidx.compose.ui.geometry.Offset(cx + halfW, scanY),
+                    strokeWidth = 8.dp.toPx(),
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round
+                )
+                // 선명한 라인 (얇고 밝은 중심)
+                drawLine(
+                    color = mintGlow.copy(alpha = 0.85f),
+                    start = androidx.compose.ui.geometry.Offset(cx - halfW, scanY),
+                    end   = androidx.compose.ui.geometry.Offset(cx + halfW, scanY),
+                    strokeWidth = 1.5.dp.toPx(),
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round
+                )
+            }
+
+            // ── 방향 가이드라인 (코 중심 세로선)
+            // 실제 코 위치: 얼굴 중심에서 약간 아래
+            val noseCenterX = cx + noseOffsetX * ovalW / 2f
+            val noseCenterY = cy + noseOffsetY * ovalH / 2f
+
+            val path = androidx.compose.ui.graphics.Path()
+
+            when (direction) {
+                FaceDirection.FRONT -> {
+                    // 정면: 수직 직선
+                    path.moveTo(noseCenterX, cy - ovalH * 0.38f)
+                    path.lineTo(noseCenterX, cy + ovalH * 0.38f)
+                }
+                FaceDirection.LEFT -> {
+                    // 왼쪽: 왼쪽으로 휜 호 (코가 왼쪽으로)
+                    path.moveTo(cx, cy - ovalH * 0.38f)
+                    path.cubicTo(
+                        cx - ovalW * 0.15f, cy - ovalH * 0.1f,
+                        cx - ovalW * 0.25f, cy + ovalH * 0.1f,
+                        cx - ovalW * 0.28f, cy + ovalH * 0.38f
+                    )
+                }
+                FaceDirection.RIGHT -> {
+                    // 오른쪽: 오른쪽으로 휜 호
+                    path.moveTo(cx, cy - ovalH * 0.38f)
+                    path.cubicTo(
+                        cx + ovalW * 0.15f, cy - ovalH * 0.1f,
+                        cx + ovalW * 0.25f, cy + ovalH * 0.1f,
+                        cx + ovalW * 0.28f, cy + ovalH * 0.38f
+                    )
+                }
+                FaceDirection.UP -> {
+                    // 위: 상단이 좁아지는 호 (원근감)
+                    path.moveTo(noseCenterX, cy - ovalH * 0.42f)
+                    path.cubicTo(
+                        noseCenterX - ovalW * 0.04f, cy - ovalH * 0.1f,
+                        noseCenterX - ovalW * 0.02f, cy + ovalH * 0.1f,
+                        noseCenterX, cy + ovalH * 0.38f
+                    )
+                }
+                FaceDirection.DOWN -> {
+                    // 아래: 하단이 좁아지는 호
+                    path.moveTo(noseCenterX, cy - ovalH * 0.38f)
+                    path.cubicTo(
+                        noseCenterX + ovalW * 0.02f, cy - ovalH * 0.1f,
+                        noseCenterX + ovalW * 0.04f, cy + ovalH * 0.1f,
+                        noseCenterX, cy + ovalH * 0.42f
+                    )
+                }
+            }
+
+            // 가이드라인 글로우
+            drawPath(
+                path = path,
+                color = mintGlow.copy(alpha = 0.3f * guideAlpha),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    width = 5.dp.toPx(),
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round
+                )
+            )
+            // 가이드라인 선명한 선
+            drawPath(
+                path = path,
+                color = mintGlow.copy(alpha = 0.9f * guideAlpha),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    width = 1.8.dp.toPx(),
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round
+                )
+            )
+
+            // ── 코 끝 포인트 (작은 글로우 점)
+            drawCircle(
+                color = mintGlow.copy(alpha = 0.4f * guideAlpha),
+                radius = 8.dp.toPx(),
+                center = androidx.compose.ui.geometry.Offset(noseCenterX, noseCenterY)
+            )
+            drawCircle(
+                color = mintGlow.copy(alpha = 0.95f * guideAlpha),
+                radius = 3.dp.toPx(),
+                center = androidx.compose.ui.geometry.Offset(noseCenterX, noseCenterY)
+            )
         }
-        // 방향 안내
-        Column(modifier = Modifier.align(Alignment.Center).offset(y = (-290).dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(direction.instruction, fontFamily = NaedaFontFamily, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color.White, textAlign = TextAlign.Center)
+
+        // ④ 상단 스텝
+        Box(
+            modifier = Modifier.fillMaxWidth().padding(top = 52.dp).align(Alignment.TopCenter),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "STEP ${directionIndex + 1} OF $totalCount",
+                fontFamily = NaedaFontFamily, fontWeight = FontWeight.Medium,
+                fontSize = 13.sp, color = Color.White.copy(alpha = 0.7f)
+            )
+        }
+
+        // ⑤ 방향 안내 텍스트
+        Column(
+            modifier = Modifier.align(Alignment.Center).offset(y = (-310).dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                direction.instruction,
+                fontFamily = NaedaFontFamily, fontWeight = FontWeight.Bold,
+                fontSize = 20.sp, color = Color.White, textAlign = TextAlign.Center
+            )
             Spacer(Modifier.height(6.dp))
-            Text("카메라를 바라보며 천천히 ${direction.label} 방향으로 움직이세요", fontFamily = NaedaFontFamily, fontWeight = FontWeight.Normal, fontSize = 13.sp, color = Color.White.copy(alpha = 0.6f), textAlign = TextAlign.Center)
+            Text(
+                "카메라를 바라보며 천천히 ${direction.label} 방향으로 움직이세요",
+                fontFamily = NaedaFontFamily, fontWeight = FontWeight.Normal,
+                fontSize = 13.sp, color = Color.White.copy(alpha = 0.6f), textAlign = TextAlign.Center
+            )
         }
-        // 하단
-        Column(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 44.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+
+        // ⑥ 하단: 프로그레스 + 도트 + NAEDA 칩
+        Column(
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 44.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Box(modifier = Modifier.width(200.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color.White.copy(alpha = 0.2f))) {
-                Box(modifier = Modifier.fillMaxHeight().fillMaxWidth((directionIndex + 1).toFloat() / totalCount.toFloat()).clip(RoundedCornerShape(2.dp)).background(Mint500))
+                Box(modifier = Modifier.fillMaxHeight().fillMaxWidth((directionIndex + 1).toFloat() / totalCount.toFloat()).clip(RoundedCornerShape(2.dp)).background(Color(0xFF009688)))
             }
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ALL_DIRECTIONS.forEachIndexed { index, _ ->
                     Box(
                         modifier = Modifier.size(32.dp).clip(CircleShape).background(
-                            if (index < directionIndex) Mint500
-                            else if (index == directionIndex) Mint500.copy(alpha = pulseAlpha)
+                            if (index < directionIndex) Color(0xFF009688)
+                            else if (index == directionIndex) Color(0xFF009688).copy(alpha = pulseAlpha)
                             else Color.White.copy(alpha = 0.15f)
                         ),
                         contentAlignment = Alignment.Center
