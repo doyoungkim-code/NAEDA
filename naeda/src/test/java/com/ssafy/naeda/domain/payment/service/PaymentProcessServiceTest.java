@@ -4,6 +4,10 @@ import com.ssafy.naeda.domain.account.entity.Account;
 import com.ssafy.naeda.domain.account.repository.AccountRepository;
 import com.ssafy.naeda.domain.face.dto.response.SearchResponse;
 import com.ssafy.naeda.domain.face.service.FaceService;
+import com.ssafy.naeda.domain.fds.dto.request.FdsEvaluationRequest;
+import com.ssafy.naeda.domain.fds.dto.response.FdsEvaluationResult;
+import com.ssafy.naeda.domain.fds.entity.FdsAction;
+import com.ssafy.naeda.domain.fds.service.FdsRuleService;
 import com.ssafy.naeda.domain.payment.dto.PaymentRequestData;
 import com.ssafy.naeda.domain.payment.dto.response.ProcessPaymentResponse;
 import com.ssafy.naeda.domain.payment.entity.*;
@@ -54,6 +58,7 @@ class PaymentProcessServiceTest {
     @Mock private TransactionLogRepository transactionLogRepository;
     @Mock private FaceService faceService;
     @Mock private PointService pointService;
+    @Mock private FdsRuleService fdsRuleService;
     @Mock private SsafyApiClient ssafyApiClient;
     @Mock private SsafyHeaderFactory ssafyHeaderFactory;
 
@@ -102,6 +107,14 @@ class PaymentProcessServiceTest {
         given(paymentMethodRepository.findByUserNoAndIsFacePayTrueAndIsActiveTrue(USER_NO))
                 .willReturn(Optional.of(pm));
 
+        // FDS 스텁
+        given(paymentRepository.countByUserNoAndStatusAndPaidAfter(eq(USER_NO), eq(PaymentStatus.SUCCESS), any()))
+                .willReturn(0);
+        given(paymentRepository.sumAmountByUserNoAndPaidAfter(eq(USER_NO), any()))
+                .willReturn(0L);
+        FdsEvaluationResult fdsResult = new FdsEvaluationResult(0, List.of(), FdsAction.NONE);
+        given(fdsRuleService.evaluate(any(FdsEvaluationRequest.class))).willReturn(fdsResult);
+
         Account withdrawalAccount = Account.builder().accountId(300L).accountNo("111-222-333").build();
         Account depositAccount = Account.builder().accountId(200L).accountNo("444-555-666").build();
         given(accountRepository.findById(300L)).willReturn(Optional.of(withdrawalAccount));
@@ -135,10 +148,13 @@ class PaymentProcessServiceTest {
         assertThat(response.getStoreId()).isEqualTo(STORE_ID);
         assertThat(response.getAmount()).isEqualTo(AMOUNT);
         assertThat(response.getEarnedPoints()).isEqualTo(750); // 15000 * 0.05
+        assertThat(response.getFdsScore()).isEqualTo(0);
+        assertThat(response.getFdsAction()).isEqualTo("NONE");
         verify(redisService).tryAcquireProcessingLock(REQUEST_ID);
         verify(redisService).updateStatus(REQUEST_ID, PaymentRequestStatus.PROCESSING);
         verify(redisService).updateStatus(REQUEST_ID, PaymentRequestStatus.SUCCESS);
         verify(pointService).earnPoints(eq(USER_NO), any(PointEarnRequest.class));
+        verify(fdsRuleService).saveLog(eq(50L), eq(USER_NO), eq(fdsResult));
     }
 
     // ── 요청 만료/미존재 ──────────────────────────────────────────────────
@@ -338,6 +354,14 @@ class PaymentProcessServiceTest {
         given(paymentMethodRepository.findByUserNoAndIsFacePayTrueAndIsActiveTrue(USER_NO))
                 .willReturn(Optional.of(pm));
 
+        // FDS 스텁
+        given(paymentRepository.countByUserNoAndStatusAndPaidAfter(eq(USER_NO), eq(PaymentStatus.SUCCESS), any()))
+                .willReturn(0);
+        given(paymentRepository.sumAmountByUserNoAndPaidAfter(eq(USER_NO), any()))
+                .willReturn(0L);
+        given(fdsRuleService.evaluate(any(FdsEvaluationRequest.class)))
+                .willReturn(new FdsEvaluationResult(0, List.of(), FdsAction.NONE));
+
         given(accountRepository.findById(300L)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.processPayment(REQUEST_ID, faceImage))
@@ -373,6 +397,14 @@ class PaymentProcessServiceTest {
                 .paymentMethodId(1L).userNo(USER_NO).methodType(MethodType.ACCOUNT).accountId(300L).build();
         given(paymentMethodRepository.findByUserNoAndIsFacePayTrueAndIsActiveTrue(USER_NO))
                 .willReturn(Optional.of(pm));
+
+        // FDS 스텁
+        given(paymentRepository.countByUserNoAndStatusAndPaidAfter(eq(USER_NO), eq(PaymentStatus.SUCCESS), any()))
+                .willReturn(0);
+        given(paymentRepository.sumAmountByUserNoAndPaidAfter(eq(USER_NO), any()))
+                .willReturn(0L);
+        given(fdsRuleService.evaluate(any(FdsEvaluationRequest.class)))
+                .willReturn(new FdsEvaluationResult(0, List.of(), FdsAction.NONE));
 
         Account withdrawalAccount = Account.builder().accountId(300L).accountNo("111-222-333").build();
         Account depositAccount = Account.builder().accountId(200L).accountNo("444-555-666").build();
@@ -419,6 +451,14 @@ class PaymentProcessServiceTest {
         given(paymentMethodRepository.findByUserNoAndIsFacePayTrueAndIsActiveTrue(USER_NO))
                 .willReturn(Optional.of(pm));
 
+        // FDS 스텁
+        given(paymentRepository.countByUserNoAndStatusAndPaidAfter(eq(USER_NO), eq(PaymentStatus.SUCCESS), any()))
+                .willReturn(0);
+        given(paymentRepository.sumAmountByUserNoAndPaidAfter(eq(USER_NO), any()))
+                .willReturn(0L);
+        FdsEvaluationResult fdsResult = new FdsEvaluationResult(0, List.of(), FdsAction.NONE);
+        given(fdsRuleService.evaluate(any(FdsEvaluationRequest.class))).willReturn(fdsResult);
+
         Account withdrawalAccount = Account.builder().accountId(300L).accountNo("111-222-333").build();
         Account depositAccount = Account.builder().accountId(200L).accountNo("444-555-666").build();
         given(accountRepository.findById(300L)).willReturn(Optional.of(withdrawalAccount));
@@ -446,6 +486,7 @@ class PaymentProcessServiceTest {
 
         assertThat(response.getStatus()).isEqualTo("SUCCESS");
         verify(paymentRepository).save(any(Payment.class));
+        verify(fdsRuleService).saveLog(eq(50L), eq(USER_NO), eq(fdsResult));
     }
 
     // ── 동시 요청 (분산 락) ─────────────────────────────────────────────────

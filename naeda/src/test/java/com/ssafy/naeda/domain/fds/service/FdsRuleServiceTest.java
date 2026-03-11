@@ -42,15 +42,13 @@ class FdsRuleServiceTest {
     @Test
     @DisplayName("모든 룰이 0점이면 NONE 반환")
     void allRulesZero_returnsNone() {
-        // 룰을 직접 주입 (모두 0점 반환하는 스텁)
         FdsRule zeroRule = new FdsRule() {
             @Override public FdsRuleName ruleName() { return FdsRuleName.LATE_NIGHT; }
             @Override public int evaluate(FdsEvaluationRequest r) { return 0; }
         };
         FdsRuleService service = new FdsRuleService(List.of(zeroRule), fdsLogRepository);
-        when(fdsLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        FdsEvaluationResult result = service.evaluate(100L, normalRequest());
+        FdsEvaluationResult result = service.evaluate(normalRequest());
 
         assertThat(result.getAnomalyScore()).isZero();
         assertThat(result.getTriggeredRules()).isEmpty();
@@ -65,9 +63,8 @@ class FdsRuleServiceTest {
             @Override public int evaluate(FdsEvaluationRequest r) { return 33; }
         };
         FdsRuleService service = new FdsRuleService(List.of(rule), fdsLogRepository);
-        when(fdsLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        FdsEvaluationResult result = service.evaluate(100L, normalRequest());
+        FdsEvaluationResult result = service.evaluate(normalRequest());
 
         assertThat(result.getAnomalyScore()).isEqualTo(33);
         assertThat(result.getAction()).isEqualTo(FdsAction.ALERT);
@@ -86,9 +83,8 @@ class FdsRuleServiceTest {
             @Override public int evaluate(FdsEvaluationRequest r) { return 33; }
         };
         FdsRuleService service = new FdsRuleService(List.of(rule1, rule2), fdsLogRepository);
-        when(fdsLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        FdsEvaluationResult result = service.evaluate(100L, normalRequest());
+        FdsEvaluationResult result = service.evaluate(normalRequest());
 
         assertThat(result.getAnomalyScore()).isEqualTo(66);
         assertThat(result.getAction()).isEqualTo(FdsAction.PAUSE);
@@ -111,9 +107,8 @@ class FdsRuleServiceTest {
             @Override public int evaluate(FdsEvaluationRequest r) { return 25; }
         };
         FdsRuleService service = new FdsRuleService(List.of(rule1, rule2, rule3), fdsLogRepository);
-        when(fdsLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        FdsEvaluationResult result = service.evaluate(100L, normalRequest());
+        FdsEvaluationResult result = service.evaluate(normalRequest());
 
         assertThat(result.getAnomalyScore()).isEqualTo(91);
         assertThat(result.getAction()).isEqualTo(FdsAction.BLOCK);
@@ -128,28 +123,19 @@ class FdsRuleServiceTest {
             @Override public int evaluate(FdsEvaluationRequest r) { return 120; }
         };
         FdsRuleService service = new FdsRuleService(List.of(rule), fdsLogRepository);
-        when(fdsLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        FdsEvaluationResult result = service.evaluate(100L, normalRequest());
+        FdsEvaluationResult result = service.evaluate(normalRequest());
 
         assertThat(result.getAnomalyScore()).isEqualTo(100);
     }
 
     @Test
-    @DisplayName("FdsLog가 정상 저장된다")
-    void fdsLogSaved() {
-        FdsRule rule = new FdsRule() {
-            @Override public FdsRuleName ruleName() { return FdsRuleName.HIGH_FREQUENCY; }
-            @Override public int evaluate(FdsEvaluationRequest r) { return 25; }
-        };
-        FdsRuleService service = new FdsRuleService(List.of(rule), fdsLogRepository);
+    @DisplayName("saveLog로 FdsLog가 정상 저장된다")
+    void saveLog() {
         when(fdsLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        service.evaluate(55L, FdsEvaluationRequest.builder()
-                .userNo(7L).storeId(10L).amount(50_000L)
-                .paymentTime(LocalDateTime.now())
-                .recentPaymentCount(3).dailyAverageAmount(10_000L)
-                .build());
+        FdsEvaluationResult result = new FdsEvaluationResult(25, List.of("HIGH_FREQUENCY"), FdsAction.NONE);
+        fdsRuleService.saveLog(55L, 7L, result);
 
         ArgumentCaptor<FdsLog> captor = ArgumentCaptor.forClass(FdsLog.class);
         verify(fdsLogRepository).save(captor.capture());

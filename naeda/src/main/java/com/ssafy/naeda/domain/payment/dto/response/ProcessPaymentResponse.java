@@ -38,4 +38,10 @@ public class ProcessPaymentResponse {
 
     @Schema(description = "실패 사유")
     private String failureReason;
+
+    @Schema(description = "FDS 이상 점수 (0~100)")
+    private Integer fdsScore;
+
+    @Schema(description = "FDS 대응 조치", example = "NONE")
+    private String fdsAction;
 }

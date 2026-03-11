@@ -4,6 +4,9 @@ import com.ssafy.naeda.domain.account.entity.Account;
 import com.ssafy.naeda.domain.account.repository.AccountRepository;
 import com.ssafy.naeda.domain.face.dto.response.SearchResponse;
 import com.ssafy.naeda.domain.face.service.FaceService;
+import com.ssafy.naeda.domain.fds.dto.request.FdsEvaluationRequest;
+import com.ssafy.naeda.domain.fds.dto.response.FdsEvaluationResult;
+import com.ssafy.naeda.domain.fds.service.FdsRuleService;
 import com.ssafy.naeda.domain.payment.dto.PaymentRequestData;
 import com.ssafy.naeda.domain.payment.dto.response.ProcessPaymentResponse;
 import com.ssafy.naeda.domain.payment.entity.*;
@@ -31,6 +34,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -50,6 +54,7 @@ public class PaymentProcessService {
     private final UserRepository userRepository;
     private final TransactionLogRepository transactionLogRepository;
     private final FaceService faceService;
+    private final FdsRuleService fdsRuleService;
     private final PointService pointService;
     private final SsafyApiClient ssafyApiClient;
     private final SsafyHeaderFactory ssafyHeaderFactory;
@@ -161,7 +166,54 @@ public class PaymentProcessService {
                     .build();
         }
 
-        // 9. 출금/입금 계좌 번호 조회
+        // 9. FDS 룰 평가
+        FdsEvaluationResult fdsResult = evaluateFds(user.getUserNo(), data.getStoreId(), data.getAmount());
+
+        FdsAction paymentFdsAction = FdsAction.valueOf(fdsResult.getAction().name());
+
+        if (paymentFdsAction == FdsAction.BLOCK || paymentFdsAction == FdsAction.PAUSE) {
+            Payment fdsPayment = Payment.builder()
+                    .userNo(user.getUserNo())
+                    .storeId(data.getStoreId())
+                    .paymentMethodId(paymentMethod.getPaymentMethodId())
+                    .amount(data.getAmount())
+                    .authMethod(AuthMethod.FACE_PAY)
+                    .authLevel(paymentAuthLevel)
+                    .faceDistance(1.0 - faceResult.getSimilarity())
+                    .livenessPass(true)
+                    .build();
+            fdsPayment.updateFds(fdsResult.getAnomalyScore(), paymentFdsAction);
+
+            String fdsStatus = paymentFdsAction == FdsAction.BLOCK ? "BLOCKED" : "PAUSED";
+            if (paymentFdsAction == FdsAction.BLOCK) {
+                fdsPayment.updateStatus(PaymentStatus.BLOCKED);
+                redisService.updateStatus(requestId, PaymentRequestStatus.BLOCKED);
+            } else {
+                redisService.updateStatus(requestId, PaymentRequestStatus.FAILED);
+            }
+            fdsPayment = paymentRepository.save(fdsPayment);
+            fdsRuleService.saveLog(fdsPayment.getPaymentId(), user.getUserNo(), fdsResult);
+
+            redisService.updateResult(requestId, user.getUserNo(), fdsStatus, fdsPayment.getPaymentId(),
+                    "FDS 이상거래 탐지: " + fdsResult.getAction());
+            log.warn("[FDS] 결제 {}: requestId={}, score={}, action={}", fdsStatus, requestId,
+                    fdsResult.getAnomalyScore(), fdsResult.getAction());
+
+            return ProcessPaymentResponse.builder()
+                    .requestId(requestId)
+                    .paymentId(fdsPayment.getPaymentId())
+                    .status(fdsStatus)
+                    .nextAction(fdsResult.getAction().name())
+                    .storeId(data.getStoreId())
+                    .amount(data.getAmount())
+                    .similarity((double) faceResult.getSimilarity())
+                    .fdsScore(fdsResult.getAnomalyScore())
+                    .fdsAction(fdsResult.getAction().name())
+                    .failureReason("FDS 이상거래 탐지: " + fdsResult.getAction())
+                    .build();
+        }
+
+        // 10. 출금/입금 계좌 번호 조회
         if (paymentMethod.getAccountId() == null) {
             failRequest(requestId, "결제 수단에 계좌가 연결되지 않았습니다.");
             throw new BadRequestException("결제 수단에 계좌가 연결되지 않았습니다.");
@@ -235,7 +287,9 @@ public class PaymentProcessService {
                 .build();
         payment.updateStatus(PaymentStatus.SUCCESS);
         payment.updateSsafyTransactionId(ssafyTransactionId);
+        payment.updateFds(fdsResult.getAnomalyScore(), paymentFdsAction);
         payment = paymentRepository.save(payment);
+        fdsRuleService.saveLog(payment.getPaymentId(), user.getUserNo(), fdsResult);
 
         // 13. TransactionLog 저장
         long balanceAfter;
@@ -293,6 +347,8 @@ public class PaymentProcessService {
                 .earnedPoints(earnedPoints)
                 .ssafyTransactionId(ssafyTransactionId)
                 .similarity((double) faceResult.getSimilarity())
+                .fdsScore(fdsResult.getAnomalyScore())
+                .fdsAction(fdsResult.getAction().name())
                 .build();
     }
 
@@ -307,6 +363,27 @@ public class PaymentProcessService {
         } catch (Exception e) {
             log.error("Redis 상태 업데이트 실패 (DB 커밋은 완료됨): requestId={}", requestId, e);
         }
+    }
+
+    private FdsEvaluationResult evaluateFds(Long userNo, Long storeId, Long amount) {
+        LocalDateTime now = LocalDateTime.now();
+
+        int recentCount = paymentRepository.countByUserNoAndStatusAndPaidAfter(
+                userNo, PaymentStatus.SUCCESS, now.minusMinutes(10));
+
+        long sum30d = paymentRepository.sumAmountByUserNoAndPaidAfter(userNo, now.minusDays(30));
+        long dailyAvg = sum30d / 30;
+
+        FdsEvaluationRequest request = FdsEvaluationRequest.builder()
+                .userNo(userNo)
+                .storeId(storeId)
+                .amount(amount)
+                .paymentTime(now)
+                .recentPaymentCount(recentCount)
+                .dailyAverageAmount(dailyAvg)
+                .build();
+
+        return fdsRuleService.evaluate(request);
     }
 
     private void failRequest(String requestId, String reason) {
