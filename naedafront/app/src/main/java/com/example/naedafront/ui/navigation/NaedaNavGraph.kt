@@ -50,7 +50,7 @@ fun NaedaNavGraph(
 
         composable(Screen.Welcome.route) {
             WelcomeScreen(
-                onStartClick = { navController.navigate(Screen.SignUp.route) },
+                onStartClick = { navController.navigate(Screen.SignUpGraph.route) },
                 onLoginClick = { navController.navigate(Screen.Login.route) }
             )
         }
@@ -63,7 +63,7 @@ fun NaedaNavGraph(
         composable(Screen.SignUp.route) {
             SignUpNameScreen(
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { name ->
+                onConfirmClick = {
                     navController.navigate(Screen.SignUpRrn.route)
                 }
             )
@@ -73,7 +73,7 @@ fun NaedaNavGraph(
         composable(Screen.SignUpRrn.route) {
             SignUpRrnScreen(
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { rrn ->
+                onConfirmClick = {
                     navController.navigate(Screen.SignUpPhone.route)
                 }
             )
@@ -83,12 +83,11 @@ fun NaedaNavGraph(
         composable(Screen.SignUpPhone.route) {
             SignUpPhoneScreen(
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { phone ->
-                    navController.navigate(Screen.SignUpVerify.createRoute(phone))
+                onConfirmClick = {
+                    navController.navigate(Screen.SignUpVerify.route)
                 }
             )
         }
-
 // 4/8 인증번호
         composable(
             route = Screen.SignUpVerify.route,
@@ -109,7 +108,7 @@ fun NaedaNavGraph(
         composable(Screen.SignUpEmail.route) {
             SignUpEmailScreen(
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { email ->
+                onConfirmClick = {
                     navController.navigate(Screen.SignUpPassword.route)
                 }
             )
@@ -119,7 +118,7 @@ fun NaedaNavGraph(
         composable(Screen.SignUpPassword.route) {
             SignUpPasswordScreen(
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { password ->
+                onConfirmClick = {
                     navController.navigate(Screen.SignUpPin.route)
                 }
             )
@@ -129,8 +128,7 @@ fun NaedaNavGraph(
         composable(Screen.SignUpPin.route) {
             SignUpPinScreen(
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { pin ->
-                    // 회원가입 완료 → 로그인 상태 저장 후 홈으로 (이전 스택 전부 제거)
+                onConfirmClick = {
                     AuthPrefs.setLoggedIn(context, true)
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Welcome.route) { inclusive = true }
