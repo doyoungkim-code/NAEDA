@@ -10,7 +10,7 @@ import com.ssafy.naeda.domain.payment.dto.request.PaymentRequest;
 import com.ssafy.naeda.domain.payment.dto.response.PaymentResponse;
 import com.ssafy.naeda.domain.payment.entity.AuthLevel;
 import com.ssafy.naeda.domain.payment.entity.AuthMethod;
-import com.ssafy.naeda.domain.payment.entity.FdsAction;
+import com.ssafy.naeda.domain.fds.entity.FdsAction;
 import com.ssafy.naeda.domain.payment.entity.MethodType;
 import com.ssafy.naeda.domain.payment.entity.Payment;
 import com.ssafy.naeda.domain.payment.entity.PaymentMethod;
