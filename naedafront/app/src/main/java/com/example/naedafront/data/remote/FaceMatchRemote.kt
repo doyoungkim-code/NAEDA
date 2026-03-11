@@ -1,9 +1,11 @@
 package com.example.naedafront.data.remote
 
+import com.google.gson.Gson
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import retrofit2.HttpException
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
@@ -61,6 +63,19 @@ data class SearchResponse(
     val candidates: List<CandidateDto> = emptyList()
 )
 
+data class ApiErrorResponse(
+    val code: String? = null,
+    val message: String? = null,
+    val detail: String? = null
+)
+
+class ApiRequestException(
+    val errorCode: String?,
+    val statusCode: Int,
+    override val message: String,
+    cause: Throwable? = null
+) : IllegalStateException(message, cause)
+
 interface FaceMatchApi {
     @POST("api/auth/login")
     suspend fun login(
@@ -86,6 +101,7 @@ interface FaceMatchApi {
 object FaceMatchRepository {
     private val api = ApiConfig.retrofit.create(FaceMatchApi::class.java)
     private val textType = "text/plain".toMediaType()
+    private val gson = Gson()
 
     suspend fun login(userId: String, password: String): LoginResponse {
         return api.login(LoginRequest(userId = userId, password = password))
@@ -97,19 +113,27 @@ object FaceMatchRepository {
         topK: Int = 5,
         amount: Long = 0L
     ): SearchResponse {
-        return api.searchFace(
-            authorization = bearer(token),
-            image = imagePart(imageBytes),
-            topK = topK.toString().toRequestBody(textType),
-            amount = amount.toString().toRequestBody(textType)
-        )
+        return runCatching {
+            api.searchFace(
+                authorization = bearer(token),
+                image = imagePart(imageBytes),
+                topK = topK.toString().toRequestBody(textType),
+                amount = amount.toString().toRequestBody(textType)
+            )
+        }.getOrElse { throwable ->
+            throw toReadableException(throwable, "얼굴 검색 요청에 실패했습니다.")
+        }
     }
 
     suspend fun getAccounts(token: String, userNo: Long): List<AccountResponse> {
-        return api.getAccounts(
-            authorization = bearer(token),
-            userNo = userNo
-        )
+        return runCatching {
+            api.getAccounts(
+                authorization = bearer(token),
+                userNo = userNo
+            )
+        }.getOrElse { throwable ->
+            throw toReadableException(throwable, "계좌 정보를 불러오지 못했습니다.")
+        }
     }
 
     private fun bearer(token: String): String = "Bearer $token"
@@ -117,5 +141,26 @@ object FaceMatchRepository {
     private fun imagePart(imageBytes: ByteArray): MultipartBody.Part {
         val body = imageBytes.toRequestBody("image/jpeg".toMediaType())
         return MultipartBody.Part.createFormData("image", "frame.jpg", body)
+    }
+
+    private fun toReadableException(throwable: Throwable, fallback: String): Throwable {
+        if (throwable !is HttpException) {
+            return throwable
+        }
+
+        val errorBody = throwable.response()?.errorBody()?.string().orEmpty()
+        val parsed = runCatching { gson.fromJson(errorBody, ApiErrorResponse::class.java) }.getOrNull()
+        val message = buildString {
+            append(parsed?.message?.takeUnless { it.isBlank() } ?: fallback)
+            parsed?.code?.takeUnless { it.isBlank() }?.let { append(" [$it]") }
+            parsed?.detail?.takeUnless { it.isBlank() }?.let { append(" - $it") }
+            append(" (HTTP ${throwable.code()})")
+        }
+        return ApiRequestException(
+            errorCode = parsed?.code,
+            statusCode = throwable.code(),
+            message = message,
+            cause = throwable
+        )
     }
 }

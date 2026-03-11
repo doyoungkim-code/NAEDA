@@ -58,8 +58,7 @@ data class NoticeItem(
 // ────────────────────────────────────────
 
 data class HomeUiState(
-    val userName: String = "김종우",
-    val greeting: String = "바보",
+    val userName: String = "사용자",
     val isAccountLinked: Boolean = true,       // 계좌 연결 여부 ← 핵심 분기
     val isFaceRegistered: Boolean = false,     // 얼굴 등록 여부 ← 페이스페이 배너 분기
     val totalBalance: Long = 18_240_500L,
@@ -107,7 +106,6 @@ fun HomeScreen(
             // 인사말
             GreetingSection(
                 userName = uiState.userName,
-                greeting = uiState.greeting,
                 onSecretFaceMatchTestClick = onSecretFaceMatchTestClick
             )
 
@@ -221,7 +219,6 @@ private fun NaedaHomeTopBar(
 @Composable
 private fun GreetingSection(
     userName: String,
-    greeting: String,
     onSecretFaceMatchTestClick: () -> Unit
 ) {
     var holding by remember { mutableStateOf(false) }
@@ -260,11 +257,6 @@ private fun GreetingSection(
             color = OnBackground
         )
         Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = greeting,
-            style = MaterialTheme.typography.bodyMedium,
-            color = OnBackground.copy(alpha = 0.5f)
-        )
     }
 }
 

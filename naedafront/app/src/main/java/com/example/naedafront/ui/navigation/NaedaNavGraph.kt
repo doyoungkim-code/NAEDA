@@ -154,8 +154,14 @@ fun NaedaNavGraph(
         // ═══════════════════════════════════════
 
         composable(Screen.Home.route) {
+            val displayName = AuthPrefs.getUsername(context)
+                ?.takeUnless { it.isBlank() }
+                ?: "사용자"
             HomeScreen(
-                uiState = HomeUiState(isFaceRegistered = AuthPrefs.isFaceRegistered(context)),
+                uiState = HomeUiState(
+                    userName = displayName,
+                    isFaceRegistered = AuthPrefs.isFaceRegistered(context)
+                ),
                 onTransferClick = { navController.navigate(Screen.Transfer.route) },
                 onTransactionClick = { navController.navigate(Screen.Transaction.route) },
                 onFacePaySettingClick = { navController.navigate(Screen.FaceRegister.route) },

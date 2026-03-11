@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,7 +40,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -59,13 +57,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.example.naedafront.DebugAuthPrefs
+import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.AccountResponse
+import com.example.naedafront.data.remote.ApiRequestException
 import com.example.naedafront.data.remote.CandidateDto
 import com.example.naedafront.data.remote.FaceMatchRepository
 import com.example.naedafront.data.remote.SearchResponse
@@ -80,6 +78,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.abs
+import kotlin.math.max
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,7 +87,6 @@ fun FaceMatchRecognizeScreen(
     onShowResult: () -> Unit
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
@@ -100,11 +98,7 @@ fun FaceMatchRecognizeScreen(
         hasCameraPermission = granted
     }
 
-    var userId by remember { mutableStateOf(DebugAuthPrefs.getUserId(context) ?: "") }
-    var password by remember { mutableStateOf("") }
-    var manualToken by remember { mutableStateOf(DebugAuthPrefs.getAccessToken(context) ?: "") }
-    var activeToken by remember { mutableStateOf(DebugAuthPrefs.getAccessToken(context) ?: "") }
-    var authMessage by remember { mutableStateOf("테스트 화면은 서버 토큰이 필요합니다.") }
+    val activeToken = remember(context) { AuthPrefs.getAccessToken(context).orEmpty() }
     var statusMessage by remember { mutableStateOf("얼굴을 정면으로 비춰주세요.") }
     var lastResponse by remember { mutableStateOf<SearchResponse?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -136,60 +130,9 @@ fun FaceMatchRecognizeScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            AuthPanel(
-                userId = userId,
-                password = password,
-                manualToken = manualToken,
-                authMessage = authMessage,
-                onUserIdChange = { userId = it },
-                onPasswordChange = { password = it },
-                onManualTokenChange = { manualToken = it },
-                onApplyTokenClick = {
-                    if (manualToken.isBlank()) {
-                        authMessage = "토큰이 비어 있습니다."
-                    } else {
-                        activeToken = manualToken.trim()
-                        authMessage = "입력한 토큰을 사용합니다."
-                    }
-                },
-                onLoginClick = {
-                    scope.launch {
-                        errorMessage = null
-                        authMessage = "로그인 중..."
-                        runCatching {
-                            FaceMatchRepository.login(userId.trim(), password)
-                        }.onSuccess { response ->
-                            val accessToken = response.accessToken.orEmpty()
-                            if (accessToken.isBlank()) {
-                                authMessage = "토큰이 응답에 없습니다."
-                                return@onSuccess
-                            }
-                            activeToken = accessToken
-                            manualToken = accessToken
-                            DebugAuthPrefs.saveSession(
-                                context = context,
-                                accessToken = accessToken,
-                                refreshToken = response.refreshToken,
-                                userNo = response.userNo,
-                                userId = response.userId,
-                                username = response.username
-                            )
-                            authMessage = "로그인 성공. 카메라 인식을 시작하세요."
-                        }.onFailure { throwable ->
-                            authMessage = "로그인 실패"
-                            errorMessage = throwable.message
-                        }
-                    }
-                },
-                onClearSessionClick = {
-                    DebugAuthPrefs.clear(context)
-                    activeToken = ""
-                    manualToken = ""
-                    authMessage = "저장된 테스트 세션을 지웠습니다."
-                }
-            )
-
-            if (!hasCameraPermission) {
+            if (activeToken.isBlank()) {
+                ErrorPanel("로그인 세션이 없어 테스트를 시작할 수 없습니다. 일반 로그인 화면에서 먼저 로그인해주세요.")
+            } else if (!hasCameraPermission) {
                 PermissionPanel(
                     onRequestPermissionClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }
                 )
@@ -213,65 +156,6 @@ fun FaceMatchRecognizeScreen(
             errorMessage?.let { message ->
                 ErrorPanel(message)
             }
-        }
-    }
-}
-
-@Composable
-private fun AuthPanel(
-    userId: String,
-    password: String,
-    manualToken: String,
-    authMessage: String,
-    onUserIdChange: (String) -> Unit,
-    onPasswordChange: (String) -> Unit,
-    onManualTokenChange: (String) -> Unit,
-    onApplyTokenClick: () -> Unit,
-    onLoginClick: () -> Unit,
-    onClearSessionClick: () -> Unit
-) {
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text("서버 세션", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            OutlinedTextField(
-                value = userId,
-                onValueChange = onUserIdChange,
-                label = { Text("userId") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            OutlinedTextField(
-                value = password,
-                onValueChange = onPasswordChange,
-                label = { Text("password") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Password)
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(onClick = onLoginClick) {
-                    Text("로그인")
-                }
-                Button(onClick = onApplyTokenClick) {
-                    Text("토큰 적용")
-                }
-                Button(onClick = onClearSessionClick) {
-                    Text("세션 삭제")
-                }
-            }
-            OutlinedTextField(
-                value = manualToken,
-                onValueChange = onManualTokenChange,
-                label = { Text("Access Token") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Text(authMessage, color = MaterialTheme.colorScheme.primary)
         }
     }
 }
@@ -366,7 +250,6 @@ private fun RecognizeCameraCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("전면 카메라", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             FaceCameraView(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -374,7 +257,7 @@ private fun RecognizeCameraCard(
                 onFaceFrame = { imageProxy, face, luminance ->
                     val token = activeToken.trim()
                     if (token.isBlank()) {
-                        onStatusChange("로그인 또는 토큰 입력 후 인식을 시작하세요.")
+                        onStatusChange("일반 로그인 후 다시 시도해주세요.")
                         imageProxy.close()
                         return@FaceCameraView
                     }
@@ -411,14 +294,19 @@ private fun RecognizeCameraCard(
                         return@FaceCameraView
                     }
 
-                    val jpegBytes = runCatching { imageProxyToJpegBytes(imageProxy) }
+                    val framePayload = runCatching {
+                        createFaceFramePayload(
+                            imageProxy = imageProxy,
+                            faceBounds = face.boundingBox
+                        )
+                    }
                         .onFailure { throwable ->
                             onError("프레임 변환 실패: ${throwable.message}")
                         }
                         .getOrNull()
                     imageProxy.close()
 
-                    if (jpegBytes == null) {
+                    if (framePayload == null) {
                         return@FaceCameraView
                     }
 
@@ -428,7 +316,11 @@ private fun RecognizeCameraCard(
 
                     scope.launch(Dispatchers.IO) {
                         runCatching {
-                            val response = FaceMatchRepository.searchFace(token, jpegBytes)
+                            val response = searchFaceWithFallback(
+                                token = token,
+                                framePayload = framePayload,
+                                onStatusChange = onStatusChange
+                            )
                             FaceMatchSessionStore.latestResult = buildSnapshot(token, response)
                             response
                         }.onSuccess { response ->
@@ -665,6 +557,39 @@ private fun imageProxyToJpegBytes(imageProxy: ImageProxy): ByteArray {
     return rotateJpeg(jpegBytes, imageProxy.imageInfo.rotationDegrees)
 }
 
+private data class FaceFramePayload(
+    val fullFrameJpeg: ByteArray,
+    val croppedFaceJpeg: ByteArray
+)
+
+private suspend fun searchFaceWithFallback(
+    token: String,
+    framePayload: FaceFramePayload,
+    onStatusChange: (String) -> Unit
+): SearchResponse {
+    return try {
+        FaceMatchRepository.searchFace(token, framePayload.croppedFaceJpeg)
+    } catch (exception: ApiRequestException) {
+        if (exception.errorCode == "NO_FACE") {
+            onStatusChange("크롭 이미지에서 얼굴 검출 실패, 전체 프레임으로 재시도합니다.")
+            FaceMatchRepository.searchFace(token, framePayload.fullFrameJpeg)
+        } else {
+            throw exception
+        }
+    }
+}
+
+private fun createFaceFramePayload(
+    imageProxy: ImageProxy,
+    faceBounds: Rect
+): FaceFramePayload {
+    val fullJpeg = imageProxyToJpegBytes(imageProxy)
+    return FaceFramePayload(
+        fullFrameJpeg = fullJpeg,
+        croppedFaceJpeg = cropFaceJpeg(fullJpeg, faceBounds)
+    )
+}
+
 private fun rotateJpeg(jpegBytes: ByteArray, rotationDegrees: Int): ByteArray {
     if (rotationDegrees == 0) return jpegBytes
     val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size) ?: return jpegBytes
@@ -677,33 +602,106 @@ private fun rotateJpeg(jpegBytes: ByteArray, rotationDegrees: Int): ByteArray {
     return output.toByteArray()
 }
 
+private fun cropFaceJpeg(jpegBytes: ByteArray, faceBounds: Rect): ByteArray {
+    val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size) ?: return jpegBytes
+    val cropRect = expandedFaceRect(faceBounds, bitmap.width, bitmap.height)
+    if (cropRect.width() <= 0 || cropRect.height() <= 0) {
+        bitmap.recycle()
+        return jpegBytes
+    }
+
+    val croppedBitmap = Bitmap.createBitmap(
+        bitmap,
+        cropRect.left,
+        cropRect.top,
+        cropRect.width(),
+        cropRect.height()
+    )
+    bitmap.recycle()
+
+    val resizedBitmap = resizeBitmapIfNeeded(croppedBitmap, 720)
+    if (resizedBitmap !== croppedBitmap) {
+        croppedBitmap.recycle()
+    }
+
+    val output = ByteArrayOutputStream()
+    resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 92, output)
+    resizedBitmap.recycle()
+    return output.toByteArray()
+}
+
+private fun expandedFaceRect(faceBounds: Rect, imageWidth: Int, imageHeight: Int): Rect {
+    val centerX = faceBounds.centerX().toFloat()
+    val centerY = faceBounds.centerY().toFloat()
+    val targetSize = (max(faceBounds.width(), faceBounds.height()) * 1.8f).toInt().coerceAtLeast(1)
+    var left = (centerX - targetSize / 2f).toInt()
+    var top = (centerY - targetSize / 2f).toInt()
+    var right = left + targetSize
+    var bottom = top + targetSize
+
+    if (left < 0) {
+        right = (right - left).coerceAtMost(imageWidth)
+        left = 0
+    }
+    if (top < 0) {
+        bottom = (bottom - top).coerceAtMost(imageHeight)
+        top = 0
+    }
+    if (right > imageWidth) {
+        val delta = right - imageWidth
+        left = (left - delta).coerceAtLeast(0)
+        right = imageWidth
+    }
+    if (bottom > imageHeight) {
+        val delta = bottom - imageHeight
+        top = (top - delta).coerceAtLeast(0)
+        bottom = imageHeight
+    }
+
+    return Rect(left, top, right, bottom)
+}
+
+private fun resizeBitmapIfNeeded(bitmap: Bitmap, maxDimension: Int): Bitmap {
+    val currentMax = max(bitmap.width, bitmap.height)
+    if (currentMax <= maxDimension) {
+        return bitmap
+    }
+
+    val scale = maxDimension / currentMax.toFloat()
+    val scaledWidth = (bitmap.width * scale).toInt().coerceAtLeast(1)
+    val scaledHeight = (bitmap.height * scale).toInt().coerceAtLeast(1)
+    return Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, true)
+}
+
 private fun yuv420888ToNv21(image: ImageProxy): ByteArray {
-    val yBuffer = image.planes[0].buffer
-    val uBuffer = image.planes[1].buffer
-    val vBuffer = image.planes[2].buffer
-
-    val ySize = yBuffer.remaining()
-    val uSize = uBuffer.remaining()
-    val vSize = vBuffer.remaining()
-    val nv21 = ByteArray(ySize + uSize + vSize)
-
-    yBuffer.get(nv21, 0, ySize)
-
-    val chromaRowStride = image.planes[1].rowStride
-    val chromaPixelStride = image.planes[1].pixelStride
     val width = image.width
     val height = image.height
-    val vBytes = ByteArray(vSize)
-    val uBytes = ByteArray(uSize)
-    vBuffer.get(vBytes)
-    uBuffer.get(uBytes)
+    val yPlane = image.planes[0]
+    val uPlane = image.planes[1]
+    val vPlane = image.planes[2]
+    val yBuffer = yPlane.buffer.duplicate()
+    val uBuffer = uPlane.buffer.duplicate()
+    val vBuffer = vPlane.buffer.duplicate()
 
-    var outputOffset = ySize
-    for (row in 0 until height / 2) {
-        for (col in 0 until width / 2) {
-            val index = row * chromaRowStride + col * chromaPixelStride
-            nv21[outputOffset++] = vBytes[index]
-            nv21[outputOffset++] = uBytes[index]
+    val nv21 = ByteArray(width * height * 3 / 2)
+    var outputOffset = 0
+
+    for (row in 0 until height) {
+        val rowStart = row * yPlane.rowStride
+        for (col in 0 until width) {
+            val index = rowStart + col * yPlane.pixelStride
+            nv21[outputOffset++] = yBuffer.get(index)
+        }
+    }
+
+    val chromaWidth = width / 2
+    val chromaHeight = height / 2
+    for (row in 0 until chromaHeight) {
+        val uRowStart = row * uPlane.rowStride
+        val vRowStart = row * vPlane.rowStride
+        for (col in 0 until chromaWidth) {
+            nv21[outputOffset++] = vBuffer.get(vRowStart + col * vPlane.pixelStride)
+            nv21[outputOffset++] = uBuffer.get(uRowStart + col * uPlane.pixelStride)
         }
     }
 
