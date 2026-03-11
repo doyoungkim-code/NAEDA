@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.naedafront.data.remote.ApiConfig
 import com.example.naedafront.ui.theme.NaedaTheme
 import com.example.naedafront.ui.common.NaedaBottomNavBar
 import com.example.naedafront.ui.navigation.NaedaNavGraph
@@ -21,6 +22,7 @@ import com.example.naedafront.ui.navigation.Screen
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ApiConfig.initialize(applicationContext)
         enableEdgeToEdge()
         setContent {
             NaedaTheme {

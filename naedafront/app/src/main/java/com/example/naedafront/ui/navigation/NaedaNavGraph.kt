@@ -14,6 +14,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.naedafront.AuthPrefs
+import com.example.naedafront.ui.screen.LoginScreen
 import com.example.naedafront.ui.screen.WelcomeScreen
 import com.example.naedafront.ui.screen.signup.SignUpNameScreen
 import com.example.naedafront.ui.screen.signup.SignUpRrnScreen
@@ -56,7 +57,14 @@ fun NaedaNavGraph(
         }
 
         composable(Screen.Login.route) {
-            PlaceholderScreen("로그인")
+            LoginScreen(
+                onBackClick = { navController.popBackStack() },
+                onLoginSuccess = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                    }
+                }
+            )
         }
 
 // 1/8 이름
