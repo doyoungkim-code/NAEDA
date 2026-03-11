@@ -1,4 +1,5 @@
-package com.example.naedafront.ui.theme
+// File: app/src/main/java/com/example/naedaterminal/ui/theme/Type.kt
+package com.example.naedaterminal.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
@@ -6,7 +7,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.example.naedafront.R
+import com.example.naedaterminal.R
 
 
 val Manrope = FontFamily(
@@ -34,10 +35,6 @@ val NaedaFontFamily = FontFamily(
     Font(R.font.pretendard_medium, FontWeight.Medium),
     Font(R.font.pretendard_semibold, FontWeight.SemiBold),
     Font(R.font.pretendard_bold, FontWeight.Bold),
-)
-
-val KronaOneFontFamily = FontFamily(
-    Font(R.font.krona_one_regular, FontWeight.Normal)
 )
 
 val NaedaTypography = Typography(

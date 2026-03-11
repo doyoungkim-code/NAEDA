@@ -1,4 +1,4 @@
-package com.example.naedafront.ui.theme
+package com.example.naedaterminal.ui.theme
 
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
