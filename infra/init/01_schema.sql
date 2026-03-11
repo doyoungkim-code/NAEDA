@@ -1,5 +1,5 @@
 -- ================================================
--- 내다(NaeDa) ERD - PostgreSQL DDL
+-- 내다(NaeDa) ERD - PostgreSQL DDL (최종)
 -- ================================================
 
 -- ================================================
@@ -84,9 +84,9 @@ CREATE TABLE debit_card (
     card_issuer_name VARCHAR(50)   NOT NULL,
     card_name        VARCHAR(100)  NOT NULL,
     card_expiry_date VARCHAR(8)    NOT NULL,
-    is_active        BOOLEAN       NOT NULL DEFAULT TRUE,
+    is_active        BOOLEAN       DEFAULT TRUE,
     created          TIMESTAMP     NOT NULL DEFAULT NOW(),
-    account_id       BIGINT        NOT NULL
+    account_id       BIGINT
 );
 
 CREATE TABLE credit_card (
@@ -99,11 +99,11 @@ CREATE TABLE credit_card (
     card_issuer_name VARCHAR(50)   NOT NULL,
     card_name        VARCHAR(100)  NOT NULL,
     card_expiry_date VARCHAR(8)    NOT NULL,
-    is_active        BOOLEAN       NOT NULL DEFAULT TRUE,
+    is_active        BOOLEAN       DEFAULT TRUE,
     credit_limit     BIGINT        NOT NULL,
     billing_date     INT           NOT NULL,
     created          TIMESTAMP     NOT NULL DEFAULT NOW(),
-    account_id       BIGINT        NOT NULL
+    account_id       BIGINT
 );
 
 CREATE TABLE payment_method (
@@ -113,24 +113,26 @@ CREATE TABLE payment_method (
     account_id         BIGINT,
     debit_card_id      BIGINT,
     credit_card_id     BIGINT,
-    is_default         BOOLEAN           NOT NULL DEFAULT FALSE,
-    is_face_pay        BOOLEAN           NOT NULL DEFAULT FALSE,
+    is_default         BOOLEAN           DEFAULT FALSE,
+    is_face_pay        BOOLEAN           DEFAULT FALSE,
     created            TIMESTAMP         NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE store (
     store_id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_no           BIGINT         NOT NULL,
+    account_id        BIGINT,
     store_name        VARCHAR(100)   NOT NULL,
     category          VARCHAR(30)    NOT NULL,
+    category_name     VARCHAR(50),
     road_address      VARCHAR(255)   NOT NULL,
     number_address    VARCHAR(255),
     latitude          FLOAT,
     longitude         FLOAT,
     phone             VARCHAR(20),
-    is_local_business BOOLEAN        NOT NULL DEFAULT FALSE,
-    face_pay_enabled  BOOLEAN        NOT NULL DEFAULT FALSE,
-    rating            FLOAT          NOT NULL DEFAULT 0,
+    is_local_business BOOLEAN        DEFAULT FALSE,
+    face_pay_enabled  BOOLEAN        DEFAULT FALSE,
+    rating            FLOAT          DEFAULT 0,
     created           TIMESTAMP      NOT NULL DEFAULT NOW()
 );
 
@@ -138,19 +140,19 @@ CREATE TABLE payment (
     payment_id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_no              BIGINT                NOT NULL,
     store_id             BIGINT                NOT NULL,
-    payment_method_id    BIGINT                NOT NULL,
     amount               BIGINT                NOT NULL,
     auth_method          auth_method_enum      NOT NULL,
     auth_level           auth_level_enum       NOT NULL,
     status               payment_status_enum   NOT NULL,
     face_distance        FLOAT,
     liveness_passed      BOOLEAN,
-    pin_verified         BOOLEAN               NOT NULL DEFAULT FALSE,
-    fds_score            INT                   NOT NULL DEFAULT 0,
-    fds_action           fds_action_enum       NOT NULL DEFAULT 'NONE',
-    earned_points        INT                   NOT NULL DEFAULT 0,
+    pin_verified         BOOLEAN               DEFAULT FALSE,
+    fds_score            INT                   DEFAULT 0,
+    fds_action           fds_action_enum       DEFAULT 'NONE',
+    earned_points        INT                   DEFAULT 0,
     ssafy_transaction_id VARCHAR(100),
-    paid                 TIMESTAMP             NOT NULL DEFAULT NOW()
+    paid                 TIMESTAMP             NOT NULL DEFAULT NOW(),
+    payment_method_id    BIGINT                NOT NULL
 );
 
 CREATE TABLE transaction_log (
@@ -169,9 +171,9 @@ CREATE TABLE transaction_log (
 CREATE TABLE point_wallet (
     wallet_id    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_no      BIGINT    NOT NULL UNIQUE,
-    balance      BIGINT    NOT NULL DEFAULT 0,
-    total_earned BIGINT    NOT NULL DEFAULT 0,
-    total_used   BIGINT    NOT NULL DEFAULT 0,
+    balance      BIGINT    DEFAULT 0,
+    total_earned BIGINT    DEFAULT 0,
+    total_used   BIGINT    DEFAULT 0,
     updated      TIMESTAMP DEFAULT NOW()
 );
 
@@ -230,7 +232,7 @@ CREATE TABLE fds_log (
     anomaly_score   INT              NOT NULL,
     triggered_rules JSONB,
     action_taken    fds_action_enum  NOT NULL,
-    user_confirmed  BOOLEAN          NOT NULL DEFAULT FALSE,
+    user_confirmed  BOOLEAN          DEFAULT FALSE,
     detected        TIMESTAMP        NOT NULL DEFAULT NOW()
 );
 
@@ -247,7 +249,7 @@ CREATE TABLE festival (
     image_url      VARCHAR(500),
     start_date     DATE           NOT NULL,
     end_date       DATE           NOT NULL,
-    fcm_notified   BOOLEAN        NOT NULL DEFAULT FALSE,
+    fcm_notified   BOOLEAN        DEFAULT FALSE,
     created        TIMESTAMP      NOT NULL DEFAULT NOW()
 );
 
@@ -259,7 +261,7 @@ CREATE TABLE notification (
     body            TEXT,
     reference_id    BIGINT,
     reference_type  reference_type_enum,
-    is_read         BOOLEAN                 NOT NULL DEFAULT FALSE,
+    is_read         BOOLEAN                 DEFAULT FALSE,
     sent            TIMESTAMP               NOT NULL DEFAULT NOW()
 );
 
@@ -271,14 +273,15 @@ ALTER TABLE face_vector ADD CONSTRAINT fk_face_vector_user FOREIGN KEY (user_no)
 ALTER TABLE face_embeddings ADD CONSTRAINT fk_face_embeddings_user_id FOREIGN KEY (user_id) REFERENCES "user" (user_id) ON DELETE CASCADE;
 ALTER TABLE account ADD CONSTRAINT fk_account_user FOREIGN KEY (user_no) REFERENCES "user" (user_no) ON DELETE CASCADE;
 ALTER TABLE debit_card ADD CONSTRAINT fk_debit_card_user FOREIGN KEY (user_no) REFERENCES "user" (user_no) ON DELETE CASCADE;
-ALTER TABLE debit_card ADD CONSTRAINT fk_debit_card_account FOREIGN KEY (account_id) REFERENCES account (account_id) ON DELETE RESTRICT;
+ALTER TABLE debit_card ADD CONSTRAINT fk_debit_card_account FOREIGN KEY (account_id) REFERENCES account (account_id) ON DELETE SET NULL;
 ALTER TABLE credit_card ADD CONSTRAINT fk_credit_card_user FOREIGN KEY (user_no) REFERENCES "user" (user_no) ON DELETE CASCADE;
-ALTER TABLE credit_card ADD CONSTRAINT fk_credit_card_account FOREIGN KEY (account_id) REFERENCES account (account_id) ON DELETE RESTRICT;
+ALTER TABLE credit_card ADD CONSTRAINT fk_credit_card_account FOREIGN KEY (account_id) REFERENCES account (account_id) ON DELETE SET NULL;
 ALTER TABLE payment_method ADD CONSTRAINT fk_payment_method_user FOREIGN KEY (user_no) REFERENCES "user" (user_no) ON DELETE CASCADE;
 ALTER TABLE payment_method ADD CONSTRAINT fk_payment_method_account FOREIGN KEY (account_id) REFERENCES account (account_id) ON DELETE SET NULL;
 ALTER TABLE payment_method ADD CONSTRAINT fk_payment_method_debit_card FOREIGN KEY (debit_card_id) REFERENCES debit_card (debit_card_id) ON DELETE SET NULL;
 ALTER TABLE payment_method ADD CONSTRAINT fk_payment_method_credit_card FOREIGN KEY (credit_card_id) REFERENCES credit_card (credit_card_id) ON DELETE SET NULL;
 ALTER TABLE store ADD CONSTRAINT fk_store_user FOREIGN KEY (user_no) REFERENCES "user" (user_no) ON DELETE CASCADE;
+ALTER TABLE store ADD CONSTRAINT fk_store_account FOREIGN KEY (account_id) REFERENCES account (account_id) ON DELETE SET NULL;
 ALTER TABLE payment ADD CONSTRAINT fk_payment_user FOREIGN KEY (user_no) REFERENCES "user" (user_no) ON DELETE CASCADE;
 ALTER TABLE payment ADD CONSTRAINT fk_payment_store FOREIGN KEY (store_id) REFERENCES store (store_id) ON DELETE RESTRICT;
 ALTER TABLE payment ADD CONSTRAINT fk_payment_payment_method FOREIGN KEY (payment_method_id) REFERENCES payment_method (payment_method_id) ON DELETE RESTRICT;
