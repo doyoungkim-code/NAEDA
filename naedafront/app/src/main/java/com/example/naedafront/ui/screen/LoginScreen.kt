@@ -1,62 +1,66 @@
 package com.example.naedafront.ui.screen
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.AuthRepository
 import com.example.naedafront.data.remote.LoginResult
+import com.example.naedafront.ui.theme.KronaOneFontFamily
+import com.example.naedafront.ui.theme.Mint500
 import com.example.naedafront.ui.theme.Mint900
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     onBackClick: () -> Unit = {},
     onLoginSuccess: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
 
     var email by remember { mutableStateOf("") }
@@ -64,26 +68,46 @@ fun LoginScreen(
     var emailError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
     var loginError by remember { mutableStateOf<String?>(null) }
+    var passwordVisible by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
 
+    fun validate(): Boolean {
+        var valid = true
+        emailError = when {
+            email.isBlank() -> {
+                valid = false
+                "이메일을 입력해주세요"
+            }
+
+            !android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() -> {
+                valid = false
+                "올바른 이메일 형식이 아니에요"
+            }
+
+            else -> null
+        }
+        passwordError = when {
+            password.isBlank() -> {
+                valid = false
+                "비밀번호를 입력해주세요"
+            }
+
+            else -> null
+        }
+        return valid
+    }
+
     fun submit() {
-        val trimmedEmail = email.trim()
-        val hasValidEmail = android.util.Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches()
-        val hasValidPassword = password.isNotBlank()
-
-        emailError = if (hasValidEmail) null else "올바른 이메일을 입력해주세요"
-        passwordError = if (hasValidPassword) null else "비밀번호를 입력해주세요"
-        loginError = null
-
-        if (!hasValidEmail || !hasValidPassword || isLoading) {
+        focusManager.clearFocus()
+        if (!validate() || isLoading) {
             return
         }
 
-        keyboardController?.hide()
+        loginError = null
         isLoading = true
 
         coroutineScope.launch {
-            when (val result = AuthRepository.login(trimmedEmail, password)) {
+            when (val result = AuthRepository.login(email.trim(), password)) {
                 is LoginResult.Success -> {
                     AuthPrefs.saveLoginSession(
                         context = context,
@@ -106,50 +130,63 @@ fun LoginScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {},
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "뒤로가기")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.surface
-    ) { innerPadding ->
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.Top
+                .padding(horizontal = 24.dp)
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(56.dp))
+
+            IconButton(onClick = onBackClick, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "뒤로가기",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "NAEDA",
+                    fontFamily = KronaOneFontFamily,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 28.sp,
+                    color = Mint500,
+                    letterSpacing = 3.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(48.dp))
 
             Text(
-                text = "이메일로\n로그인해주세요",
-                fontSize = 24.sp,
+                text = "이미 계정이 있으신가요?",
+                fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
-                lineHeight = 34.sp
+                lineHeight = 36.sp
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "회원가입한 이메일과 비밀번호를 입력해 주세요",
+                text = "이메일과 비밀번호로 로그인하세요",
                 fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.outline
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(36.dp))
 
-            TextField(
+            OutlinedTextField(
                 value = email,
                 onValueChange = {
                     email = it
@@ -157,43 +194,38 @@ fun LoginScreen(
                     loginError = null
                 },
                 modifier = Modifier.fillMaxWidth(),
+                label = { Text("이메일") },
                 placeholder = {
                     Text(
-                        text = "example@email.com",
-                        color = MaterialTheme.colorScheme.outline,
-                        fontSize = 18.sp
+                        text = "이메일 주소를 입력해주세요",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
-                textStyle = LocalTextStyle.current.copy(
-                    fontSize = 18.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                ),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                    unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
-                    cursorColor = MaterialTheme.colorScheme.primary
-                ),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Next
                 ),
-                singleLine = true
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                ),
+                isError = emailError != null,
+                supportingText = if (emailError != null) {
+                    { Text(emailError!!, color = MaterialTheme.colorScheme.error) }
+                } else {
+                    null
+                },
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Mint500,
+                    focusedLabelColor = Mint500,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    cursorColor = Mint500
+                )
             )
 
-            if (emailError != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = emailError!!,
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
+            Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            TextField(
+            OutlinedTextField(
                 value = password,
                 onValueChange = {
                     password = it
@@ -201,45 +233,55 @@ fun LoginScreen(
                     loginError = null
                 },
                 modifier = Modifier.fillMaxWidth(),
+                label = { Text("비밀번호") },
                 placeholder = {
                     Text(
                         text = "비밀번호를 입력해주세요",
-                        color = MaterialTheme.colorScheme.outline,
-                        fontSize = 18.sp
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
-                visualTransformation = PasswordVisualTransformation(),
-                textStyle = LocalTextStyle.current.copy(
-                    fontSize = 18.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    letterSpacing = 2.sp
-                ),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                    unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
-                    cursorColor = MaterialTheme.colorScheme.primary
-                ),
+                visualTransformation = if (passwordVisible) {
+                    VisualTransformation.None
+                } else {
+                    PasswordVisualTransformation()
+                },
+                trailingIcon = {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(
+                            imageVector = if (passwordVisible) {
+                                Icons.Default.Visibility
+                            } else {
+                                Icons.Default.VisibilityOff
+                            },
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Done
                 ),
-                keyboardActions = KeyboardActions(onDone = { submit() }),
-                singleLine = true
+                keyboardActions = KeyboardActions(
+                    onDone = { submit() }
+                ),
+                isError = passwordError != null,
+                supportingText = if (passwordError != null) {
+                    { Text(passwordError!!, color = MaterialTheme.colorScheme.error) }
+                } else {
+                    null
+                },
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Mint500,
+                    focusedLabelColor = Mint500,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    cursorColor = Mint500
+                )
             )
 
-            if (passwordError != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = passwordError!!,
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-
             if (loginError != null) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = loginError!!,
                     fontSize = 13.sp,
@@ -247,24 +289,22 @@ fun LoginScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.weight(1f))
 
             Button(
                 onClick = { submit() },
+                enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = !isLoading,
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Mint900,
-                    disabledContainerColor = Mint900.copy(alpha = 0.38f)
-                )
+                colors = ButtonDefaults.buttonColors(containerColor = Mint900),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
-                        modifier = Modifier.height(20.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(20.dp),
+                        color = Color.White,
                         strokeWidth = 2.dp
                     )
                 } else {
@@ -272,10 +312,12 @@ fun LoginScreen(
                         text = "로그인",
                         fontSize = 17.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onPrimary
+                        color = Color.White
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }

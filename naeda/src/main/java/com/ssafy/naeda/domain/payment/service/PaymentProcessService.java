@@ -6,6 +6,7 @@ import com.ssafy.naeda.domain.face.dto.response.SearchResponse;
 import com.ssafy.naeda.domain.face.service.FaceService;
 import com.ssafy.naeda.domain.fds.dto.request.FdsEvaluationRequest;
 import com.ssafy.naeda.domain.fds.dto.response.FdsEvaluationResult;
+import com.ssafy.naeda.domain.fds.entity.FdsAction;
 import com.ssafy.naeda.domain.fds.service.FdsRuleService;
 import com.ssafy.naeda.domain.payment.dto.PaymentRequestData;
 import com.ssafy.naeda.domain.payment.dto.response.ProcessPaymentResponse;
@@ -138,16 +139,7 @@ public class PaymentProcessService {
 
         // 8. 2차 인증 필요 처리
         if (!"PASS".equals(faceResult.getNextAction())) {
-            Payment payment = Payment.builder()
-                    .userNo(user.getUserNo())
-                    .storeId(data.getStoreId())
-                    .paymentMethodId(paymentMethod.getPaymentMethodId())
-                    .amount(data.getAmount())
-                    .authMethod(AuthMethod.FACE_PAY)
-                    .authLevel(paymentAuthLevel)
-                    .faceDistance(1.0 - faceResult.getSimilarity())
-                    .livenessPass(true)
-                    .build();
+            Payment payment = buildBasePayment(user.getUserNo(), data, paymentMethod, paymentAuthLevel, faceResult);
             payment = paymentRepository.save(payment);
 
             redisService.updateResult(requestId, user.getUserNo(), faceResult.getNextAction(),
@@ -166,26 +158,23 @@ public class PaymentProcessService {
                     .build();
         }
 
-        // 9. FDS 룰 평가
-        FdsEvaluationResult fdsResult = evaluateFds(user.getUserNo(), data.getStoreId(), data.getAmount());
+        // 9. FDS 룰 평가 (실패 시 NONE fallback — FDS 오류로 결제를 막지 않음)
+        FdsEvaluationResult fdsResult;
+        try {
+            fdsResult = evaluateFds(user.getUserNo(), data.getStoreId(), data.getAmount());
+        } catch (Exception e) {
+            log.error("[FDS] 평가 실패, NONE으로 fallback: requestId={}, error={}", requestId, e.getMessage(), e);
+            fdsResult = new FdsEvaluationResult(0, List.of(), FdsAction.NONE);
+        }
 
-        FdsAction paymentFdsAction = FdsAction.valueOf(fdsResult.getAction().name());
+        FdsAction fdsAction = fdsResult.getAction();
 
-        if (paymentFdsAction == FdsAction.BLOCK || paymentFdsAction == FdsAction.PAUSE) {
-            Payment fdsPayment = Payment.builder()
-                    .userNo(user.getUserNo())
-                    .storeId(data.getStoreId())
-                    .paymentMethodId(paymentMethod.getPaymentMethodId())
-                    .amount(data.getAmount())
-                    .authMethod(AuthMethod.FACE_PAY)
-                    .authLevel(paymentAuthLevel)
-                    .faceDistance(1.0 - faceResult.getSimilarity())
-                    .livenessPass(true)
-                    .build();
-            fdsPayment.updateFds(fdsResult.getAnomalyScore(), paymentFdsAction);
+        if (fdsAction == FdsAction.BLOCK || fdsAction == FdsAction.PAUSE) {
+            Payment fdsPayment = buildBasePayment(user.getUserNo(), data, paymentMethod, paymentAuthLevel, faceResult);
+            fdsPayment.updateFds(fdsResult.getAnomalyScore(), fdsAction);
 
-            String fdsStatus = paymentFdsAction == FdsAction.BLOCK ? "BLOCKED" : "PAUSED";
-            if (paymentFdsAction == FdsAction.BLOCK) {
+            String fdsStatus = fdsAction == FdsAction.BLOCK ? "BLOCKED" : "PAUSED";
+            if (fdsAction == FdsAction.BLOCK) {
                 fdsPayment.updateStatus(PaymentStatus.BLOCKED);
                 redisService.updateStatus(requestId, PaymentRequestStatus.BLOCKED);
             } else {
@@ -195,21 +184,21 @@ public class PaymentProcessService {
             fdsRuleService.saveLog(fdsPayment.getPaymentId(), user.getUserNo(), fdsResult);
 
             redisService.updateResult(requestId, user.getUserNo(), fdsStatus, fdsPayment.getPaymentId(),
-                    "FDS 이상거래 탐지: " + fdsResult.getAction());
+                    "FDS 이상거래 탐지: " + fdsAction);
             log.warn("[FDS] 결제 {}: requestId={}, score={}, action={}", fdsStatus, requestId,
-                    fdsResult.getAnomalyScore(), fdsResult.getAction());
+                    fdsResult.getAnomalyScore(), fdsAction);
 
             return ProcessPaymentResponse.builder()
                     .requestId(requestId)
                     .paymentId(fdsPayment.getPaymentId())
                     .status(fdsStatus)
-                    .nextAction(fdsResult.getAction().name())
+                    .nextAction(fdsAction.name())
                     .storeId(data.getStoreId())
                     .amount(data.getAmount())
                     .similarity((double) faceResult.getSimilarity())
                     .fdsScore(fdsResult.getAnomalyScore())
-                    .fdsAction(fdsResult.getAction().name())
-                    .failureReason("FDS 이상거래 탐지: " + fdsResult.getAction())
+                    .fdsAction(fdsAction.name())
+                    .failureReason("FDS 이상거래 탐지: " + fdsAction)
                     .build();
         }
 
@@ -274,20 +263,11 @@ public class PaymentProcessService {
         // 12. 포인트 계산 + Payment 저장
         int earnedPoints = (int) (data.getAmount() * pointRate);
 
-        Payment payment = Payment.builder()
-                .userNo(user.getUserNo())
-                .storeId(data.getStoreId())
-                .paymentMethodId(paymentMethod.getPaymentMethodId())
-                .amount(data.getAmount())
-                .authMethod(AuthMethod.FACE_PAY)
-                .authLevel(paymentAuthLevel)
-                .faceDistance(1.0 - faceResult.getSimilarity())
-                .livenessPass(true)
-                .earnedPoints(earnedPoints)
-                .build();
+        Payment payment = buildBasePayment(user.getUserNo(), data, paymentMethod, paymentAuthLevel, faceResult);
+        payment.addEarnedPoints(earnedPoints);
         payment.updateStatus(PaymentStatus.SUCCESS);
         payment.updateSsafyTransactionId(ssafyTransactionId);
-        payment.updateFds(fdsResult.getAnomalyScore(), paymentFdsAction);
+        payment.updateFds(fdsResult.getAnomalyScore(), fdsAction);
         payment = paymentRepository.save(payment);
         fdsRuleService.saveLog(payment.getPaymentId(), user.getUserNo(), fdsResult);
 
@@ -348,11 +328,26 @@ public class PaymentProcessService {
                 .ssafyTransactionId(ssafyTransactionId)
                 .similarity((double) faceResult.getSimilarity())
                 .fdsScore(fdsResult.getAnomalyScore())
-                .fdsAction(fdsResult.getAction().name())
+                .fdsAction(fdsAction.name())
                 .build();
     }
 
     // ── 내부 헬퍼 ──────────────────────────────────────────────────────────
+
+    private Payment buildBasePayment(Long userNo, PaymentRequestData data,
+                                     PaymentMethod paymentMethod, AuthLevel authLevel,
+                                     SearchResponse faceResult) {
+        return Payment.builder()
+                .userNo(userNo)
+                .storeId(data.getStoreId())
+                .paymentMethodId(paymentMethod.getPaymentMethodId())
+                .amount(data.getAmount())
+                .authMethod(AuthMethod.FACE_PAY)
+                .authLevel(authLevel)
+                .faceDistance(1.0 - faceResult.getSimilarity())
+                .livenessPass(true)
+                .build();
+    }
 
     private void updateRedisSuccess(String requestId, Long userNo, Long paymentId, Long amount, int earnedPoints) {
         try {
@@ -371,7 +366,7 @@ public class PaymentProcessService {
         int recentCount = paymentRepository.countByUserNoAndStatusAndPaidAfter(
                 userNo, PaymentStatus.SUCCESS, now.minusMinutes(10));
 
-        long sum30d = paymentRepository.sumAmountByUserNoAndPaidAfter(userNo, now.minusDays(30));
+        long sum30d = paymentRepository.sumAmountByUserNoAndStatusAndPaidAfter(userNo, PaymentStatus.SUCCESS, now.minusDays(30));
         long dailyAvg = sum30d / 30;
 
         FdsEvaluationRequest request = FdsEvaluationRequest.builder()

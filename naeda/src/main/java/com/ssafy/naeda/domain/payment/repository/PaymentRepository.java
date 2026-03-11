@@ -25,6 +25,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     int countByUserNoAndStatusAndPaidAfter(Long userNo, PaymentStatus status, LocalDateTime after);
 
     // FDS: 최근 30일 일평균 결제 금액
-    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.userNo = :userNo AND p.status = 'SUCCESS' AND p.paid >= :since")
-    long sumAmountByUserNoAndPaidAfter(@Param("userNo") Long userNo, @Param("since") LocalDateTime since);
+    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.userNo = :userNo AND p.status = :status AND p.paid >= :since")
+    long sumAmountByUserNoAndStatusAndPaidAfter(@Param("userNo") Long userNo, @Param("status") PaymentStatus status, @Param("since") LocalDateTime since);
 }
