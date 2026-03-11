@@ -33,8 +33,8 @@ public class SignupRequest {
     private String username;
 
     @NotBlank
-    @Size(max = 7)
-    @Schema(description = "주민등록번호 앞 7자리", example = "990101-")
+    @Pattern(regexp = "^\\d{7}$", message = "주민등록번호는 앞 6자리와 뒤 1자리를 붙인 숫자 7자리여야 합니다.")
+    @Schema(description = "주민등록번호 앞 6자리와 뒤 1자리(하이픈 제외)", example = "9901011")
     private String residentNo;
 
     @NotBlank
