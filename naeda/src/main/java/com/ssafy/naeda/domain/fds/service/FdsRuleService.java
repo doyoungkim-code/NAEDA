@@ -23,8 +23,7 @@ public class FdsRuleService {
     private final List<FdsRule> rules;
     private final FdsLogRepository fdsLogRepository;
 
-    @Transactional
-    public FdsEvaluationResult evaluate(Long paymentId, FdsEvaluationRequest request) {
+    public FdsEvaluationResult evaluate(FdsEvaluationRequest request) {
         int totalScore = 0;
         List<String> triggeredRules = new ArrayList<>();
 
@@ -39,18 +38,21 @@ public class FdsRuleService {
         totalScore = Math.min(totalScore, 100);
         FdsAction action = determineAction(totalScore);
 
-        fdsLogRepository.save(FdsLog.builder()
-                .paymentId(paymentId)
-                .userNo(request.getUserNo())
-                .anomalyScore(totalScore)
-                .triggeredRules(triggeredRules)
-                .actionTaken(action)
-                .build());
-
-        log.info("[FDS] userNo={}, paymentId={}, score={}, action={}, rules={}",
-                request.getUserNo(), paymentId, totalScore, action, triggeredRules);
+        log.info("[FDS] userNo={}, score={}, action={}, rules={}",
+                request.getUserNo(), totalScore, action, triggeredRules);
 
         return new FdsEvaluationResult(totalScore, triggeredRules, action);
+    }
+
+    @Transactional
+    public void saveLog(Long paymentId, Long userNo, FdsEvaluationResult result) {
+        fdsLogRepository.save(FdsLog.builder()
+                .paymentId(paymentId)
+                .userNo(userNo)
+                .anomalyScore(result.getAnomalyScore())
+                .triggeredRules(result.getTriggeredRules())
+                .actionTaken(result.getAction())
+                .build());
     }
 
     @Transactional(readOnly = true)
