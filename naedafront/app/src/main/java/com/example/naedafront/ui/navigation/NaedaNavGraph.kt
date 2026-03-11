@@ -15,16 +15,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.ui.screen.WelcomeScreen
-import com.example.naedafront.ui.screen.SignUpNameScreen
-import com.example.naedafront.ui.screen.SignUpRrnScreen
-import com.example.naedafront.ui.screen.SignUpPhoneScreen
-import com.example.naedafront.ui.screen.SignUpVerifyScreen
-import com.example.naedafront.ui.screen.SignUpEmailScreen
-import com.example.naedafront.ui.screen.SignUpPasswordScreen
-import com.example.naedafront.ui.screen.SignUpPinScreen
+import com.example.naedafront.ui.screen.signup.SignUpNameScreen
+import com.example.naedafront.ui.screen.signup.SignUpRrnScreen
+import com.example.naedafront.ui.screen.signup.SignUpPhoneScreen
+import com.example.naedafront.ui.screen.signup.SignUpVerifyScreen
+import com.example.naedafront.ui.screen.signup.SignUpEmailScreen
+import com.example.naedafront.ui.screen.signup.SignUpPasswordScreen
+import com.example.naedafront.ui.screen.signup.SignUpPinScreen
 import com.example.naedafront.ui.screen.home.HomeScreen
 import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
-import com.example.naedafront.ui.navigation.Screen
 import com.example.naedafront.ui.screen.home.HomeUiState
 
 /**
