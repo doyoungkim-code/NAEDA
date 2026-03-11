@@ -169,7 +169,7 @@ fun SignUpRrnScreen(
 
             // 확인 버튼
             Button(
-                onClick = { onConfirmClick("$frontNumber-${backNumber}") },
+                onClick = { onConfirmClick("$frontNumber$backNumber") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),

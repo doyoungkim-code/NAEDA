@@ -25,6 +25,7 @@ import com.example.naedafront.ui.screen.signup.SignUpPinScreen
 import com.example.naedafront.ui.screen.home.HomeScreen
 import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
 import com.example.naedafront.ui.screen.home.HomeUiState
+import com.example.naedafront.ui.screen.LoginScreen
 
 /**
  * 내다(NAEDA) 전체 네비게이션 그래프
@@ -55,8 +56,16 @@ fun NaedaNavGraph(
             )
         }
 
-        composable(Screen.Login.route) {
-            PlaceholderScreen("로그인")
+        composable("login") {
+            LoginScreen(
+                onLoginClick = { email, password ->
+                    // TODO: 로그인 API 호출
+                    navController.navigate("home") {
+                        popUpTo("welcome") { inclusive = true }
+                    }
+                },
+                onBackClick = { navController.popBackStack() }
+            )
         }
 
 // 1/8 이름
