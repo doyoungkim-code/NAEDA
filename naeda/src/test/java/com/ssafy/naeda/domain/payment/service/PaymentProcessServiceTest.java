@@ -110,7 +110,7 @@ class PaymentProcessServiceTest {
         // FDS 스텁
         given(paymentRepository.countByUserNoAndStatusAndPaidAfter(eq(USER_NO), eq(PaymentStatus.SUCCESS), any()))
                 .willReturn(0);
-        given(paymentRepository.sumAmountByUserNoAndPaidAfter(eq(USER_NO), any()))
+        given(paymentRepository.sumAmountByUserNoAndStatusAndPaidAfter(eq(USER_NO), eq(PaymentStatus.SUCCESS), any()))
                 .willReturn(0L);
         FdsEvaluationResult fdsResult = new FdsEvaluationResult(0, List.of(), FdsAction.NONE);
         given(fdsRuleService.evaluate(any(FdsEvaluationRequest.class))).willReturn(fdsResult);
@@ -357,7 +357,7 @@ class PaymentProcessServiceTest {
         // FDS 스텁
         given(paymentRepository.countByUserNoAndStatusAndPaidAfter(eq(USER_NO), eq(PaymentStatus.SUCCESS), any()))
                 .willReturn(0);
-        given(paymentRepository.sumAmountByUserNoAndPaidAfter(eq(USER_NO), any()))
+        given(paymentRepository.sumAmountByUserNoAndStatusAndPaidAfter(eq(USER_NO), eq(PaymentStatus.SUCCESS), any()))
                 .willReturn(0L);
         given(fdsRuleService.evaluate(any(FdsEvaluationRequest.class)))
                 .willReturn(new FdsEvaluationResult(0, List.of(), FdsAction.NONE));
@@ -401,7 +401,7 @@ class PaymentProcessServiceTest {
         // FDS 스텁
         given(paymentRepository.countByUserNoAndStatusAndPaidAfter(eq(USER_NO), eq(PaymentStatus.SUCCESS), any()))
                 .willReturn(0);
-        given(paymentRepository.sumAmountByUserNoAndPaidAfter(eq(USER_NO), any()))
+        given(paymentRepository.sumAmountByUserNoAndStatusAndPaidAfter(eq(USER_NO), eq(PaymentStatus.SUCCESS), any()))
                 .willReturn(0L);
         given(fdsRuleService.evaluate(any(FdsEvaluationRequest.class)))
                 .willReturn(new FdsEvaluationResult(0, List.of(), FdsAction.NONE));
@@ -454,7 +454,7 @@ class PaymentProcessServiceTest {
         // FDS 스텁
         given(paymentRepository.countByUserNoAndStatusAndPaidAfter(eq(USER_NO), eq(PaymentStatus.SUCCESS), any()))
                 .willReturn(0);
-        given(paymentRepository.sumAmountByUserNoAndPaidAfter(eq(USER_NO), any()))
+        given(paymentRepository.sumAmountByUserNoAndStatusAndPaidAfter(eq(USER_NO), eq(PaymentStatus.SUCCESS), any()))
                 .willReturn(0L);
         FdsEvaluationResult fdsResult = new FdsEvaluationResult(0, List.of(), FdsAction.NONE);
         given(fdsRuleService.evaluate(any(FdsEvaluationRequest.class))).willReturn(fdsResult);
