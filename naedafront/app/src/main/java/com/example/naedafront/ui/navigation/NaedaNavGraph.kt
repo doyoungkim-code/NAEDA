@@ -22,8 +22,6 @@ import androidx.navigation.navArgument
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.FaceRegistrationRepository
 import com.example.naedafront.ui.screen.LoginScreen
-import com.example.naedafront.ui.screen.asset.AccountListScreen
-import com.example.naedafront.ui.screen.asset.RegisterAssetScreen
 import com.example.naedafront.ui.screen.WelcomeScreen
 import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
 import com.example.naedafront.ui.screen.home.HomeScreen
@@ -38,6 +36,10 @@ import com.example.naedafront.ui.screen.signup.SignUpPinScreen
 import com.example.naedafront.ui.screen.signup.SignUpRrnScreen
 import com.example.naedafront.ui.screen.signup.SignUpVerifyScreen
 import com.example.naedafront.ui.screen.signup.SignUpViewModel
+import com.example.naedafront.ui.screen.asset.AccountDetailScreen
+import com.example.naedafront.ui.screen.asset.AccountListScreen
+import com.example.naedafront.ui.screen.asset.RegisterAssetScreen
+import com.example.naedafront.ui.screen.asset.sampleAccounts
 
 /**
  * 내다(NAEDA) 전체 네비게이션 그래프
@@ -320,9 +322,12 @@ fun NaedaNavGraph(
             )
         ) { backStackEntry ->
             val accountId = backStackEntry.arguments?.getString("accountId") ?: ""
-            PlaceholderScreen("계좌 상세: $accountId")
+            AccountDetailScreen(
+                accountId = accountId,
+                onBack = { navController.popBackStack() },
+                onTransferClick = { navController.navigate(Screen.Transfer.route) }
+            )
         }
-
         composable(Screen.Transfer.route) { PlaceholderScreen("이체") }
         composable(Screen.Transaction.route) { PlaceholderScreen("거래내역") }
         composable(Screen.Report.route) { PlaceholderScreen("📊 소비 리포트") }

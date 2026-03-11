@@ -1,6 +1,4 @@
 package com.example.naedafront.ui.screen.asset
-
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -39,11 +37,13 @@ import com.example.naedafront.ui.theme.Surface
 // ─────────────────────────────────────────────
 
 data class AccountItem(
-    val id: String,
-    val bankName: String,
-    val accountType: String,
-    val accountNumber: String,
+    val id: String,           // account_id
+    val bankCode: String,     // bank_code (SSAFY 은행코드)
+    val bankName: String,     // bank_name
+    val accountName: String,  // account_name (SSAFY 계좌명 = 자산 별칭)
+    val accountNumber: String,// account_no
     val isPrimary: Boolean = false,
+    // UI 전용 (서버에서 bankCode 기반으로 결정)
     val bankColor: Color,
     val bankInitials: String
 )
@@ -51,8 +51,9 @@ data class AccountItem(
 val sampleAccounts = listOf(
     AccountItem(
         id = "1",
+        bankCode = "004",
         bankName = "KB국민은행",
-        accountType = "국민은행 통장",
+        accountName = "생활비 통장",
         accountNumber = "123-45-67890",
         isPrimary = true,
         bankColor = Color(0xFFFFB800),
@@ -60,24 +61,27 @@ val sampleAccounts = listOf(
     ),
     AccountItem(
         id = "2",
+        bankCode = "088",
         bankName = "신한은행",
-        accountType = "입출금통장",
+        accountName = "신한 카드",
         accountNumber = "987-65-43210",
         bankColor = Color(0xFF0046FF),
         bankInitials = "SH"
     ),
     AccountItem(
         id = "3",
+        bankCode = "090",
         bankName = "카카오뱅크",
-        accountType = "입출금통장",
+        accountName = "입출금통장",
         accountNumber = "3333-01-23456",
         bankColor = Color(0xFFFFE400),
         bankInitials = "KA"
     ),
     AccountItem(
         id = "4",
+        bankCode = "092",
         bankName = "토스뱅크",
-        accountType = "토스뱅크 통장",
+        accountName = "토스뱅크 통장",
         accountNumber = "1000-432-1234",
         bankColor = Color(0xFF0064FF),
         bankInitials = "TO"
@@ -378,7 +382,7 @@ private fun AccountListItem(
                 }
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "${account.accountType} · ${account.accountNumber}",
+                    text = "${account.accountName} · ${account.accountNumber}",
                     style = NaedaTypography.labelMedium,
                     color = OnSurfaceVariant,
                     maxLines = 1,
@@ -550,7 +554,7 @@ private fun AccountDeleteDialog(
                             .weight(1f)
                             .height(48.dp),
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Outline),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Outline),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = OnSurfaceVariant
                         )
