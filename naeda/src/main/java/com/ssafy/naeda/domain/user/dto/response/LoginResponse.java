@@ -30,6 +30,12 @@ public class LoginResponse {
     @Schema(description = "Refresh Token")
     private String refreshToken;
 
+    @Schema(description = "페이스페이 등록 완료 여부", example = "false")
+    private boolean faceRegistered;
+
+    @Schema(description = "PIN 2차 인증 사용 여부", example = "false")
+    private boolean secondaryAuthEnabled;
+
     public static LoginResponse of(User user, String accessToken, String refreshToken){
         return LoginResponse.builder()
                 .userNo(user.getUserNo())
@@ -38,6 +44,8 @@ public class LoginResponse {
                 .userKey(user.getUserKey())
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
+                .faceRegistered(Boolean.TRUE.equals(user.getFaceRegistered()))
+                .secondaryAuthEnabled(Boolean.TRUE.equals(user.getSecondaryAuthEnabled()))
                 .build();
     }
 }

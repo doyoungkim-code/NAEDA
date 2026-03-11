@@ -10,8 +10,8 @@ data class BackendConnectionStatus(
 )
 
 private interface BackendStatusService {
-    @GET(".")
-    suspend fun getBackendBanner(): Response<ResponseBody>
+    @GET("api-docs")
+    suspend fun getBackendStatus(): Response<ResponseBody>
 }
 
 object BackendStatusRepository {
@@ -19,12 +19,11 @@ object BackendStatusRepository {
 
     suspend fun fetchStatus(): BackendConnectionStatus {
         return runCatching {
-            val response = service.getBackendBanner()
-            val message = response.body()?.string()?.trim().orEmpty()
-            if (response.isSuccessful && message.isNotEmpty()) {
+            val response = service.getBackendStatus()
+            if (response.isSuccessful) {
                 BackendConnectionStatus(
                     isConnected = true,
-                    message = message
+                    message = "배포 서버와 정상 연결되었습니다."
                 )
             } else {
                 BackendConnectionStatus(

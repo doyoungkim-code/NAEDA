@@ -231,7 +231,11 @@ fun SignUpRrnScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             Button(
+<<<<<<< HEAD
                 onClick = { handleConfirm() },
+=======
+                onClick = { onConfirmClick("$frontNumber$backNumber") },
+>>>>>>> dev_front
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),

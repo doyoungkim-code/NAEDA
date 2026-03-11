@@ -1,4 +1,4 @@
-package com.ssafy.naeda.domain.payment.entity;
+package com.ssafy.naeda.domain.fds.entity;
 
 public enum FdsAction {
     NONE,

@@ -11,6 +11,8 @@ import com.ssafy.naeda.domain.rba.dto.AuthLevel;
 import com.ssafy.naeda.domain.rba.dto.AuthMethod;
 import com.ssafy.naeda.domain.rba.dto.RbaResult;
 import com.ssafy.naeda.domain.rba.service.RbaEngine;
+import com.ssafy.naeda.domain.user.entity.User;
+import com.ssafy.naeda.domain.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,6 +52,9 @@ class FaceServiceTest {
     @Mock
     private FaceInputValidator faceInputValidator;
 
+    @Mock
+    private UserRepository userRepository;
+
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(faceService, "matchThreshold", 0.7f);
@@ -59,6 +65,8 @@ class FaceServiceTest {
     @DisplayName("search: similarity가 0.70 이상이면 MATCH와 PASS를 반환한다")
     void search_match() {
         given(aiClient.extractEmbedding(any())).willReturn(aiResult(unit(1f, 0f)));
+        given(userRepository.findByUserId("user-match")).willReturn(Optional.of(User.builder().userNo(11L).build()));
+        given(userRepository.findByUserId("user-other")).willReturn(Optional.of(User.builder().userNo(22L).build()));
         given(rbaEngine.evaluate(anyLong(), any(), anyDouble())).willReturn(
                 RbaResult.builder()
                         .authLevel(AuthLevel.FACE_ONLY)
@@ -91,6 +99,8 @@ class FaceServiceTest {
     @DisplayName("search: similarity가 0.65 이상 0.70 미만이면 AMBIGUOUS를 반환한다")
     void search_ambiguous() {
         given(aiClient.extractEmbedding(any())).willReturn(aiResult(unit(1f, 0f)));
+        given(userRepository.findByUserId("user-ambiguous")).willReturn(Optional.of(User.builder().userNo(33L).build()));
+        given(userRepository.findByUserId("user-low")).willReturn(Optional.of(User.builder().userNo(44L).build()));
         given(rbaEngine.evaluate(anyLong(), any(), anyDouble())).willReturn(
                 RbaResult.builder()
                         .authLevel(AuthLevel.FACE_PHONE)
@@ -120,6 +130,7 @@ class FaceServiceTest {
     @DisplayName("search: similarity가 0.65 미만이면 NO_MATCH와 RETRY_CAPTURE를 반환한다")
     void search_noMatch() {
         given(aiClient.extractEmbedding(any())).willReturn(aiResult(unit(1f, 0f)));
+        given(userRepository.findByUserId("user-low")).willReturn(Optional.of(User.builder().userNo(44L).build()));
         given(rbaEngine.evaluate(anyLong(), any(), anyDouble())).willReturn(
                 RbaResult.builder()
                         .authLevel(AuthLevel.BLOCKED)

@@ -102,6 +102,44 @@
 }
 ```
 
+**케이스 4 — FDS 차단 (`fdsAction: "BLOCK"`)**
+
+> FDS 이상 점수 80 이상 → 결제 차단, Payment(BLOCKED) 저장
+
+```json
+{
+  "requestId": "req-abc-123",
+  "paymentId": 44,
+  "status": "BLOCKED",
+  "nextAction": "BLOCK",
+  "storeId": 1,
+  "amount": 150000,
+  "similarity": 0.95,
+  "fdsScore": 91,
+  "fdsAction": "BLOCK",
+  "failureReason": "FDS 이상거래 탐지: BLOCK"
+}
+```
+
+**케이스 5 — FDS 일시정지 (`fdsAction: "PAUSE"`)**
+
+> FDS 이상 점수 60~79 → 결제 일시정지, 사용자 확인 요청
+
+```json
+{
+  "requestId": "req-abc-123",
+  "paymentId": 45,
+  "status": "PAUSED",
+  "nextAction": "PAUSE",
+  "storeId": 1,
+  "amount": 80000,
+  "similarity": 0.92,
+  "fdsScore": 66,
+  "fdsAction": "PAUSE",
+  "failureReason": "FDS 이상거래 탐지: PAUSE"
+}
+```
+
 ### Response 필드 설명
 
 | 필드 | 타입 | 설명 |
@@ -112,13 +150,16 @@
 | amount | Long | 결제 금액 |
 | authMethod | String | 인증 방식 (`FACE_PAY` / `PIN_FALLBACK`) |
 | authLevel | String | RBA 인증 레벨 (`FACE_ONLY` / `FACE_PHONE` / `FACE_SIGNATURE` / `BLOCKED`) |
-| status | String | 결제 상태 (`SUCCESS` / `FAILED` / `BLOCKED`) |
+| status | String | 결제 상태 (`SUCCESS` / `FAILED` / `BLOCKED` / `PAUSED`) |
 | earnedPoints | Integer | 적립 포인트 (결제금액 × 5%) |
 | ssafyTransactionId | String | SSAFY 거래 고유번호 (성공 시) |
 | paid | LocalDateTime | 결제 일시 |
-| nextAction | String | 다음 액션 (`PASS` / `REQUIRE_SECOND_FACTOR` / `BLOCK`) |
+| nextAction | String | 다음 액션 (`PASS` / `REQUIRE_SECOND_FACTOR` / `BLOCK` / `PAUSE`) |
 | similarity | Double | 얼굴 유사도 (0~1) |
 | rbaReason | String | RBA 판정 사유 |
+| fdsScore | Integer | FDS 이상 점수 (0~100, 성공/FDS 차단 시 포함) |
+| fdsAction | String | FDS 대응 조치 (`NONE` / `ALERT` / `PAUSE` / `BLOCK`) |
+| failureReason | String | 실패 사유 (FDS 차단/API 오류 시) |
 
 ### Error
 
@@ -243,11 +284,15 @@
 5. REQUIRE_SECOND_FACTOR (similarity 0.65~0.69 또는 고액)
    → Payment(FAILED) 저장, nextAction="REQUIRE_SECOND_FACTOR" 반환
 6. PASS (similarity >= 0.70)
-   → SSAFY createCreditCardTransaction 호출
-      Body: cardNo, cvc, merchantId(=storeId), paymentBalance(=amount)
-   → Payment(SUCCESS) 저장, earnedPoints = amount × 5%
-   → PointService.earnPoints() 포인트 적립
-   → nextAction="PASS" 반환
+   → FDS 룰 평가 (심야/빈도/금액 이상 3개 룰)
+   → BLOCK(80~100점): Payment(BLOCKED) 저장, 결제 차단
+   → PAUSE(60~79점): Payment 저장, 결제 일시정지 + 사용자 확인 요청
+   → NONE/ALERT(0~59점): 정상 진행
+      → SSAFY 계좌이체 API 호출
+      → Payment(SUCCESS) 저장, earnedPoints = amount × 5%
+      → FDS 로그 저장 (점수, 발동 룰, 대응 조치)
+      → PointService.earnPoints() 포인트 적립
+      → nextAction="PASS" 반환
 ```
 
 ## AuthLevel 상세

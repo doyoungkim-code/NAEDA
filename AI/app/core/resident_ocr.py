@@ -1,7 +1,8 @@
-import re
+﻿import re
 import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
@@ -17,7 +18,8 @@ DOCUMENT_KEYWORDS = {
     "RESIDENT_ID": ("주민등록증",),
     "DRIVER_LICENSE": ("운전면허", "운전면허증"),
 }
-NON_NAME_TOKENS = (
+NAME_LABELS = ("성명", "이름")
+NAME_BLACKLIST_FRAGMENTS = (
     "주민등록증",
     "운전면허",
     "운전면허증",
@@ -27,6 +29,27 @@ NON_NAME_TOKENS = (
     "경찰청",
     "면허",
     "번호",
+    "특별시",
+    "광역시",
+    "자치시",
+    "자치도",
+    "경기도",
+    "강원도",
+    "충청",
+    "전라",
+    "경상",
+    "제주",
+    "대한민국",
+    "발급",
+    "주소",
+    "현주소",
+    "시장",
+    "청장",
+    "구청장",
+)
+RESIDENT_NUMBER_PATTERNS = (
+    r"(\d{6})\s*[-]?\s*([1-4])[\d\*xX●•Oo]{6}",
+    r"(\d{6})\s*[-]?\s*([1-4])",
 )
 
 
@@ -39,6 +62,22 @@ def _normalize_digits(value: str, expected_length: int) -> str:
     if len(digits) != expected_length:
         raise AIServiceError(status_code=400, code="OCR_EXTRACTION_FAILED", message="Resident ID fields not extracted")
     return digits
+
+
+def _clean_name_candidate(value: str) -> str:
+    return _normalize_name(re.sub(r"[^가-힣\s]", " ", value or ""))
+
+
+def _is_plausible_name_token(value: str) -> bool:
+    return bool(re.fullmatch(r"[가-힣]{1,5}", value)) and not any(
+        fragment in value for fragment in NAME_BLACKLIST_FRAGMENTS
+    )
+
+
+def _is_plausible_name(value: str) -> bool:
+    return bool(re.fullmatch(r"[가-힣]{2,5}", value)) and not any(
+        fragment in value for fragment in NAME_BLACKLIST_FRAGMENTS
+    )
 
 
 def _decode_image(image_raw: bytes) -> np.ndarray:
@@ -88,10 +127,59 @@ def _get_paddle_ocr():
         ) from exc
 
 
-def _flatten_ocr_result(result) -> list[tuple[str, float]]:
-    flattened: list[tuple[str, float]] = []
+def _box_metrics(raw_box: Any) -> dict[str, float]:
+    if not isinstance(raw_box, (list, tuple)):
+        return {
+            "left": 0.0,
+            "right": 0.0,
+            "top": 0.0,
+            "bottom": 0.0,
+            "center_x": 0.0,
+            "center_y": 0.0,
+            "height": 0.0,
+        }
+
+    xs: list[float] = []
+    ys: list[float] = []
+    for point in raw_box:
+        if not isinstance(point, (list, tuple)) or len(point) < 2:
+            continue
+        try:
+            xs.append(float(point[0]))
+            ys.append(float(point[1]))
+        except (TypeError, ValueError):
+            continue
+
+    if not xs or not ys:
+        return {
+            "left": 0.0,
+            "right": 0.0,
+            "top": 0.0,
+            "bottom": 0.0,
+            "center_x": 0.0,
+            "center_y": 0.0,
+            "height": 0.0,
+        }
+
+    left = min(xs)
+    right = max(xs)
+    top = min(ys)
+    bottom = max(ys)
+    return {
+        "left": left,
+        "right": right,
+        "top": top,
+        "bottom": bottom,
+        "center_x": (left + right) / 2.0,
+        "center_y": (top + bottom) / 2.0,
+        "height": bottom - top,
+    }
+
+
+def _flatten_ocr_entries(result) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
     if not result:
-        return flattened
+        return entries
 
     for block in result:
         if not block:
@@ -101,9 +189,19 @@ def _flatten_ocr_result(result) -> list[tuple[str, float]]:
                 continue
             text = str(line[1][0] or "").strip()
             confidence = float(line[1][1] or 0.0)
-            if text:
-                flattened.append((text, confidence))
-    return flattened
+            if not text:
+                continue
+            metrics = _box_metrics(line[0] if len(line) > 0 else None)
+            entries.append(
+                {
+                    "text": text,
+                    "confidence": confidence,
+                    **metrics,
+                }
+            )
+
+    entries.sort(key=lambda entry: (round(entry["top"] / 10.0), entry["left"]))
+    return entries
 
 
 def _detect_document_type(texts: list[str]) -> str | None:
@@ -116,31 +214,85 @@ def _detect_document_type(texts: list[str]) -> str | None:
 
 def _extract_resident_number(texts: list[str]) -> tuple[str, str]:
     joined = " ".join(texts)
-    patterns = [
-        r"(\d{6})\s*[-]?\s*([1-4])[\d\*xX●•Oo]{6}",
-        r"(\d{6})\s*[-]?\s*([1-4])",
-    ]
-    for pattern in patterns:
+    for pattern in RESIDENT_NUMBER_PATTERNS:
         match = re.search(pattern, joined)
         if match:
             return match.group(1), match.group(2)
     raise AIServiceError(status_code=400, code="OCR_EXTRACTION_FAILED", message="Resident number not extracted")
 
 
-def _extract_name(texts: list[str]) -> str:
-    for text in texts:
-        match = re.search(r"(?:성명|이름)\s*[:：]?\s*([가-힣]{2,5})", text)
-        if match:
-            return _normalize_name(match.group(1))
+def _contains_resident_number(text: str) -> bool:
+    return any(re.search(pattern, text or "") for pattern in RESIDENT_NUMBER_PATTERNS)
 
-    for text in texts:
-        normalized = _normalize_name(text)
-        if not normalized:
+
+def _collect_name_from_entries(entries: list[dict[str, Any]]) -> str | None:
+    tokens: list[str] = []
+    for entry in entries:
+        cleaned = _clean_name_candidate(entry["text"])
+        if not cleaned or not _is_plausible_name_token(cleaned):
             continue
-        if any(token in normalized for token in NON_NAME_TOKENS):
+        tokens.append(cleaned)
+
+    if not tokens:
+        return None
+
+    joined = "".join(tokens)
+    if _is_plausible_name(joined):
+        return joined
+
+    for token in tokens:
+        if _is_plausible_name(token):
+            return token
+
+    return None
+
+
+def _extract_name(entries: list[dict[str, Any]]) -> str:
+    for index, entry in enumerate(entries):
+        text = entry["text"]
+        direct_match = re.search(r"(?:성명|이름)\s*[:：]?\s*([가-힣\s]{2,10})", text)
+        if direct_match:
+            candidate = _clean_name_candidate(direct_match.group(1))
+            if _is_plausible_name(candidate):
+                return candidate
+
+        if not any(label in text for label in NAME_LABELS):
             continue
-        if re.fullmatch(r"[가-힣]{2,5}", normalized):
-            return normalized
+
+        same_row_candidates = [
+            other
+            for other in entries[index + 1 :]
+            if abs(other["center_y"] - entry["center_y"]) <= max(18.0, entry["height"] * 1.4)
+            and other["left"] >= entry["right"] - 12.0
+            and not _contains_resident_number(other["text"])
+        ]
+        candidate = _collect_name_from_entries(same_row_candidates[:3])
+        if candidate:
+            return candidate
+
+        trailing_candidates = [
+            other
+            for other in entries[index + 1 : index + 5]
+            if not _contains_resident_number(other["text"])
+        ]
+        candidate = _collect_name_from_entries(trailing_candidates)
+        if candidate:
+            return candidate
+
+    resident_number_index = next(
+        (index for index, entry in enumerate(entries) if _contains_resident_number(entry["text"])),
+        None,
+    )
+    if resident_number_index is not None:
+        candidate = _collect_name_from_entries(entries[max(0, resident_number_index - 4) : resident_number_index])
+        if candidate:
+            return candidate
+
+    for window_size in (1, 2, 3):
+        for start in range(0, max(0, len(entries) - window_size + 1)):
+            candidate = _collect_name_from_entries(entries[start : start + window_size])
+            if candidate:
+                return candidate
 
     raise AIServiceError(status_code=400, code="OCR_EXTRACTION_FAILED", message="Name not extracted")
 
@@ -157,20 +309,20 @@ def _extract_with_paddle_provider(image_raw: bytes) -> dict:
     except Exception as exc:
         raise AIServiceError(status_code=503, code="OCR_UNAVAILABLE", message="PaddleOCR inference failed") from exc
 
-    lines = _flatten_ocr_result(result)
-    if not lines:
+    entries = _flatten_ocr_entries(result)
+    if not entries:
         raise AIServiceError(status_code=400, code="OCR_EXTRACTION_FAILED", message="No text detected")
 
-    texts = [text for text, _ in lines]
+    texts = [entry["text"] for entry in entries]
     document_type = _detect_document_type(texts)
     if document_type not in SUPPORTED_DOCUMENT_TYPES:
         raise AIServiceError(status_code=400, code="OCR_EXTRACTION_FAILED", message="Unsupported id card type")
 
     resident_front6, resident_back_first1 = _extract_resident_number(texts)
-    name = _extract_name(texts)
+    name = _extract_name(entries)
     confidence = min(
         1.0,
-        max(settings.resident_ocr_min_confidence, sum(score for _, score in lines) / len(lines)),
+        max(settings.resident_ocr_min_confidence, sum(entry["confidence"] for entry in entries) / len(entries)),
     )
 
     return {

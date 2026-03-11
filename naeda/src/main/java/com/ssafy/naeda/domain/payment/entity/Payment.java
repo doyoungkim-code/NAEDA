@@ -1,5 +1,6 @@
 package com.ssafy.naeda.domain.payment.entity;
 
+import com.ssafy.naeda.domain.fds.entity.FdsAction;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
