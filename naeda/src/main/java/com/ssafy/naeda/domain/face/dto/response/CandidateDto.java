@@ -10,6 +10,8 @@ import lombok.Getter;
 public class CandidateDto {
     @Schema(description = "후보 사용자 ID", example = "user-1001")
     private String userId;
+    @Schema(description = "후보 사용자 번호", example = "1")
+    private Long userNo;
     @Schema(description = "후보 포즈", example = "left")
     private String pose;
     @Schema(description = "후보 유사도", example = "0.88")

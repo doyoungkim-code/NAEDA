@@ -19,7 +19,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "BACKEND_BASE_URL", "\"https://j14d103.p.ssafy.io/\"")
+        buildConfigField("String", "BACKEND_BASE_URL", "\"http://j14d103.p.ssafy.io:8080/\"")
         buildConfigField("String", "AI_BASE_URL", "\"http://j14d103.p.ssafy.io:8000/\"")
     }
 
@@ -57,6 +57,8 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.retrofit2:converter-scalars:2.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("com.google.mlkit:face-detection:16.1.0")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

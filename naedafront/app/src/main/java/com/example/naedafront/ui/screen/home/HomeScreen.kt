@@ -2,6 +2,7 @@ package com.example.naedafront.ui.screen.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -17,12 +18,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.naedafront.ui.theme.*
+import kotlinx.coroutines.delay
 
 // ────────────────────────────────────────
 // 데이터 모델 (임시 — 나중에 data/model 로 이동)
@@ -82,7 +85,8 @@ fun HomeScreen(
     onViewAllTransactionsClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onAlarmClick: () -> Unit = {},
-    onProfileClick: () -> Unit = {}
+    onProfileClick: () -> Unit = {},
+    onSecretFaceMatchTestClick: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -103,7 +107,8 @@ fun HomeScreen(
             // 인사말
             GreetingSection(
                 userName = uiState.userName,
-                greeting = uiState.greeting
+                greeting = uiState.greeting,
+                onSecretFaceMatchTestClick = onSecretFaceMatchTestClick
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -214,9 +219,38 @@ private fun NaedaHomeTopBar(
 // ────────────────────────────────────────
 
 @Composable
-private fun GreetingSection(userName: String, greeting: String) {
+private fun GreetingSection(
+    userName: String,
+    greeting: String,
+    onSecretFaceMatchTestClick: () -> Unit
+) {
+    var holding by remember { mutableStateOf(false) }
+
+    LaunchedEffect(holding) {
+        if (holding) {
+            delay(3000)
+            if (holding) {
+                holding = false
+                onSecretFaceMatchTestClick()
+            }
+        }
+    }
+
     Column(
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+        modifier = Modifier
+            .padding(horizontal = 20.dp, vertical = 4.dp)
+            .pointerInput(onSecretFaceMatchTestClick) {
+                detectTapGestures(
+                    onPress = {
+                        holding = true
+                        try {
+                            tryAwaitRelease()
+                        } finally {
+                            holding = false
+                        }
+                    }
+                )
+            }
     ) {
         Text(
             text = "하이콩, ${userName}님",

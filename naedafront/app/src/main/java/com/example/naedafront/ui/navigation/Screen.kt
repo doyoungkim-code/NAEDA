@@ -33,6 +33,8 @@ sealed class Screen(val route: String) {
 
     // ── 스캔 탭 하위 ──
     object FaceRegister : Screen("face_register")
+    object FaceMatchRecognize : Screen("face_match_recognize")
+    object FaceMatchResult : Screen("face_match_result")
     object FaceIntro : Screen("face_intro")
     object FaceGuide : Screen("face_guide")
     object FaceCapture : Screen("face_capture")

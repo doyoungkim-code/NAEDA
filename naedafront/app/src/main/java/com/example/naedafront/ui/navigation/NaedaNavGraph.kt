@@ -24,6 +24,8 @@ import com.example.naedafront.ui.screen.signup.SignUpPasswordScreen
 import com.example.naedafront.ui.screen.signup.SignUpPinScreen
 import com.example.naedafront.ui.screen.home.HomeScreen
 import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
+import com.example.naedafront.ui.screen.facepay.FaceMatchRecognizeScreen
+import com.example.naedafront.ui.screen.facepay.FaceMatchResultScreen
 import com.example.naedafront.ui.screen.home.HomeUiState
 
 /**
@@ -153,7 +155,8 @@ fun NaedaNavGraph(
                 onViewAllTransactionsClick = { navController.navigate(Screen.Transaction.route) },
                 onSearchClick = { /* TODO */ },
                 onAlarmClick = { navController.navigate(Screen.Notification.route) },
-                onProfileClick = { navController.navigate(Screen.Settings.route) }
+                onProfileClick = { navController.navigate(Screen.Settings.route) },
+                onSecretFaceMatchTestClick = { navController.navigate(Screen.FaceMatchRecognize.route) }
             )
         }
 
@@ -186,6 +189,19 @@ fun NaedaNavGraph(
                         popUpTo(Screen.Home.route) { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable(Screen.FaceMatchRecognize.route) {
+            FaceMatchRecognizeScreen(
+                onBack = { navController.popBackStack() },
+                onShowResult = { navController.navigate(Screen.FaceMatchResult.route) }
+            )
+        }
+
+        composable(Screen.FaceMatchResult.route) {
+            FaceMatchResultScreen(
+                onBack = { navController.popBackStack() }
             )
         }
 
