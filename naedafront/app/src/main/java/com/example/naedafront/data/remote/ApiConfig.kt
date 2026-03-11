@@ -23,7 +23,7 @@ object ApiConfig {
         appContext = context.applicationContext
     }
 
-    private val okHttpClient = OkHttpClient.Builder()
+    private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(10, TimeUnit.SECONDS)
         .writeTimeout(10, TimeUnit.SECONDS)
@@ -37,7 +37,7 @@ object ApiConfig {
 
     val retrofit: Retrofit = Retrofit.Builder()
         .baseUrl(BuildConfig.BACKEND_BASE_URL)
-        .client(okHttpClient)
+        .client(client)
         .addConverterFactory(ScalarsConverterFactory.create())
         .addConverterFactory(GsonConverterFactory.create())
         .build()
