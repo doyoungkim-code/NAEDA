@@ -1,12 +1,32 @@
 package com.example.naedafront.ui.screen
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -18,7 +38,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.naedafront.BuildConfig
+import com.example.naedafront.data.remote.BackendConnectionStatus
+import com.example.naedafront.data.remote.BackendStatusRepository
 import com.example.naedafront.ui.theme.Mint900
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun WelcomeScreen(
@@ -27,6 +52,20 @@ fun WelcomeScreen(
 ) {
     val primaryContainer = MaterialTheme.colorScheme.primaryContainer
     val surface = MaterialTheme.colorScheme.surface
+    var connectionStatus by remember {
+        mutableStateOf(
+            BackendConnectionStatus(
+                isConnected = false,
+                message = "배포 서버 연결 확인 중..."
+            )
+        )
+    }
+
+    LaunchedEffect(Unit) {
+        connectionStatus = withContext(Dispatchers.IO) {
+            BackendStatusRepository.fetchStatus()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -50,7 +89,6 @@ fun WelcomeScreen(
         ) {
             Spacer(modifier = Modifier.height(80.dp))
 
-            // ── 타이틀 텍스트 ──
             Text(
                 text = "내다를 시작하려면\n본인인증을 해주세요",
                 fontSize = 26.sp,
@@ -63,7 +101,6 @@ fun WelcomeScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // ── 서브 텍스트 ──
             Text(
                 text = "신속하고 안전한 금융 서비스를 시작합니다.",
                 fontSize = 14.sp,
@@ -74,7 +111,6 @@ fun WelcomeScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // ── 로고 카드 ──
             Box(
                 modifier = Modifier
                     .size(160.dp)
@@ -87,20 +123,15 @@ fun WelcomeScreen(
                     .background(MaterialTheme.colorScheme.surface),
                 contentAlignment = Alignment.Center
             ) {
-                // 방법 1: 벡터 드로어블 사용 시
-                // Image(
-                //     painter = painterResource(id = R.drawable.ic_naeda_logo),
-                //     contentDescription = "내다 로고",
-                //     modifier = Modifier.size(100.dp)
-                // )
-
-                // 방법 2: 임시 텍스트 로고 (드로어블 준비 전)
                 NaedaLogoPlaceholder()
             }
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // ── 시작하기 버튼 ──
+            ConnectionStatusCard(connectionStatus = connectionStatus)
+
+            Spacer(modifier = Modifier.height(20.dp))
+
             Button(
                 onClick = onStartClick,
                 modifier = Modifier
@@ -124,7 +155,6 @@ fun WelcomeScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // ── 로그인 링크 ──
             Row(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
@@ -148,11 +178,48 @@ fun WelcomeScreen(
     }
 }
 
-/**
- * 로고 드로어블 준비 전 임시 플레이스홀더
- * 실제 로고 이미지(ic_naeda_logo)가 준비되면
- * 위 로고 카드 섹션의 Image() 주석을 해제하고 이 함수를 제거
- */
+@Composable
+private fun ConnectionStatusCard(connectionStatus: BackendConnectionStatus) {
+    val borderColor = if (connectionStatus.isConnected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+    } else {
+        MaterialTheme.colorScheme.error.copy(alpha = 0.3f)
+    }
+    val containerColor = if (connectionStatus.isConnected) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+    } else {
+        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f)
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = containerColor,
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = if (connectionStatus.isConnected) "배포 서버 연결됨" else "배포 서버 확인 필요",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = BuildConfig.BACKEND_BASE_URL,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = connectionStatus.message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
 @Composable
 private fun NaedaLogoPlaceholder() {
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -161,14 +228,12 @@ private fun NaedaLogoPlaceholder() {
     Canvas(modifier = Modifier.size(100.dp)) {
         val cornerRadius = 20.dp.toPx()
 
-        // 민트색 둥근 사각형 테두리
         drawRoundRect(
             color = primaryColor,
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadius),
             style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx())
         )
 
-        // 왼쪽 눈
         drawCircle(
             color = onSurface,
             radius = 5.dp.toPx(),
@@ -178,7 +243,6 @@ private fun NaedaLogoPlaceholder() {
             )
         )
 
-        // 오른쪽 눈
         drawCircle(
             color = onSurface,
             radius = 5.dp.toPx(),
@@ -188,7 +252,6 @@ private fun NaedaLogoPlaceholder() {
             )
         )
 
-        // 미소 (반원 아크)
         drawArc(
             color = onSurface,
             startAngle = 10f,
