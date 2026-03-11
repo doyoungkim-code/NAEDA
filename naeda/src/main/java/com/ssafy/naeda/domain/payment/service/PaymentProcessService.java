@@ -27,6 +27,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -160,6 +162,15 @@ public class PaymentProcessService {
         }
 
         // 9. 출금/입금 계좌 번호 조회
+        if (paymentMethod.getAccountId() == null) {
+            failRequest(requestId, "결제 수단에 계좌가 연결되지 않았습니다.");
+            throw new BadRequestException("결제 수단에 계좌가 연결되지 않았습니다.");
+        }
+        if (store.getAccountId() == null) {
+            failRequest(requestId, "매장에 입금 계좌가 설정되지 않았습니다.");
+            throw new BadRequestException("매장에 입금 계좌가 설정되지 않았습니다.");
+        }
+
         Account withdrawalAccount = accountRepository.findById(paymentMethod.getAccountId())
                 .orElseThrow(() -> {
                     failRequest(requestId, "출금 계좌를 찾을 수 없습니다.");
@@ -187,23 +198,25 @@ public class PaymentProcessService {
             transferResponse = ssafyApiClient.post(TRANSFER_API, transferBody);
         } catch (Exception e) {
             failRequest(requestId, "SSAFY API 오류: " + e.getMessage());
-            log.error("SSAFY 이체 실패: requestId={}", requestId, e);
+            log.error("SSAFY 이체 실패: requestId={}, error={}", requestId, e.getMessage(), e);
             return ProcessPaymentResponse.builder()
                     .requestId(requestId)
                     .status("FAILED")
                     .storeId(data.getStoreId())
                     .amount(data.getAmount())
-                    .failureReason("SSAFY API 오류: " + e.getMessage())
+                    .failureReason("결제 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
                     .build();
         }
 
-        // 11. 거래 ID 추출 + 중복 방지
+        // 11. 거래 ID 추출 + 중복 감지 (이체 이미 완료 — throw 금지, 로그 경고만)
         List<Map<String, Object>> recList = (List<Map<String, Object>>) transferResponse.get("REC");
         String ssafyTransactionId = extractWithdrawalTransactionNo(recList);
 
         if (ssafyTransactionId != null && paymentRepository.existsBySsafyTransactionId(ssafyTransactionId)) {
-            failRequest(requestId, "이미 처리된 결제입니다.");
-            throw new BadRequestException("이미 처리된 결제입니다: " + ssafyTransactionId);
+            log.error("중복 거래 ID 감지 (이체 이미 완료됨, 정상 처리 속행): requestId={}, txnId={}", requestId, ssafyTransactionId);
+        }
+        if (ssafyTransactionId == null) {
+            log.warn("SSAFY 거래 ID를 추출할 수 없음: requestId={}", requestId);
         }
 
         // 12. 포인트 계산 + Payment 저장
@@ -242,21 +255,33 @@ public class PaymentProcessService {
                 .ssafyTransactionId(ssafyTransactionId)
                 .build());
 
-        // 14. 포인트 적립
+        // 14. 포인트 적립 (실패해도 결제는 유지 — SSAFY 이체 이미 완료)
         if (earnedPoints > 0) {
-            pointService.earnPoints(user.getUserNo(), PointEarnRequest.builder()
-                    .amount((long) earnedPoints)
-                    .description(store.getStoreName() + " 페이스페이 결제")
-                    .paymentId(payment.getPaymentId())
-                    .build());
+            try {
+                pointService.earnPoints(user.getUserNo(), PointEarnRequest.builder()
+                        .amount((long) earnedPoints)
+                        .description(store.getStoreName() + " 페이스페이 결제")
+                        .paymentId(payment.getPaymentId())
+                        .build());
+            } catch (Exception e) {
+                log.error("포인트 적립 실패 (결제는 정상 처리됨): requestId={}, userNo={}", requestId, user.getUserNo(), e);
+                earnedPoints = 0;
+            }
         }
 
-        // 15. Redis 상태 업데이트: SUCCESS
-        redisService.updateResult(requestId, user.getUserNo(), "PASS", payment.getPaymentId(), null);
-        redisService.updateStatus(requestId, PaymentRequestStatus.SUCCESS);
-
-        log.info("결제 성공: requestId={}, paymentId={}, amount={}, points={}",
-                requestId, payment.getPaymentId(), data.getAmount(), earnedPoints);
+        // 15. Redis 상태 업데이트: DB 커밋 성공 후에만 SUCCESS로 변경
+        final int finalEarnedPoints = earnedPoints;
+        final Long finalPaymentId = payment.getPaymentId();
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    updateRedisSuccess(requestId, user.getUserNo(), finalPaymentId, data.getAmount(), finalEarnedPoints);
+                }
+            });
+        } else {
+            updateRedisSuccess(requestId, user.getUserNo(), finalPaymentId, data.getAmount(), finalEarnedPoints);
+        }
 
         return ProcessPaymentResponse.builder()
                 .requestId(requestId)
@@ -272,6 +297,17 @@ public class PaymentProcessService {
     }
 
     // ── 내부 헬퍼 ──────────────────────────────────────────────────────────
+
+    private void updateRedisSuccess(String requestId, Long userNo, Long paymentId, Long amount, int earnedPoints) {
+        try {
+            redisService.updateResult(requestId, userNo, "PASS", paymentId, null);
+            redisService.updateStatus(requestId, PaymentRequestStatus.SUCCESS);
+            log.info("결제 성공: requestId={}, paymentId={}, amount={}, points={}",
+                    requestId, paymentId, amount, earnedPoints);
+        } catch (Exception e) {
+            log.error("Redis 상태 업데이트 실패 (DB 커밋은 완료됨): requestId={}", requestId, e);
+        }
+    }
 
     private void failRequest(String requestId, String reason) {
         try {

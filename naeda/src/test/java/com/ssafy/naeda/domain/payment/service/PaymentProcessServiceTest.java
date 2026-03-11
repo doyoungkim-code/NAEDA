@@ -9,6 +9,7 @@ import com.ssafy.naeda.domain.payment.dto.response.ProcessPaymentResponse;
 import com.ssafy.naeda.domain.payment.entity.*;
 import com.ssafy.naeda.domain.payment.repository.PaymentMethodRepository;
 import com.ssafy.naeda.domain.payment.repository.PaymentRepository;
+import com.ssafy.naeda.domain.point.dto.request.PointEarnRequest;
 import com.ssafy.naeda.domain.point.service.PointService;
 import com.ssafy.naeda.domain.rba.dto.AuthLevel;
 import com.ssafy.naeda.domain.store.entity.Store;
@@ -20,12 +21,14 @@ import com.ssafy.naeda.global.exception.BadRequestException;
 import com.ssafy.naeda.global.exception.NotFoundException;
 import com.ssafy.naeda.global.ssafy.SsafyApiClient;
 import com.ssafy.naeda.global.ssafy.SsafyHeaderFactory;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -63,6 +66,11 @@ class PaymentProcessServiceTest {
     private static final Long USER_NO = 10L;
     private static final String USER_ID = "user-1001";
     private static final String USER_KEY = "test-user-key";
+
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(service, "pointRate", 0.05);
+    }
 
     // ── 성공 ──────────────────────────────────────────────────────────────
 
@@ -126,9 +134,11 @@ class PaymentProcessServiceTest {
         assertThat(response.getRequestId()).isEqualTo(REQUEST_ID);
         assertThat(response.getStoreId()).isEqualTo(STORE_ID);
         assertThat(response.getAmount()).isEqualTo(AMOUNT);
+        assertThat(response.getEarnedPoints()).isEqualTo(750); // 15000 * 0.05
         verify(redisService).tryAcquireProcessingLock(REQUEST_ID);
         verify(redisService).updateStatus(REQUEST_ID, PaymentRequestStatus.PROCESSING);
         verify(redisService).updateStatus(REQUEST_ID, PaymentRequestStatus.SUCCESS);
+        verify(pointService).earnPoints(eq(USER_NO), any(PointEarnRequest.class));
     }
 
     // ── 요청 만료/미존재 ──────────────────────────────────────────────────
@@ -377,14 +387,14 @@ class PaymentProcessServiceTest {
         ProcessPaymentResponse response = service.processPayment(REQUEST_ID, faceImage);
 
         assertThat(response.getStatus()).isEqualTo("FAILED");
-        assertThat(response.getFailureReason()).contains("SSAFY API 오류");
+        assertThat(response.getFailureReason()).contains("결제 처리 중 오류가 발생했습니다");
     }
 
     // ── 중복 거래 ─────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("결제 처리 실패 - 이미 처리된 거래 ID이면 BadRequestException")
-    void processPayment_duplicateTransaction() {
+    @DisplayName("결제 처리 - 중복 거래 ID가 감지돼도 이체 이미 완료이므로 정상 처리")
+    void processPayment_duplicateTransaction_stillSucceeds() {
         MultipartFile faceImage = mock(MultipartFile.class);
 
         PaymentRequestData data = PaymentRequestData.builder()
@@ -422,9 +432,20 @@ class PaymentProcessServiceTest {
                 .willReturn(Map.of("REC", List.of(transferRec)));
         given(paymentRepository.existsBySsafyTransactionId("TXN-DUP")).willReturn(true);
 
-        assertThatThrownBy(() -> service.processPayment(REQUEST_ID, faceImage))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("이미 처리된 결제입니다");
+        Map<String, Object> balanceRec = Map.of("accountBalance", "85000");
+        given(ssafyApiClient.post(eq("/edu/demandDeposit/inquireDemandDepositAccountBalance"), any()))
+                .willReturn(Map.of("REC", balanceRec));
+
+        Payment savedPayment = Payment.builder().paymentId(50L).userNo(USER_NO)
+                .storeId(STORE_ID).paymentMethodId(1L).amount(AMOUNT)
+                .authMethod(AuthMethod.FACE_PAY).authLevel(com.ssafy.naeda.domain.payment.entity.AuthLevel.FACE_ONLY)
+                .build();
+        given(paymentRepository.save(any(Payment.class))).willReturn(savedPayment);
+
+        ProcessPaymentResponse response = service.processPayment(REQUEST_ID, faceImage);
+
+        assertThat(response.getStatus()).isEqualTo("SUCCESS");
+        verify(paymentRepository).save(any(Payment.class));
     }
 
     // ── 동시 요청 (분산 락) ─────────────────────────────────────────────────
