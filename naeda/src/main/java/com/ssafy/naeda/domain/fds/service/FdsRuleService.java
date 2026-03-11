@@ -6,6 +6,7 @@ import com.ssafy.naeda.domain.fds.entity.FdsAction;
 import com.ssafy.naeda.domain.fds.entity.FdsLog;
 import com.ssafy.naeda.domain.fds.repository.FdsLogRepository;
 import com.ssafy.naeda.domain.fds.rule.FdsRule;
+import com.ssafy.naeda.global.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -50,6 +51,17 @@ public class FdsRuleService {
                 request.getUserNo(), paymentId, totalScore, action, triggeredRules);
 
         return new FdsEvaluationResult(totalScore, triggeredRules, action);
+    }
+
+    @Transactional(readOnly = true)
+    public List<FdsLog> getLogsByUserNo(Long userNo) {
+        return fdsLogRepository.findByUserNo(userNo);
+    }
+
+    @Transactional(readOnly = true)
+    public FdsLog getLogByPaymentId(Long paymentId) {
+        return fdsLogRepository.findByPaymentId(paymentId)
+                .orElseThrow(() -> new NotFoundException("해당 결제의 FDS 로그가 없습니다: " + paymentId));
     }
 
     private FdsAction determineAction(int score) {
