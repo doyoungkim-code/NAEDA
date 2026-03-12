@@ -110,6 +110,7 @@ import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -138,6 +139,10 @@ private val faceCaptureSequence = listOf(
     FaceCaptureSpec("up", "위", "고개를 위로 들어주세요", "up", FaceCaptureDirection.UP),
     FaceCaptureSpec("down", "아래", "고개를 아래로 내려주세요", "down", FaceCaptureDirection.DOWN)
 )
+
+private const val ID_CARD_HOLD_DURATION_MS = 2000L
+private const val ID_CARD_REQUEST_INTERVAL_MS = 650L
+private const val ID_CARD_ALLOWED_MISSES = 1
 
 private sealed class RegisterStage {
     object PermissionRequest : RegisterStage()
@@ -898,15 +903,52 @@ private fun FaceCaptureOverlay(
 @Composable
 private fun IdCardScanningStageContent(
     onExtracted: (ResidentIdExtractResponseDto) -> Unit,
-    onError: (String) -> Unit
+    onError: (String?) -> Unit
 ) {
     val scope = rememberCoroutineScope()
     var statusMessage by remember { mutableStateOf("신분증을 가이드 안에 맞춰주세요.") }
     var holdProgress by remember { mutableFloatStateOf(0f) }
     var requestInFlight by remember { mutableStateOf(false) }
     val lastRequestAt = remember { AtomicLong(0L) }
-    val validDetectedAt = remember { AtomicLong(0L) }
+    var holdStartedAt by remember { mutableStateOf(0L) }
+    var consecutiveRecoverableMisses by remember { mutableStateOf(0) }
     var latestExtract by remember { mutableStateOf<ResidentIdExtractResponseDto?>(null) }
+
+    fun resetRecognition(message: String = "신분증을 가이드 안에 맞춰주세요.") {
+        holdStartedAt = 0L
+        holdProgress = 0f
+        consecutiveRecoverableMisses = 0
+        latestExtract = null
+        statusMessage = message
+    }
+
+    LaunchedEffect(holdStartedAt, latestExtract) {
+        if (holdStartedAt == 0L || latestExtract == null) {
+            holdProgress = 0f
+            return@LaunchedEffect
+        }
+
+        while (holdStartedAt != 0L && latestExtract != null) {
+            val progress = ((System.currentTimeMillis() - holdStartedAt).toFloat() / ID_CARD_HOLD_DURATION_MS)
+                .coerceIn(0f, 1f)
+            holdProgress = progress
+            statusMessage = if (progress < 1f) {
+                "신분증 정보를 읽는 중입니다. 흔들리지 않게 유지해 주세요."
+            } else {
+                "신분증 인식이 완료되었습니다."
+            }
+            onError(null)
+
+            if (progress >= 1f) {
+                val extracted = latestExtract
+                resetRecognition("신분증 인식이 완료되었습니다.")
+                extracted?.let(onExtracted)
+                break
+            }
+
+            delay(50L)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -914,7 +956,7 @@ private fun IdCardScanningStageContent(
             .background(Color(0xFF0E1717))
     ) {
         Text(
-            text = "신분증을 3초 동안 유지해 주세요",
+            text = "신분증을 2초 동안 유지해 주세요",
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = 22.sp,
@@ -950,7 +992,7 @@ private fun IdCardScanningStageContent(
                 }
 
                 val now = System.currentTimeMillis()
-                if (now - lastRequestAt.get() < 1000L) {
+                if (now - lastRequestAt.get() < ID_CARD_REQUEST_INTERVAL_MS) {
                     imageProxy.close()
                     return@DocumentCaptureCameraCard
                 }
@@ -968,17 +1010,16 @@ private fun IdCardScanningStageContent(
                 }
 
                 requestInFlight = true
-                scope.launch(Dispatchers.IO) {
-                    runCatching {
-                        FaceRegistrationRepository.extractResidentId(jpegBytes)
-                    }.onSuccess { extracted ->
-                        requestInFlight = false
+                scope.launch {
+                    val result = withContext(Dispatchers.IO) {
+                        runCatching { FaceRegistrationRepository.extractResidentId(jpegBytes) }
+                    }
+                    requestInFlight = false
+
+                    result.onSuccess { extracted ->
                         val provider = extracted.provider?.trim()?.lowercase()
                         if (provider == "mock") {
-                            validDetectedAt.set(0L)
-                            holdProgress = 0f
-                            latestExtract = null
-                            statusMessage = "실제 OCR 서버가 아니라 mock 응답을 받았습니다."
+                            resetRecognition("실제 OCR 서버가 아니라 mock 응답을 받았습니다.")
                             onError("서버 OCR이 mock 모드입니다. AI 설정을 확인해 주세요.")
                             return@onSuccess
                         }
@@ -989,35 +1030,37 @@ private fun IdCardScanningStageContent(
                             extracted.residentBackFirst1?.length == 1
 
                         if (!isValid) {
-                            validDetectedAt.set(0L)
-                            holdProgress = 0f
-                            latestExtract = null
-                            statusMessage = "신분증이 선명하게 보이도록 다시 맞춰주세요."
+                            if (holdStartedAt != 0L && consecutiveRecoverableMisses < ID_CARD_ALLOWED_MISSES) {
+                                consecutiveRecoverableMisses += 1
+                                statusMessage = "신분증 정보를 다시 맞추는 중입니다. 그대로 유지해 주세요."
+                                onError(null)
+                            } else {
+                                resetRecognition()
+                                onError(null)
+                            }
                             return@onSuccess
                         }
 
                         latestExtract = extracted
-                        if (validDetectedAt.get() == 0L) {
-                            validDetectedAt.set(System.currentTimeMillis())
+                        consecutiveRecoverableMisses = 0
+                        if (holdStartedAt == 0L) {
+                            holdStartedAt = System.currentTimeMillis()
                         }
-                        val elapsed = System.currentTimeMillis() - validDetectedAt.get()
-                        holdProgress = (elapsed / 3000f).coerceIn(0f, 1f)
-                        statusMessage = if (elapsed < 3000L) {
-                            "신분증 정보를 읽는 중입니다. 흔들리지 않게 유지해 주세요."
-                        } else {
-                            "신분증 인식이 완료되었습니다."
+                        statusMessage = "신분증 정보를 읽는 중입니다. 흔들리지 않게 유지해 주세요."
+                        onError(null)
+                    }.onFailure { throwable ->
+                        if (throwable is ApiRequestException && throwable.statusCode == 400) {
+                            if (holdStartedAt != 0L && consecutiveRecoverableMisses < ID_CARD_ALLOWED_MISSES) {
+                                consecutiveRecoverableMisses += 1
+                                statusMessage = "신분증 정보를 다시 맞추는 중입니다. 그대로 유지해 주세요."
+                            } else {
+                                resetRecognition()
+                            }
+                            onError(null)
+                            return@onFailure
                         }
 
-                        if (elapsed >= 3000L) {
-                            validDetectedAt.set(0L)
-                            holdProgress = 0f
-                            latestExtract?.let(onExtracted)
-                        }
-                    }.onFailure { throwable ->
-                        requestInFlight = false
-                        validDetectedAt.set(0L)
-                        holdProgress = 0f
-                        latestExtract = null
+                        resetRecognition()
                         onError(throwable.message ?: "신분증 OCR 추출에 실패했습니다.")
                     }
                 }
@@ -1026,7 +1069,7 @@ private fun IdCardScanningStageContent(
                 IdCaptureOverlay(
                     holdProgress = holdProgress,
                     isExtracting = requestInFlight,
-                    isRecognizing = requestInFlight || holdProgress > 0f
+                    isRecognizing = requestInFlight || holdStartedAt != 0L || holdProgress > 0f
                 )
             }
         )
@@ -1976,4 +2019,6 @@ private fun yuv420888ToNv21(image: ImageProxy): ByteArray {
 
     return nv21
 }
+
+
 
