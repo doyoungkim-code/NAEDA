@@ -19,7 +19,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "BACKEND_BASE_URL", "\"http://j14d103.p.ssafy.io:8080/\"")
+        buildConfigField("String", "BACKEND_BASE_URL", "\"https://j14d103.p.ssafy.io/\"")
         buildConfigField("String", "AI_BASE_URL", "\"http://j14d103.p.ssafy.io:8000/\"")
     }
 
