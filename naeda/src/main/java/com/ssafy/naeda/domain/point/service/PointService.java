@@ -11,7 +11,6 @@ import com.ssafy.naeda.domain.point.repository.PointHistoryRepository;
 import com.ssafy.naeda.domain.point.repository.PointWalletRepository;
 import com.ssafy.naeda.global.exception.DuplicateException;
 import com.ssafy.naeda.global.exception.NotFoundException;
-import java.util.Comparator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -95,10 +94,9 @@ public class PointService {
         PointWallet wallet = pointWalletRepository.findByUserNo(userNo)
                 .orElseThrow(() -> new NotFoundException("포인트 지갑이 존재하지 않습니다. userNo: " + userNo));
 
-        return pointHistoryRepository.findByWalletIdOrderByCreated(wallet.getWalletId())
+        return pointHistoryRepository.findByWalletIdOrderByCreatedDesc(wallet.getWalletId())
                 .stream()
                 .map(PointHistoryResponse::from)
-                .sorted(Comparator.comparing(PointHistoryResponse::getCreated).reversed())
                 .toList();
     }
 }

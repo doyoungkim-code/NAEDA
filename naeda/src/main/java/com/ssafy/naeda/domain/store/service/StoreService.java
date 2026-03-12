@@ -10,6 +10,7 @@ import com.ssafy.naeda.global.exception.NotFoundException;
 import com.ssafy.naeda.global.ssafy.SsafyApiClient;
 import com.ssafy.naeda.global.ssafy.SsafyHeaderFactory;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +19,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -137,11 +139,12 @@ public class StoreService {
         );
     }
 
-    private static Long parseLong(String value) {
+    private Long parseLong(String value) {
         if (value == null || value.isBlank()) return null;
         try {
             return Long.parseLong(value);
         } catch (NumberFormatException e) {
+            log.warn("[StoreService] merchantId 파싱 실패: value={}", value);
             return null;
         }
     }

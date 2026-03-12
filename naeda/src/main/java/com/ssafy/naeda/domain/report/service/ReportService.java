@@ -5,6 +5,7 @@ import com.ssafy.naeda.domain.report.dto.response.ReportResponse;
 import com.ssafy.naeda.domain.report.entity.ConsumptionReport;
 import com.ssafy.naeda.domain.report.entity.PeriodType;
 import com.ssafy.naeda.domain.report.repository.ConsumptionReportRepository;
+import com.ssafy.naeda.domain.user.repository.UserRepository;
 import com.ssafy.naeda.global.exception.NotFoundException;
 import java.util.Comparator;
 import lombok.RequiredArgsConstructor;
@@ -19,10 +20,14 @@ import java.util.List;
 public class ReportService {
 
     private final ConsumptionReportRepository consumptionReportRepository;
+    private final UserRepository userRepository;
 
     // AI 서버에서 생성한 리포트 저장
     @Transactional
     public ReportResponse saveReport(ReportSaveRequest request) {
+        userRepository.findById(request.getUserNo())
+                .orElseThrow(() -> new NotFoundException("존재하지 않는 사용자입니다."));
+
         ConsumptionReport report = ConsumptionReport.builder()
                 .userNo(request.getUserNo())
                 .periodType(request.getPeriodType())

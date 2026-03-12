@@ -6,6 +6,8 @@ import com.ssafy.naeda.domain.report.entity.ConsumptionReport;
 import com.ssafy.naeda.domain.report.entity.LocalGrade;
 import com.ssafy.naeda.domain.report.entity.PeriodType;
 import com.ssafy.naeda.domain.report.repository.ConsumptionReportRepository;
+import com.ssafy.naeda.domain.user.entity.User;
+import com.ssafy.naeda.domain.user.repository.UserRepository;
 import com.ssafy.naeda.global.exception.NotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,6 +20,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -32,6 +35,9 @@ class ReportServiceTest {
 
     @Mock
     private ConsumptionReportRepository consumptionReportRepository;
+
+    @Mock
+    private UserRepository userRepository;
 
     private ConsumptionReport createReport(PeriodType periodType,
                                            LocalDate start, LocalDate end,
@@ -71,6 +77,10 @@ class ReportServiceTest {
                 LocalDate.of(2026, 2, 1), LocalDate.of(2026, 2, 28),
                 380000L, LocalDateTime.of(2026, 3, 1, 10, 0));
 
+        User stubUser = User.builder().userNo(1L).userId("test@test.com").password("pw")
+                .username("테스터").residentNo("9901011").phone("010-0000-0000")
+                .institutionCode("M220516185630").userKey("key").build();
+        given(userRepository.findById(1L)).willReturn(Optional.of(stubUser));
         given(consumptionReportRepository.save(any(ConsumptionReport.class))).willReturn(saved);
 
         ReportResponse response = reportService.saveReport(request);
@@ -129,6 +139,29 @@ class ReportServiceTest {
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getTotalSpending()).isEqualTo(500000L);
         assertThat(result.get(1).getTotalSpending()).isEqualTo(400000L);
+    }
+
+    @Test
+    @DisplayName("리포트 저장 실패 - 존재하지 않는 사용자")
+    void saveReport_userNotFound() {
+        given(userRepository.findById(999L)).willReturn(Optional.empty());
+
+        ReportSaveRequest request = ReportSaveRequest.builder()
+                .userNo(999L)
+                .periodType(PeriodType.MONTHLY)
+                .periodStart(LocalDate.of(2026, 2, 1))
+                .periodEnd(LocalDate.of(2026, 2, 28))
+                .categoryBreakdown(Map.of("식비", 300000L))
+                .totalSpending(300000L)
+                .localSpending(200000L)
+                .localRatio(0.65f)
+                .localGrade(LocalGrade.B)
+                .insights(List.of("테스트"))
+                .build();
+
+        assertThatThrownBy(() -> reportService.saveReport(request))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("존재하지 않는 사용자입니다");
     }
 
     @Test

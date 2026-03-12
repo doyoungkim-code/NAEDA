@@ -72,6 +72,7 @@ public class AuthService {
                 .residentNo(request.getResidentNo())
                 .phone(request.getPhone())
                 .institutionCode(request.getInstitutionCode())
+                .pinPassword(passwordEncoder.encode(request.getPin()))
                 .build();
 
         User saved = userRepository.save(user);

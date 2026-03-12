@@ -52,7 +52,7 @@ public class SsafyApiClient {
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
 
-        log.debug("[SsafyApiClient] POST {} | body={}", url, body);
+        log.debug("[SsafyApiClient] POST {}", url);
 
         try {
             ResponseEntity<Map> responseEntity = restTemplate.exchange(
@@ -62,7 +62,7 @@ public class SsafyApiClient {
             Map<String, Object> response = responseEntity.getBody();
             validateResponse(response, url);
 
-            log.debug("[SsafyApiClient] 응답 성공 {} | response={}", url, response);
+            log.debug("[SsafyApiClient] 응답 성공 {}", url);
             return response;
 
         } catch (SsafyApiException e) {

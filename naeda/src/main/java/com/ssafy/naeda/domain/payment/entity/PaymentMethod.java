@@ -43,12 +43,24 @@ public class PaymentMethod {
     @Builder.Default
     private Boolean isFacePay = false;
 
+    @Column(name = "is_active", nullable = false)
+    @Builder.Default
+    private Boolean isActive = true;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime created;
 
+    public void deactivate() {
+        this.isActive = false;
+    }
+
     public void setAsFacePay() {
         this.isDefault = true;
         this.isFacePay = true;
+    }
+
+    public void clearFacePay() {
+        this.isFacePay = false;
     }
 }

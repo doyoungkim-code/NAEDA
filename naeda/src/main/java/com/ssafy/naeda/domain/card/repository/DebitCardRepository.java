@@ -8,12 +8,11 @@ import java.util.Optional;
 
 public interface DebitCardRepository extends JpaRepository<DebitCard, Long> {
 
-    // 사용자의 체크카드 전체 조회
-    List<DebitCard> findByUserNo(Long userNo);
-
-    // 카드번호로 단건 조회
-    Optional<DebitCard> findByCardNo(String cardNo);
+    // 카드번호로 활성 카드 단건 조회
+    Optional<DebitCard> findByCardNoAndIsActiveTrue(String cardNo);
 
     // 중복 체크
     boolean existsByCardNo(String cardNo);
+
+    List<DebitCard> findByUserNoAndIsActiveTrue(Long userNo);
 }

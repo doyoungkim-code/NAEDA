@@ -18,6 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.lang.reflect.Field;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -149,10 +150,20 @@ class StoreControllerTest {
 
     // ── POST /api/stores ─────────────────────────────────────────────────
 
+    private void setField(Object target, String fieldName, Object value) throws Exception {
+        Field field = target.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(target, value);
+    }
+
     @Test
     @DisplayName("매장 등록 - 201 Created와 등록된 매장 정보를 반환한다")
     void createStore_returns201() throws Exception {
         StoreCreateRequest request = new StoreCreateRequest();
+        setField(request, "categoryId", "CG-4fa85f6425ad1d3");
+        setField(request, "storeName", "코스트코");
+        setField(request, "userNo", 10L);
+        setField(request, "accountId", 1L);
 
         given(storeService.createStore(any(StoreCreateRequest.class))).willReturn(
                 StoreResponse.builder()

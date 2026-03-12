@@ -1,6 +1,7 @@
 package com.ssafy.naeda.global.exception;
 
 import com.ssafy.naeda.domain.face.exception.FaceException;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -97,6 +98,27 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("INSUFFICIENT_BALANCE", e.getMessage()));
     }
 
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolationException(ConstraintViolationException e) {
+        log.warn("Constraint violation: {}", e.getMessage());
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("VALIDATION_ERROR", "입력값이 올바르지 않습니다."));
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalStateException(IllegalStateException e) {
+        log.warn("Illegal state: {}", e.getMessage());
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("ILLEGAL_STATE", e.getMessage()));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException e) {
+        log.warn("Illegal argument: {}", e.getMessage());
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("ILLEGAL_ARGUMENT", e.getMessage()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(Exception e) {
         log.error("Unexpected error", e);
@@ -109,5 +131,12 @@ public class GlobalExceptionHandler {
         log.warn("Authentication failed: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(new ErrorResponse("AUTHENTICATION_FAILED",e.getMessage()));
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ErrorResponse> handleBadRequestException(BadRequestException e) {
+        log.warn("Bad request: {}", e.getMessage());
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("BAD_REQUEST", e.getMessage()));
     }
 }
