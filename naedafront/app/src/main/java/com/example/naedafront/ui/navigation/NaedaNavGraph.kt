@@ -30,6 +30,8 @@ import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchRecognizeScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchResultScreen
 import com.example.naedafront.ui.screen.home.HomeUiState
+import com.example.naedafront.ui.screen.asset.AccountDetailScreen
+import com.example.naedafront.ui.screen.asset.sampleAccounts
 
 /**
  * 내다(NAEDA) 전체 네비게이션 그래프
@@ -272,9 +274,13 @@ fun NaedaNavGraph(
             arguments = listOf(navArgument("accountId") { type = NavType.StringType })
         ) { backStackEntry ->
             val accountId = backStackEntry.arguments?.getString("accountId") ?: ""
-            PlaceholderScreen("계좌 상세: $accountId")
+            val account = sampleAccounts.find { it.id == accountId } ?: sampleAccounts.first()
+            AccountDetailScreen(
+                account = account,
+                onBack = { navController.popBackStack() },
+                onTransferClick = { navController.navigate(Screen.Transfer.route) }
+            )
         }
-
         composable(Screen.Transfer.route) { PlaceholderScreen("이체") }
         composable(Screen.Transaction.route) { PlaceholderScreen("거래내역") }
         composable(Screen.Report.route) { PlaceholderScreen("📊 소비 리포트") }
