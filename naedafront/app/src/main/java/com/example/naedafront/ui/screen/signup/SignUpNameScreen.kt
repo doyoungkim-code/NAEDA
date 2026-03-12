@@ -40,15 +40,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+
 import com.example.naedafront.ui.theme.Mint900
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpNameScreen(
+    signUpViewModel: SignUpViewModel,
     onBackClick: () -> Unit = {},
     onConfirmClick: () -> Unit = {},
-    signUpViewModel: SignUpViewModel = viewModel()
 ) {
     var name by remember { mutableStateOf("") }
     var showInvalidNameDialog by remember { mutableStateOf(false) }
@@ -205,6 +205,8 @@ fun SignUpNameScreen(
 @Composable
 private fun SignUpNameScreenPreview() {
     MaterialTheme {
-        SignUpNameScreen()
+        SignUpNameScreen(
+            signUpViewModel = SignUpViewModel()
+        )
     }
 }

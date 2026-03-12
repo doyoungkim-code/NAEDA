@@ -37,16 +37,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.naedafront.ui.common.SignUpProgressBar
 import com.example.naedafront.ui.theme.Mint900
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpPhoneScreen(
+    signUpViewModel: SignUpViewModel,
     onBackClick: () -> Unit = {},
     onConfirmClick: () -> Unit = {},
-    signUpViewModel: SignUpViewModel = viewModel()
+
 ) {
     var phoneDigits by remember { mutableStateOf("") }
 
@@ -255,6 +255,8 @@ fun NumberKeypad(
 @Composable
 private fun SignUpPhoneScreenPreview() {
     MaterialTheme {
-        SignUpPhoneScreen()
+        SignUpPhoneScreen(
+            signUpViewModel = SignUpViewModel()
+        )
     }
 }

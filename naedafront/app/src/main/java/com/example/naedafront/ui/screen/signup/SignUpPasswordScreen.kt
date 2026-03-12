@@ -41,16 +41,16 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.naedafront.ui.common.SignUpProgressBar
 import com.example.naedafront.ui.theme.Mint900
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpPasswordScreen(
+    signUpViewModel: SignUpViewModel,
     onBackClick: () -> Unit = {},
     onConfirmClick: () -> Unit = {},
-    signUpViewModel: SignUpViewModel = viewModel()
+
 ) {
     var password by remember { mutableStateOf("") }
     var showInvalidPasswordDialog by remember { mutableStateOf(false) }
@@ -219,6 +219,8 @@ fun SignUpPasswordScreen(
 @Composable
 private fun SignUpPasswordScreenPreview() {
     MaterialTheme {
-        SignUpPasswordScreen()
+        SignUpPasswordScreen(
+            signUpViewModel = SignUpViewModel()
+        )
     }
 }

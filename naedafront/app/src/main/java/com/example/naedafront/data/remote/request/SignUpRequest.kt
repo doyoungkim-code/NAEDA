@@ -1,4 +1,4 @@
-package com.example.naedafront.data.model.request
+package com.example.naedafront.data.remote.request
 
 data class SignUpRequest(
     val userId: String,

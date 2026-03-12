@@ -39,16 +39,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+
 import com.example.naedafront.ui.common.SignUpProgressBar
 import com.example.naedafront.ui.theme.Mint900
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpRrnScreen(
+    signUpViewModel: SignUpViewModel,
     onBackClick: () -> Unit = {},
     onConfirmClick: () -> Unit = {},
-    signUpViewModel: SignUpViewModel = viewModel()
+
 ) {
     var frontNumber by remember { mutableStateOf("") }
     var backNumber by remember { mutableStateOf("") }
@@ -281,6 +282,8 @@ fun SignUpRrnScreen(
 @Composable
 private fun SignUpRrnScreenPreview() {
     MaterialTheme {
-        SignUpRrnScreen()
+        SignUpRrnScreen(
+            signUpViewModel = SignUpViewModel()
+        )
     }
 }

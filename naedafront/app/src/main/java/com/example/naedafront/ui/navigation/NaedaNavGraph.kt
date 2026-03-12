@@ -8,6 +8,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -15,16 +16,17 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.ui.screen.WelcomeScreen
-import com.example.naedafront.ui.screen.signup.SignUpNameScreen
-import com.example.naedafront.ui.screen.signup.SignUpRrnScreen
-import com.example.naedafront.ui.screen.signup.SignUpPhoneScreen
-import com.example.naedafront.ui.screen.signup.SignUpVerifyScreen
-import com.example.naedafront.ui.screen.signup.SignUpEmailScreen
-import com.example.naedafront.ui.screen.signup.SignUpPasswordScreen
-import com.example.naedafront.ui.screen.signup.SignUpPinScreen
-import com.example.naedafront.ui.screen.home.HomeScreen
 import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
+import com.example.naedafront.ui.screen.home.HomeScreen
 import com.example.naedafront.ui.screen.home.HomeUiState
+import com.example.naedafront.ui.screen.signup.SignUpEmailScreen
+import com.example.naedafront.ui.screen.signup.SignUpNameScreen
+import com.example.naedafront.ui.screen.signup.SignUpPasswordScreen
+import com.example.naedafront.ui.screen.signup.SignUpPhoneScreen
+import com.example.naedafront.ui.screen.signup.SignUpPinScreen
+import com.example.naedafront.ui.screen.signup.SignUpRrnScreen
+import com.example.naedafront.ui.screen.signup.SignUpVerifyScreen
+import com.example.naedafront.ui.screen.signup.SignUpViewModel
 
 /**
  * 내다(NAEDA) 전체 네비게이션 그래프
@@ -40,6 +42,9 @@ fun NaedaNavGraph(
 ) {
     val context = LocalContext.current
 
+    // 회원가입 플로우 전체에서 공유할 ViewModel
+    val signUpViewModel: SignUpViewModel = viewModel()
+
     NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -50,7 +55,7 @@ fun NaedaNavGraph(
 
         composable(Screen.Welcome.route) {
             WelcomeScreen(
-                onStartClick = { navController.navigate(Screen.SignUpGraph.route) },
+                onStartClick = { navController.navigate(Screen.SignUp.route) },
                 onLoginClick = { navController.navigate(Screen.Login.route) }
             )
         }
@@ -59,9 +64,10 @@ fun NaedaNavGraph(
             PlaceholderScreen("로그인")
         }
 
-// 1/8 이름
+        // 1/7 이름
         composable(Screen.SignUp.route) {
             SignUpNameScreen(
+                signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
                 onConfirmClick = {
                     navController.navigate(Screen.SignUpRrn.route)
@@ -69,9 +75,10 @@ fun NaedaNavGraph(
             )
         }
 
-// 2/8 주민번호
+        // 2/7 주민번호
         composable(Screen.SignUpRrn.route) {
             SignUpRrnScreen(
+                signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
                 onConfirmClick = {
                     navController.navigate(Screen.SignUpPhone.route)
@@ -79,34 +86,45 @@ fun NaedaNavGraph(
             )
         }
 
-// 3/8 휴대폰
+        // 3/7 휴대폰
         composable(Screen.SignUpPhone.route) {
             SignUpPhoneScreen(
+                signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
                 onConfirmClick = {
                     navController.navigate(Screen.SignUpVerify.route)
                 }
             )
         }
-// 4/8 인증번호
+
+        // 4/7 인증번호
         composable(
             route = Screen.SignUpVerify.route,
-            arguments = listOf(navArgument("phone") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("phone") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = ""
+                }
+            )
         ) { backStackEntry ->
             val phone = backStackEntry.arguments?.getString("phone") ?: ""
+
             SignUpVerifyScreen(
+                signUpViewModel = signUpViewModel,
                 phoneNumber = phone,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { code ->
+                onConfirmClick = {
                     navController.navigate(Screen.SignUpEmail.route)
                 },
                 onResendClick = { }
             )
         }
 
-// 5/8 이메일
+        // 5/7 이메일
         composable(Screen.SignUpEmail.route) {
             SignUpEmailScreen(
+                signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
                 onConfirmClick = {
                     navController.navigate(Screen.SignUpPassword.route)
@@ -114,9 +132,10 @@ fun NaedaNavGraph(
             )
         }
 
-// 6/8 비밀번호
+        // 6/7 비밀번호
         composable(Screen.SignUpPassword.route) {
             SignUpPasswordScreen(
+                signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
                 onConfirmClick = {
                     navController.navigate(Screen.SignUpPin.route)
@@ -124,14 +143,16 @@ fun NaedaNavGraph(
             )
         }
 
-// 7/8 PIN
+        // 7/7 PIN
         composable(Screen.SignUpPin.route) {
             SignUpPinScreen(
+                signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
                 onConfirmClick = {
                     AuthPrefs.setLoggedIn(context, true)
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Welcome.route) { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             )
@@ -143,11 +164,13 @@ fun NaedaNavGraph(
 
         composable(Screen.Home.route) {
             HomeScreen(
-                uiState = HomeUiState(isFaceRegistered = AuthPrefs.isFaceRegistered(context)),
+                uiState = HomeUiState(
+                    isFaceRegistered = AuthPrefs.isFaceRegistered(context)
+                ),
                 onTransferClick = { navController.navigate(Screen.Transfer.route) },
                 onTransactionClick = { navController.navigate(Screen.Transaction.route) },
                 onFacePaySettingClick = { navController.navigate(Screen.FaceRegister.route) },
-                onLinkAccountClick = { /* TODO: 계좌 연결 화면 */ },
+                onLinkAccountClick = { /* TODO */ },
                 onViewAllTransactionsClick = { navController.navigate(Screen.Transaction.route) },
                 onSearchClick = { /* TODO */ },
                 onAlarmClick = { navController.navigate(Screen.Notification.route) },
@@ -182,6 +205,7 @@ fun NaedaNavGraph(
                     AuthPrefs.setFaceRegistered(context, true)
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Home.route) { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             )
@@ -213,7 +237,9 @@ fun NaedaNavGraph(
 
         composable(
             route = Screen.StoreDetail.route,
-            arguments = listOf(navArgument("storeId") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("storeId") { type = NavType.StringType }
+            )
         ) { backStackEntry ->
             val storeId = backStackEntry.arguments?.getString("storeId") ?: ""
             PlaceholderScreen("매장 상세: $storeId")
@@ -225,7 +251,9 @@ fun NaedaNavGraph(
 
         composable(
             route = Screen.AccountDetail.route,
-            arguments = listOf(navArgument("accountId") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("accountId") { type = NavType.StringType }
+            )
         ) { backStackEntry ->
             val accountId = backStackEntry.arguments?.getString("accountId") ?: ""
             PlaceholderScreen("계좌 상세: $accountId")

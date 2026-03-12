@@ -50,6 +50,7 @@ import kotlin.random.Random
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpVerifyScreen(
+    signUpViewModel: SignUpViewModel,
     phoneNumber: String = "010-1234-5678",
     onBackClick: () -> Unit = {},
     onConfirmClick: (String) -> Unit = {},
@@ -313,6 +314,8 @@ private fun generateVerificationCode(): String {
 @Composable
 private fun SignUpVerifyScreenPreview() {
     MaterialTheme {
-        SignUpVerifyScreen()
+        SignUpVerifyScreen(
+            signUpViewModel = SignUpViewModel()
+        )
     }
 }

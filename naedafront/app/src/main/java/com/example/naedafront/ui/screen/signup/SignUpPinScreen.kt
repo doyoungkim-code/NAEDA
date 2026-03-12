@@ -37,7 +37,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.naedafront.ui.common.SignUpProgressBar
 import kotlinx.coroutines.delay
 
@@ -49,9 +48,9 @@ private val PinError = Color(0xFFF2522E)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpPinScreen(
+    signUpViewModel: SignUpViewModel,
     onBackClick: () -> Unit = {},
     onConfirmClick: () -> Unit = {},
-    signUpViewModel: SignUpViewModel = viewModel()
 ) {
     var firstPin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
@@ -81,6 +80,7 @@ fun SignUpPinScreen(
             if (newPin.length == 6) {
                 if (newPin == firstPin) {
                     signUpViewModel.updatePin(firstPin)
+                    signUpViewModel.submitSignUp()
                     onConfirmClick()
                 } else {
                     hasError = true
@@ -237,6 +237,8 @@ fun SignUpPinScreen(
 @Composable
 private fun SignUpPinScreenPreview() {
     MaterialTheme {
-        SignUpPinScreen()
+        SignUpPinScreen(
+            signUpViewModel = SignUpViewModel()
+        )
     }
 }
