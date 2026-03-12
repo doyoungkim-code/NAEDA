@@ -132,8 +132,8 @@ private val faceCaptureSequence = listOf(
     FaceCaptureSpec("front1", "정면 1", "정면을 바라봐 주세요", "front", FaceCaptureDirection.FRONT),
     FaceCaptureSpec("front2", "정면 2", "정면을 유지해 주세요", "front", FaceCaptureDirection.FRONT),
     FaceCaptureSpec("front3", "정면 3", "정면을 한 번 더 유지해 주세요", "front", FaceCaptureDirection.FRONT),
-    FaceCaptureSpec("left", "왼쪽", "고개를 왼쪽으로 돌려주세요", "left", FaceCaptureDirection.LEFT),
-    FaceCaptureSpec("right", "오른쪽", "고개를 오른쪽으로 돌려주세요", "right", FaceCaptureDirection.RIGHT),
+    FaceCaptureSpec("left", "오른쪽", "고개를 오른쪽으로 돌려주세요", "left", FaceCaptureDirection.LEFT),
+    FaceCaptureSpec("right", "왼쪽", "고개를 왼쪽으로 돌려주세요", "right", FaceCaptureDirection.RIGHT),
     FaceCaptureSpec("up", "위", "고개를 위로 들어주세요", "up", FaceCaptureDirection.UP),
     FaceCaptureSpec("down", "아래", "고개를 아래로 내려주세요", "down", FaceCaptureDirection.DOWN)
 )

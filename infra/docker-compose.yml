@@ -59,6 +59,11 @@ services:
     environment:
       TZ: Asia/Seoul
       AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN}
+      INTERNAL_SERVICE_TOKEN: ${AI_SERVICE_TOKEN}
+      RESIDENT_OCR_PROVIDER: ${RESIDENT_OCR_PROVIDER:-mock}
+      RESIDENT_OCR_PADDLE_HOME: /app/.paddle
+    volumes:
+      - ../AI/.paddle:/app/.paddle
     ports:
       - "${AI_PORT}:8000"
     networks:

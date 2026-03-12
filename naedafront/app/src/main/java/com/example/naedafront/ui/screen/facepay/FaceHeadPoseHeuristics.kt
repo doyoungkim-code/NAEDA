@@ -47,13 +47,13 @@ internal fun matchesFaceCaptureDirection(
         FaceCaptureDirection.UP -> {
             val yawScore = yawAbs / SIDE_YAW_MIN
             val pitchScore = pitchAbs / VERTICAL_PITCH_MIN
-            pitch <= -VERTICAL_PITCH_MIN && pitchScore > yawScore
+            pitch >= VERTICAL_PITCH_MIN && pitchScore > yawScore
         }
 
         FaceCaptureDirection.DOWN -> {
             val yawScore = yawAbs / SIDE_YAW_MIN
             val pitchScore = pitchAbs / VERTICAL_PITCH_MIN
-            pitch >= VERTICAL_PITCH_MIN && pitchScore > yawScore
+            pitch <= -VERTICAL_PITCH_MIN && pitchScore > yawScore
         }
     }
 }

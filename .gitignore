@@ -60,5 +60,9 @@ infra/.env
 
 # Docker 볼륨 데이터
 infra/postgres/data/
+AI/.paddle/
+AI/.paddleocr/
+**/.paddle/
+**/.paddleocr/
 
 .claude

@@ -19,13 +19,13 @@ class FaceHeadPoseHeuristicsTest {
 
     @Test
     fun upDirection_acceptsModeratePitchWhenPitchDominates() {
-        assertTrue(matchesFaceCaptureDirection(3f, -8f, 0f, FaceCaptureDirection.UP))
-        assertFalse(matchesFaceCaptureDirection(12f, -8f, 0f, FaceCaptureDirection.UP))
+        assertTrue(matchesFaceCaptureDirection(3f, 8f, 0f, FaceCaptureDirection.UP))
+        assertFalse(matchesFaceCaptureDirection(12f, 8f, 0f, FaceCaptureDirection.UP))
     }
 
     @Test
     fun downDirection_acceptsModeratePitchWhenPitchDominates() {
-        assertTrue(matchesFaceCaptureDirection(2f, 8f, 0f, FaceCaptureDirection.DOWN))
-        assertFalse(matchesFaceCaptureDirection(-12f, 8f, 0f, FaceCaptureDirection.DOWN))
+        assertTrue(matchesFaceCaptureDirection(2f, -8f, 0f, FaceCaptureDirection.DOWN))
+        assertFalse(matchesFaceCaptureDirection(-12f, -8f, 0f, FaceCaptureDirection.DOWN))
     }
 }
