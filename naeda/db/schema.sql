@@ -34,6 +34,7 @@ CREATE TABLE "user" (
                         institution_code  VARCHAR(50)   NOT NULL,               -- 기관코드
                         user_key          VARCHAR(255),                         -- SSAFY API 유저 키
                         face_registered   BOOLEAN       NOT NULL DEFAULT FALSE, -- 얼굴 등록 여부
+                        secondary_auth_enabled BOOLEAN   NOT NULL DEFAULT FALSE, -- PIN 2차 인증 사용 여부
                         pin_password      VARCHAR(255),                         -- 6자리 Pin 비밀번호 (BCrypt)
                         created           TIMESTAMP     NOT NULL DEFAULT NOW(),
                         modified          TIMESTAMP

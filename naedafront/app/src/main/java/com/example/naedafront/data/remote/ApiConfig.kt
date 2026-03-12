@@ -141,7 +141,9 @@ object ApiConfig {
                     username = refreshed.username,
                     userKey = refreshed.userKey,
                     accessToken = refreshed.accessToken,
-                    refreshToken = refreshed.refreshToken
+                    refreshToken = refreshed.refreshToken,
+                    faceRegistered = refreshed.faceRegistered,
+                    secondaryAuthEnabled = refreshed.secondaryAuthEnabled
                 )
                 refreshed
             }
