@@ -110,7 +110,9 @@ import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -132,11 +134,15 @@ private val faceCaptureSequence = listOf(
     FaceCaptureSpec("front1", "정면 1", "정면을 바라봐 주세요", "front", FaceCaptureDirection.FRONT),
     FaceCaptureSpec("front2", "정면 2", "정면을 유지해 주세요", "front", FaceCaptureDirection.FRONT),
     FaceCaptureSpec("front3", "정면 3", "정면을 한 번 더 유지해 주세요", "front", FaceCaptureDirection.FRONT),
-    FaceCaptureSpec("left", "오른쪽", "고개를 오른쪽으로 돌려주세요", "left", FaceCaptureDirection.LEFT),
-    FaceCaptureSpec("right", "왼쪽", "고개를 왼쪽으로 돌려주세요", "right", FaceCaptureDirection.RIGHT),
+    FaceCaptureSpec("left", "왼쪽", "고개를 왼쪽으로 돌려주세요", "left", FaceCaptureDirection.LEFT),
+    FaceCaptureSpec("right", "오른쪽", "고개를 오른쪽으로 돌려주세요", "right", FaceCaptureDirection.RIGHT),
     FaceCaptureSpec("up", "위", "고개를 위로 들어주세요", "up", FaceCaptureDirection.UP),
     FaceCaptureSpec("down", "아래", "고개를 아래로 내려주세요", "down", FaceCaptureDirection.DOWN)
 )
+
+private const val ID_CARD_HOLD_DURATION_MS = 2000L
+private const val ID_CARD_REQUEST_INTERVAL_MS = 650L
+private const val ID_CARD_ALLOWED_MISSES = 1
 
 private sealed class RegisterStage {
     object PermissionRequest : RegisterStage()
@@ -147,9 +153,7 @@ private sealed class RegisterStage {
     object IdScanning : RegisterStage()
     data class IdConfirm(val extracted: ResidentIdExtractResponseDto) : RegisterStage()
     object PinChoice : RegisterStage()
-    data class PinCreate(val currentPin: String? = null) : RegisterStage()
-    data class PinConfirm(val newPin: String, val currentPin: String? = null) : RegisterStage()
-    data class CurrentPin(val newPin: String) : RegisterStage()
+    data class CurrentPin(val resetKey: Int = 0) : RegisterStage()
     object Success : RegisterStage()
 }
 
@@ -183,7 +187,9 @@ fun FaceRegisterFlowScreen(
         mutableStateOf(if (hasCameraPermission) RegisterStage.Intro else RegisterStage.PermissionRequest)
     }
     var globalError by remember { mutableStateOf<String?>(null) }
-    var pendingCurrentPin by remember { mutableStateOf<String?>(null) }
+    var isSavingFacePaySettings by remember { mutableStateOf(false) }
+    var currentPinResetKey by remember { mutableStateOf(0) }
+    var completedSecondaryAuthEnabled by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -202,6 +208,40 @@ fun FaceRegisterFlowScreen(
         globalError = null
     }
 
+    fun saveFacePaySettings(enableSecondaryAuth: Boolean, currentPin: String?) {
+        if (isSavingFacePaySettings) {
+            return
+        }
+
+        isSavingFacePaySettings = true
+        scope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    FaceRegistrationRepository.updateFacePaySettings(
+                        enableSecondaryAuth = enableSecondaryAuth,
+                        currentPin = currentPin
+                    )
+                }
+            }
+
+            isSavingFacePaySettings = false
+            result.onSuccess { response ->
+                completedSecondaryAuthEnabled = response.secondaryAuthEnabled
+                AuthPrefs.saveFacePaySettings(
+                    context = context,
+                    faceRegistered = response.faceRegistered,
+                    secondaryAuthEnabled = response.secondaryAuthEnabled
+                )
+                currentPinResetKey = 0
+                stage = RegisterStage.Success
+            }.onFailure { throwable ->
+                if (enableSecondaryAuth) {
+                    currentPinResetKey += 1
+                }
+                globalError = throwable.message ?: "페이스페이 설정 저장에 실패했습니다."
+            }
+        }
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -317,56 +357,26 @@ fun FaceRegisterFlowScreen(
                     )
 
                     is RegisterStage.PinChoice -> PinChoiceStageContent(
-                        onUsePin = { stage = RegisterStage.PinCreate(currentPin = pendingCurrentPin) },
-                        onSkip = { stage = RegisterStage.Success }
-                    )
-
-                    is RegisterStage.PinCreate -> PinCreateStageContent(
-                        title = if (currentStage.currentPin == null) "새 PIN 번호를 설정해 주세요" else "새 PIN 번호를 다시 설정해 주세요",
-                        description = "6자리 숫자로 페이스페이 2차 인증 PIN을 설정합니다.",
-                        onPinCreated = { newPin ->
-                            stage = RegisterStage.PinConfirm(
-                                newPin = newPin,
-                                currentPin = currentStage.currentPin
-                            )
-                        }
-                    )
-
-                    is RegisterStage.PinConfirm -> PinConfirmStageContent(
-                        newPin = currentStage.newPin,
-                        onPinConfirmed = { confirmedPin ->
-                            if (confirmedPin != currentStage.newPin) {
-                                globalError = "PIN 번호가 일치하지 않습니다. 다시 입력해 주세요."
-                                return@PinConfirmStageContent
-                            }
-                            scope.launch(Dispatchers.IO) {
-                                runCatching {
-                                    FaceRegistrationRepository.updatePin(
-                                        currentPin = currentStage.currentPin,
-                                        newPin = currentStage.newPin
-                                    )
-                                }.onSuccess {
-                                    stage = RegisterStage.Success
-                                }.onFailure { throwable ->
-                                    val message = throwable.message ?: "PIN 설정에 실패했습니다."
-                                    if (message.contains("현재 PIN을 입력해주세요") || message.contains("현재 PIN")) {
-                                        stage = RegisterStage.CurrentPin(currentStage.newPin)
-                                    } else {
-                                        globalError = message
-                                    }
-                                }
-                            }
-                        }
+                        isSaving = isSavingFacePaySettings,
+                        onUsePin = {
+                            currentPinResetKey = 0
+                            stage = RegisterStage.CurrentPin(resetKey = currentPinResetKey)
+                        },
+                        onSkip = { saveFacePaySettings(enableSecondaryAuth = false, currentPin = null) }
                     )
 
                     is RegisterStage.CurrentPin -> CurrentPinStageContent(
+                        resetKey = currentPinResetKey,
+                        isSaving = isSavingFacePaySettings,
                         onCurrentPinEntered = { currentPin ->
-                            pendingCurrentPin = currentPin
-                            stage = RegisterStage.PinCreate(currentPin = currentPin)
+                            saveFacePaySettings(enableSecondaryAuth = true, currentPin = currentPin)
                         }
                     )
 
-                    is RegisterStage.Success -> SuccessStageContent(onComplete = onRegisterComplete)
+                    is RegisterStage.Success -> SuccessStageContent(
+                        secondaryAuthEnabled = completedSecondaryAuthEnabled,
+                        onComplete = onRegisterComplete
+                    )
                 }
             }
 
@@ -393,8 +403,6 @@ private fun titleForStage(stage: RegisterStage): String {
         is RegisterStage.IdScanning -> "신분증 촬영"
         is RegisterStage.IdConfirm -> "신분증 정보 확인"
         is RegisterStage.PinChoice -> "PIN 설정"
-        is RegisterStage.PinCreate -> "PIN 입력"
-        is RegisterStage.PinConfirm -> "PIN 확인"
         is RegisterStage.CurrentPin -> "현재 PIN 입력"
         is RegisterStage.Success -> "등록 완료"
     }
@@ -895,15 +903,52 @@ private fun FaceCaptureOverlay(
 @Composable
 private fun IdCardScanningStageContent(
     onExtracted: (ResidentIdExtractResponseDto) -> Unit,
-    onError: (String) -> Unit
+    onError: (String?) -> Unit
 ) {
     val scope = rememberCoroutineScope()
     var statusMessage by remember { mutableStateOf("신분증을 가이드 안에 맞춰주세요.") }
     var holdProgress by remember { mutableFloatStateOf(0f) }
     var requestInFlight by remember { mutableStateOf(false) }
     val lastRequestAt = remember { AtomicLong(0L) }
-    val validDetectedAt = remember { AtomicLong(0L) }
+    var holdStartedAt by remember { mutableStateOf(0L) }
+    var consecutiveRecoverableMisses by remember { mutableStateOf(0) }
     var latestExtract by remember { mutableStateOf<ResidentIdExtractResponseDto?>(null) }
+
+    fun resetRecognition(message: String = "신분증을 가이드 안에 맞춰주세요.") {
+        holdStartedAt = 0L
+        holdProgress = 0f
+        consecutiveRecoverableMisses = 0
+        latestExtract = null
+        statusMessage = message
+    }
+
+    LaunchedEffect(holdStartedAt, latestExtract) {
+        if (holdStartedAt == 0L || latestExtract == null) {
+            holdProgress = 0f
+            return@LaunchedEffect
+        }
+
+        while (holdStartedAt != 0L && latestExtract != null) {
+            val progress = ((System.currentTimeMillis() - holdStartedAt).toFloat() / ID_CARD_HOLD_DURATION_MS)
+                .coerceIn(0f, 1f)
+            holdProgress = progress
+            statusMessage = if (progress < 1f) {
+                "신분증 정보를 읽는 중입니다. 흔들리지 않게 유지해 주세요."
+            } else {
+                "신분증 인식이 완료되었습니다."
+            }
+            onError(null)
+
+            if (progress >= 1f) {
+                val extracted = latestExtract
+                resetRecognition("신분증 인식이 완료되었습니다.")
+                extracted?.let(onExtracted)
+                break
+            }
+
+            delay(50L)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -911,7 +956,7 @@ private fun IdCardScanningStageContent(
             .background(Color(0xFF0E1717))
     ) {
         Text(
-            text = "신분증을 3초 동안 유지해 주세요",
+            text = "신분증을 2초 동안 유지해 주세요",
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = 22.sp,
@@ -947,7 +992,7 @@ private fun IdCardScanningStageContent(
                 }
 
                 val now = System.currentTimeMillis()
-                if (now - lastRequestAt.get() < 1000L) {
+                if (now - lastRequestAt.get() < ID_CARD_REQUEST_INTERVAL_MS) {
                     imageProxy.close()
                     return@DocumentCaptureCameraCard
                 }
@@ -965,17 +1010,16 @@ private fun IdCardScanningStageContent(
                 }
 
                 requestInFlight = true
-                scope.launch(Dispatchers.IO) {
-                    runCatching {
-                        FaceRegistrationRepository.extractResidentId(jpegBytes)
-                    }.onSuccess { extracted ->
-                        requestInFlight = false
+                scope.launch {
+                    val result = withContext(Dispatchers.IO) {
+                        runCatching { FaceRegistrationRepository.extractResidentId(jpegBytes) }
+                    }
+                    requestInFlight = false
+
+                    result.onSuccess { extracted ->
                         val provider = extracted.provider?.trim()?.lowercase()
                         if (provider == "mock") {
-                            validDetectedAt.set(0L)
-                            holdProgress = 0f
-                            latestExtract = null
-                            statusMessage = "실제 OCR 서버가 아니라 mock 응답을 받았습니다."
+                            resetRecognition("실제 OCR 서버가 아니라 mock 응답을 받았습니다.")
                             onError("서버 OCR이 mock 모드입니다. AI 설정을 확인해 주세요.")
                             return@onSuccess
                         }
@@ -986,35 +1030,37 @@ private fun IdCardScanningStageContent(
                             extracted.residentBackFirst1?.length == 1
 
                         if (!isValid) {
-                            validDetectedAt.set(0L)
-                            holdProgress = 0f
-                            latestExtract = null
-                            statusMessage = "신분증이 선명하게 보이도록 다시 맞춰주세요."
+                            if (holdStartedAt != 0L && consecutiveRecoverableMisses < ID_CARD_ALLOWED_MISSES) {
+                                consecutiveRecoverableMisses += 1
+                                statusMessage = "신분증 정보를 다시 맞추는 중입니다. 그대로 유지해 주세요."
+                                onError(null)
+                            } else {
+                                resetRecognition()
+                                onError(null)
+                            }
                             return@onSuccess
                         }
 
                         latestExtract = extracted
-                        if (validDetectedAt.get() == 0L) {
-                            validDetectedAt.set(System.currentTimeMillis())
+                        consecutiveRecoverableMisses = 0
+                        if (holdStartedAt == 0L) {
+                            holdStartedAt = System.currentTimeMillis()
                         }
-                        val elapsed = System.currentTimeMillis() - validDetectedAt.get()
-                        holdProgress = (elapsed / 3000f).coerceIn(0f, 1f)
-                        statusMessage = if (elapsed < 3000L) {
-                            "OCR 인식 완료. 3초 유지 중입니다."
-                        } else {
-                            "신분증 인식이 완료되었습니다."
+                        statusMessage = "신분증 정보를 읽는 중입니다. 흔들리지 않게 유지해 주세요."
+                        onError(null)
+                    }.onFailure { throwable ->
+                        if (throwable is ApiRequestException && throwable.statusCode == 400) {
+                            if (holdStartedAt != 0L && consecutiveRecoverableMisses < ID_CARD_ALLOWED_MISSES) {
+                                consecutiveRecoverableMisses += 1
+                                statusMessage = "신분증 정보를 다시 맞추는 중입니다. 그대로 유지해 주세요."
+                            } else {
+                                resetRecognition()
+                            }
+                            onError(null)
+                            return@onFailure
                         }
 
-                        if (elapsed >= 3000L) {
-                            validDetectedAt.set(0L)
-                            holdProgress = 0f
-                            latestExtract?.let(onExtracted)
-                        }
-                    }.onFailure { throwable ->
-                        requestInFlight = false
-                        validDetectedAt.set(0L)
-                        holdProgress = 0f
-                        latestExtract = null
+                        resetRecognition()
                         onError(throwable.message ?: "신분증 OCR 추출에 실패했습니다.")
                     }
                 }
@@ -1022,38 +1068,19 @@ private fun IdCardScanningStageContent(
             overlay = {
                 IdCaptureOverlay(
                     holdProgress = holdProgress,
-                    isExtracting = requestInFlight
+                    isExtracting = requestInFlight,
+                    isRecognizing = requestInFlight || holdStartedAt != 0L || holdProgress > 0f
                 )
             }
         )
-
-        latestExtract?.let { extracted ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.08f)),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("최근 OCR 결과", color = Color.White, fontFamily = NaedaFontFamily, fontWeight = FontWeight.SemiBold)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("이름: ${extracted.name ?: "-"}", color = Color.White.copy(alpha = 0.8f), fontFamily = NaedaFontFamily)
-                    Text(
-                        "주민번호: ${extracted.residentFront6 ?: "-"}-${extracted.residentBackFirst1 ?: "-"}",
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontFamily = NaedaFontFamily
-                    )
-                }
-            }
-        }
     }
 }
 
 @Composable
 private fun IdCaptureOverlay(
     holdProgress: Float,
-    isExtracting: Boolean
+    isExtracting: Boolean,
+    isRecognizing: Boolean
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -1063,41 +1090,73 @@ private fun IdCaptureOverlay(
                 .aspectRatio(1.586f)
                 .border(
                     width = 2.dp,
-                    color = if (isExtracting) Mint500 else Color.White.copy(alpha = 0.8f),
+                    color = if (isRecognizing || isExtracting) Mint500 else Color.White.copy(alpha = 0.8f),
                     shape = RoundedCornerShape(20.dp)
                 )
         )
-
-        Surface(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 24.dp),
-            shape = RoundedCornerShape(18.dp),
-            color = Color.Black.copy(alpha = 0.36f)
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+        if (isRecognizing) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 24.dp),
+                shape = RoundedCornerShape(18.dp),
+                color = Color.Black.copy(alpha = 0.42f)
             ) {
-                CircularProgressIndicator(
-                    progress = { holdProgress },
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                    color = Mint500,
-                    trackColor = Color.White.copy(alpha = 0.18f)
-                )
-                Text(
-                    text = if (isExtracting) "OCR 확인 중" else "${(holdProgress * 100).roundToInt()}% 유지",
-                    color = Color.White,
-                    fontFamily = NaedaFontFamily,
-                    fontSize = 13.sp
-                )
+                Column(
+                    modifier = Modifier
+                        .width(260.dp)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        if (isExtracting && holdProgress <= 0f) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = Mint500
+                            )
+                        } else {
+                            CircularProgressIndicator(
+                                progress = { holdProgress },
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = Mint500,
+                                trackColor = Color.White.copy(alpha = 0.18f)
+                            )
+                        }
+                        Text(
+                            text = if (holdProgress > 0f) {
+                                "신분증 인식 중 ${(holdProgress * 100).roundToInt()}%"
+                            } else {
+                                "신분증 정보를 읽는 중입니다..."
+                            },
+                            color = Color.White,
+                            fontFamily = NaedaFontFamily,
+                            fontSize = 13.sp
+                        )
+                    }
+                    LinearProgressIndicator(
+                        progress = { holdProgress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(7.dp),
+                        color = Mint500,
+                        trackColor = Color.White.copy(alpha = 0.18f)
+                    )
+                    Text(
+                        text = "흔들리지 않게 유지하면 자동 촬영됩니다.",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontFamily = NaedaFontFamily,
+                        fontSize = 12.sp
+                    )
+                }
             }
         }
     }
 }
-
 @Composable
 private fun IdConfirmStageContent(
     extracted: ResidentIdExtractResponseDto,
@@ -1252,6 +1311,7 @@ private fun LabeledField(
 
 @Composable
 private fun PinChoiceStageContent(
+    isSaving: Boolean,
     onUsePin: () -> Unit,
     onSkip: () -> Unit
 ) {
@@ -1271,8 +1331,8 @@ private fun PinChoiceStageContent(
         )
         Spacer(modifier = Modifier.height(12.dp))
         listOf(
-            "PIN을 사용하면 얼굴 인식 후 한 번 더 확인해 결제를 보호할 수 있습니다.",
-            "원하지 않으면 지금은 건너뛰고 나중에 다시 설정할 수 있습니다."
+            "현재 계정 PIN을 한 번 더 확인해 결제를 보호할 수 있습니다.",
+            "원하지 않으면 이번에는 건너뛰고 얼굴 등록만 완료할 수 있습니다."
         ).forEach { tip ->
             Card(
                 modifier = Modifier
@@ -1294,17 +1354,19 @@ private fun PinChoiceStageContent(
         Spacer(modifier = Modifier.weight(1f))
         Button(
             onClick = onUsePin,
+            enabled = !isSaving,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Mint900)
         ) {
-            Text("PIN 설정하기", fontFamily = NaedaFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Color.White)
+            Text(if (isSaving) "설정 저장 중..." else "현재 PIN으로 사용하기", fontFamily = NaedaFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Color.White)
         }
         Spacer(modifier = Modifier.height(8.dp))
         TextButton(
             onClick = onSkip,
+            enabled = !isSaving,
             modifier = Modifier.align(Alignment.CenterHorizontally)
         ) {
             Text("이번에는 건너뛰기", fontFamily = NaedaFontFamily, fontSize = 15.sp, color = OnSurfaceVariant)
@@ -1419,9 +1481,11 @@ private fun PinConfirmStageContent(
 
 @Composable
 private fun CurrentPinStageContent(
+    resetKey: Int,
+    isSaving: Boolean,
     onCurrentPinEntered: (String) -> Unit
 ) {
-    var currentPin by remember { mutableStateOf("") }
+    var currentPin by remember(resetKey) { mutableStateOf("") }
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0D1717))) {
         Column(
@@ -1441,7 +1505,7 @@ private fun CurrentPinStageContent(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "이미 PIN이 설정되어 있어 새 PIN 저장 전에 현재 PIN 확인이 필요합니다.",
+                text = "페이스페이에서 PIN 2차 인증을 사용하려면 현재 계정 PIN 확인이 필요합니다.",
                 fontFamily = NaedaFontFamily,
                 fontSize = 14.sp,
                 color = Color.White.copy(alpha = 0.6f),
@@ -1453,7 +1517,7 @@ private fun CurrentPinStageContent(
             Spacer(modifier = Modifier.weight(1f))
             NumberKeypad(
                 onNumberClick = {
-                    if (currentPin.length < 6) {
+                    if (!isSaving && currentPin.length < 6) {
                         currentPin += it
                         if (currentPin.length == 6) {
                             onCurrentPinEntered(currentPin)
@@ -1470,6 +1534,7 @@ private fun CurrentPinStageContent(
 
 @Composable
 private fun SuccessStageContent(
+    secondaryAuthEnabled: Boolean,
     onComplete: () -> Unit
 ) {
     Column(
@@ -1498,7 +1563,7 @@ private fun SuccessStageContent(
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-            text = "얼굴 7장 저장, 신분증 OCR 확인, PIN 단계가 모두 완료되었습니다.",
+            text = if (secondaryAuthEnabled) "얼굴 등록과 신분증 확인이 완료되었고 PIN 2차 인증 사용도 저장되었습니다." else "얼굴 등록과 신분증 확인이 완료되었습니다. PIN 2차 인증은 사용 안 함으로 저장되었습니다.",
             fontFamily = NaedaFontFamily,
             fontSize = 15.sp,
             color = OnSurfaceVariant,
@@ -1954,3 +2019,6 @@ private fun yuv420888ToNv21(image: ImageProxy): ByteArray {
 
     return nv21
 }
+
+
+

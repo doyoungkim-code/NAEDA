@@ -17,7 +17,9 @@ data class LoginResponseDto(
     val username: String,
     val userKey: String,
     val accessToken: String,
-    val refreshToken: String
+    val refreshToken: String,
+    val faceRegistered: Boolean = false,
+    val secondaryAuthEnabled: Boolean = false
 )
 
 private data class ErrorResponseDto(
@@ -81,3 +83,4 @@ object AuthRepository {
         }
     }
 }
+
