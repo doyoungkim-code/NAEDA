@@ -17,6 +17,14 @@ object AuthPrefs {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getBoolean(KEY_LOGGED_IN, false)
 
+    fun hasSession(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val isLoggedIn = prefs.getBoolean(KEY_LOGGED_IN, false)
+        val accessToken = prefs.getString(KEY_ACCESS_TOKEN, null)
+        val refreshToken = prefs.getString(KEY_REFRESH_TOKEN, null)
+        return isLoggedIn && !accessToken.isNullOrBlank() && !refreshToken.isNullOrBlank()
+    }
+
     fun setLoggedIn(context: Context, value: Boolean) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()

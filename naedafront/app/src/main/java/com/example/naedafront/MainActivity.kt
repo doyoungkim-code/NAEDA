@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun NaedaApp() {
     val context = LocalContext.current
-    val startDestination = if (AuthPrefs.isLoggedIn(context)) Screen.Home.route else Screen.Welcome.route
+    val startDestination = if (AuthPrefs.hasSession(context)) Screen.Home.route else Screen.Welcome.route
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
