@@ -139,10 +139,9 @@ fun NaedaNavGraph(
         composable(Screen.SignUpPin.route) {
             SignUpPinScreen(
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { pin ->
-                    // 회원가입 완료 → 로그인 상태 저장 후 홈으로 (이전 스택 전부 제거)
-                    AuthPrefs.setLoggedIn(context, true)
-                    navController.navigate(Screen.Home.route) {
+                onConfirmClick = { _ ->
+                    AuthPrefs.clearSession(context)
+                    navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Welcome.route) { inclusive = true }
                     }
                 }

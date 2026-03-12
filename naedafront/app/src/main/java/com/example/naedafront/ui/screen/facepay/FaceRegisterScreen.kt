@@ -91,6 +91,13 @@ fun FaceRegisterScreen(
     onBack: () -> Unit,
     onRegisterComplete: () -> Unit
 ) {
+    FaceRegisterFlowScreen(
+        onBack = onBack,
+        onRegisterComplete = onRegisterComplete
+    )
+}
+
+/*
     val context = LocalContext.current
     val activity = context as? androidx.activity.ComponentActivity
 
@@ -229,6 +236,7 @@ fun FaceRegisterScreen(
         }
     }
 }
+*/
 
 // ─── 권한 요청 ────────────────────────────────────────────────────
 @Composable

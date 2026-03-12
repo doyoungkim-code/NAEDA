@@ -34,17 +34,20 @@ def _clip01(value: float) -> float:
 
 
 def _detect_direction(yaw: float, pitch: float) -> Direction:
-    yaw_threshold = 0.16
-    pitch_threshold = 0.12
+    yaw_threshold = 0.12
+    pitch_threshold = 0.08
 
-    if yaw <= -yaw_threshold:
+    yaw_score = abs(yaw) / yaw_threshold
+    pitch_score = abs(pitch) / pitch_threshold
+
+    if yaw_score < 1.0 and pitch_score < 1.0:
+        return "front"
+    if pitch_score > yaw_score:
+        return "down" if pitch >= 0 else "up"
+    if yaw >= 0:
         return "left"
-    if yaw >= yaw_threshold:
+    if yaw <= 0:
         return "right"
-    if pitch <= -pitch_threshold:
-        return "up"
-    if pitch >= pitch_threshold:
-        return "down"
     return "front"
 
 

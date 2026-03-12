@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 
 import app.api.internal_liveness as liveness_api
 from app.main import app
+from app.core.headpose import _detect_direction
 
 client = TestClient(app)
 AUTH_HEADER = {"X-Service-Token": "dev-internal-token"}
@@ -12,7 +13,7 @@ def test_headpose_success_includes_ai_processing_fields(monkeypatch):
         expected_direction = "left"
         detected_direction = "left"
         matched = True
-        yaw = -0.25
+        yaw = 0.25
         pitch = 0.01
         confidence = 0.88
         fallback_used = True
@@ -39,3 +40,13 @@ def test_headpose_success_includes_ai_processing_fields(monkeypatch):
     assert data["fallbackUsed"] is True
     assert data["aiStatus"] == "FALLBACK_APPLIED"
     assert data["message"] == "Head pose fallback used model pose estimation."
+
+
+def test_detect_direction_uses_user_facing_left_right_mapping():
+    assert _detect_direction(0.18, 0.01) == "left"
+    assert _detect_direction(-0.18, 0.01) == "right"
+
+
+def test_detect_direction_prefers_pitch_for_vertical_moves():
+    assert _detect_direction(0.07, -0.10) == "up"
+    assert _detect_direction(-0.05, 0.10) == "down"
