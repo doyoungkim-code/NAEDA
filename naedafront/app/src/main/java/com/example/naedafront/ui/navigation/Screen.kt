@@ -12,22 +12,19 @@ sealed class Screen(val route: String) {
     object Login : Screen("login")
 
     object SignUpRrn : Screen("signup_rrn")
-
     object SignUpPhone : Screen("signup_phone")
     object SignUpVerify : Screen("signup_verify/{phone}") {
         fun createRoute(phone: String) = "signup_verify/$phone"
     }
-
     object SignUpEmail : Screen("signup_email")
     object SignUpPassword : Screen("signup_password")
     object SignUpPin : Screen("signup_pin")
-
     object SignUp : Screen("signup")
 
     // ── 메인 5탭 ──
     object Home : Screen("home")
     object Benefit : Screen("benefit")
-    object Scan : Screen("scan")          // 가운데 큰 버튼 (얼굴등록 or 지도)
+    object Scan : Screen("scan")
     object Asset : Screen("asset")
     object More : Screen("more")
 
@@ -46,6 +43,8 @@ sealed class Screen(val route: String) {
     }
 
     // ── 자산 탭 하위 ──
+    object AccountList : Screen("account_list")          // 계좌 목록 (계좌 및 카드 관리)
+    object RegisterAsset : Screen("register_asset")      // 새 계좌/카드 등록
     object AccountDetail : Screen("account_detail/{accountId}") {
         fun createRoute(accountId: String) = "account_detail/$accountId"
     }
