@@ -970,6 +970,16 @@ private fun IdCardScanningStageContent(
                         FaceRegistrationRepository.extractResidentId(jpegBytes)
                     }.onSuccess { extracted ->
                         requestInFlight = false
+                        val provider = extracted.provider?.trim()?.lowercase()
+                        if (provider == "mock") {
+                            validDetectedAt.set(0L)
+                            holdProgress = 0f
+                            latestExtract = null
+                            statusMessage = "실제 OCR 서버가 아니라 mock 응답을 받았습니다."
+                            onError("서버 OCR이 mock 모드입니다. AI 설정을 확인해 주세요.")
+                            return@onSuccess
+                        }
+
                         val isValid = extracted.documentMatched &&
                             !extracted.name.isNullOrBlank() &&
                             extracted.residentFront6?.length == 6 &&
