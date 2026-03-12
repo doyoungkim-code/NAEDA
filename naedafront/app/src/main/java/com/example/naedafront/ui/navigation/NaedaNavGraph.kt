@@ -3,7 +3,12 @@ package com.example.naedafront.ui.navigation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -14,6 +19,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.naedafront.AuthPrefs
+import com.example.naedafront.data.remote.FaceRegistrationRepository
 import com.example.naedafront.ui.screen.LoginScreen
 import com.example.naedafront.ui.screen.WelcomeScreen
 import com.example.naedafront.ui.screen.signup.SignUpNameScreen
@@ -156,10 +162,22 @@ fun NaedaNavGraph(
             val displayName = AuthPrefs.getUsername(context)
                 ?.takeUnless { it.isBlank() }
                 ?: "사용자"
+            var isFaceRegistered by remember { mutableStateOf(AuthPrefs.isFaceRegistered(context)) }
+            LaunchedEffect(Unit) {
+                runCatching { FaceRegistrationRepository.getFacePaySettings() }
+                    .onSuccess { settings ->
+                        AuthPrefs.saveFacePaySettings(
+                            context = context,
+                            faceRegistered = settings.faceRegistered,
+                            secondaryAuthEnabled = settings.secondaryAuthEnabled
+                        )
+                        isFaceRegistered = settings.faceRegistered
+                    }
+            }
             HomeScreen(
                 uiState = HomeUiState(
                     userName = displayName,
-                    isFaceRegistered = AuthPrefs.isFaceRegistered(context)
+                    isFaceRegistered = isFaceRegistered
                 ),
                 onTransferClick = { navController.navigate(Screen.Transfer.route) },
                 onTransactionClick = { navController.navigate(Screen.Transaction.route) },
@@ -197,7 +215,6 @@ fun NaedaNavGraph(
             FaceRegisterScreen(
                 onBack = { navController.popBackStack() },
                 onRegisterComplete = {
-                    AuthPrefs.setFaceRegistered(context, true)
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Home.route) { inclusive = true }
                     }

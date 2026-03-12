@@ -116,7 +116,9 @@ fun LoginScreen(
                         username = result.response.username,
                         userKey = result.response.userKey,
                         accessToken = result.response.accessToken,
-                        refreshToken = result.response.refreshToken
+                        refreshToken = result.response.refreshToken,
+                        faceRegistered = result.response.faceRegistered,
+                        secondaryAuthEnabled = result.response.secondaryAuthEnabled
                     )
                     isLoading = false
                     onLoginSuccess()
@@ -329,3 +331,4 @@ private fun LoginScreenPreview() {
         LoginScreen()
     }
 }
+
