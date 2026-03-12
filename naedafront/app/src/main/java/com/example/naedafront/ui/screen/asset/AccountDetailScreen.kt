@@ -1,4 +1,4 @@
-package com.example.naedafront.ui.screen.asset
+package com.example.naedafront.ui.asset
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -32,26 +32,31 @@ import com.example.naedafront.ui.theme.*
 // ─────────────────────────────────────────────
 
 data class TransactionItem(
-    val id: String,
-    val title: String,
-    val category: String,
-    val amount: Long,        // 양수: 입금, 음수: 출금
-    val balance: Long,
-    val date: String,        // "2026.03.12"
-    val time: String         // "14:32"
-)
+    val id: String,                   // log_id
+    val transactionType: String,      // transaction_type: DEPOSIT / WITHDRAW / TRANSFER
+    val counterpart: String,          // counterpart (상대방, 거래처명)
+    val memo: String = "",            // memo (AI 분류 태그)
+    val category: String,             // category
+    val amount: Long,                 // amount (항상 양수, transactionType으로 방향 결정)
+    val balanceAfter: Long,           // balance_after
+    val transacted: String,           // transacted → "2026.03.12 14:32" 파싱해서 사용
+) {
+    val isIncome get() = transactionType == "DEPOSIT"
+    val date get() = transacted.take(10)   // "2026.03.12"
+    val time get() = if (transacted.length >= 16) transacted.takeLast(5) else ""
+}
 
 val sampleTransactions = listOf(
-    TransactionItem("1", "스타벅스 구미 인동점", "카페", -6500, 1_243_500, "2026.03.12", "14:32"),
-    TransactionItem("2", "급여", "급여", 3_000_000, 1_250_000, "2026.03.10", "09:00"),
-    TransactionItem("3", "GS25 구미공단점", "편의점", -3200, 1_246_800, "2026.03.09", "22:10"), // 잔액 이전
-    TransactionItem("4", "카카오페이 송금", "이체", -50_000, 1_246_800, "2026.03.08", "18:45"),
-    TransactionItem("5", "구미시 버스", "교통", -1500, 1_296_800, "2026.03.08", "08:12"),
-    TransactionItem("6", "이마트 구미점", "쇼핑", -43_200, 1_298_300, "2026.03.07", "16:30"),
-    TransactionItem("7", "부모님 송금", "이체", 200_000, 1_341_500, "2026.03.05", "11:20"),
-    TransactionItem("8", "올리브영 구미", "쇼핑", -28_900, 1_141_500, "2026.03.04", "15:00"),
-    TransactionItem("9", "넷플릭스", "구독", -17_000, 1_170_400, "2026.03.01", "00:00"),
-    TransactionItem("10", "CGV 구미", "여가", -14_000, 1_187_400, "2026.02.28", "19:30"),
+    TransactionItem("1", "WITHDRAW",  "스타벅스 구미 인동점", "카페",      "카페",   6500,       1_243_500, "2026.03.12 14:32"),
+    TransactionItem("2", "DEPOSIT",   "급여",               "급여",      "급여",   3_000_000,  1_250_000, "2026.03.10 09:00"),
+    TransactionItem("3", "WITHDRAW",  "GS25 구미공단점",     "편의점",    "편의점",  3200,       1_246_800, "2026.03.09 22:10"),
+    TransactionItem("4", "TRANSFER",  "카카오페이 송금",      "이체",      "이체",   50_000,     1_246_800, "2026.03.08 18:45"),
+    TransactionItem("5", "WITHDRAW",  "구미시 버스",          "교통",      "교통",   1500,       1_296_800, "2026.03.08 08:12"),
+    TransactionItem("6", "WITHDRAW",  "이마트 구미점",        "쇼핑",      "쇼핑",   43_200,     1_298_300, "2026.03.07 16:30"),
+    TransactionItem("7", "DEPOSIT",   "부모님 송금",          "이체",      "이체",   200_000,    1_341_500, "2026.03.05 11:20"),
+    TransactionItem("8", "WITHDRAW",  "올리브영 구미",        "쇼핑",      "쇼핑",   28_900,     1_141_500, "2026.03.04 15:00"),
+    TransactionItem("9", "WITHDRAW",  "넷플릭스",             "구독",      "구독",   17_000,     1_170_400, "2026.03.01 00:00"),
+    TransactionItem("10", "WITHDRAW", "CGV 구미",            "여가",      "여가",   14_000,     1_187_400, "2026.02.28 19:30"),
 )
 
 val categoryList = listOf("전체", "카페", "편의점", "이체", "교통", "쇼핑", "급여", "구독", "여가")
@@ -365,9 +370,9 @@ private fun TransactionDateHeader(date: String) {
 
 @Composable
 private fun TransactionRow(tx: TransactionItem) {
-    val isIncome = tx.amount > 0
+    val isIncome = tx.isIncome
     val amountColor = if (isIncome) Mint700 else OnBackground
-    val amountPrefix = if (isIncome) "+" else ""
+    val amountPrefix = if (isIncome) "+" else "-"
 
     Row(
         modifier = Modifier
@@ -377,7 +382,6 @@ private fun TransactionRow(tx: TransactionItem) {
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 카테고리 아이콘 원
         Box(
             modifier = Modifier
                 .size(42.dp)
@@ -395,10 +399,9 @@ private fun TransactionRow(tx: TransactionItem) {
 
         Spacer(modifier = Modifier.width(14.dp))
 
-        // 거래처 + 시간
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = tx.title,
+                text = tx.counterpart,
                 style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                 color = OnBackground,
                 maxLines = 1
@@ -411,7 +414,6 @@ private fun TransactionRow(tx: TransactionItem) {
             )
         }
 
-        // 금액 + 잔액
         Column(horizontalAlignment = Alignment.End) {
             Text(
                 text = "$amountPrefix${formatAmount(tx.amount)}원",
@@ -420,7 +422,7 @@ private fun TransactionRow(tx: TransactionItem) {
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "잔액 ${formatAmount(tx.balance)}원",
+                text = "잔액 ${formatAmount(tx.balanceAfter)}원",
                 style = NaedaTypography.labelSmall,
                 color = OnSurfaceVariant
             )

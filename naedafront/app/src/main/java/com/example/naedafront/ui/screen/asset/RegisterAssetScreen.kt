@@ -1,5 +1,8 @@
-package com.example.naedafront.ui.screen.asset
+package com.example.naedafront.ui.asset
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -219,8 +224,8 @@ private fun AccountRegisterForm(onRegisterComplete: () -> Unit) {
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 계좌 별칭
-        AssetFieldLabel(text = "계좌 별칭")
+        // 자산 별칭
+        AssetFieldLabel(text = "자산 별칭")
         Spacer(modifier = Modifier.height(8.dp))
         AssetTextField(
             value = accountAlias,
@@ -267,14 +272,16 @@ private fun AccountRegisterForm(onRegisterComplete: () -> Unit) {
 private fun CardRegisterForm(onRegisterComplete: () -> Unit) {
     var selectedCard by remember { mutableStateOf("") }
     var cardNumber by remember { mutableStateOf("") }
+    var cardProductName by remember { mutableStateOf("") }  // card_name
     var cardExpiry by remember { mutableStateOf("") }
     var cardCvc by remember { mutableStateOf("") }
     var cardAlias by remember { mutableStateOf("") }
     var showCardPicker by remember { mutableStateOf(false) }
 
     val isFormValid = selectedCard.isNotEmpty()
-            && cardNumber.length >= 19   // 1234-5678-9012-3456
-            && cardExpiry.length == 5    // MM/YY
+            && cardNumber.length >= 19
+            && cardProductName.isNotEmpty()
+            && cardExpiry.length == 5
             && cardCvc.length == 3
             && cardAlias.isNotEmpty()
 
@@ -323,6 +330,17 @@ private fun CardRegisterForm(onRegisterComplete: () -> Unit) {
             },
             placeholder = "1234-5678-9012-3456",
             keyboardType = KeyboardType.Number
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // 카드 상품명
+        AssetFieldLabel(text = "카드 상품명")
+        Spacer(modifier = Modifier.height(8.dp))
+        AssetTextField(
+            value = cardProductName,
+            onValueChange = { if (it.length <= 50) cardProductName = it },
+            placeholder = "예: 삼성 taptap O카드"
         )
 
         Spacer(modifier = Modifier.height(20.dp))
