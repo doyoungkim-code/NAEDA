@@ -38,12 +38,14 @@ import com.example.naedafront.ui.screen.signup.SignUpVerifyScreen
 import com.example.naedafront.ui.screen.signup.SignUpViewModel
 import com.example.naedafront.ui.screen.asset.AccountDetailScreen
 import com.example.naedafront.ui.screen.asset.AccountListScreen
+import com.example.naedafront.ui.screen.asset.CardDetailScreen
 import com.example.naedafront.ui.screen.asset.RegisterAssetScreen
 import com.example.naedafront.ui.screen.asset.sampleAccounts
 import com.example.naedafront.ui.screen.mypage.MyPageScreen
 /**
  * 내다(NAEDA) 전체 네비게이션 그래프
  */
+
 @Composable
 fun NaedaNavGraph(
     navController: NavHostController,
@@ -164,9 +166,7 @@ fun NaedaNavGraph(
             )
         }
 
-        // ═══════════════════════════════════════
-        // 메인 5탭
-        // ═══════════════════════════════════════
+        // ═══ 메인 5탭 ═══
 
         composable(Screen.Home.route) {
             val displayName = AuthPrefs.getUsername(context)
@@ -192,7 +192,7 @@ fun NaedaNavGraph(
                 onTransferClick = { navController.navigate(Screen.Transfer.route) },
                 onTransactionClick = { navController.navigate(Screen.Transaction.route) },
                 onFacePaySettingClick = { navController.navigate(Screen.FaceRegister.route) },
-                onLinkAccountClick = { navController.navigate(Screen.AccountList.route) },
+                onLinkAccountClick = { navController.navigate(Screen.AccountList.createRoute(0)) },
                 onViewAllTransactionsClick = { navController.navigate(Screen.Transaction.route) },
                 onSearchClick = { },
                 onAlarmClick = { navController.navigate(Screen.Notification.route) },
@@ -201,34 +201,32 @@ fun NaedaNavGraph(
             )
         }
 
-        composable(Screen.Benefit.route) {
-            PlaceholderScreen("🎁 혜택")
-        }
+        composable(Screen.Benefit.route) { PlaceholderScreen("🎁 혜택") }
+        composable(Screen.Scan.route) { PlaceholderScreen("🗺️ 구미 맛집 지도") }
 
-        composable(Screen.Scan.route) {
-            PlaceholderScreen("🗺️ 구미 맛집 지도")
-        }
-
-        // 자산 탭 → AccountListScreen 연결
+        // 자산 탭
         composable(Screen.Asset.route) {
             AccountListScreen(
+                initialTab = 0,
                 onBack = { navController.popBackStack() },
-                onRegisterNew = { navController.navigate(Screen.RegisterAsset.route) },
+                onRegisterNewAccount = { navController.navigate(Screen.RegisterAsset.createRoute(0)) },
+                onRegisterNewCard = { navController.navigate(Screen.RegisterAsset.createRoute(1)) },
                 onAccountClick = { account ->
                     navController.navigate(Screen.AccountDetail.createRoute(account.id))
                 },
-                onDeleteAccount = { /* TODO: ViewModel 연결 후 처리 */ },
-                onSetPrimary = { /* TODO: ViewModel 연결 후 처리 */ }
+                onCardClick = { card ->
+                    navController.navigate(Screen.CardDetail.createRoute(card.id))
+                },
+                onDeleteAccount = { },
+                onSetPrimary = { },
+                onSetPrimaryCard = { },
+                onDeleteCard = { }
             )
         }
 
-        composable(Screen.More.route) {
-            PlaceholderScreen("⋯ 더보기")
-        }
+        composable(Screen.More.route) { PlaceholderScreen("⋯ 더보기") }
 
-        // ═══════════════════════════════════════
-        // 스캔 탭 하위 화면
-        // ═══════════════════════════════════════
+        // ═══ 스캔 탭 하위 ═══
 
         composable(Screen.FaceRegister.route) {
             FaceRegisterScreen(
@@ -255,29 +253,12 @@ fun NaedaNavGraph(
             )
         }
 
-        composable(Screen.FaceIntro.route) {
-            PlaceholderScreen("페이스페이 소개")
-        }
-
-        composable(Screen.FaceGuide.route) {
-            PlaceholderScreen("촬영 가이드")
-        }
-
-        composable(Screen.FaceCapture.route) {
-            PlaceholderScreen("카메라 촬영")
-        }
-
-        composable(Screen.FaceAnalyzing.route) {
-            PlaceholderScreen("분석 중...")
-        }
-
-        composable(Screen.FaceComplete.route) {
-            PlaceholderScreen("등록 완료!")
-        }
-
-        composable(Screen.GumiMap.route) {
-            PlaceholderScreen("🗺️ 구미 맛집 지도")
-        }
+        composable(Screen.FaceIntro.route) { PlaceholderScreen("페이스페이 소개") }
+        composable(Screen.FaceGuide.route) { PlaceholderScreen("촬영 가이드") }
+        composable(Screen.FaceCapture.route) { PlaceholderScreen("카메라 촬영") }
+        composable(Screen.FaceAnalyzing.route) { PlaceholderScreen("분석 중...") }
+        composable(Screen.FaceComplete.route) { PlaceholderScreen("등록 완료!") }
+        composable(Screen.GumiMap.route) { PlaceholderScreen("🗺️ 구미 맛집 지도") }
 
         composable(
             route = Screen.StoreDetail.route,
@@ -289,28 +270,50 @@ fun NaedaNavGraph(
             PlaceholderScreen("매장 상세: $storeId")
         }
 
-        // ═══════════════════════════════════════
-        // 자산 탭 하위 화면
-        // ═══════════════════════════════════════
+        // ═══ 자산 탭 하위 ═══
 
-        // 계좌 목록 (별도 라우트 — 홈에서도 진입 가능)
-        composable(Screen.AccountList.route) {
+        // 계좌 목록 (홈에서도 진입 가능, tab 인자로 탭 지정)
+        composable(
+            route = Screen.AccountList.route,
+            arguments = listOf(navArgument("tab") { type = NavType.IntType; defaultValue = 0 })
+        ) { backStackEntry ->
+            val tab = backStackEntry.arguments?.getInt("tab") ?: 0
             AccountListScreen(
+                initialTab = tab,
                 onBack = { navController.popBackStack() },
-                onRegisterNew = { navController.navigate(Screen.RegisterAsset.route) },
+                onRegisterNewAccount = { navController.navigate(Screen.RegisterAsset.createRoute(0)) },
+                onRegisterNewCard = { navController.navigate(Screen.RegisterAsset.createRoute(1)) },
                 onAccountClick = { account ->
                     navController.navigate(Screen.AccountDetail.createRoute(account.id))
                 },
-                onDeleteAccount = { /* TODO: ViewModel 연결 후 처리 */ },
-                onSetPrimary = { /* TODO: ViewModel 연결 후 처리 */ }
+                onCardClick = { card ->
+                    navController.navigate(Screen.CardDetail.createRoute(card.id))
+                },
+                onDeleteAccount = { },
+                onSetPrimary = { },
+                onSetPrimaryCard = { },
+                onDeleteCard = { }
             )
         }
 
-        // 새 계좌/카드 등록
-        composable(Screen.RegisterAsset.route) {
+        // 새 계좌/카드 등록 - 뒤로가기 시 해당 탭으로 복귀
+        composable(
+            route = Screen.RegisterAsset.route,
+            arguments = listOf(navArgument("tab") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val tab = backStackEntry.arguments?.getInt("tab") ?: 0
             RegisterAssetScreen(
-                onBack = { navController.popBackStack() },
-                onRegisterComplete = { navController.popBackStack() }
+                initialTab = tab,
+                onBack = {
+                    navController.navigate(Screen.AccountList.createRoute(tab)) {
+                        popUpTo(Screen.AccountList.route) { inclusive = true }
+                    }
+                },
+                onRegisterComplete = {
+                    navController.navigate(Screen.AccountList.createRoute(tab)) {
+                        popUpTo(Screen.AccountList.route) { inclusive = true }
+                    }
+                }
             )
         }
 
@@ -328,21 +331,28 @@ fun NaedaNavGraph(
                 onTransferClick = { navController.navigate(Screen.Transfer.route) }
             )
         }
+
+        // 카드 상세
+        composable(
+            route = Screen.CardDetail.route,
+            arguments = listOf(navArgument("cardId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val cardId = backStackEntry.arguments?.getString("cardId") ?: ""
+            CardDetailScreen(
+                cardId = cardId,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
         composable(Screen.Transfer.route) { PlaceholderScreen("이체") }
         composable(Screen.Transaction.route) { PlaceholderScreen("거래내역") }
         composable(Screen.Report.route) { PlaceholderScreen("📊 소비 리포트") }
 
-        // ═══════════════════════════════════════
-        // 혜택 탭 하위 화면
-        // ═══════════════════════════════════════
-
+        // ═══ 혜택 탭 하위 ═══
         composable(Screen.Coupon.route) { PlaceholderScreen("할인권 교환") }
         composable(Screen.Donation.route) { PlaceholderScreen("후원하기") }
 
-        // ═══════════════════════════════════════
-        // 더보기 탭 하위 화면
-        // ═══════════════════════════════════════
-
+        // ═══ 더보기 탭 하위 ═══
         composable(Screen.Settings.route) { PlaceholderScreen("⚙️ 설정") }
         composable(Screen.Notification.route) { PlaceholderScreen("🔔 알림") }
         composable(Screen.Security.route) { PlaceholderScreen("🔒 보안 내역") }
