@@ -196,7 +196,8 @@ fun NaedaNavGraph(
                 onViewAllTransactionsClick = { navController.navigate(Screen.Transaction.route) },
                 onSearchClick = { },
                 onAlarmClick = { navController.navigate(Screen.Notification.route) },
-                onProfileClick = { navController.navigate(Screen.Settings.route) },
+                onProfileClick = { navController.navigate(Screen.MyPage.route) },
+//                onSettingsClick = { navController.navigate(Screen.Settings.route) },
                 onSecretFaceMatchTestClick = { navController.navigate(Screen.FaceMatchRecognize.route) }
             )
         }
