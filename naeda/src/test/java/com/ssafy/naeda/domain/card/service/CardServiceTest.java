@@ -8,6 +8,7 @@ import com.ssafy.naeda.domain.card.dto.response.CardRegisterResponse;
 import com.ssafy.naeda.domain.card.dto.response.CardTransactionResponse;
 import com.ssafy.naeda.domain.card.entity.CreditCard;
 import com.ssafy.naeda.domain.card.entity.DebitCard;
+import com.ssafy.naeda.domain.consumption.client.ConsumptionCategoryAiClient;
 import com.ssafy.naeda.domain.card.repository.CreditCardRepository;
 import com.ssafy.naeda.domain.card.repository.DebitCardRepository;
 import com.ssafy.naeda.domain.payment.entity.MethodType;
@@ -57,6 +58,7 @@ class CardServiceTest {
     @Mock private DebitCardRepository debitCardRepository;
     @Mock private PaymentMethodRepository paymentMethodRepository;
     @Mock private TransactionLogRepository transactionLogRepository;
+    @Mock private ConsumptionCategoryAiClient consumptionCategoryAiClient;
 
     @InjectMocks
     private CardService cardService;
@@ -133,6 +135,7 @@ class CardServiceTest {
         lenient().when(userRepository.findById(USER_NO)).thenReturn(Optional.of(stubUser));
         given(ssafyHeaderFactory.create(anyString(), anyString())).willReturn(Map.of());
         lenient().when(ssafyApiClient.buildBody(anyMap(), (Object[]) any())).thenReturn(Map.of());
+        lenient().when(consumptionCategoryAiClient.classifyTransactions(anyList())).thenReturn(Map.of());
     }
 
     private void stubCreditCardSave() {
@@ -469,12 +472,15 @@ class CardServiceTest {
         stubCommonMocks();
         given(ssafyApiClient.post(anyString(), anyMap())).willReturn(buildSsafyTransactionResponse(2));
         given(transactionLogRepository.findBySsafyTransactionIdIn(anyList())).willReturn(List.of());
+        given(consumptionCategoryAiClient.classifyTransactions(anyList()))
+                .willReturn(Map.of("TX-0", "카페", "TX-1", "카페"));
         stubTransactionLogSave();
 
         List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, 100L, createTransactionRequest());
 
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getCategoryName()).isEqualTo("식비");
+        assertThat(result.get(0).getAiCategory()).isEqualTo("카페");
         assertThat(result.get(0).getMerchantName()).isEqualTo("스타벅스");
         assertThat(result.get(0).getAmount()).isEqualTo(5000L);
         verify(transactionLogRepository, times(2)).save(any(TransactionLog.class));
@@ -490,6 +496,8 @@ class CardServiceTest {
         stubCommonMocks();
         given(ssafyApiClient.post(anyString(), anyMap())).willReturn(buildSsafyTransactionResponse(1));
         given(transactionLogRepository.findBySsafyTransactionIdIn(anyList())).willReturn(List.of());
+        given(consumptionCategoryAiClient.classifyTransactions(anyList()))
+                .willReturn(Map.of("TX-0", "카페"));
         stubTransactionLogSave();
 
         List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, 200L, createTransactionRequest());
@@ -550,6 +558,8 @@ class CardServiceTest {
 
         given(ssafyApiClient.post(anyString(), anyMap())).willReturn(Map.of("REC", rec));
         given(transactionLogRepository.findBySsafyTransactionIdIn(anyList())).willReturn(List.of());
+        given(consumptionCategoryAiClient.classifyTransactions(anyList()))
+                .willReturn(Map.of("TX-NULL-DATE", "카페"));
         stubTransactionLogSave();
 
         List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, 100L, createTransactionRequest());
@@ -572,7 +582,7 @@ class CardServiceTest {
         TransactionLog existingLog = TransactionLog.builder()
                 .accountId(1L).transactionType(TransactionType.WITHDRAW)
                 .amount(5000L).balanceAfter(0L)
-                .counterpart("스타벅스").category("식비").memo("승인")
+                .counterpart("스타벅스").category("식비").aiCategory("카페").memo("승인")
                 .ssafyTransactionId("TX-0")
                 .transacted(LocalDateTime.of(2024, 4, 10, 14, 30, 0))
                 .build();
@@ -585,5 +595,35 @@ class CardServiceTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getLogId()).isEqualTo(10L);
         verify(transactionLogRepository, never()).save(any(TransactionLog.class));
+    }
+
+    @Test
+    @DisplayName("카드 결제 내역 조회 - 기존 거래에 aiCategory가 없으면 AI 분류 결과를 업데이트한다")
+    void getCardTransactions_existingTransaction_updatesAiCategory() throws Exception {
+        CreditCard card = buildCreditCard(100L, USER_NO, "1003000000001111");
+        given(creditCardRepository.findById(100L)).willReturn(Optional.of(card));
+
+        stubCommonMocks();
+        given(ssafyApiClient.post(anyString(), anyMap())).willReturn(buildSsafyTransactionResponse(1));
+
+        TransactionLog existingLog = TransactionLog.builder()
+                .accountId(1L).transactionType(TransactionType.WITHDRAW)
+                .amount(5000L).balanceAfter(0L)
+                .counterpart("스타벅스").category("식비").memo("승인")
+                .ssafyTransactionId("TX-0")
+                .transacted(LocalDateTime.of(2024, 4, 10, 14, 30, 0))
+                .build();
+        setField(existingLog, "logId", 10L);
+
+        given(transactionLogRepository.findBySsafyTransactionIdIn(List.of("TX-0"))).willReturn(List.of(existingLog));
+        given(consumptionCategoryAiClient.classifyTransactions(anyList()))
+                .willReturn(Map.of("TX-0", "카페"));
+        given(transactionLogRepository.save(any(TransactionLog.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        List<CardTransactionResponse> result = cardService.getCardTransactions(USER_NO, 100L, createTransactionRequest());
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getAiCategory()).isEqualTo("카페");
+        verify(transactionLogRepository).save(existingLog);
     }
 }

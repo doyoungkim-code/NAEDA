@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 
+from app.api.internal_consumption_categories import router as internal_consumption_categories_router
 from app.api.internal_embeddings import router as internal_embeddings_router
 from app.api.internal_liveness import router as internal_liveness_router
 from app.api.internal_model_version import router as internal_model_version_router
@@ -15,6 +16,7 @@ from app.core.request_context import ensure_request_id, get_request_id
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name)
+app.include_router(internal_consumption_categories_router)
 app.include_router(internal_embeddings_router)
 app.include_router(internal_liveness_router)
 app.include_router(internal_model_version_router)
@@ -58,11 +60,15 @@ async def handle_ai_service_error(request: Request, exc: AIServiceError):
 
 @app.exception_handler(RequestValidationError)
 async def handle_validation_error(request: Request, _: RequestValidationError):
-    INFERENCE_ERRORS_TOTAL.labels(endpoint=request.url.path, code="INVALID_IMAGE").inc()
+    is_image_endpoint = request.url.path.startswith("/internal/v1/embeddings/") or request.url.path.startswith(
+        "/internal/v1/liveness/"
+    )
+    code = "INVALID_IMAGE" if is_image_endpoint else "INVALID_REQUEST"
+    INFERENCE_ERRORS_TOTAL.labels(endpoint=request.url.path, code=code).inc()
     return JSONResponse(
         status_code=400,
         content={
-            "code": "INVALID_IMAGE",
+            "code": code,
             "message": "Invalid request payload",
             "requestId": get_request_id(request),
         },

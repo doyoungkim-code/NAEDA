@@ -11,6 +11,9 @@ import com.ssafy.naeda.domain.account.entity.Account;
 import com.ssafy.naeda.domain.account.repository.AccountRepository;
 import com.ssafy.naeda.domain.card.repository.CreditCardRepository;
 import com.ssafy.naeda.domain.card.repository.DebitCardRepository;
+import com.ssafy.naeda.domain.consumption.client.ConsumptionCategoryAiClient;
+import com.ssafy.naeda.domain.consumption.client.ConsumptionCategoryFallbackMapper;
+import com.ssafy.naeda.domain.consumption.client.dto.AiConsumptionCategoryItem;
 import com.ssafy.naeda.domain.payment.entity.MethodType;
 import com.ssafy.naeda.domain.payment.entity.PaymentMethod;
 import com.ssafy.naeda.domain.payment.repository.PaymentMethodRepository;
@@ -31,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -60,6 +64,7 @@ public class CardService {
     private final DebitCardRepository debitCardRepository;
     private final PaymentMethodRepository paymentMethodRepository;
     private final TransactionLogRepository transactionLogRepository;
+    private final ConsumptionCategoryAiClient consumptionCategoryAiClient;
 
     /**
      * 카드 등록.
@@ -304,46 +309,71 @@ public class CardService {
             return List.of();
         }
 
+        List<ParsedCardTransaction> parsedTransactions = transactionList.stream()
+                .map(this::parseCardTransaction)
+                .toList();
+
         // 각 거래를 transaction_log에 캐싱 (중복 스킵) - 배치 조회로 N+1 방지
-        List<String> allTxUniqueNos = transactionList.stream()
-                .map(tx -> (String) tx.get("transactionUniqueNo"))
+        List<String> allTxUniqueNos = parsedTransactions.stream()
+                .map(ParsedCardTransaction::ssafyTransactionId)
                 .filter(id -> id != null)
                 .toList();
 
-        Map<String, TransactionLog> existingLogMap = transactionLogRepository
-                .findBySsafyTransactionIdIn(allTxUniqueNos).stream()
+        Map<String, TransactionLog> existingLogMap = allTxUniqueNos.isEmpty()
+                ? Map.of()
+                : transactionLogRepository.findBySsafyTransactionIdIn(allTxUniqueNos).stream()
                 .collect(Collectors.toMap(TransactionLog::getSsafyTransactionId, Function.identity()));
 
+        Map<String, AiConsumptionCategoryItem> classificationTargets = new LinkedHashMap<>();
+        for (ParsedCardTransaction parsedTransaction : parsedTransactions) {
+            TransactionLog existing = parsedTransaction.ssafyTransactionId() == null
+                    ? null
+                    : existingLogMap.get(parsedTransaction.ssafyTransactionId());
+            if (existing != null && hasText(existing.getAiCategory())) {
+                continue;
+            }
+            classificationTargets.put(
+                    parsedTransaction.classificationId(),
+                    new AiConsumptionCategoryItem(
+                            parsedTransaction.classificationId(),
+                            parsedTransaction.merchantName(),
+                            parsedTransaction.rawCategory(),
+                            parsedTransaction.cardStatus(),
+                            parsedTransaction.amount(),
+                            parsedTransaction.transacted()
+                    )
+            );
+        }
+
+        Map<String, String> aiCategories = consumptionCategoryAiClient.classifyTransactions(
+                new ArrayList<>(classificationTargets.values())
+        );
         List<TransactionLog> savedLogs = new ArrayList<>();
 
-        for (Map<String, Object> tx : transactionList) {
-            String txUniqueNo = (String) tx.get("transactionUniqueNo");
+        for (ParsedCardTransaction parsedTransaction : parsedTransactions) {
+            String txUniqueNo = parsedTransaction.ssafyTransactionId();
 
             TransactionLog existing = existingLogMap.get(txUniqueNo);
             if (existing != null) {
+                if (!hasText(existing.getAiCategory())) {
+                    existing.updateAiCategory(resolveAiCategory(parsedTransaction, aiCategories));
+                    existing = transactionLogRepository.save(existing);
+                }
                 savedLogs.add(existing);
                 continue;
             }
 
-            String categoryName = (String) tx.getOrDefault("categoryName", "");
-            String merchantName = (String) tx.getOrDefault("merchantName", "");
-            String txDate       = (String) tx.getOrDefault("transactionDate", "");
-            String txTime       = (String) tx.getOrDefault("transactionTime", "");
-            String cardStatus   = (String) tx.getOrDefault("cardStatus", "");
-            Long txAmount       = parseLongOrDefault(tx.get("transactionBalance"), 0L);
-
-            LocalDateTime transacted = parseTransactionDateTime(txDate, txTime);
-
             TransactionLog logEntity = TransactionLog.builder()
                     .accountId(cardInfo.accountId())
                     .transactionType(TransactionType.WITHDRAW)
-                    .amount(txAmount)
+                    .amount(parsedTransaction.amount())
                     .balanceAfter(0L)
-                    .counterpart(merchantName)
-                    .category(categoryName)
-                    .memo(cardStatus)
+                    .counterpart(parsedTransaction.merchantName())
+                    .category(parsedTransaction.rawCategory())
+                    .aiCategory(resolveAiCategory(parsedTransaction, aiCategories))
+                    .memo(parsedTransaction.cardStatus())
                     .ssafyTransactionId(txUniqueNo)
-                    .transacted(transacted)
+                    .transacted(parsedTransaction.transacted())
                     .build();
 
             savedLogs.add(transactionLogRepository.save(logEntity));
@@ -400,10 +430,76 @@ public class CardService {
         }
     }
 
+    private ParsedCardTransaction parseCardTransaction(Map<String, Object> tx) {
+        String txUniqueNo = (String) tx.get("transactionUniqueNo");
+        String rawCategory = (String) tx.getOrDefault("categoryName", "");
+        String merchantName = (String) tx.getOrDefault("merchantName", "");
+        String txDate = (String) tx.getOrDefault("transactionDate", "");
+        String txTime = (String) tx.getOrDefault("transactionTime", "");
+        String cardStatus = (String) tx.getOrDefault("cardStatus", "");
+        Long txAmount = parseLongOrDefault(tx.get("transactionBalance"), 0L);
+        LocalDateTime transacted = parseTransactionDateTime(txDate, txTime);
+
+        return new ParsedCardTransaction(
+                txUniqueNo,
+                buildClassificationId(txUniqueNo, merchantName, txDate, txTime, txAmount),
+                rawCategory,
+                merchantName,
+                cardStatus,
+                txAmount,
+                transacted
+        );
+    }
+
+    private String resolveAiCategory(ParsedCardTransaction parsedTransaction, Map<String, String> aiCategories) {
+        String aiCategory = aiCategories.get(parsedTransaction.classificationId());
+        if (hasText(aiCategory)) {
+            return aiCategory;
+        }
+        return ConsumptionCategoryFallbackMapper.mapToServiceCategory(
+                parsedTransaction.rawCategory(),
+                parsedTransaction.merchantName(),
+                parsedTransaction.cardStatus()
+        );
+    }
+
+    private String buildClassificationId(
+            String txUniqueNo,
+            String merchantName,
+            String txDate,
+            String txTime,
+            Long txAmount
+    ) {
+        if (hasText(txUniqueNo)) {
+            return txUniqueNo;
+        }
+        return String.join(
+                "|",
+                merchantName == null ? "" : merchantName,
+                txDate == null ? "" : txDate,
+                txTime == null ? "" : txTime,
+                String.valueOf(txAmount == null ? 0L : txAmount)
+        );
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
     /**
      * 카드 조회 결과를 담는 내부 레코드.
      */
     private record CardInfo(String cardNo, String cvc, Long accountId) {}
+
+    private record ParsedCardTransaction(
+            String ssafyTransactionId,
+            String classificationId,
+            String rawCategory,
+            String merchantName,
+            String cardStatus,
+            Long amount,
+            LocalDateTime transacted
+    ) {}
 
     // ── 유틸 ──
 

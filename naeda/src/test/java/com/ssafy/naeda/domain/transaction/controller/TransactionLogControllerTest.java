@@ -51,6 +51,7 @@ class TransactionLogControllerTest {
                 .counterpart("홍길동")
                 .memo("테스트")
                 .category("이체")
+                .aiCategory("생활")
                 .ssafyTransactionId("TXN" + logId)
                 .transacted(LocalDateTime.of(2026, 3, 6, 12, 0, 0))
                 .build();
@@ -75,6 +76,7 @@ class TransactionLogControllerTest {
                 .andExpect(jsonPath("$[0].logId").value(1))
                 .andExpect(jsonPath("$[0].transactionType").value("DEPOSIT"))
                 .andExpect(jsonPath("$[0].amount").value(50_000))
+                .andExpect(jsonPath("$[0].aiCategory").value("생활"))
                 .andExpect(jsonPath("$[1].transactionType").value("WITHDRAW"));
     }
 

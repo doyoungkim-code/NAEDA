@@ -11,6 +11,7 @@ public class CardTransactionResponse {
     private long logId;
     private String transactionUniqueNo;
     private String categoryName;
+    private String aiCategory;
     private String merchantName;
     private String transactionDate;
     private String transactionTime;
@@ -22,6 +23,7 @@ public class CardTransactionResponse {
                 .logId(log.getLogId())
                 .transactionUniqueNo(log.getSsafyTransactionId())
                 .categoryName(log.getCategory())
+                .aiCategory(log.getAiCategory())
                 .merchantName(log.getCounterpart())
                 .transactionDate(log.getTransacted().toLocalDate().toString())
                 .transactionTime(log.getTransacted().toLocalTime().toString())
