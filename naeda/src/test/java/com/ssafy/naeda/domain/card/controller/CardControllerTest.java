@@ -321,13 +321,13 @@ class CardControllerTest {
                 .willReturn(List.of(
                         CardTransactionResponse.builder()
                                 .logId(1L).transactionUniqueNo("TX-001")
-                                .categoryName("식비").merchantName("스타벅스")
+                                .categoryName("식비").aiCategory("카페").merchantName("스타벅스")
                                 .transactionDate("2024-04-10").transactionTime("14:30:00")
                                 .amount(5000L).cardStatus("승인")
                                 .build(),
                         CardTransactionResponse.builder()
                                 .logId(2L).transactionUniqueNo("TX-002")
-                                .categoryName("교통").merchantName("카카오택시")
+                                .categoryName("교통").aiCategory("교통").merchantName("카카오택시")
                                 .transactionDate("2024-04-11").transactionTime("09:15:00")
                                 .amount(12000L).cardStatus("승인")
                                 .build()
@@ -341,6 +341,7 @@ class CardControllerTest {
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].logId").value(1))
                 .andExpect(jsonPath("$[0].categoryName").value("식비"))
+                .andExpect(jsonPath("$[0].aiCategory").value("카페"))
                 .andExpect(jsonPath("$[0].merchantName").value("스타벅스"))
                 .andExpect(jsonPath("$[0].amount").value(5000))
                 .andExpect(jsonPath("$[1].logId").value(2))
