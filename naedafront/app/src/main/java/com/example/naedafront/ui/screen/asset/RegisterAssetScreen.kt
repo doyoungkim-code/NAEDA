@@ -1,4 +1,4 @@
-package com.example.naedafront.ui.asset
+package com.example.naedafront.ui.screen.asset
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn

@@ -1,4 +1,4 @@
-package com.example.naedafront.ui.asset
+package com.example.naedafront.ui.screen.asset
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -70,11 +70,12 @@ val periodList = listOf("1주일", "1개월", "3개월", "6개월", "직접 설�
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountDetailScreen(
-    account: AccountItem = sampleAccounts.first(),
+    accountId: String = "1",
     transactions: List<TransactionItem> = sampleTransactions,
     onBack: () -> Unit = {},
     onTransferClick: () -> Unit = {}
 ) {
+    val account = sampleAccounts.find { it.id == accountId } ?: sampleAccounts.first()
     var selectedPeriod by remember { mutableStateOf("1개월") }
     var selectedCategory by remember { mutableStateOf("전체") }
     var showPeriodDialog by remember { mutableStateOf(false) }
