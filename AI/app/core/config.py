@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     ai_model_algorithm: str = "RULE_ENGINE"
     ai_model_artifact_path: str = "N/A"
     ai_model_updated_at: str = "2026-03-09T00:00:00"
+    consumption_category_model_version: str = "consumption-rule-v1"
+    consumption_monthly_insight_model_version: str = "consumption-monthly-insight-rule-v1"
     resident_ocr_provider: str = "disabled"
     resident_ocr_mock_document_type: str = "RESIDENT_ID"
     resident_ocr_mock_name: str = "홍길동"
