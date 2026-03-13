@@ -30,10 +30,10 @@ sealed class Screen(val route: String) {
 
     // ── 스캔 탭 하위 ──
     object FaceRegister : Screen("face_register")
-    object FaceMatchRecognize : Screen("face_match_recognize")
-    object FaceMatchResult : Screen("face_match_result")
     object FaceIntro : Screen("face_intro")
     object FaceGuide : Screen("face_guide")
+    object FaceMatchRecognize : Screen("face_match_recognize")
+    object FaceMatchResult : Screen("face_match_result")
     object FaceCapture : Screen("face_capture")
     object FaceAnalyzing : Screen("face_analyzing")
     object FaceComplete : Screen("face_complete")
@@ -43,10 +43,17 @@ sealed class Screen(val route: String) {
     }
 
     // ── 자산 탭 하위 ──
-    object AccountList : Screen("account_list")          // 계좌 목록 (계좌 및 카드 관리)
-    object RegisterAsset : Screen("register_asset")      // 새 계좌/카드 등록
+    object AccountList : Screen("account_list/{tab}") {  // 계좌 목록 (tab: 0=계좌, 1=카드)
+        fun createRoute(tab: Int = 0) = "account_list/$tab"
+    }
+    object RegisterAsset : Screen("register_asset/{tab}") {  // 새 계좌/카드 등록 (tab: 0=계좌, 1=카드)
+        fun createRoute(tab: Int) = "register_asset/$tab"
+    }
     object AccountDetail : Screen("account_detail/{accountId}") {
         fun createRoute(accountId: String) = "account_detail/$accountId"
+    }
+    object CardDetail : Screen("card_detail/{cardId}") {
+        fun createRoute(cardId: String) = "card_detail/$cardId"
     }
     object Transfer : Screen("transfer")
     object Transaction : Screen("transaction")

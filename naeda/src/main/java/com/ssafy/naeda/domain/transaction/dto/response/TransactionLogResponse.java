@@ -19,6 +19,7 @@ public class TransactionLogResponse {
     private String counterpart;
     private String memo;
     private String category;
+    private String aiCategory;
     private String ssafyTransactionId;
     private LocalDateTime transacted;
 
@@ -32,6 +33,7 @@ public class TransactionLogResponse {
                 .counterpart(log.getCounterpart())
                 .memo(log.getMemo())
                 .category(log.getCategory())
+                .aiCategory(log.getAiCategory())
                 .ssafyTransactionId(log.getSsafyTransactionId())
                 .transacted(log.getTransacted())
                 .build();
