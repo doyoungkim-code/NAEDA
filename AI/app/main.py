@@ -5,6 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 
 from app.api.internal_consumption_categories import router as internal_consumption_categories_router
+from app.api.internal_consumption_monthly_insights import router as internal_consumption_monthly_insights_router
 from app.api.internal_embeddings import router as internal_embeddings_router
 from app.api.internal_liveness import router as internal_liveness_router
 from app.api.internal_model_version import router as internal_model_version_router
@@ -17,6 +18,7 @@ from app.core.request_context import ensure_request_id, get_request_id
 settings = get_settings()
 app = FastAPI(title=settings.app_name)
 app.include_router(internal_consumption_categories_router)
+app.include_router(internal_consumption_monthly_insights_router)
 app.include_router(internal_embeddings_router)
 app.include_router(internal_liveness_router)
 app.include_router(internal_model_version_router)
