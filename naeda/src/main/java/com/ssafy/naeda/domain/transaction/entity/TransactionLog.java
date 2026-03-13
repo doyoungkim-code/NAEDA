@@ -43,10 +43,17 @@ public class TransactionLog {
     @Column(length = 30)
     private String category;
 
+    @Column(name = "ai_category", length = 30)
+    private String aiCategory;
+
     @Column(name = "ssafy_transaction_id", length = 100, unique = true)
     private String ssafyTransactionId;
 
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime transacted;
+
+    public void updateAiCategory(String aiCategory) {
+        this.aiCategory = aiCategory;
+    }
 }

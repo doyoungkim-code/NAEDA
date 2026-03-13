@@ -62,11 +62,12 @@ private val cardList = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterAssetScreen(
+    initialTab: Int = 0,   // 0: 계좌, 1: 카드
     onBack: () -> Unit = {},
     onRegisterComplete: () -> Unit = {}
 ) {
-    var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("계좌", "카드")
+    val isAccount = initialTab == 0
+    val title = if (isAccount) "계좌 추가" else "카드 추가"
 
     Scaffold(
         containerColor = Background,
@@ -74,7 +75,7 @@ fun RegisterAssetScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "자산 등록",
+                        text = title,
                         style = NaedaTypography.titleMedium,
                         color = OnBackground
                     )
@@ -97,15 +98,7 @@ fun RegisterAssetScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // 탭 바
-            RegisterTabRow(
-                selectedTab = selectedTab,
-                tabs = tabs,
-                onTabSelected = { selectedTab = it }
-            )
-
-            // 탭 콘텐츠
-            if (selectedTab == 0) {
+            if (isAccount) {
                 AccountRegisterForm(onRegisterComplete = onRegisterComplete)
             } else {
                 CardRegisterForm(onRegisterComplete = onRegisterComplete)

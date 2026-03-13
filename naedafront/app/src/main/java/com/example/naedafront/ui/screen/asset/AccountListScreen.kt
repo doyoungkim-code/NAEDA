@@ -1,4 +1,5 @@
 package com.example.naedafront.ui.screen.asset
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,6 +14,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +48,77 @@ data class AccountItem(
     // UI 전용 (서버에서 bankCode 기반으로 결정)
     val bankColor: Color,
     val bankInitials: String
+)
+
+// ─────────────────────────────────────────────
+// 카드 데이터 모델
+// ─────────────────────────────────────────────
+
+data class CardItem(
+    val id: String,               // debit/credit card id
+    val cardType: String,         // "CREDIT" or "DEBIT"
+    val cardIssuerName: String,   // card_issuer_name
+    val cardName: String,         // card_name (상품명)
+    val cardNumber: String,       // card_no (마스킹 표시용)
+    val cardExpiryDate: String,   // card_expiry_date
+    val isPrimary: Boolean = false,
+    val isActive: Boolean = true,
+    val cardGradientStart: Color,
+    val cardGradientEnd: Color
+)
+
+val sampleCards = listOf(
+    CardItem(
+        id = "1",
+        cardType = "CREDIT",
+        cardIssuerName = "신한카드",
+        cardName = "신한 Deep Dream 카드",
+        cardNumber = "1234-****-****-5678",
+        cardExpiryDate = "26/08",
+        isPrimary = true,
+        cardGradientStart = Color(0xFF0046FF),
+        cardGradientEnd = Color(0xFF0088FF)
+    ),
+    CardItem(
+        id = "2",
+        cardType = "DEBIT",
+        cardIssuerName = "삼성카드",
+        cardName = "삼성 taptap O카드",
+        cardNumber = "9876-****-****-4321",
+        cardExpiryDate = "25/12",
+        cardGradientStart = Color(0xFF1A1A2E),
+        cardGradientEnd = Color(0xFF16213E)
+    ),
+    CardItem(
+        id = "3",
+        cardType = "CREDIT",
+        cardIssuerName = "현대카드",
+        cardName = "현대카드 ZERO Edition3",
+        cardNumber = "5555-****-****-1111",
+        cardExpiryDate = "27/03",
+        cardGradientStart = Color(0xFF2D2D2D),
+        cardGradientEnd = Color(0xFF555555)
+    ),
+    CardItem(
+        id = "4",
+        cardType = "CREDIT",
+        cardIssuerName = "KB국민카드",
+        cardName = "KB 청춘대로 톡톡카드",
+        cardNumber = "4444-****-****-2222",
+        cardExpiryDate = "26/05",
+        cardGradientStart = Color(0xFFFFB800),
+        cardGradientEnd = Color(0xFFFF8C00)
+    ),
+    CardItem(
+        id = "5",
+        cardType = "DEBIT",
+        cardIssuerName = "카카오뱅크",
+        cardName = "카카오뱅크 체크카드",
+        cardNumber = "3333-****-****-9999",
+        cardExpiryDate = "28/01",
+        cardGradientStart = Color(0xFFFFE400),
+        cardGradientEnd = Color(0xFFFFC000)
+    )
 )
 
 val sampleAccounts = listOf(
@@ -95,14 +168,20 @@ val sampleAccounts = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountListScreen(
+    initialTab: Int = 0,
     accounts: List<AccountItem> = sampleAccounts,
+    cards: List<CardItem> = sampleCards,
     onBack: () -> Unit = {},
-    onRegisterNew: () -> Unit = {},
+    onRegisterNewAccount: () -> Unit = {},
+    onRegisterNewCard: () -> Unit = {},
     onAccountClick: (AccountItem) -> Unit = {},
+    onCardClick: (CardItem) -> Unit = {},
     onDeleteAccount: (AccountItem) -> Unit = {},
-    onSetPrimary: (AccountItem) -> Unit = {}
+    onSetPrimary: (AccountItem) -> Unit = {},
+    onSetPrimaryCard: (CardItem) -> Unit = {},
+    onDeleteCard: (CardItem) -> Unit = {}
 ) {
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by rememberSaveable { mutableStateOf(initialTab) }
     val tabs = listOf("계좌", "카드")
 
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -129,15 +208,7 @@ fun AccountListScreen(
                         )
                     }
                 },
-                actions = {
-                    IconButton(onClick = { /* 다크모드 토글 */ }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "테마 변경",
-                            tint = OnSurfaceVariant
-                        )
-                    }
-                },
+
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
             )
         }
@@ -170,19 +241,16 @@ fun AccountListScreen(
                         targetAccount = account
                         showDeleteDialog = true
                     },
-                    onRegisterNew = onRegisterNew
+                    onRegisterNew = onRegisterNewAccount
                 )
             } else {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "등록된 카드가 없어요",
-                        style = NaedaTypography.bodyMedium,
-                        color = OnSurfaceVariant
-                    )
-                }
+                CardListContent(
+                    cards = cards,
+                    onRegisterNew = onRegisterNewCard,
+                    onCardClick = onCardClick,
+                    onSetPrimaryCard = onSetPrimaryCard,
+                    onDeleteCard = onDeleteCard
+                )
             }
         }
     }
@@ -266,7 +334,7 @@ private fun AccountListContent(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp)
     ) {
-        item { AccountListHeader(count = accounts.size) }
+        item { AccountListHeader(count = accounts.size, onRegisterNew = onRegisterNew) }
 
         items(accounts, key = { it.id }) { account ->
             AccountListItem(
@@ -280,7 +348,6 @@ private fun AccountListContent(
         }
 
         item { AccountInfoNotice() }
-        item { RegisterNewButton(onClick = onRegisterNew) }
     }
 }
 
@@ -289,7 +356,7 @@ private fun AccountListContent(
 // ─────────────────────────────────────────────
 
 @Composable
-private fun AccountListHeader(count: Int) {
+private fun AccountListHeader(count: Int, onRegisterNew: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -311,17 +378,17 @@ private fun AccountListHeader(count: Int) {
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable { }
+            modifier = Modifier.clickable { onRegisterNew() }
         ) {
             Icon(
-                imageVector = Icons.Default.SwapVert,
-                contentDescription = "순서 변경",
+                imageVector = Icons.Default.Add,
+                contentDescription = "계좌 추가",
                 tint = Mint900,
                 modifier = Modifier.size(16.dp)
             )
             Spacer(modifier = Modifier.width(2.dp))
             Text(
-                text = "순서 변경",
+                text = "추가하기",
                 style = NaedaTypography.labelMedium,
                 color = Mint900
             )
@@ -482,32 +549,275 @@ private fun AccountInfoNotice() {
 }
 
 // ─────────────────────────────────────────────
-// 새 계좌/카드 등록 버튼
+// 카드 목록 콘텐츠
 // ─────────────────────────────────────────────
 
 @Composable
-private fun RegisterNewButton(onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
+private fun CardListContent(
+    cards: List<CardItem>,
+    onRegisterNew: () -> Unit,
+    onCardClick: (CardItem) -> Unit = {},
+    onSetPrimaryCard: (CardItem) -> Unit = {},
+    onDeleteCard: (CardItem) -> Unit = {}
+) {
+    var expandedMenuId by remember { mutableStateOf<String?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var targetCard by remember { mutableStateOf<CardItem?>(null) }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 24.dp)
+    ) {
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        text = "등록된 카드",
+                        style = NaedaTypography.labelMedium,
+                        color = OnSurfaceVariant
+                    )
+                    Text(
+                        text = "총 ${cards.size}개",
+                        style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = OnBackground
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { onRegisterNew() }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "카드 추가",
+                        tint = Mint900,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        text = "추가하기",
+                        style = NaedaTypography.labelMedium,
+                        color = Mint900
+                    )
+                }
+            }
+        }
+
+        items(cards, key = { it.id }) { card ->
+            CardListItem(
+                card = card,
+                isMenuExpanded = expandedMenuId == card.id,
+                onMenuToggle = { expandedMenuId = if (expandedMenuId == card.id) null else card.id },
+                onClick = { onCardClick(card) },
+                onSetPrimary = {
+                    expandedMenuId = null
+                    onSetPrimaryCard(card)
+                },
+                onDeleteRequest = {
+                    expandedMenuId = null
+                    targetCard = card
+                    showDeleteDialog = true
+                }
+            )
+        }
+
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
+            ) {
+                Text(text = "ⓘ", style = NaedaTypography.labelSmall, color = OnSurfaceVariant)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "카드를 해지하시려면 해당 카드사 앱 또는 고객센터를 이용해 주세요.\n등록된 정보는 안전한 보안 통신을 통해 관리되며, 서비스 이용 이외의 목적으로 사용되지 않습니다.",
+                    style = NaedaTypography.labelSmall,
+                    color = OnSurfaceVariant,
+                    lineHeight = 18.sp
+                )
+            }
+        }
+
+        item { Spacer(modifier = Modifier.height(8.dp)) }
+    }
+
+    if (showDeleteDialog && targetCard != null) {
+        CardDeleteDialog(
+            onDismiss = { showDeleteDialog = false; targetCard = null },
+            onConfirm = {
+                targetCard?.let { onDeleteCard(it) }
+                showDeleteDialog = false
+                targetCard = null
+            }
+        )
+    }
+}
+
+// ─────────────────────────────────────────────
+// 카드 아이템 (실제 카드 모양)
+// ─────────────────────────────────────────────
+
+@Composable
+private fun CardListItem(
+    card: CardItem,
+    isMenuExpanded: Boolean = false,
+    onMenuToggle: () -> Unit = {},
+    onClick: () -> Unit = {},
+    onSetPrimary: () -> Unit = {},
+    onDeleteRequest: () -> Unit = {}
+) {
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp)
-            .height(54.dp),
-        shape = RoundedCornerShape(14.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+            .padding(horizontal = 20.dp, vertical = 8.dp)
+            .height(200.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .clickable { onClick() }
+            .background(
+                brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                    colors = listOf(card.cardGradientStart, card.cardGradientEnd)
+                )
+            )
     ) {
-        Icon(
-            imageVector = Icons.Default.Add,
-            contentDescription = null,
-            tint = Color.White,
-            modifier = Modifier.size(18.dp)
+        // 배경 원형 장식
+        Box(
+            modifier = Modifier
+                .size(180.dp)
+                .offset(x = 160.dp, y = (-40).dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.06f))
         )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = "새 계좌/카드 등록하기",
-            style = NaedaTypography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-            color = Color.White
+        Box(
+            modifier = Modifier
+                .size(130.dp)
+                .offset(x = 200.dp, y = 60.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.04f))
         )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            // 상단: 카드사명 + 카드 타입 + ... 메뉴
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = card.cardIssuerName,
+                        style = NaedaTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White
+                    )
+                    if (card.isPrimary) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color.White.copy(alpha = 0.25f))
+                                .padding(horizontal = 7.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = "대표",
+                                style = NaedaTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = Color.White,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color.White.copy(alpha = 0.2f))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = if (card.cardType == "CREDIT") "신용" else "체크",
+                            style = NaedaTypography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = Color.White,
+                            fontSize = 10.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Box {
+                        IconButton(
+                            onClick = onMenuToggle,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "더보기",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = isMenuExpanded,
+                            onDismissRequest = onMenuToggle,
+                            modifier = Modifier.background(Surface)
+                        ) {
+                            if (!card.isPrimary) {
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            "대표 카드로 설정",
+                                            style = NaedaTypography.bodyMedium,
+                                            color = OnBackground
+                                        )
+                                    },
+                                    onClick = onSetPrimary
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        "삭제",
+                                        style = NaedaTypography.bodyMedium,
+                                        color = Error
+                                    )
+                                },
+                                onClick = onDeleteRequest
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 중단: 카드 상품명
+            Text(
+                text = card.cardName,
+                style = NaedaTypography.bodyMedium,
+                color = Color.White.copy(alpha = 0.85f),
+                maxLines = 1
+            )
+
+            // 하단: 카드번호 + 유효기간
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = card.cardNumber,
+                    style = NaedaTypography.labelLarge.copy(
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 2.sp
+                    ),
+                    color = Color.White
+                )
+                Text(
+                    text = "~ ${card.cardExpiryDate}",
+                    style = NaedaTypography.labelSmall,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+            }
+        }
     }
 }
 
@@ -538,6 +848,76 @@ private fun AccountDeleteDialog(
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     text = "삭제 시 해당 계좌의 정보가\n앱에서 제거됩니다.",
+                    style = NaedaTypography.bodyMedium,
+                    color = OnSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 22.sp
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Outline),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = OnSurfaceVariant
+                        )
+                    ) {
+                        Text(text = "취소", style = NaedaTypography.labelLarge)
+                    }
+                    Button(
+                        onClick = onConfirm,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+                    ) {
+                        Text(
+                            text = "삭제하기",
+                            style = NaedaTypography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────
+// 카드 삭제 확인 다이얼로그
+// ─────────────────────────────────────────────
+
+@Composable
+private fun CardDeleteDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = Surface,
+            shadowElevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "카드를 삭제하시겠습니까?",
+                    style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = OnBackground
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "삭제 시 해당 카드의 정보가\n앱에서 제거됩니다.",
                     style = NaedaTypography.bodyMedium,
                     color = OnSurfaceVariant,
                     textAlign = TextAlign.Center,
