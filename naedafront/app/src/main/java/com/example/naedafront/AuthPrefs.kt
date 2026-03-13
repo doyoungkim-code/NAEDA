@@ -6,6 +6,7 @@ object AuthPrefs {
     private const val PREFS_NAME = "naeda_auth"
     private const val KEY_LOGGED_IN = "is_logged_in"
     private const val KEY_FACE_REGISTERED = "is_face_registered"
+    private const val KEY_SECONDARY_AUTH_ENABLED = "is_secondary_auth_enabled"
     private const val KEY_USER_NO = "user_no"
     private const val KEY_USER_ID = "user_id"
     private const val KEY_USERNAME = "username"
@@ -39,7 +40,9 @@ object AuthPrefs {
         username: String,
         userKey: String,
         accessToken: String,
-        refreshToken: String
+        refreshToken: String,
+        faceRegistered: Boolean,
+        secondaryAuthEnabled: Boolean
     ) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
@@ -50,6 +53,8 @@ object AuthPrefs {
             .putString(KEY_USER_KEY, userKey)
             .putString(KEY_ACCESS_TOKEN, accessToken)
             .putString(KEY_REFRESH_TOKEN, refreshToken)
+            .putBoolean(KEY_FACE_REGISTERED, faceRegistered)
+            .putBoolean(KEY_SECONDARY_AUTH_ENABLED, secondaryAuthEnabled)
             .apply()
     }
 
@@ -80,10 +85,12 @@ object AuthPrefs {
 
     fun clearSession(context: Context) {
         val isFaceRegistered = isFaceRegistered(context)
+        val isSecondaryAuthEnabled = isSecondaryAuthEnabled(context)
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .clear()
             .putBoolean(KEY_FACE_REGISTERED, isFaceRegistered)
+            .putBoolean(KEY_SECONDARY_AUTH_ENABLED, isSecondaryAuthEnabled)
             .apply()
     }
 
@@ -95,6 +102,18 @@ object AuthPrefs {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_FACE_REGISTERED, value)
+            .apply()
+    }
+
+    fun isSecondaryAuthEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_SECONDARY_AUTH_ENABLED, false)
+
+    fun saveFacePaySettings(context: Context, faceRegistered: Boolean, secondaryAuthEnabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_FACE_REGISTERED, faceRegistered)
+            .putBoolean(KEY_SECONDARY_AUTH_ENABLED, secondaryAuthEnabled)
             .apply()
     }
 }

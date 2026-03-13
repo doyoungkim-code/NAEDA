@@ -7,6 +7,7 @@ import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.PUT
@@ -61,6 +62,16 @@ data class PinUpdateResponseDto(
     val message: String? = null
 )
 
+data class FacePaySettingsRequestBody(
+    val enableSecondaryAuth: Boolean,
+    val currentPin: String? = null
+)
+
+data class FacePaySettingsResponseDto(
+    val faceRegistered: Boolean = false,
+    val secondaryAuthEnabled: Boolean = false,
+    val message: String? = null
+)
 private interface FaceRegistrationApiService {
     @Multipart
     @POST("api/v1/face/enroll")
@@ -91,6 +102,14 @@ private interface FaceRegistrationApiService {
     suspend fun updatePin(
         @Body request: UpdatePinRequestBody
     ): PinUpdateResponseDto
+
+    @GET("api/users/me/face-pay-settings")
+    suspend fun getFacePaySettings(): FacePaySettingsResponseDto
+
+    @PUT("api/users/me/face-pay-settings")
+    suspend fun updateFacePaySettings(
+        @Body request: FacePaySettingsRequestBody
+    ): FacePaySettingsResponseDto
 }
 
 object FaceRegistrationRepository {
@@ -161,6 +180,30 @@ object FaceRegistrationRepository {
         }
     }
 
+    suspend fun getFacePaySettings(): FacePaySettingsResponseDto {
+        return runCatching {
+            service.getFacePaySettings()
+        }.getOrElse { throwable ->
+            throw toReadableException(throwable, "페이스페이 설정 조회에 실패했습니다.")
+        }
+    }
+
+    suspend fun updateFacePaySettings(
+        enableSecondaryAuth: Boolean,
+        currentPin: String?
+    ): FacePaySettingsResponseDto {
+        return runCatching {
+            service.updateFacePaySettings(
+                FacePaySettingsRequestBody(
+                    enableSecondaryAuth = enableSecondaryAuth,
+                    currentPin = currentPin?.trim()?.takeUnless { it.isBlank() }
+                )
+            )
+        }.getOrElse { throwable ->
+            throw toReadableException(throwable, "페이스페이 설정 저장에 실패했습니다.")
+        }
+    }
+
     private fun imagePart(imageBytes: ByteArray, fileName: String): MultipartBody.Part {
         val body = imageBytes.toRequestBody("image/jpeg".toMediaType())
         return MultipartBody.Part.createFormData("image", fileName, body)
@@ -187,3 +230,4 @@ object FaceRegistrationRepository {
         )
     }
 }
+

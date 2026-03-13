@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 import types
 
 import cv2
@@ -71,9 +71,9 @@ def test_resident_id_ocr_returns_paddleocr_result(monkeypatch):
 
         def ocr(self, image, cls=True):
             return [[
-                [[[0, 0], [1, 0], [1, 1], [0, 1]], ("운전면허증", 0.99)],
-                [[[0, 0], [1, 0], [1, 1], [0, 1]], ("성명 홍길동", 0.95)],
-                [[[0, 0], [1, 0], [1, 1], [0, 1]], ("900101-1******", 0.88)],
+                [[[0, 0], [40, 0], [40, 10], [0, 10]], ("운전면허증", 0.99)],
+                [[[0, 20], [60, 20], [60, 30], [0, 30]], ("성명 홍길동", 0.95)],
+                [[[0, 40], [80, 40], [80, 50], [0, 50]], ("900101-1******", 0.88)],
             ]]
 
     fake_module.PaddleOCR = FakePaddleOCR
@@ -103,3 +103,91 @@ def test_resident_id_ocr_returns_paddleocr_result(monkeypatch):
     assert data["residentBackFirst1"] == "1"
     assert data["provider"] == "paddleocr"
     assert data["confidence"] >= 0.5
+
+
+def test_resident_id_ocr_extracts_name_from_split_resident_id_entries(monkeypatch):
+    monkeypatch.setenv("RESIDENT_OCR_PROVIDER", "paddleocr")
+
+    fake_module = types.ModuleType("paddleocr")
+
+    class FakePaddleOCR:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        def ocr(self, image, cls=True):
+            return [[
+                [[[0, 0], [70, 0], [70, 10], [0, 10]], ("주민등록증", 0.99)],
+                [[[0, 20], [20, 20], [20, 30], [0, 30]], ("성명", 0.97)],
+                [[[24, 20], [36, 20], [36, 30], [24, 30]], ("홍", 0.95)],
+                [[[40, 20], [70, 20], [70, 30], [40, 30]], ("길동", 0.95)],
+                [[[0, 40], [90, 40], [90, 50], [0, 50]], ("900101-1******", 0.96)],
+            ]]
+
+    fake_module.PaddleOCR = FakePaddleOCR
+    monkeypatch.setitem(sys.modules, "paddleocr", fake_module)
+
+    from app.core.config import get_settings
+    from app.core import resident_ocr
+
+    get_settings.cache_clear()
+    resident_ocr._get_paddle_ocr.cache_clear()
+    try:
+        response = client.post(
+            "/internal/v1/ocr/id-card/extract",
+            headers=AUTH_HEADER,
+            files={"image": ("card.png", valid_png_bytes(), "image/png")},
+        )
+    finally:
+        get_settings.cache_clear()
+        resident_ocr._get_paddle_ocr.cache_clear()
+        sys.modules.pop("paddleocr", None)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["documentType"] == "RESIDENT_ID"
+    assert data["name"] == "홍길동"
+    assert data["residentFront6"] == "900101"
+    assert data["residentBackFirst1"] == "1"
+
+
+def test_resident_id_ocr_prefers_name_over_region_text(monkeypatch):
+    monkeypatch.setenv("RESIDENT_OCR_PROVIDER", "paddleocr")
+
+    fake_module = types.ModuleType("paddleocr")
+
+    class FakePaddleOCR:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        def ocr(self, image, cls=True):
+            return [[
+                [[[0, 0], [70, 0], [70, 10], [0, 10]], ("주민등록증", 0.99)],
+                [[[0, 18], [80, 18], [80, 28], [0, 28]], ("서울특별시", 0.94)],
+                [[[0, 36], [20, 36], [20, 46], [0, 46]], ("성명", 0.96)],
+                [[[24, 36], [70, 36], [70, 46], [24, 46]], ("김민수", 0.95)],
+                [[[0, 56], [90, 56], [90, 66], [0, 66]], ("900101-1******", 0.96)],
+            ]]
+
+    fake_module.PaddleOCR = FakePaddleOCR
+    monkeypatch.setitem(sys.modules, "paddleocr", fake_module)
+
+    from app.core.config import get_settings
+    from app.core import resident_ocr
+
+    get_settings.cache_clear()
+    resident_ocr._get_paddle_ocr.cache_clear()
+    try:
+        response = client.post(
+            "/internal/v1/ocr/id-card/extract",
+            headers=AUTH_HEADER,
+            files={"image": ("card.png", valid_png_bytes(), "image/png")},
+        )
+    finally:
+        get_settings.cache_clear()
+        resident_ocr._get_paddle_ocr.cache_clear()
+        sys.modules.pop("paddleocr", None)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["documentType"] == "RESIDENT_ID"
+    assert data["name"] == "김민수"

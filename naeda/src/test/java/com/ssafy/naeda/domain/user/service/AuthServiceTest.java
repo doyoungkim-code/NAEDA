@@ -96,5 +96,7 @@ class AuthServiceTest {
         assertThat(savedUser.getPinPassword()).isEqualTo("encoded-pin");
         assertThat(response.getUserNo()).isEqualTo(1L);
         assertThat(response.getUserKey()).isEqualTo("user-key-1");
+        assertThat(response.isFaceRegistered()).isFalse();
+        assertThat(response.isSecondaryAuthEnabled()).isFalse();
     }
 }
