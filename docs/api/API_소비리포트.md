@@ -121,7 +121,61 @@
 
 ---
 
-## 3. 소비 리포트 저장 (내부 API)
+## 3. 월간 소비 리포트 생성
+
+SSAFY 카드 거래내역을 기반으로 월간 소비 리포트를 생성하고 저장한다.
+
+| 항목 | 내용 |
+|------|------|
+| **Method** | `POST` |
+| **URL** | `/api/reports/monthly/generate` |
+| **Auth** | - |
+
+### Query Parameters
+
+| 이름 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| userNo | Long | O | 사용자 번호 |
+| targetMonth | String | O | 대상 월 (`yyyy-MM`) |
+
+### Request Body
+
+없음
+
+### Response
+
+**Status: `200 OK`**
+
+```json
+{
+  "reportId": 3,
+  "periodType": "MONTHLY",
+  "periodStart": "2026-03-01",
+  "periodEnd": "2026-03-31",
+  "categoryBreakdown": {
+    "교통": 18000,
+    "식비": 12000,
+    "카페": 6000
+  },
+  "totalSpending": 36000,
+  "localSpending": null,
+  "localRatio": null,
+  "localGrade": null,
+  "insights": ["이번 달 교통비가 크게 나갔어요. 반복되는 이동 비용을 한 번 점검해보세요."],
+  "generated": "2026-04-01T09:00:00"
+}
+```
+
+### Error
+
+| Status | 조건 | 메시지 |
+|--------|------|--------|
+| 400 | userNo 또는 targetMonth 형식 오류 | 요청 파라미터를 확인해주세요. |
+| 404 | 사용자가 존재하지 않음 | 존재하지 않는 사용자입니다. |
+
+---
+
+## 4. 소비 리포트 저장 (내부 API)
 
 AI 서버에서 생성한 소비 리포트를 저장한다.
 

@@ -274,12 +274,30 @@ public class CardService {
     @Transactional
     public List<CardTransactionResponse> getCardTransactions(Long userNo,
                                                              Long cardId, CardTransactionRequest request) {
-
         User user = userRepository.findById(userNo)
                 .orElseThrow(() -> new NotFoundException("존재하지 않는 사용자입니다."));
-
         CardInfo cardInfo = findCardByIdAndUserNo(cardId, userNo);
+        return fetchCardTransactions(user, cardInfo, request);
+    }
 
+    @Transactional
+    public List<CardTransactionResponse> getCardTransactionsByCredentials(
+            Long userNo,
+            String cardNo,
+            String cvc,
+            Long accountId,
+            CardTransactionRequest request
+    ) {
+        User user = userRepository.findById(userNo)
+                .orElseThrow(() -> new NotFoundException("존재하지 않는 사용자입니다."));
+        return fetchCardTransactions(user, new CardInfo(cardNo, cvc, accountId), request);
+    }
+
+    private List<CardTransactionResponse> fetchCardTransactions(
+            User user,
+            CardInfo cardInfo,
+            CardTransactionRequest request
+    ) {
         // SSAFY API 호출
         Map<String, Object> header = ssafyHeaderFactory.create(CARD_TX_API, user.getUserKey());
         Map<String, Object> body = ssafyApiClient.buildBody(header,
@@ -379,7 +397,7 @@ public class CardService {
             savedLogs.add(transactionLogRepository.save(logEntity));
         }
 
-        log.info("[CardService] 카드 결제 내역 조회: userNo={}, cardId={}, 건수={}", userNo, cardId, savedLogs.size());
+        log.info("[CardService] 카드 결제 내역 조회: userNo={}, cardNo={}, 건수={}", user.getUserNo(), cardInfo.cardNo(), savedLogs.size());
 
         return savedLogs.stream()
                 .map(CardTransactionResponse::from)
