@@ -40,7 +40,7 @@ import com.example.naedafront.ui.screen.asset.AccountDetailScreen
 import com.example.naedafront.ui.screen.asset.AccountListScreen
 import com.example.naedafront.ui.screen.asset.RegisterAssetScreen
 import com.example.naedafront.ui.screen.asset.sampleAccounts
-
+import com.example.naedafront.ui.screen.mypage.MyPageScreen
 /**
  * 내다(NAEDA) 전체 네비게이션 그래프
  */
