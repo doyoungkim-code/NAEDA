@@ -11,13 +11,9 @@ sealed class Screen(val route: String) {
     object Welcome : Screen("welcome")
     object Login : Screen("login")
 
-<<<<<<< HEAD
     // 회원가입 플로우 전체를 묶는 부모 graph
     object SignUpGraph : Screen("signup_graph")
 
-    object SignUp : Screen("signup")
-=======
->>>>>>> dev_front
     object SignUpRrn : Screen("signup_rrn")
     object SignUpPhone : Screen("signup_phone")
 
@@ -27,10 +23,8 @@ sealed class Screen(val route: String) {
     object SignUpEmail : Screen("signup_email")
     object SignUpPassword : Screen("signup_password")
     object SignUpPin : Screen("signup_pin")
-<<<<<<< HEAD
-=======
+
     object SignUp : Screen("signup")
->>>>>>> dev_front
 
     // ── 메인 5탭 ──
     object Home : Screen("home")
