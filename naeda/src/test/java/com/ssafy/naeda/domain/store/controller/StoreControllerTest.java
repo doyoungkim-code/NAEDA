@@ -62,7 +62,7 @@ class StoreControllerTest {
                         .isLocalBusiness(true).facePayEnabled(true).rating(4.5)
                         .build(),
                 StoreResponse.builder()
-                        .storeId(2L)
+                        .ssafyMerchantId(2L)
                         .storeName("스타벅스").categoryId("CG-9ca85f66311a23d").categoryName("생활")
                         .build()
         ));
@@ -109,6 +109,32 @@ class StoreControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].facePayEnabled").value(true));
+    }
+
+    @Test
+    @DisplayName("지도용 매장 목록 조회 - 200과 좌표 포함 매장 목록을 반환한다")
+    void getMapStores_returns200() throws Exception {
+        given(storeService.getMapStores()).willReturn(List.of(
+                StoreResponse.builder()
+                        .storeId(101L)
+                        .storeName("백운한정식")
+                        .categoryId("PUBLIC_RESTAURANT")
+                        .categoryName("한식")
+                        .roadAddress("경상북도 구미시 인동35길 38")
+                        .latitude(36.102345)
+                        .longitude(128.382345)
+                        .imageUrl("https://example.com/store.jpg")
+                        .description("한식당")
+                        .rating(4.3)
+                        .build()
+        ));
+
+        mockMvc.perform(get("/api/stores/map"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].storeId").value(101))
+                .andExpect(jsonPath("$[0].latitude").value(36.102345))
+                .andExpect(jsonPath("$[0].imageUrl").value("https://example.com/store.jpg"));
     }
 
     // ── GET /api/stores/{storeId} ────────────────────────────────────────
@@ -167,7 +193,7 @@ class StoreControllerTest {
 
         given(storeService.createStore(any(StoreCreateRequest.class))).willReturn(
                 StoreResponse.builder()
-                        .storeId(3L).userNo(10L)
+                        .storeId(30L).ssafyMerchantId(3L).userNo(10L)
                         .storeName("코스트코")
                         .categoryId("CG-4fa85f6425ad1d3").categoryName("대형마트")
                         .roadAddress("경북 구미시 산호대로 1")
@@ -175,11 +201,12 @@ class StoreControllerTest {
                         .build()
         );
 
-        mockMvc.perform(post("/api/stores")
+                mockMvc.perform(post("/api/stores")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.storeId").value(3))
+                .andExpect(jsonPath("$.storeId").value(30))
+                .andExpect(jsonPath("$.ssafyMerchantId").value(3))
                 .andExpect(jsonPath("$.storeName").value("코스트코"));
     }
 }

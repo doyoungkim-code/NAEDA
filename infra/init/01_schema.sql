@@ -120,20 +120,33 @@ CREATE TABLE payment_method (
 
 CREATE TABLE store (
     store_id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    user_no           BIGINT         NOT NULL,
+    ssafy_merchant_id BIGINT         UNIQUE,
+    user_no           BIGINT,
     account_id        BIGINT,
     store_name        VARCHAR(100)   NOT NULL,
     category          VARCHAR(30)    NOT NULL,
     category_name     VARCHAR(50),
-    road_address      VARCHAR(255)   NOT NULL,
+    road_address      VARCHAR(255),
     number_address    VARCHAR(255),
     latitude          FLOAT,
     longitude         FLOAT,
     phone             VARCHAR(20),
-    is_local_business BOOLEAN        DEFAULT FALSE,
-    face_pay_enabled  BOOLEAN        DEFAULT FALSE,
-    rating            FLOAT          DEFAULT 0,
+    is_local_business BOOLEAN        NOT NULL DEFAULT FALSE,
+    face_pay_enabled  BOOLEAN        NOT NULL DEFAULT FALSE,
+    rating            FLOAT          NOT NULL DEFAULT 0,
+    source_type       VARCHAR(20)    NOT NULL DEFAULT 'SSAFY',
+    source_key        VARCHAR(120)   UNIQUE,
+    image_url         VARCHAR(500),
+    description       TEXT,
+    is_active         BOOLEAN        NOT NULL DEFAULT TRUE,
+    last_enriched_at  TIMESTAMP,
     created           TIMESTAMP      NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE store_seed_metadata (
+    seed_key          VARCHAR(100) PRIMARY KEY,
+    content_hash      VARCHAR(64)  NOT NULL,
+    updated           TIMESTAMP    NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE payment (
