@@ -123,8 +123,12 @@ public class Store {
     }
 
     public void updateEnrichment(String imageUrl, String description, Double rating, LocalDateTime enrichedAt) {
-        this.imageUrl = imageUrl;
-        this.description = description;
+        if (imageUrl != null) {
+            this.imageUrl = imageUrl;
+        }
+        if (description != null) {
+            this.description = description;
+        }
         this.rating = rating == null ? this.rating : rating;
         this.lastEnrichedAt = enrichedAt;
     }

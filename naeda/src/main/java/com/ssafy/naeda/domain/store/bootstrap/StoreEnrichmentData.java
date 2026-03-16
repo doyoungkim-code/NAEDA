@@ -5,6 +5,10 @@ public record StoreEnrichmentData(
         String description,
         Double rating
 ) {
+    public boolean hasAnyValue() {
+        return imageUrl != null || description != null || rating != null;
+    }
+
     public static StoreEnrichmentData empty() {
         return new StoreEnrichmentData(null, null, null);
     }
