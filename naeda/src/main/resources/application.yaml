@@ -94,3 +94,6 @@ resilience4j:
         wait-duration-in-open-state: 30s   # OPEN 후 30초 대기 → HALF_OPEN
         permitted-number-of-calls-in-half-open-state: 3  # HALF_OPEN에서 3건 테스트
         sliding-window-type: COUNT_BASED   # 횟수 기반 슬라이딩 윈도우
+
+fcm:
+  credentials-path: ${FCM_CREDENTIALS_PATH:../naeda-fcm-firebase-adminsdk-fbsvc-b5c3c26d36.json}
