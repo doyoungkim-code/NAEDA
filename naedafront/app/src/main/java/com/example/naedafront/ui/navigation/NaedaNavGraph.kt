@@ -33,6 +33,7 @@ import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
 import com.example.naedafront.ui.screen.home.HomeScreen
 import com.example.naedafront.ui.screen.home.HomeUiState
 import com.example.naedafront.ui.screen.mypage.MyPageScreen
+import com.example.naedafront.ui.screen.mypage.MyPageViewModel
 import com.example.naedafront.ui.screen.signup.SignUpEmailScreen
 import com.example.naedafront.ui.screen.signup.SignUpNameScreen
 import com.example.naedafront.ui.screen.signup.SignUpPasswordScreen
@@ -412,13 +413,11 @@ fun NaedaNavGraph(
         // ═══ 마이페이지 / 더보기 하위 ═══
 
         composable(Screen.MyPage.route) {
-            val displayName = AuthPrefs.getUsername(context)
-                ?.takeUnless { it.isBlank() }
-                ?: "김종우님"
+            val myPageViewModel: MyPageViewModel = viewModel()
 
             MyPageScreen(
-                userName = displayName,
-                userEmail = "kjw_naeda@email.com",
+                viewModel = myPageViewModel,
+                onBackClick = { navController.popBackStack() },
                 onNotificationClick = {
                     navController.navigate(Screen.Notification.route)
                 },
@@ -435,8 +434,7 @@ fun NaedaNavGraph(
                 onContactManageClick = { },
                 onCustomerCenterClick = { },
                 onLogoutClick = {
-                    AuthPrefs.setLoggedIn(context, false)
-                    AuthPrefs.setFaceRegistered(context, false)
+                    AuthPrefs.clearSession(context)
                     navController.navigate(Screen.Welcome.route) {
                         popUpTo(Screen.Welcome.route) { inclusive = true }
                         launchSingleTop = true
