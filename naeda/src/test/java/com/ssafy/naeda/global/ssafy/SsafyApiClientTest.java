@@ -1,11 +1,13 @@
 package com.ssafy.naeda.global.ssafy;
 
 import com.ssafy.naeda.global.exception.SsafyApiException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.retry.RetryRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.*;
@@ -27,11 +29,14 @@ class SsafyApiClientTest {
     @Mock
     private RestTemplate restTemplate;
 
-    @InjectMocks
     private SsafyApiClient ssafyApiClient;
 
     @BeforeEach
     void setUp() {
+        CircuitBreakerRegistry cbRegistry = CircuitBreakerRegistry.ofDefaults();
+        RetryRegistry retryRegistry = RetryRegistry.ofDefaults();
+
+        ssafyApiClient = new SsafyApiClient(restTemplate, cbRegistry, retryRegistry);
         ReflectionTestUtils.setField(ssafyApiClient, "baseUrl",
                 "https://finopenapi.ssafy.io/ssafy/api/v1");
     }
@@ -77,7 +82,7 @@ class SsafyApiClientTest {
     }
 
     @Test
-    @DisplayName("네트워크 오류가 발생하면 SsafyApiException(NETWORK_ERROR)을 던진다")
+    @DisplayName("네트워크 오류가 발생하면 Retry 후 SsafyApiException(NETWORK_ERROR)을 던진다")
     void post_networkError_throwsSsafyApiException() {
         given(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(Map.class)))
                 .willThrow(new RestClientException("connection refused"));
@@ -88,6 +93,23 @@ class SsafyApiClientTest {
                 .isInstanceOf(SsafyApiException.class)
                 .extracting("errorCode")
                 .isEqualTo("NETWORK_ERROR");
+    }
+
+    @Test
+    @DisplayName("CircuitBreaker OPEN 상태에서는 CallNotPermittedException을 던진다")
+    void post_circuitBreakerOpen_throwsCallNotPermitted() {
+        // CircuitBreaker를 강제로 OPEN 상태로 전환
+        CircuitBreakerRegistry cbRegistry = CircuitBreakerRegistry.ofDefaults();
+        RetryRegistry retryRegistry = RetryRegistry.ofDefaults();
+        SsafyApiClient client = new SsafyApiClient(restTemplate, cbRegistry, retryRegistry);
+        ReflectionTestUtils.setField(client, "baseUrl", "https://finopenapi.ssafy.io/ssafy/api/v1");
+
+        CircuitBreaker cb = cbRegistry.circuitBreaker("ssafyApi");
+        cb.transitionToOpenState();
+
+        assertThatThrownBy(() ->
+                client.post("/some/path", new HashMap<>())
+        ).isInstanceOf(io.github.resilience4j.circuitbreaker.CallNotPermittedException.class);
     }
 
     @Test
