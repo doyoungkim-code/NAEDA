@@ -20,7 +20,8 @@ public class StoreCatalogBootstrapRunner implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         PublicStoreSeedService.SeedSummary summary = publicStoreSeedService.syncIfNeeded();
         int enriched = storeEnrichmentService.enrichPendingStores();
-        log.info("[StoreBootstrap] seedSkipped={}, created={}, updated={}, deactivated={}, enriched={}",
-                summary.skipped(), summary.created(), summary.updated(), summary.deactivated(), enriched);
+        int retried = storeEnrichmentService.retryIncompleteStores();
+        log.info("[StoreBootstrap] seedSkipped={}, created={}, updated={}, deactivated={}, enriched={}, retried={}",
+                summary.skipped(), summary.created(), summary.updated(), summary.deactivated(), enriched, retried);
     }
 }
