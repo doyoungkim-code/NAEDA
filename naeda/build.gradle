@@ -44,8 +44,10 @@ dependencies {
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
 	// Redis
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-	// Firebase Admin SDK (FCM)
-	implementation 'com.google.firebase:firebase-admin:9.4.3'
+	// Resilience4j - 외부 API 장애 대응 (retry + circuit breaker)
+	implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
+	// AOP - 감사 로그
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
 
 }
 
