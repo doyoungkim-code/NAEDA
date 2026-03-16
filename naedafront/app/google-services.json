@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:276468000568:android:56e9c0c1730ae1b31343cd",
+        "android_client_info": {
+          "package_name": "com.example.naedafront"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDWd9x75Otwd78CXd7G5pUm932S1gd_j8A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:276468000568:android:f7c8f0a8dea389a51343cd",
         "android_client_info": {
           "package_name": "com.ssafy.naeda"
