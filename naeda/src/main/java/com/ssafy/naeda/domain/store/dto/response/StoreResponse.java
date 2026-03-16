@@ -11,6 +11,7 @@ import lombok.Getter;
 public class StoreResponse {
 
     private Long storeId;
+    private Long ssafyMerchantId;
     private Long userNo;
     private String storeName;
     private String categoryId;
@@ -31,6 +32,7 @@ public class StoreResponse {
     public static StoreResponse from(Store store) {
         return StoreResponse.builder()
                 .storeId(store.getStoreId())
+                .ssafyMerchantId(store.resolveSsafyMerchantId())
                 .userNo(store.getUserNo())
                 .storeName(store.getStoreName())
                 .categoryId(store.getCategoryId())
@@ -54,8 +56,10 @@ public class StoreResponse {
      * SSAFY 가맹점 정보만으로 DTO 생성 (우리 DB에 아직 등록되지 않은 가맹점).
      */
     public static StoreResponse fromSsafy(SsafyMerchantRec rec) {
+        Long ssafyMerchantId = parseLong(rec.getMerchantId());
         return StoreResponse.builder()
-                .storeId(parseLong(rec.getMerchantId()))
+                .storeId(null)
+                .ssafyMerchantId(ssafyMerchantId)
                 .storeName(rec.getMerchantName())
                 .categoryId(rec.getCategoryId())
                 .categoryName(rec.getCategoryName())

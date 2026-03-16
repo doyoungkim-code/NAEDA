@@ -16,8 +16,12 @@ import java.time.LocalDateTime;
 public class Store {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "store_id")
     private Long storeId;
+
+    @Column(name = "ssafy_merchant_id", unique = true)
+    private Long ssafyMerchantId;
 
     @Column(name = "user_no")
     private Long userNo;
@@ -112,6 +116,12 @@ public class Store {
         this.sourceKey = sourceKey;
     }
 
+    public void assignSsafyIdentity(Long ssafyMerchantId) {
+        this.sourceType = StoreSourceType.SSAFY;
+        this.ssafyMerchantId = ssafyMerchantId;
+        this.sourceKey = ssafyMerchantId == null ? null : "ssafy:" + ssafyMerchantId;
+    }
+
     public void updateEnrichment(String imageUrl, String description, Double rating, LocalDateTime enrichedAt) {
         this.imageUrl = imageUrl;
         this.description = description;
@@ -121,5 +131,15 @@ public class Store {
 
     public void deactivate() {
         this.isActive = false;
+    }
+
+    public Long resolveSsafyMerchantId() {
+        if (this.ssafyMerchantId != null) {
+            return this.ssafyMerchantId;
+        }
+        if (this.sourceType == null || this.sourceType == StoreSourceType.SSAFY) {
+            return this.storeId;
+        }
+        return null;
     }
 }

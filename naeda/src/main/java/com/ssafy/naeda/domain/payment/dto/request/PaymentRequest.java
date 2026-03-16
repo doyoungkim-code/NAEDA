@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 public class PaymentRequest {
 
     @NotNull
-    @Schema(description = "매장 ID (SSAFY merchantId)", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "매장 내부 ID (store.store_id)", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
     private Long storeId;
 
     @NotNull

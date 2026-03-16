@@ -34,7 +34,8 @@
 ```json
 [
   {
-    "storeId": -101,
+    "storeId": 101,
+    "ssafyMerchantId": null,
     "userNo": null,
     "storeName": "백운한정식",
     "categoryId": "PUBLIC_RESTAURANT",
@@ -59,7 +60,8 @@
 
 | 필드 | 타입 | 설명 |
 |------|------|------|
-| storeId | Long | 매장 PK |
+| storeId | Long | 매장 내부 PK |
+| ssafyMerchantId | Long | SSAFY 가맹점 ID. 공공 CSV 매장은 null |
 | userNo | Long | 사장님 사용자 번호. 공공 CSV 매장은 null 가능 |
 | storeName | String | 매장명 |
 | categoryId | String | 내부 카테고리 ID (`PUBLIC_RESTAURANT`, `PUBLIC_BAKERY` 등) |
@@ -113,6 +115,7 @@
 ```kotlin
 data class MapStoreResponseDto(
     val storeId: Long,
+    val ssafyMerchantId: Long? = null,
     val userNo: Long? = null,
     val storeName: String,
     val categoryId: String? = null,

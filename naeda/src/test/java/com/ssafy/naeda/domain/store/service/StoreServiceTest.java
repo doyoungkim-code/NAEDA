@@ -76,23 +76,25 @@ class StoreServiceTest {
         givenSsafyMerchantList();
 
         Store dbStore = Store.builder()
-                .storeId(1L).userNo(10L).storeName("스타벅스 구미점")
+                .storeId(101L).ssafyMerchantId(1L).userNo(10L).storeName("스타벅스 구미점")
                 .categoryId("CG-9ca85f66311a23d").categoryName("생활")
                 .roadAddress("경북 구미시 대학로 1")
                 .facePayEnabled(true).isLocalBusiness(false).rating(4.2)
                 .build();
-        given(storeRepository.findAllById(List.of(1L, 2L, 3L))).willReturn(List.of(dbStore));
+        given(storeRepository.findBySsafyMerchantIdIn(List.of(1L, 2L, 3L))).willReturn(List.of(dbStore));
 
         List<StoreResponse> result = storeService.getStores(null, null);
 
         assertThat(result).hasSize(3);
-        // storeId=1: DB 데이터 우선 (상세 정보 + categoryId/categoryName 포함)
-        StoreResponse store1 = result.stream().filter(s -> s.getStoreId().equals(1L)).findFirst().orElseThrow();
+        // ssafyMerchantId=1: DB 데이터 우선 (내부 PK + 상세 정보 포함)
+        StoreResponse store1 = result.stream().filter(s -> s.getSsafyMerchantId().equals(1L)).findFirst().orElseThrow();
+        assertThat(store1.getStoreId()).isEqualTo(101L);
         assertThat(store1.getRoadAddress()).isEqualTo("경북 구미시 대학로 1");
         assertThat(store1.getCategoryId()).isEqualTo("CG-9ca85f66311a23d");
         assertThat(store1.getCategoryName()).isEqualTo("생활");
-        // storeId=2: SSAFY-only (roadAddress null, categoryId/categoryName SSAFY 기준)
-        StoreResponse store2 = result.stream().filter(s -> s.getStoreId().equals(2L)).findFirst().orElseThrow();
+        // ssafyMerchantId=2: SSAFY-only (내부 storeId 없음)
+        StoreResponse store2 = result.stream().filter(s -> s.getSsafyMerchantId().equals(2L)).findFirst().orElseThrow();
+        assertThat(store2.getStoreId()).isNull();
         assertThat(store2.getStoreName()).isEqualTo("코스트코");
         assertThat(store2.getRoadAddress()).isNull();
         assertThat(store2.getCategoryId()).isEqualTo("CG-4fa85f6425ad1d3");
@@ -103,7 +105,7 @@ class StoreServiceTest {
     @DisplayName("매장 목록 조회 - category 필터 적용")
     void getStores_categoryFilter() {
         givenSsafyMerchantList();
-        given(storeRepository.findAllById(any())).willReturn(List.of());
+        given(storeRepository.findBySsafyMerchantIdIn(any())).willReturn(List.of());
 
         List<StoreResponse> result = storeService.getStores("CG-4fa85f6425ad1d3", null);
 
@@ -117,12 +119,12 @@ class StoreServiceTest {
         givenSsafyMerchantList();
 
         Store facePayStore = Store.builder()
-                .storeId(1L).userNo(10L).storeName("스타벅스 구미점")
+                .storeId(101L).ssafyMerchantId(1L).userNo(10L).storeName("스타벅스 구미점")
                 .categoryId("CG-9ca85f66311a23d").categoryName("생활")
                 .roadAddress("경북 구미시 대학로 1")
                 .facePayEnabled(true).isLocalBusiness(false).rating(4.2)
                 .build();
-        given(storeRepository.findAllById(any())).willReturn(List.of(facePayStore));
+        given(storeRepository.findBySsafyMerchantIdIn(any())).willReturn(List.of(facePayStore));
 
         List<StoreResponse> result = storeService.getStores(null, true);
 
@@ -186,7 +188,7 @@ class StoreServiceTest {
     // ── createStore ──────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("매장 등록 - SSAFY createMerchant 호출 후 merchantId를 storeId로 DB 저장")
+    @DisplayName("매장 등록 - 내부 storeId와 별도 ssafyMerchantId를 저장한다")
     void createStore_success() {
         List<Map<String, Object>> createRec = List.of(
                 Map.of("categoryId", "CG-9ca85f66311a23d", "categoryName", "생활",
@@ -201,7 +203,7 @@ class StoreServiceTest {
                 .willReturn(Map.of("REC", createRec));
 
         Store savedStore = Store.builder()
-                .storeId(3L).userNo(10L).storeName("코스트코")
+                .storeId(30L).ssafyMerchantId(3L).userNo(10L).storeName("코스트코")
                 .categoryId("CG-4fa85f6425ad1d3").categoryName("대형마트")
                 .roadAddress("경북 구미시 산호대로 1")
                 .facePayEnabled(true).isLocalBusiness(false).rating(0.0)
@@ -213,7 +215,8 @@ class StoreServiceTest {
 
         StoreResponse result = storeService.createStore(request);
 
-        assertThat(result.getStoreId()).isEqualTo(3L);
+        assertThat(result.getStoreId()).isEqualTo(30L);
+        assertThat(result.getSsafyMerchantId()).isEqualTo(3L);
         assertThat(result.getStoreName()).isEqualTo("코스트코");
     }
 }

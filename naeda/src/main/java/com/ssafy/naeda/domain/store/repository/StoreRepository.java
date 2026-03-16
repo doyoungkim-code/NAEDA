@@ -17,6 +17,10 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
 
     List<Store> findByCategoryIdAndFacePayEnabledTrue(String categoryId);
 
+    Optional<Store> findBySsafyMerchantId(Long ssafyMerchantId);
+
+    List<Store> findBySsafyMerchantIdIn(List<Long> ssafyMerchantIds);
+
     List<Store> findBySourceType(StoreSourceType sourceType);
 
     Optional<Store> findBySourceTypeAndSourceKey(StoreSourceType sourceType, String sourceKey);

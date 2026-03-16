@@ -52,15 +52,16 @@ public class StoreService {
 
         List<SsafyMerchantRec> ssafyMerchants = parseMerchantList(response);
 
-        // 2. SSAFY merchantId → 우리 DB Map (storeId 기준)
+        // 2. SSAFY merchantId → 우리 DB Map (ssafyMerchantId 기준)
         List<Long> merchantIds = ssafyMerchants.stream()
                 .map(rec -> parseLong(rec.getMerchantId()))
                 .filter(id -> id != null)
                 .toList();
 
-        Map<Long, Store> dbStoreMap = storeRepository.findAllById(merchantIds)
+        Map<Long, Store> dbStoreMap = storeRepository.findBySsafyMerchantIdIn(merchantIds)
                 .stream()
-                .collect(Collectors.toMap(Store::getStoreId, s -> s));
+                .filter(store -> store.resolveSsafyMerchantId() != null)
+                .collect(Collectors.toMap(Store::resolveSsafyMerchantId, s -> s));
 
         // 3. 병합 후 필터 적용
         return ssafyMerchants.stream()
@@ -101,7 +102,7 @@ public class StoreService {
      *
      * 흐름:
      * 1. SSAFY createMerchant 호출 → merchantId 발급
-     * 2. merchantId를 storeId로 사용하여 DB에 저장
+     * 2. merchantId를 별도 컬럼(ssafyMerchantId)으로 저장하고 store_id는 내부 PK로 생성
      */
     @Transactional
     public StoreResponse createStore(StoreCreateRequest request) {
@@ -120,11 +121,10 @@ public class StoreService {
                 .reduce((first, second) -> second)  // 동명 가맹점이 있을 경우 마지막(최신) 항목
                 .orElseThrow(() -> new NotFoundException("SSAFY 가맹점 등록 응답에서 매장을 찾을 수 없습니다."));
 
-        Long storeId = parseLong(created.getMerchantId());
+        Long ssafyMerchantId = parseLong(created.getMerchantId());
 
         // 3. DB 저장
         Store store = Store.builder()
-                .storeId(storeId)
                 .userNo(request.getUserNo())
                 .accountId(request.getAccountId())
                 .storeName(request.getStoreName())
@@ -137,9 +137,8 @@ public class StoreService {
                 .phone(request.getPhone())
                 .isLocalBusiness(Boolean.TRUE.equals(request.getIsLocalBusiness()))
                 .facePayEnabled(Boolean.TRUE.equals(request.getFacePayEnabled()))
-                .sourceType(StoreSourceType.SSAFY)
-                .sourceKey(storeId == null ? null : "ssafy:" + storeId)
                 .build();
+        store.assignSsafyIdentity(ssafyMerchantId);
 
         return StoreResponse.from(storeRepository.save(store));
     }

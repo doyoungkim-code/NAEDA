@@ -5,10 +5,6 @@ import com.ssafy.naeda.domain.store.entity.StoreSeedMetadata;
 import com.ssafy.naeda.domain.store.entity.StoreSourceType;
 import com.ssafy.naeda.domain.store.repository.StoreRepository;
 import com.ssafy.naeda.domain.store.repository.StoreSeedMetadataRepository;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -46,12 +42,10 @@ public class PublicStoreSeedService {
         List<PublicStoreCsvRecord> records = csvLoader.loadActiveStores();
         List<Store> existingStores = storeRepository.findBySourceType(StoreSourceType.PUBLIC_CSV);
         Map<String, Store> existingBySourceKey = new HashMap<>();
-        Map<Long, String> existingSourceKeysById = new HashMap<>();
         for (Store store : existingStores) {
             if (store.getSourceKey() != null) {
                 existingBySourceKey.put(store.getSourceKey(), store);
             }
-            existingSourceKeysById.put(store.getStoreId(), store.getSourceKey());
         }
 
         List<Store> newStores = new ArrayList<>();
@@ -65,9 +59,7 @@ public class PublicStoreSeedService {
             PublicStoreCoordinateConverter.LatLng latLng = coordinateConverter.convert(record.x(), record.y());
 
             if (store == null) {
-                Long storeId = generateStoreId(record.sourceKey(), existingSourceKeysById);
                 Store newStore = Store.builder()
-                        .storeId(storeId)
                         .storeName(record.storeName())
                         .categoryId(record.categoryId())
                         .categoryName(record.categoryName())
@@ -84,7 +76,6 @@ public class PublicStoreSeedService {
                         .isActive(true)
                         .build();
                 newStores.add(newStore);
-                existingSourceKeysById.put(storeId, record.sourceKey());
                 created++;
                 continue;
             }
@@ -125,34 +116,6 @@ public class PublicStoreSeedService {
 
         log.info("[StoreSeed] 공공 매장 적재 완료 created={}, updated={}, deactivated={}", created, updated, deactivated);
         return new SeedSummary(created, updated, deactivated, false);
-    }
-
-    private Long generateStoreId(String sourceKey, Map<Long, String> existingSourceKeysById) {
-        byte[] digest = sha256(sourceKey);
-        for (int offset = 0; offset <= digest.length - Long.BYTES; offset += Long.BYTES) {
-            long candidate = ByteBuffer.wrap(digest, offset, Long.BYTES).getLong();
-            if (candidate == Long.MIN_VALUE) {
-                candidate = Long.MAX_VALUE;
-            }
-            candidate = -Math.abs(candidate);
-            if (candidate == 0L) {
-                candidate = -1L;
-            }
-            String existingSourceKey = existingSourceKeysById.get(candidate);
-            if (existingSourceKey == null || existingSourceKey.equals(sourceKey)) {
-                return candidate;
-            }
-        }
-        throw new IllegalStateException("store_id 해시 충돌을 해결하지 못했습니다: " + sourceKey);
-    }
-
-    private byte[] sha256(String sourceKey) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return digest.digest(sourceKey.getBytes(StandardCharsets.UTF_8));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 해시를 생성할 수 없습니다.", e);
-        }
     }
 
     public record SeedSummary(int created, int updated, int deactivated, boolean skipped) {
