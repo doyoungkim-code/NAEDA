@@ -46,6 +46,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	// Resilience4j - 외부 API 장애 대응 (retry + circuit breaker)
 	implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
+	// AOP - 감사 로그
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
 
 }
 
