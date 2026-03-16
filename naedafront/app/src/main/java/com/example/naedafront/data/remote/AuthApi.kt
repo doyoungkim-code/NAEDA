@@ -1,5 +1,6 @@
 package com.example.naedafront.data.remote
 
+import com.example.naedafront.data.remote.request.LogoutRequest
 import com.example.naedafront.data.remote.request.SignUpRequest
 import com.example.naedafront.data.remote.response.SignUpResponse
 import retrofit2.Response
@@ -12,4 +13,9 @@ interface AuthApi {
     suspend fun signUp(
         @Body request: SignUpRequest
     ): Response<SignUpResponse>
+
+    @POST("/api/auth/logout")
+    suspend fun logout(
+        @Body request: LogoutRequest
+    ): Response<Unit>
 }
