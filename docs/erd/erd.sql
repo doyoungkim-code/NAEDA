@@ -36,6 +36,7 @@ CREATE TABLE "user" (
     user_key          VARCHAR(255),                         -- SSAFY API 유저 키
     face_registered   BOOLEAN       NOT NULL DEFAULT FALSE, -- 얼굴 등록 여부
     pin_password      VARCHAR(255),                         -- 6자리 Pin 비밀번호 (BCrypt)
+    fcm_token         VARCHAR(255),                         -- FCM 디바이스 토큰
     created           TIMESTAMP     NOT NULL DEFAULT NOW(),
     modified          TIMESTAMP
 );
