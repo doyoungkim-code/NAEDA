@@ -74,3 +74,6 @@ jwt:
   secret: ${JWT_SECRET:naeda-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
   access-token-expiry: 1800000      # 30분 (밀리초)
   refresh-token-expiry: 604800000   # 7일 (밀리초)
+
+fcm:
+  credentials-path: ${FCM_CREDENTIALS_PATH:../naeda-fcm-firebase-adminsdk-fbsvc-b5c3c26d36.json}

@@ -51,6 +51,9 @@ public class User {
     @Column(name = "pin_password")
     private String pinPassword;
 
+    @Column(name = "fcm_token")
+    private String fcmToken;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime created;
@@ -77,5 +80,9 @@ public class User {
 
     public void updatePinPassword(String pinPassword) {
         this.pinPassword = pinPassword;
+    }
+
+    public void updateFcmToken(String fcmToken) {
+        this.fcmToken = fcmToken;
     }
 }

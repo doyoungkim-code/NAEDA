@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "276468000568",
+    "project_id": "naeda-fcm",
+    "storage_bucket": "naeda-fcm.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:276468000568:android:f7c8f0a8dea389a51343cd",
+        "android_client_info": {
+          "package_name": "com.ssafy.naeda"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDWd9x75Otwd78CXd7G5pUm932S1gd_j8A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
