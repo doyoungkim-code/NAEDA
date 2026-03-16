@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/payment-requests")
+@RequestMapping("/api/pay-requests")
 @RequiredArgsConstructor
 public class PayRequestController {
 
