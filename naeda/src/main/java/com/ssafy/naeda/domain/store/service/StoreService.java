@@ -5,6 +5,7 @@ import com.ssafy.naeda.domain.store.dto.request.StoreCreateRequest;
 import com.ssafy.naeda.domain.store.dto.response.StoreResponse;
 import com.ssafy.naeda.domain.store.dto.ssafy.SsafyMerchantRec;
 import com.ssafy.naeda.domain.store.entity.Store;
+import com.ssafy.naeda.domain.store.entity.StoreSourceType;
 import com.ssafy.naeda.domain.store.repository.StoreRepository;
 import com.ssafy.naeda.global.exception.NotFoundException;
 import com.ssafy.naeda.global.ssafy.SsafyApiClient;
@@ -74,6 +75,19 @@ public class StoreService {
     }
 
     /**
+     * 지도 표시용 공공 매장 목록 조회.
+     */
+    public List<StoreResponse> getMapStores() {
+        return storeRepository
+                .findBySourceTypeAndIsActiveTrueAndLatitudeIsNotNullAndLongitudeIsNotNullOrderByStoreNameAsc(
+                        StoreSourceType.PUBLIC_CSV
+                )
+                .stream()
+                .map(StoreResponse::from)
+                .toList();
+    }
+
+    /**
      * BE-036 매장 단건 조회.
      */
     public StoreResponse getStore(Long storeId) {
@@ -123,6 +137,8 @@ public class StoreService {
                 .phone(request.getPhone())
                 .isLocalBusiness(Boolean.TRUE.equals(request.getIsLocalBusiness()))
                 .facePayEnabled(Boolean.TRUE.equals(request.getFacePayEnabled()))
+                .sourceType(StoreSourceType.SSAFY)
+                .sourceKey(storeId == null ? null : "ssafy:" + storeId)
                 .build();
 
         return StoreResponse.from(storeRepository.save(store));
