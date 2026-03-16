@@ -3,6 +3,7 @@ package com.ssafy.naeda.domain.store.service;
 import com.ssafy.naeda.domain.store.dto.request.StoreCreateRequest;
 import com.ssafy.naeda.domain.store.dto.response.StoreResponse;
 import com.ssafy.naeda.domain.store.entity.Store;
+import com.ssafy.naeda.domain.store.entity.StoreSourceType;
 import com.ssafy.naeda.domain.store.repository.StoreRepository;
 import com.ssafy.naeda.global.exception.NotFoundException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -127,6 +128,31 @@ class StoreServiceTest {
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getFacePayEnabled()).isTrue();
+    }
+
+    @Test
+    @DisplayName("지도용 매장 목록 조회 - 공공 CSV 매장만 반환")
+    void getMapStores_publicOnly() {
+        Store publicStore = Store.builder()
+                .storeId(-10L)
+                .storeName("백운한정식")
+                .categoryId("PUBLIC_RESTAURANT")
+                .categoryName("한식")
+                .roadAddress("경상북도 구미시 인동35길 38")
+                .latitude(36.12)
+                .longitude(128.34)
+                .sourceType(StoreSourceType.PUBLIC_CSV)
+                .isActive(true)
+                .build();
+        given(storeRepository.findBySourceTypeAndIsActiveTrueAndLatitudeIsNotNullAndLongitudeIsNotNullOrderByStoreNameAsc(
+                StoreSourceType.PUBLIC_CSV
+        )).willReturn(List.of(publicStore));
+
+        List<StoreResponse> result = storeService.getMapStores();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getStoreId()).isEqualTo(-10L);
+        assertThat(result.get(0).getSourceType()).isEqualTo(StoreSourceType.PUBLIC_CSV);
     }
 
     // ── getStore ─────────────────────────────────────────────────────────

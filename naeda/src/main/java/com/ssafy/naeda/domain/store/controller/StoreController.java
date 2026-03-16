@@ -33,6 +33,14 @@ public class StoreController {
     }
 
     /**
+     * GET /api/stores/map
+     */
+    @GetMapping("/map")
+    public ResponseEntity<List<StoreResponse>> getMapStores() {
+        return ResponseEntity.ok(storeService.getMapStores());
+    }
+
+    /**
      * GET /api/stores/{storeId}
      */
     @GetMapping("/{storeId}")

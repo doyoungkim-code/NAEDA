@@ -2,6 +2,7 @@ package com.ssafy.naeda.domain.store.dto.response;
 
 import com.ssafy.naeda.domain.store.dto.ssafy.SsafyMerchantRec;
 import com.ssafy.naeda.domain.store.entity.Store;
+import com.ssafy.naeda.domain.store.entity.StoreSourceType;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -22,6 +23,10 @@ public class StoreResponse {
     private Boolean isLocalBusiness;
     private Boolean facePayEnabled;
     private Double rating;
+    private String imageUrl;
+    private String description;
+    private StoreSourceType sourceType;
+    private Boolean isActive;
 
     public static StoreResponse from(Store store) {
         return StoreResponse.builder()
@@ -38,6 +43,10 @@ public class StoreResponse {
                 .isLocalBusiness(store.getIsLocalBusiness())
                 .facePayEnabled(store.getFacePayEnabled())
                 .rating(store.getRating())
+                .imageUrl(store.getImageUrl())
+                .description(store.getDescription())
+                .sourceType(store.getSourceType() == null ? StoreSourceType.SSAFY : store.getSourceType())
+                .isActive(store.getIsActive() == null ? true : store.getIsActive())
                 .build();
     }
 
@@ -50,6 +59,8 @@ public class StoreResponse {
                 .storeName(rec.getMerchantName())
                 .categoryId(rec.getCategoryId())
                 .categoryName(rec.getCategoryName())
+                .sourceType(StoreSourceType.SSAFY)
+                .isActive(true)
                 .build();
     }
 

@@ -70,6 +70,19 @@ payment:
     ttl-seconds: 30
     process-ttl-seconds: 300
 
+store:
+  bootstrap:
+    enabled: true
+  seed:
+    resources: classpath:seed/stores/gumi_bakery.csv,classpath:seed/stores/gumi_restaurant.csv
+  enrichment:
+    enabled: true
+    timeout-seconds: 3
+    user-agent: Mozilla/5.0
+    naver:
+      client-id: ${NAVER_SEARCH_CLIENT_ID:}
+      client-secret: ${NAVER_SEARCH_CLIENT_SECRET:}
+
 jwt:
   secret: ${JWT_SECRET:naeda-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
   access-token-expiry: 1800000      # 30분 (밀리초)

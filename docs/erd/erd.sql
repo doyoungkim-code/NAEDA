@@ -119,11 +119,11 @@ CREATE TABLE payment_method (
 -- 8) Store (매장 정보)
 CREATE TABLE store (
     store_id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    user_no           BIGINT         NOT NULL,                -- FK → user (사장님)
+    user_no           BIGINT,                                 -- FK → user (사장님)
     account_id        BIGINT,                                 -- FK → account (정산 계좌)
     store_name        VARCHAR(100)   NOT NULL,                -- 매장명
     category          VARCHAR(30)    NOT NULL,                -- 한식/양식/카페/편의점 등
-    road_address      VARCHAR(255)   NOT NULL,                -- 도로명 주소
+    road_address      VARCHAR(255),                           -- 도로명 주소
     number_address    VARCHAR(255),                           -- 지번 주소
     latitude          FLOAT,                                  -- 위도
     longitude         FLOAT,                                  -- 경도
@@ -131,7 +131,19 @@ CREATE TABLE store (
     is_local_business BOOLEAN        NOT NULL DEFAULT FALSE,  -- 구미 소상공인 여부 (포인트 2배)
     face_pay_enabled  BOOLEAN        NOT NULL DEFAULT FALSE,  -- 페이스페이 지원 여부
     rating            FLOAT          NOT NULL DEFAULT 0,      -- 평점
+    source_type       VARCHAR(20)    NOT NULL DEFAULT 'SSAFY', -- 매장 출처 (SSAFY / PUBLIC_CSV)
+    source_key        VARCHAR(120)   UNIQUE,                  -- 외부 데이터 고유 키
+    image_url         VARCHAR(500),                           -- 대표 이미지 URL
+    description       TEXT,                                   -- 매장 설명
+    is_active         BOOLEAN        NOT NULL DEFAULT TRUE,   -- 지도 노출 여부
+    last_enriched_at  TIMESTAMP,                              -- 네이버 보강 시각
     created           TIMESTAMP      NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE store_seed_metadata (
+    seed_key          VARCHAR(100) PRIMARY KEY,
+    content_hash      VARCHAR(64)  NOT NULL,
+    updated           TIMESTAMP    NOT NULL DEFAULT NOW()
 );
 
 -- 9) Payment (결제 내역)
