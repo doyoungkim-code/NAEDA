@@ -94,6 +94,11 @@ class SignUpViewModel : ViewModel() {
     fun submitSignUp() {
         val state = _uiState.value
 
+        if (state.isLoading) {
+            Log.d(TAG, "submitSignUp ignored | already loading")
+            return
+        }
+
         val request = SignUpRequest(
             userId = state.userId.trim(),
             password = state.password,
@@ -110,7 +115,8 @@ class SignUpViewModel : ViewModel() {
             _uiState.update { currentState ->
                 currentState.copy(
                     isLoading = true,
-                    errorMessage = null
+                    errorMessage = null,
+                    isSignUpSuccess = false
                 )
             }
 
@@ -123,6 +129,7 @@ class SignUpViewModel : ViewModel() {
                     _uiState.update { currentState ->
                         currentState.copy(
                             isLoading = false,
+                            errorMessage = null,
                             isSignUpSuccess = true
                         )
                     }
@@ -136,6 +143,7 @@ class SignUpViewModel : ViewModel() {
                     _uiState.update { currentState ->
                         currentState.copy(
                             isLoading = false,
+                            isSignUpSuccess = false,
                             errorMessage = "회원가입에 실패했습니다. (${response.code()})"
                         )
                     }
@@ -146,6 +154,7 @@ class SignUpViewModel : ViewModel() {
                 _uiState.update { currentState ->
                     currentState.copy(
                         isLoading = false,
+                        isSignUpSuccess = false,
                         errorMessage = "네트워크 오류가 발생했습니다."
                     )
                 }

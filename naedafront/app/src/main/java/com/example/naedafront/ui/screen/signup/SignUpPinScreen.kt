@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,24 +54,33 @@ fun SignUpPinScreen(
     onBackClick: () -> Unit = {},
     onConfirmClick: () -> Unit = {},
 ) {
+    val uiState by signUpViewModel.uiState.collectAsState()
+
     var firstPin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
     var isConfirming by remember { mutableStateOf(false) }
-    var hasError by remember { mutableStateOf(false) }
+    var hasPinMismatchError by remember { mutableStateOf(false) }
 
     val currentPin = if (isConfirming) confirmPin else firstPin
     val currentStep = if (isConfirming) 8 else 7
 
-    LaunchedEffect(hasError) {
-        if (hasError) {
+    LaunchedEffect(hasPinMismatchError) {
+        if (hasPinMismatchError) {
             delay(500L)
             confirmPin = ""
-            hasError = false
+            hasPinMismatchError = false
+        }
+    }
+
+    LaunchedEffect(uiState.isSignUpSuccess) {
+        if (uiState.isSignUpSuccess) {
+            signUpViewModel.resetSignUpSuccess()
+            onConfirmClick()
         }
     }
 
     fun onNumberInput(digit: String) {
-        if (hasError) return
+        if (hasPinMismatchError || uiState.isLoading) return
 
         if (isConfirming) {
             if (confirmPin.length >= 6) return
@@ -79,11 +90,11 @@ fun SignUpPinScreen(
 
             if (newPin.length == 6) {
                 if (newPin == firstPin) {
+                    signUpViewModel.clearError()
                     signUpViewModel.updatePin(firstPin)
                     signUpViewModel.submitSignUp()
-                    onConfirmClick()
                 } else {
-                    hasError = true
+                    hasPinMismatchError = true
                 }
             }
         } else {
@@ -99,7 +110,7 @@ fun SignUpPinScreen(
     }
 
     fun onDelete() {
-        if (hasError) return
+        if (hasPinMismatchError || uiState.isLoading) return
 
         if (isConfirming) {
             if (confirmPin.isNotEmpty()) {
@@ -119,9 +130,12 @@ fun SignUpPinScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = {
+                            if (uiState.isLoading) return@IconButton
+
                             if (isConfirming) {
                                 confirmPin = ""
-                                hasError = false
+                                hasPinMismatchError = false
+                                signUpViewModel.clearError()
                                 isConfirming = false
                             } else {
                                 onBackClick()
@@ -199,7 +213,7 @@ fun SignUpPinScreen(
                                 .clip(CircleShape)
                                 .background(
                                     when {
-                                        hasError -> PinError
+                                        hasPinMismatchError -> PinError
                                         index < currentPin.length -> PinFilled
                                         else -> PinEmpty
                                     }
@@ -210,13 +224,40 @@ fun SignUpPinScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                AnimatedVisibility(visible = hasError) {
+                AnimatedVisibility(visible = hasPinMismatchError) {
                     Text(
                         text = "PIN 번호가 일치하지 않습니다. 다시 입력해주세요.",
                         fontSize = 13.sp,
                         color = PinError,
                         textAlign = TextAlign.Center
                     )
+                }
+
+                AnimatedVisibility(visible = !uiState.errorMessage.isNullOrBlank()) {
+                    Text(
+                        text = uiState.errorMessage.orEmpty(),
+                        fontSize = 13.sp,
+                        color = PinError,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                AnimatedVisibility(visible = uiState.isLoading) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        CircularProgressIndicator(
+                            color = PinFilled,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "회원가입 처리 중입니다...",
+                            fontSize = 13.sp,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
