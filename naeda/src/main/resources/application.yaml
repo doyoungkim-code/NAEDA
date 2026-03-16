@@ -74,3 +74,23 @@ jwt:
   secret: ${JWT_SECRET:naeda-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
   access-token-expiry: 1800000      # 30분 (밀리초)
   refresh-token-expiry: 604800000   # 7일 (밀리초)
+
+resilience4j:
+  retry:
+    instances:
+      ssafyApi:
+        max-attempts: 3                    # 최초 1회 + 재시도 2회 = 총 3회
+        wait-duration: 1s                 # 재시도 간격 1초
+        retry-exceptions:
+          - org.springframework.web.client.RestClientException  # 네트워크/타임아웃 오류만 재시도
+        ignore-exceptions:
+          - com.ssafy.naeda.global.exception.SsafyApiException  # 비즈니스 오류(E1001 등)는 재시도 안 함
+
+  circuitbreaker:
+    instances:
+      ssafyApi:
+        failure-rate-threshold: 50         # 실패율 50% 넘으면 OPEN
+        sliding-window-size: 10            # 최근 10건 기준으로 판단
+        wait-duration-in-open-state: 30s   # OPEN 후 30초 대기 → HALF_OPEN
+        permitted-number-of-calls-in-half-open-state: 3  # HALF_OPEN에서 3건 테스트
+        sliding-window-type: COUNT_BASED   # 횟수 기반 슬라이딩 윈도우
