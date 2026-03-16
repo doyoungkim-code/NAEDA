@@ -7,6 +7,9 @@ import com.ssafy.naeda.domain.pay.dto.response.PayTransactionResponse;
 import com.ssafy.naeda.domain.pay.entity.PayTransaction;
 import com.ssafy.naeda.domain.pay.service.PayFacadeService;
 import com.ssafy.naeda.domain.pay.service.PayRequestRedisService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,19 +21,19 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/pay-requests")
 @RequiredArgsConstructor
+@Tag(name = "[Pay] 결제 요청", description = "매장 단말기 -> 결제 요청 생성/조회/처리 API (Redis 상태머신)")
 public class PayRequestController {
 
     private final PayFacadeService payFacadeService;
     private final PayRequestRedisService payRequestRedisService;
 
-    /**
-     * POST /api/payment-requests — 결제 요청 생성 (Redis PENDING)
-     */
     @PostMapping
+    @Operation(summary = "결제 요청 생성",
+            description = "매장 단말기가 결제 요청을 생성합니다. Redis에 PENDING 상태로 저장됩니다.")
     public ResponseEntity<PayRequestResponse> createRequest(
             @RequestBody PayRequestCreateRequest request) {
 
-        Long requestId = System.currentTimeMillis(); // TODO: ID 생성 전략 (Snowflake 등)
+        Long requestId = System.currentTimeMillis();
 
         payRequestRedisService.createRequest(
                 requestId,
@@ -44,11 +47,12 @@ public class PayRequestController {
         return ResponseEntity.ok(PayRequestResponse.from(requestId, data));
     }
 
-    /**
-     * GET /api/payment-requests/{id} — 결제 요청 상태 조회 (polling)
-     */
     @GetMapping("/{id}")
-    public ResponseEntity<PayRequestResponse> getRequest(@PathVariable Long id) {
+    @Operation(summary = "결제 요청 상태 조회 (polling)",
+            description = "결제 요청 ID로 현재 상태를 조회합니다. 앱에서 polling용으로 사용합니다. "
+                    + "상태: PENDING -> PROCESSING -> SUCCESS/FAILED/BLOCKED/PAUSED")
+    public ResponseEntity<PayRequestResponse> getRequest(
+            @Parameter(description = "결제 요청 ID") @PathVariable Long id) {
 
         Map<Object, Object> data = payRequestRedisService.getRequest(id);
         if (data == null) {
@@ -58,13 +62,15 @@ public class PayRequestController {
         return ResponseEntity.ok(PayRequestResponse.from(id, data));
     }
 
-    /**
-     * POST /api/payment-requests/{id}/process — 결제 처리 (얼굴인증 + 계좌이체)
-     */
     @PostMapping("/{id}/process")
+    @Operation(summary = "결제 처리 (얼굴인증 + 계좌이체)",
+            description = "결제 요청을 실제로 처리합니다. 얼굴 인증 -> RBA -> PIN 2차인증(필요시) -> "
+                    + "SSAFY 계좌이체 API -> 분산락으로 동시 처리 차단.")
     public ResponseEntity<PayTransactionResponse> processRequest(
-            @PathVariable Long id,
+            @Parameter(description = "결제 요청 ID") @PathVariable Long id,
+            @Parameter(description = "처리 요청 JSON (idempotencyKey, pin)")
             @RequestPart("request") PayProcessRequest request,
+            @Parameter(description = "얼굴 이미지 파일")
             @RequestPart("faceImage") MultipartFile faceImage) {
 
         PayTransaction tx = payFacadeService.processAccountPayment(
@@ -75,13 +81,11 @@ public class PayRequestController {
         return ResponseEntity.ok(PayTransactionResponse.from(tx));
     }
 
-
-
-    /**
-     * GET /api/payment-requests?storeId= — 매장별 결제 요청 목록
-     */
     @GetMapping
+    @Operation(summary = "매장별 결제 요청 목록",
+            description = "특정 매장의 활성 결제 요청 목록을 조회합니다. 매장 단말기에서 대기 중인 요청 확인용.")
     public ResponseEntity<List<PayRequestResponse>> getStoreRequests(
+            @Parameter(description = "매장 ID", required = true)
             @RequestParam Long storeId) {
 
         Set<String> requestIds = payRequestRedisService.getStoreRequests(storeId);
