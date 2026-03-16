@@ -148,6 +148,8 @@ services:
       SSAFY_API_KEY: ${SSAFY_API_KEY}
       # Face
       FACE_ENCRYPT_KEY: ${FACE_ENCRYPT_KEY}
+      # Kafka
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       TZ: Asia/Seoul
     ports:
       - "8080:8080"
