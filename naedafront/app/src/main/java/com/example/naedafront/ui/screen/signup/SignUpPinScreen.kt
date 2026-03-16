@@ -2,13 +2,32 @@ package com.example.naedafront.ui.screen.signup
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,7 +38,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.naedafront.ui.common.SignUpProgressBar
-import com.example.naedafront.ui.theme.Mint900
 import kotlinx.coroutines.delay
 
 private val DarkBg = Color(0xFF0D1A1A)
@@ -30,10 +48,10 @@ private val PinError = Color(0xFFF2522E)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpPinScreen(
+    signUpViewModel: SignUpViewModel,
     onBackClick: () -> Unit = {},
-    onConfirmClick: (String) -> Unit = {}
+    onConfirmClick: () -> Unit = {},
 ) {
-    // 1단계: 입력 / 2단계: 확인
     var firstPin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
     var isConfirming by remember { mutableStateOf(false) }
@@ -42,7 +60,6 @@ fun SignUpPinScreen(
     val currentPin = if (isConfirming) confirmPin else firstPin
     val currentStep = if (isConfirming) 8 else 7
 
-    // 에러 시 확인 PIN 초기화
     LaunchedEffect(hasError) {
         if (hasError) {
             delay(500L)
@@ -53,34 +70,45 @@ fun SignUpPinScreen(
 
     fun onNumberInput(digit: String) {
         if (hasError) return
+
         if (isConfirming) {
             if (confirmPin.length >= 6) return
+
             val newPin = confirmPin + digit
             confirmPin = newPin
+
             if (newPin.length == 6) {
                 if (newPin == firstPin) {
-                    onConfirmClick(firstPin)
+                    signUpViewModel.updatePin(firstPin)
+                    signUpViewModel.submitSignUp()
+                    onConfirmClick()
                 } else {
                     hasError = true
                 }
             }
         } else {
-            if (firstPin.length < 6) {
-                val newPin = firstPin + digit
-                firstPin = newPin
-                if (newPin.length == 6) {
-                    isConfirming = true
-                }
+            if (firstPin.length >= 6) return
+
+            val newPin = firstPin + digit
+            firstPin = newPin
+
+            if (newPin.length == 6) {
+                isConfirming = true
             }
         }
     }
 
     fun onDelete() {
         if (hasError) return
+
         if (isConfirming) {
-            if (confirmPin.isNotEmpty()) confirmPin = confirmPin.dropLast(1)
+            if (confirmPin.isNotEmpty()) {
+                confirmPin = confirmPin.dropLast(1)
+            }
         } else {
-            if (firstPin.isNotEmpty()) firstPin = firstPin.dropLast(1)
+            if (firstPin.isNotEmpty()) {
+                firstPin = firstPin.dropLast(1)
+            }
         }
     }
 
@@ -89,20 +117,27 @@ fun SignUpPinScreen(
             TopAppBar(
                 title = {},
                 navigationIcon = {
-                    IconButton(onClick = {
-                        if (isConfirming) {
-                            // 확인 단계에서 뒤로 → 입력 단계로
-                            confirmPin = ""
-                            hasError = false
-                            isConfirming = false
-                        } else {
-                            onBackClick()
+                    IconButton(
+                        onClick = {
+                            if (isConfirming) {
+                                confirmPin = ""
+                                hasError = false
+                                isConfirming = false
+                            } else {
+                                onBackClick()
+                            }
                         }
-                    }) {
-                        Icon(Icons.Default.ArrowBack, "뒤로가기", tint = Color.White)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "뒤로가기",
+                            tint = Color.White
+                        )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBg)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = DarkBg
+                )
             )
         },
         containerColor = DarkBg
@@ -126,7 +161,11 @@ fun SignUpPinScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = if (isConfirming) "PIN 번호를 한 번 더\n입력해주세요" else "PIN 6자리를\n입력해주세요",
+                    text = if (isConfirming) {
+                        "PIN 번호를 한 번 더\n입력해주세요"
+                    } else {
+                        "PIN 6자리를\n입력해주세요"
+                    },
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
@@ -137,7 +176,11 @@ fun SignUpPinScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = if (isConfirming) "확인을 위해 PIN 번호를 다시 입력해주세요" else "2차 인증 비밀번호로 사용할 예정입니다",
+                    text = if (isConfirming) {
+                        "확인을 위해 PIN 번호를 다시 입력해주세요"
+                    } else {
+                        "2차 인증 비밀번호로 사용할 예정입니다"
+                    },
                     fontSize = 14.sp,
                     color = Color.White.copy(alpha = 0.55f),
                     textAlign = TextAlign.Center
@@ -145,7 +188,6 @@ fun SignUpPinScreen(
 
                 Spacer(modifier = Modifier.height(40.dp))
 
-                // PIN 도트
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -168,7 +210,6 @@ fun SignUpPinScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // 불일치 에러 메시지
                 AnimatedVisibility(visible = hasError) {
                     Text(
                         text = "PIN 번호가 일치하지 않습니다. 다시 입력해주세요.",
@@ -180,7 +221,6 @@ fun SignUpPinScreen(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // 숫자 키패드
                 NumberKeypad(
                     onNumberClick = { onNumberInput(it) },
                     onDeleteClick = { onDelete() },
@@ -196,5 +236,9 @@ fun SignUpPinScreen(
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 private fun SignUpPinScreenPreview() {
-    MaterialTheme { SignUpPinScreen() }
+    MaterialTheme {
+        SignUpPinScreen(
+            signUpViewModel = SignUpViewModel()
+        )
+    }
 }

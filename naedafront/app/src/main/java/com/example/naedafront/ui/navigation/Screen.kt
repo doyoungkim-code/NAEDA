@@ -11,14 +11,19 @@ sealed class Screen(val route: String) {
     object Welcome : Screen("welcome")
     object Login : Screen("login")
 
+    // 회원가입 플로우 전체를 묶는 부모 graph
+    object SignUpGraph : Screen("signup_graph")
+
     object SignUpRrn : Screen("signup_rrn")
     object SignUpPhone : Screen("signup_phone")
+
     object SignUpVerify : Screen("signup_verify/{phone}") {
         fun createRoute(phone: String) = "signup_verify/$phone"
     }
     object SignUpEmail : Screen("signup_email")
     object SignUpPassword : Screen("signup_password")
     object SignUpPin : Screen("signup_pin")
+
     object SignUp : Screen("signup")
 
     // ── 메인 5탭 ──
@@ -38,6 +43,7 @@ sealed class Screen(val route: String) {
     object FaceAnalyzing : Screen("face_analyzing")
     object FaceComplete : Screen("face_complete")
     object GumiMap : Screen("gumi_map")
+
     object StoreDetail : Screen("store_detail/{storeId}") {
         fun createRoute(storeId: String) = "store_detail/$storeId"
     }

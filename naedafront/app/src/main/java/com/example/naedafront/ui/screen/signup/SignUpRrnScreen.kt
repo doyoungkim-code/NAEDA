@@ -1,13 +1,37 @@
 package com.example.naedafront.ui.screen.signup
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -15,21 +39,69 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
 import com.example.naedafront.ui.common.SignUpProgressBar
 import com.example.naedafront.ui.theme.Mint900
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpRrnScreen(
+    signUpViewModel: SignUpViewModel,
     onBackClick: () -> Unit = {},
-    onConfirmClick: (String) -> Unit = {}
+    onConfirmClick: () -> Unit = {},
+
 ) {
-    // 앞자리 6자리 + 뒷자리 1자리만 입력
     var frontNumber by remember { mutableStateOf("") }
     var backNumber by remember { mutableStateOf("") }
+    var showInvalidRrnDialog by remember { mutableStateOf(false) }
 
     val isFrontComplete = frontNumber.length == 6
     val isValid = frontNumber.length == 6 && backNumber.length == 1
+
+    fun isValidResidentFrontNumber(value: String): Boolean {
+        if (value.length != 6) return false
+
+        val yy = value.substring(0, 2).toIntOrNull() ?: return false
+        val mm = value.substring(2, 4).toIntOrNull() ?: return false
+        val dd = value.substring(4, 6).toIntOrNull() ?: return false
+
+        val isYearValid = yy in 0..99
+        val isMonthValid = mm in 1..12
+        val isDayValid = dd in 1..31
+
+        return isYearValid && isMonthValid && isDayValid
+    }
+
+    fun handleConfirm() {
+        if (!isValid) return
+
+        val residentNo = "$frontNumber-$backNumber"
+
+        if (!isValidResidentFrontNumber(frontNumber)) {
+            showInvalidRrnDialog = true
+            return
+        }
+
+        signUpViewModel.updateResidentNo(residentNo)
+        onConfirmClick()
+    }
+
+    if (showInvalidRrnDialog) {
+        AlertDialog(
+            onDismissRequest = { showInvalidRrnDialog = false },
+            confirmButton = {
+                TextButton(onClick = { showInvalidRrnDialog = false }) {
+                    Text("확인")
+                }
+            },
+            title = {
+                Text("주민등록번호 형식 오류")
+            },
+            text = {
+                Text("생년월일 6자리를 올바르게 입력해주세요.")
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -44,7 +116,6 @@ fun SignUpRrnScreen(
                         )
                     }
                 },
-
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -59,12 +130,12 @@ fun SignUpRrnScreen(
                 .padding(horizontal = 24.dp)
         ) {
             SignUpProgressBar(
-                currentStep = 2,  // 각 화면마다 번호 다르게
+                currentStep = 2,
                 modifier = Modifier.padding(horizontal = 24.dp)
             )
+
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 타이틀
             Text(
                 text = "주민등록번호를\n입력해주세요",
                 fontSize = 24.sp,
@@ -75,7 +146,6 @@ fun SignUpRrnScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // 주민등록번호 라벨
             Text(
                 text = "주민등록번호",
                 fontSize = 13.sp,
@@ -85,18 +155,15 @@ fun SignUpRrnScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 주민등록번호 입력 영역
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 앞자리 6자리
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = frontNumber.padEnd(6, ' ').let {
-                            it.mapIndexed { index, c ->
-                                if (index < frontNumber.length) c.toString()
-                                else ""
+                        text = frontNumber.padEnd(6, ' ').let { padded ->
+                            padded.mapIndexed { index, c ->
+                                if (index < frontNumber.length) c.toString() else ""
                             }.joinToString(" ")
                         }.ifBlank { "" },
                         fontSize = 24.sp,
@@ -105,8 +172,8 @@ fun SignUpRrnScreen(
                         letterSpacing = 4.sp
                     )
 
-                    // 밑줄
                     Spacer(modifier = Modifier.height(8.dp))
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -118,7 +185,6 @@ fun SignUpRrnScreen(
                     )
                 }
 
-                // 구분자
                 Text(
                     text = " - ",
                     fontSize = 20.sp,
@@ -126,13 +192,11 @@ fun SignUpRrnScreen(
                     modifier = Modifier.padding(horizontal = 8.dp)
                 )
 
-                // 뒷자리 (첫 자리 + ●●●●●●)
                 Column(modifier = Modifier.weight(1f)) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 뒷자리 첫번째 숫자 (보임)
                         Text(
                             text = if (backNumber.isNotEmpty()) backNumber else "",
                             fontSize = 24.sp,
@@ -140,7 +204,6 @@ fun SignUpRrnScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
 
-                        // 나머지 6자리 고정 마스킹 (입력 안 받음)
                         repeat(6) {
                             Box(
                                 modifier = Modifier
@@ -151,8 +214,8 @@ fun SignUpRrnScreen(
                         }
                     }
 
-                    // 밑줄
                     Spacer(modifier = Modifier.height(8.dp))
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -167,9 +230,8 @@ fun SignUpRrnScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // 확인 버튼
             Button(
-                onClick = { onConfirmClick("$frontNumber$backNumber") },
+                onClick = { handleConfirm() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
@@ -190,7 +252,6 @@ fun SignUpRrnScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 커스텀 숫자 키패드
             NumberKeypad(
                 onNumberClick = { digit ->
                     if (!isFrontComplete) {
@@ -217,11 +278,12 @@ fun SignUpRrnScreen(
     }
 }
 
-
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 private fun SignUpRrnScreenPreview() {
     MaterialTheme {
-        SignUpRrnScreen()
+        SignUpRrnScreen(
+            signUpViewModel = SignUpViewModel()
+        )
     }
 }
