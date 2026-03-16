@@ -120,11 +120,16 @@ public class PaymentService {
         }
 
         // 6. SSAFY 카드 결제
+        Long ssafyMerchantId = store.resolveSsafyMerchantId();
+        if (ssafyMerchantId == null) {
+            throw new BadRequestException("해당 매장에 SSAFY merchantId가 연결되어 있지 않습니다.");
+        }
+
         Map<String, Object> header = ssafyHeaderFactory.create("createCreditCardTransaction", user.getUserKey());
         Map<String, Object> body = ssafyApiClient.buildBody(header,
                 "cardNo",         cardNo,
                 "cvc",            cvc,
-                "merchantId",     store.getStoreId().toString(),
+                "merchantId",     ssafyMerchantId.toString(),
                 "paymentBalance", request.getAmount().toString()
         );
         Map<String, Object> ssafyResponse = ssafyApiClient.post(CREDIT_CARD_API, body);

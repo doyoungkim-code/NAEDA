@@ -29,6 +29,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
+	implementation 'org.apache.commons:commons-csv:1.11.0'
+	implementation 'org.locationtech.proj4j:proj4j:1.2.3'
+	implementation 'org.locationtech.proj4j:proj4j-epsg:1.2.3'
+	implementation 'org.jsoup:jsoup:1.18.1'
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	runtimeOnly 'org.postgresql:postgresql'
@@ -44,6 +48,12 @@ dependencies {
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
 	// Redis
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	// Resilience4j - 외부 API 장애 대응 (retry + circuit breaker)
+	implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
+	// AOP - 감사 로그
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
+	// Firebase Admin SDK (FCM)
+	implementation 'com.google.firebase:firebase-admin:9.4.3'
 
 }
 

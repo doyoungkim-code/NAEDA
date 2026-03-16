@@ -83,7 +83,7 @@ class PaymentServiceTest {
     @BeforeEach
     void setUp() throws Exception {
         facePayStore = Store.builder()
-                .storeId(STORE_ID).userNo(1L).storeName("테스트 매장")
+                .storeId(STORE_ID).ssafyMerchantId(9001L).userNo(1L).storeName("테스트 매장")
                 .categoryId("CG-test").roadAddress("경북 구미시 대학로 1")
                 .facePayEnabled(true).build();
 
@@ -286,7 +286,7 @@ class PaymentServiceTest {
     @DisplayName("결제 실패 - 페이스페이 미지원 매장이면 BadRequestException")
     void pay_facePayDisabled() throws Exception {
         Store nonFacePayStore = Store.builder()
-                .storeId(STORE_ID).userNo(1L).storeName("일반 매장")
+                .storeId(STORE_ID).ssafyMerchantId(9002L).userNo(1L).storeName("일반 매장")
                 .categoryId("CG-test").roadAddress("경북 구미시 대학로 1")
                 .facePayEnabled(false).build();
         given(storeRepository.findById(STORE_ID)).willReturn(Optional.of(nonFacePayStore));

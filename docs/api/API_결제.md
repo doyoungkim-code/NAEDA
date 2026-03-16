@@ -33,7 +33,7 @@
 
 | 필드 | 타입 | 필수 | 검증 | 설명 |
 |------|------|------|------|------|
-| storeId | Long | O | NotNull | 매장 ID (SSAFY merchantId) |
+| storeId | Long | O | NotNull | 매장 내부 ID (`store.store_id`) |
 | amount | Long | O | NotNull, Positive | 결제 금액 (원) |
 
 ### Response

@@ -16,10 +16,14 @@ import java.time.LocalDateTime;
 public class Store {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "store_id")
     private Long storeId;
 
-    @Column(name = "user_no", nullable = false)
+    @Column(name = "ssafy_merchant_id", unique = true)
+    private Long ssafyMerchantId;
+
+    @Column(name = "user_no")
     private Long userNo;
 
     @Column(name = "account_id")
@@ -34,7 +38,7 @@ public class Store {
     @Column(name = "category_name", length = 50)
     private String categoryName;   // SSAFY 카테고리명 (예: "대형마트")
 
-    @Column(name = "road_address", length = 255, nullable = false)
+    @Column(name = "road_address", length = 255)
     private String roadAddress;
 
     @Column(name = "number_address", length = 255)
@@ -59,7 +63,83 @@ public class Store {
     @Builder.Default
     private Double rating = 0.0;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source_type", length = 20)
+    @Builder.Default
+    private StoreSourceType sourceType = StoreSourceType.SSAFY;
+
+    @Column(name = "source_key", length = 120, unique = true)
+    private String sourceKey;
+
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
+
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "is_active")
+    @Builder.Default
+    private Boolean isActive = true;
+
+    @Column(name = "last_enriched_at")
+    private LocalDateTime lastEnrichedAt;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime created;
+
+    public void updatePublicCatalog(
+            String storeName,
+            String categoryId,
+            String categoryName,
+            String roadAddress,
+            String numberAddress,
+            Double latitude,
+            Double longitude,
+            String phone
+    ) {
+        this.storeName = storeName;
+        this.categoryId = categoryId;
+        this.categoryName = categoryName;
+        this.roadAddress = roadAddress;
+        this.numberAddress = numberAddress;
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.phone = phone;
+        this.isLocalBusiness = true;
+        this.facePayEnabled = false;
+        this.isActive = true;
+    }
+
+    public void assignCatalogIdentity(StoreSourceType sourceType, String sourceKey) {
+        this.sourceType = sourceType;
+        this.sourceKey = sourceKey;
+    }
+
+    public void assignSsafyIdentity(Long ssafyMerchantId) {
+        this.sourceType = StoreSourceType.SSAFY;
+        this.ssafyMerchantId = ssafyMerchantId;
+        this.sourceKey = ssafyMerchantId == null ? null : "ssafy:" + ssafyMerchantId;
+    }
+
+    public void updateEnrichment(String imageUrl, String description, Double rating, LocalDateTime enrichedAt) {
+        this.imageUrl = imageUrl;
+        this.description = description;
+        this.rating = rating == null ? this.rating : rating;
+        this.lastEnrichedAt = enrichedAt;
+    }
+
+    public void deactivate() {
+        this.isActive = false;
+    }
+
+    public Long resolveSsafyMerchantId() {
+        if (this.ssafyMerchantId != null) {
+            return this.ssafyMerchantId;
+        }
+        if (this.sourceType == null || this.sourceType == StoreSourceType.SSAFY) {
+            return this.storeId;
+        }
+        return null;
+    }
 }

@@ -5,6 +5,7 @@ import com.ssafy.naeda.domain.store.dto.request.StoreCreateRequest;
 import com.ssafy.naeda.domain.store.dto.response.StoreResponse;
 import com.ssafy.naeda.domain.store.dto.ssafy.SsafyMerchantRec;
 import com.ssafy.naeda.domain.store.entity.Store;
+import com.ssafy.naeda.domain.store.entity.StoreSourceType;
 import com.ssafy.naeda.domain.store.repository.StoreRepository;
 import com.ssafy.naeda.global.exception.NotFoundException;
 import com.ssafy.naeda.global.ssafy.SsafyApiClient;
@@ -51,15 +52,16 @@ public class StoreService {
 
         List<SsafyMerchantRec> ssafyMerchants = parseMerchantList(response);
 
-        // 2. SSAFY merchantId → 우리 DB Map (storeId 기준)
+        // 2. SSAFY merchantId → 우리 DB Map (ssafyMerchantId 기준)
         List<Long> merchantIds = ssafyMerchants.stream()
                 .map(rec -> parseLong(rec.getMerchantId()))
                 .filter(id -> id != null)
                 .toList();
 
-        Map<Long, Store> dbStoreMap = storeRepository.findAllById(merchantIds)
+        Map<Long, Store> dbStoreMap = storeRepository.findBySsafyMerchantIdIn(merchantIds)
                 .stream()
-                .collect(Collectors.toMap(Store::getStoreId, s -> s));
+                .filter(store -> store.resolveSsafyMerchantId() != null)
+                .collect(Collectors.toMap(Store::resolveSsafyMerchantId, s -> s));
 
         // 3. 병합 후 필터 적용
         return ssafyMerchants.stream()
@@ -70,6 +72,19 @@ public class StoreService {
                 })
                 .filter(s -> category == null || category.equals(s.getCategoryId()))
                 .filter(s -> facePayOnly == null || !facePayOnly || Boolean.TRUE.equals(s.getFacePayEnabled()))
+                .toList();
+    }
+
+    /**
+     * 지도 표시용 공공 매장 목록 조회.
+     */
+    public List<StoreResponse> getMapStores() {
+        return storeRepository
+                .findBySourceTypeAndIsActiveTrueAndLatitudeIsNotNullAndLongitudeIsNotNullOrderByStoreNameAsc(
+                        StoreSourceType.PUBLIC_CSV
+                )
+                .stream()
+                .map(StoreResponse::from)
                 .toList();
     }
 
@@ -87,7 +102,7 @@ public class StoreService {
      *
      * 흐름:
      * 1. SSAFY createMerchant 호출 → merchantId 발급
-     * 2. merchantId를 storeId로 사용하여 DB에 저장
+     * 2. merchantId를 별도 컬럼(ssafyMerchantId)으로 저장하고 store_id는 내부 PK로 생성
      */
     @Transactional
     public StoreResponse createStore(StoreCreateRequest request) {
@@ -106,11 +121,10 @@ public class StoreService {
                 .reduce((first, second) -> second)  // 동명 가맹점이 있을 경우 마지막(최신) 항목
                 .orElseThrow(() -> new NotFoundException("SSAFY 가맹점 등록 응답에서 매장을 찾을 수 없습니다."));
 
-        Long storeId = parseLong(created.getMerchantId());
+        Long ssafyMerchantId = parseLong(created.getMerchantId());
 
         // 3. DB 저장
         Store store = Store.builder()
-                .storeId(storeId)
                 .userNo(request.getUserNo())
                 .accountId(request.getAccountId())
                 .storeName(request.getStoreName())
@@ -124,6 +138,7 @@ public class StoreService {
                 .isLocalBusiness(Boolean.TRUE.equals(request.getIsLocalBusiness()))
                 .facePayEnabled(Boolean.TRUE.equals(request.getFacePayEnabled()))
                 .build();
+        store.assignSsafyIdentity(ssafyMerchantId);
 
         return StoreResponse.from(storeRepository.save(store));
     }
