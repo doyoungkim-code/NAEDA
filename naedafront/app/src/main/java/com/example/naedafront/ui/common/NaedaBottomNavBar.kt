@@ -7,6 +7,9 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Store
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -32,10 +35,10 @@ enum class BottomNavItem(
     val icon: ImageVector
 ) {
     HOME(Screen.Home.route, "홈", Icons.Default.Home),
-    BENEFIT(Screen.Benefit.route, "혜택", Icons.Default.CardGiftcard),
-    SCAN(Screen.Scan.route, "스캔", Icons.Default.QrCodeScanner),
-    ASSET(Screen.Asset.route, "자산", Icons.Default.AccountBalanceWallet),
-    MORE(Screen.More.route, "더보기", Icons.Default.MoreHoriz)
+    BENEFIT(Screen.Benefit.route, "상점", Icons.Default.Store),
+    SCAN(Screen.Scan.route, "지도", Icons.Default.Map),
+    ASSET(Screen.Asset.route, "지갑", Icons.Default.AccountBalanceWallet),
+    MORE(Screen.More.route, "설정", Icons.Default.Settings)
 }
 
 @Composable
