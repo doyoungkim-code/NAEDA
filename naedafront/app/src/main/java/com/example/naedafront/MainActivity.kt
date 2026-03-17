@@ -14,16 +14,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.naedafront.data.remote.ApiConfig
-import com.example.naedafront.ui.theme.NaedaTheme
 import com.example.naedafront.ui.common.NaedaBottomNavBar
 import com.example.naedafront.ui.navigation.NaedaNavGraph
 import com.example.naedafront.ui.navigation.Screen
+import com.example.naedafront.ui.theme.NaedaTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ApiConfig.initialize(applicationContext)
         enableEdgeToEdge()
+
         setContent {
             NaedaTheme {
                 NaedaApp()
@@ -41,12 +42,13 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun NaedaApp() {
     val context = LocalContext.current
-    val startDestination = if (AuthPrefs.hasSession(context)) Screen.Home.route else Screen.Welcome.route
+    val startDestination =
+        if (AuthPrefs.hasSession(context)) Screen.Home.route else Screen.Welcome.route
+
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // 인증 플로우에서는 하단 탭 숨김
     val bottomBarRoutes = listOf(
         Screen.Home.route,
         Screen.Benefit.route,
@@ -54,6 +56,7 @@ fun NaedaApp() {
         Screen.Asset.route,
         Screen.More.route
     )
+
     val showBottomBar = currentRoute in bottomBarRoutes
 
     Scaffold(
