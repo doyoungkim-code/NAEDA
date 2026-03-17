@@ -25,9 +25,11 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.*
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -51,6 +53,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.outlined.FaceRetouchingNatural
@@ -173,6 +176,7 @@ private sealed class RegisterStage {
     data class IdConfirm(val extracted: ResidentIdExtractResponseDto) : RegisterStage()
     object PinChoice : RegisterStage()
     data class CurrentPin(val resetKey: Int = 0) : RegisterStage()
+    object Saving : RegisterStage()   // 등록 중 로딩 화면
     object Success : RegisterStage()
 }
 
@@ -252,6 +256,8 @@ fun FaceRegisterFlowScreen(
                     secondaryAuthEnabled = response.secondaryAuthEnabled
                 )
                 currentPinResetKey = 0
+                stage = RegisterStage.Saving
+                kotlinx.coroutines.delay(1500L)
                 stage = RegisterStage.Success
             }.onFailure { throwable ->
                 if (enableSecondaryAuth) {
@@ -384,6 +390,8 @@ fun FaceRegisterFlowScreen(
                         }
                     )
 
+                    is RegisterStage.Saving -> SavingStageContent()
+
                     is RegisterStage.Success -> SuccessStageContent(
                         secondaryAuthEnabled = completedSecondaryAuthEnabled,
                         onComplete = onRegisterComplete
@@ -415,6 +423,7 @@ private fun titleForStage(stage: RegisterStage): String {
         is RegisterStage.IdConfirm -> "신분증 정보 확인"
         is RegisterStage.PinChoice -> "PIN 설정"
         is RegisterStage.CurrentPin -> "현재 PIN 입력"
+        is RegisterStage.Saving -> "페이스페이"
         is RegisterStage.Success -> "등록 완료"
     }
 }
@@ -1930,13 +1939,33 @@ private fun IdConfirmStageContent(
             .padding(horizontal = 24.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // ── 상단 칩 ──────────────────────────────────────────────
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(Mint50)
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = "정보 확인",
+                fontFamily = NaedaFontFamily,
+                fontWeight = FontWeight.Medium,
+                fontSize = 13.sp,
+                color = Mint500
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         Text(
-            text = "인식된 정보를 확인해 주세요",
+            text = "인식된 정보를\n확인해 주세요",
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Bold,
-            fontSize = 22.sp,
-            color = OnBackground
+            fontSize = 26.sp,
+            color = OnBackground,
+            lineHeight = 34.sp
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
@@ -1946,41 +1975,117 @@ private fun IdConfirmStageContent(
             color = OnSurfaceVariant,
             lineHeight = 22.sp
         )
-        Spacer(modifier = Modifier.height(24.dp))
 
-        LabeledField(label = "이름", value = name, onValueChange = { name = it })
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(28.dp))
 
+        // ── 이름 필드 ─────────────────────────────────────────────
+        Text(
+            text = "이름",
+            fontFamily = NaedaFontFamily,
+            fontWeight = FontWeight.Medium,
+            fontSize = 14.sp,
+            color = OnSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        androidx.compose.material3.OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp),
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Mint500,
+                unfocusedBorderColor = Outline,
+                focusedTextColor = OnBackground,
+                unfocusedTextColor = OnBackground
+            )
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // ── 주민번호 필드 ─────────────────────────────────────────
+        Text(
+            text = "주민등록번호",
+            fontFamily = NaedaFontFamily,
+            fontWeight = FontWeight.Medium,
+            fontSize = 14.sp,
+            color = OnSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            LabeledField(
-                label = "주민번호 앞 6자리",
+            androidx.compose.material3.OutlinedTextField(
                 value = residentFront6,
                 onValueChange = { residentFront6 = it.filter(Char::isDigit).take(6) },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                placeholder = {
+                    Text("앞 6자리", color = OnSurfaceVariant,
+                        fontFamily = NaedaFontFamily, fontSize = 14.sp)
+                },
+                shape = RoundedCornerShape(14.dp),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Mint500,
+                    unfocusedBorderColor = Outline,
+                    focusedTextColor = OnBackground,
+                    unfocusedTextColor = OnBackground
+                )
             )
-            LabeledField(
-                label = "뒤 첫 1자리",
+            Text(
+                text = "-",
+                modifier = Modifier.align(Alignment.CenterVertically),
+                fontSize = 20.sp,
+                color = OnSurfaceVariant,
+                fontWeight = FontWeight.Bold
+            )
+            androidx.compose.material3.OutlinedTextField(
                 value = residentBackFirst1,
                 onValueChange = { residentBackFirst1 = it.filter(Char::isDigit).take(1) },
-                modifier = Modifier.weight(0.5f)
+                modifier = Modifier.weight(0.5f),
+                singleLine = true,
+                placeholder = {
+                    Text("뒤 1자리", color = OnSurfaceVariant,
+                        fontFamily = NaedaFontFamily, fontSize = 14.sp)
+                },
+                shape = RoundedCornerShape(14.dp),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Mint500,
+                    unfocusedBorderColor = Outline,
+                    focusedTextColor = OnBackground,
+                    unfocusedTextColor = OnBackground
+                )
             )
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Mint50)
+        // ── 안내 박스 ─────────────────────────────────────────────
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(SurfaceVariant)
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = Mint500,
+                modifier = Modifier.size(18.dp)
+            )
             Text(
-                text = "표시 값: ${residentFront6.ifBlank { "------" }}-${residentBackFirst1.ifBlank { "-" }}",
-                modifier = Modifier.padding(16.dp),
+                text = "입력하신 정보는 본인 확인을 위해서만 사용되며 안전하게 암호화됩니다.",
                 fontFamily = NaedaFontFamily,
-                fontSize = 14.sp,
-                color = OnBackground
+                fontSize = 13.sp,
+                color = OnSurfaceVariant,
+                lineHeight = 20.sp
             )
         }
 
+        Spacer(modifier = Modifier.height(24.dp))
         Spacer(modifier = Modifier.weight(1f))
 
         Button(
@@ -2023,10 +2128,15 @@ private fun IdConfirmStageContent(
                     color = Color.White
                 )
             } else {
-                Text("확인 및 다음", fontFamily = NaedaFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Color.White)
+                Text(
+                    "확인 및 다음",
+                    fontFamily = NaedaFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    color = Color.White
+                )
             }
         }
-
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
@@ -2073,40 +2183,97 @@ private fun PinChoiceStageContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp)
+            .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // ── 상단 칩 ──────────────────────────────────────────────
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(Mint50)
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = "보안 설정",
+                fontFamily = NaedaFontFamily,
+                fontWeight = FontWeight.Medium,
+                fontSize = 13.sp,
+                color = Mint500
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         Text(
-            text = "PIN 2차 인증을 사용할까요?",
+            text = "PIN 번호 2차 인증을\n사용할까요?",
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Bold,
-            fontSize = 24.sp,
+            fontSize = 26.sp,
             color = OnBackground,
+            textAlign = TextAlign.Center,
             lineHeight = 34.sp
         )
-        Spacer(modifier = Modifier.height(12.dp))
-        listOf(
-            "현재 계정 PIN을 한 번 더 확인해 결제를 보호할 수 있습니다.",
-            "원하지 않으면 이번에는 건너뛰고 얼굴 등록만 완료할 수 있습니다."
-        ).forEach { tip ->
-            Card(
+
+        Spacer(modifier = Modifier.height(40.dp))
+
+        // ── 자물쇠 아이콘 (2겹 원) ───────────────────────────────
+        Box(
+            modifier = Modifier
+                .size(190.dp)
+                .background(Color(0xFFCCEAE7), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 10.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                shape = RoundedCornerShape(16.dp)
+                    .size(136.dp)
+                    .background(Mint500, CircleShape),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = tip,
-                    modifier = Modifier.padding(16.dp),
-                    fontFamily = NaedaFontFamily,
-                    fontSize = 14.sp,
-                    color = OnBackground,
-                    lineHeight = 22.sp
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(64.dp)
                 )
             }
         }
+
         Spacer(modifier = Modifier.weight(1f))
+
+        // ── 보안 안내 ─────────────────────────────────────────────
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = Mint500,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = "보안 강화 안내",
+                fontFamily = NaedaFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp,
+                color = OnBackground
+            )
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        Text(
+            text = "2차 인증을 사용하면 보안이 더욱 강력해집니다.\n결제 시 얼굴 인식 후 PIN 번호를 한 번 더 입력하여\n안전하게 보호하세요.",
+            fontFamily = NaedaFontFamily,
+            fontWeight = FontWeight.Normal,
+            fontSize = 14.sp,
+            color = OnSurfaceVariant,
+            textAlign = TextAlign.Center,
+            lineHeight = 22.sp
+        )
+
+        Spacer(modifier = Modifier.height(28.dp))
+
         Button(
             onClick = onUsePin,
             enabled = !isSaving,
@@ -2116,19 +2283,35 @@ private fun PinChoiceStageContent(
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Mint900)
         ) {
-            Text(if (isSaving) "설정 저장 중..." else "현재 PIN으로 사용하기", fontFamily = NaedaFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Color.White)
+            Text(
+                if (isSaving) "설정 저장 중..." else "2차 인증 사용하기",
+                fontFamily = NaedaFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+                color = Color.White
+            )
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        TextButton(
-            onClick = onSkip,
-            enabled = !isSaving,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
+        Spacer(modifier = Modifier.height(16.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Text("이번에는 건너뛰기", fontFamily = NaedaFontFamily, fontSize = 15.sp, color = OnSurfaceVariant)
+            Text(
+                text = "다음에 하기",
+                fontFamily = NaedaFontFamily,
+                fontWeight = FontWeight.Normal,
+                fontSize = 15.sp,
+                color = OnSurfaceVariant,
+                modifier = Modifier
+                    .clickable(enabled = !isSaving) { onSkip() }
+                    .padding(vertical = 12.dp, horizontal = 24.dp)
+            )
         }
-        Spacer(modifier = Modifier.height(24.dp))
     }
 }
+
 
 @Composable
 private fun PinCreateStageContent(
@@ -2242,47 +2425,170 @@ private fun CurrentPinStageContent(
 ) {
     var currentPin by remember(resetKey) { mutableStateOf("") }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0D1717))) {
-        Column(
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Background)
+            .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(56.dp))
+
+        // ── 상단 칩 ──────────────────────────────────────────────
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .clip(RoundedCornerShape(20.dp))
+                .background(Mint50)
+                .padding(horizontal = 16.dp, vertical = 6.dp)
         ) {
-            Spacer(modifier = Modifier.height(48.dp))
             Text(
-                text = "현재 PIN 번호를 입력해 주세요",
+                text = "PIN 인증",
                 fontFamily = NaedaFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 22.sp,
-                color = Color.White,
-                textAlign = TextAlign.Center
+                fontWeight = FontWeight.Medium,
+                fontSize = 13.sp,
+                color = Mint500
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "페이스페이에서 PIN 2차 인증을 사용하려면 현재 계정 PIN 확인이 필요합니다.",
-                fontFamily = NaedaFontFamily,
-                fontSize = 14.sp,
-                color = Color.White.copy(alpha = 0.6f),
-                textAlign = TextAlign.Center,
-                lineHeight = 22.sp
-            )
-            Spacer(modifier = Modifier.height(32.dp))
-            PinDotsReal(pinLength = currentPin.length)
-            Spacer(modifier = Modifier.weight(1f))
-            NumberKeypad(
-                onNumberClick = {
-                    if (!isSaving && currentPin.length < 6) {
-                        currentPin += it
-                        if (currentPin.length == 6) {
-                            onCurrentPinEntered(currentPin)
-                        }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Text(
+            text = "현재 PIN 번호를\n입력해 주세요",
+            fontFamily = NaedaFontFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = 26.sp,
+            color = OnBackground,
+            textAlign = TextAlign.Center,
+            lineHeight = 34.sp
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        Text(
+            text = "페이스페이 2차 인증을 사용하려면\n현재 계정 PIN 확인이 필요합니다.",
+            fontFamily = NaedaFontFamily,
+            fontSize = 14.sp,
+            color = OnSurfaceVariant,
+            textAlign = TextAlign.Center,
+            lineHeight = 22.sp
+        )
+
+        Spacer(modifier = Modifier.height(48.dp))
+
+        // ── PIN 도트 ─────────────────────────────────────────────
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            repeat(6) { index ->
+                Box(
+                    modifier = Modifier
+                        .size(14.dp)
+                        .background(
+                            color = if (index < currentPin.length) Mint500
+                            else Color(0xFFE0E0E0),
+                            shape = CircleShape
+                        )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        NumberKeypad(
+            onNumberClick = {
+                if (!isSaving && currentPin.length < 6) {
+                    currentPin += it
+                    if (currentPin.length == 6) {
+                        onCurrentPinEntered(currentPin)
                     }
-                },
-                onDeleteClick = { if (currentPin.isNotEmpty()) currentPin = currentPin.dropLast(1) },
-                textColor = Color.White
-            )
-            Spacer(modifier = Modifier.height(36.dp))
+                }
+            },
+            onDeleteClick = { if (currentPin.isNotEmpty()) currentPin = currentPin.dropLast(1) },
+            textColor = OnBackground
+        )
+        Spacer(modifier = Modifier.height(36.dp))
+    }
+}
+
+@Composable
+private fun SavingStageContent() {
+    val infiniteTransition = rememberInfiniteTransition(label = "saving")
+    val dotAlpha1 by infiniteTransition.animateFloat(
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse),
+        label = "dot1"
+    )
+    val dotAlpha2 by infiniteTransition.animateFloat(
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(600, delayMillis = 200), RepeatMode.Reverse),
+        label = "dot2"
+    )
+    val dotAlpha3 by infiniteTransition.animateFloat(
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(600, delayMillis = 400), RepeatMode.Reverse),
+        label = "dot3"
+    )
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.15f, targetValue = 0.4f,
+        animationSpec = infiniteRepeatable(tween(1200), RepeatMode.Reverse),
+        label = "glow"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Background),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(32.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(160.dp)
+                    .background(Mint500.copy(alpha = glowAlpha), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(120.dp)
+                        .background(Mint500, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(52.dp),
+                        strokeWidth = 3.dp,
+                        color = Color.White,
+                        trackColor = Color.White.copy(alpha = 0.25f)
+                    )
+                }
+            }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "페이스페이 등록 중",
+                    fontFamily = NaedaFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp,
+                    color = OnBackground
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(".", fontSize = 24.sp, color = Mint500.copy(alpha = dotAlpha1), fontWeight = FontWeight.Bold)
+                    Text(".", fontSize = 24.sp, color = Mint500.copy(alpha = dotAlpha2), fontWeight = FontWeight.Bold)
+                    Text(".", fontSize = 24.sp, color = Mint500.copy(alpha = dotAlpha3), fontWeight = FontWeight.Bold)
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "잠시만 기다려 주세요",
+                    fontFamily = NaedaFontFamily,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 14.sp,
+                    color = OnSurfaceVariant
+                )
+            }
         }
     }
 }
@@ -2314,7 +2620,7 @@ private fun SuccessStageContent(
                 Icon(
                     imageVector = Icons.Outlined.FaceRetouchingNatural,
                     contentDescription = null,
-                    tint = Color(0xFF5B9E94),
+                    tint = Color.White,
                     modifier = Modifier.size(72.dp)
                 )
             }
