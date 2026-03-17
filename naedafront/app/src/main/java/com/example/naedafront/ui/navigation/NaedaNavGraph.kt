@@ -3,8 +3,8 @@ package com.example.naedafront.ui.navigation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -22,24 +23,28 @@ import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.FaceRegistrationRepository
 import com.example.naedafront.ui.screen.LoginScreen
 import com.example.naedafront.ui.screen.WelcomeScreen
-import com.example.naedafront.ui.screen.signup.SignUpNameScreen
-import com.example.naedafront.ui.screen.signup.SignUpRrnScreen
-import com.example.naedafront.ui.screen.signup.SignUpPhoneScreen
-import com.example.naedafront.ui.screen.signup.SignUpVerifyScreen
-import com.example.naedafront.ui.screen.signup.SignUpEmailScreen
-import com.example.naedafront.ui.screen.signup.SignUpPasswordScreen
-import com.example.naedafront.ui.screen.signup.SignUpPinScreen
-import com.example.naedafront.ui.screen.home.HomeScreen
-import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
+import com.example.naedafront.ui.screen.asset.AccountDetailScreen
+import com.example.naedafront.ui.screen.asset.AccountListScreen
+import com.example.naedafront.ui.screen.asset.CardDetailScreen
+import com.example.naedafront.ui.screen.asset.RegisterAssetScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchRecognizeScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchResultScreen
+import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
+import com.example.naedafront.ui.screen.home.HomeScreen
 import com.example.naedafront.ui.screen.home.HomeUiState
+import com.example.naedafront.ui.screen.mypage.MyPageScreen
+import com.example.naedafront.ui.screen.mypage.MyPageViewModel
+import com.example.naedafront.ui.screen.signup.SignUpEmailScreen
+import com.example.naedafront.ui.screen.signup.SignUpNameScreen
+import com.example.naedafront.ui.screen.signup.SignUpPasswordScreen
+import com.example.naedafront.ui.screen.signup.SignUpPhoneScreen
+import com.example.naedafront.ui.screen.signup.SignUpPinScreen
+import com.example.naedafront.ui.screen.signup.SignUpRrnScreen
+import com.example.naedafront.ui.screen.signup.SignUpVerifyScreen
+import com.example.naedafront.ui.screen.signup.SignUpViewModel
 
 /**
  * 내다(NAEDA) 전체 네비게이션 그래프
- *
- * 시작 화면: Welcome (본인인증 시작 화면)
- * TODO: 토큰 확인 로직 추가 시 Splash → 분기 처리
  */
 @Composable
 fun NaedaNavGraph(
@@ -48,6 +53,9 @@ fun NaedaNavGraph(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+
+    // 회원가입 플로우 전체에서 공유할 ViewModel
+    val signUpViewModel: SignUpViewModel = viewModel()
 
     NavHost(
         navController = navController,
@@ -75,29 +83,27 @@ fun NaedaNavGraph(
             )
         }
 
-// 1/8 이름
         composable(Screen.SignUp.route) {
             SignUpNameScreen(
+                signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { name ->
-                    navController.navigate(Screen.SignUpRrn.route)
-                }
+                onConfirmClick = { navController.navigate(Screen.SignUpRrn.route) }
             )
         }
 
-// 2/8 주민번호
         composable(Screen.SignUpRrn.route) {
             SignUpRrnScreen(
+                signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { rrn ->
+                onConfirmClick = {
                     navController.navigate(Screen.SignUpPhone.route)
                 }
             )
         }
 
-// 3/8 휴대폰
         composable(Screen.SignUpPhone.route) {
             SignUpPhoneScreen(
+                signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
                 onConfirmClick = { phone ->
                     navController.navigate(Screen.SignUpVerify.createRoute(phone))
@@ -105,64 +111,71 @@ fun NaedaNavGraph(
             )
         }
 
-// 4/8 인증번호
         composable(
             route = Screen.SignUpVerify.route,
-            arguments = listOf(navArgument("phone") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("phone") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = ""
+                }
+            )
         ) { backStackEntry ->
             val phone = backStackEntry.arguments?.getString("phone") ?: ""
+
             SignUpVerifyScreen(
+                signUpViewModel = signUpViewModel,
                 phoneNumber = phone,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { code ->
+                onConfirmClick = {
                     navController.navigate(Screen.SignUpEmail.route)
                 },
                 onResendClick = { }
             )
         }
 
-// 5/8 이메일
         composable(Screen.SignUpEmail.route) {
             SignUpEmailScreen(
+                signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { email ->
-                    navController.navigate(Screen.SignUpPassword.route)
-                }
+                onConfirmClick = { navController.navigate(Screen.SignUpPassword.route) }
             )
         }
 
-// 6/8 비밀번호
         composable(Screen.SignUpPassword.route) {
             SignUpPasswordScreen(
+                signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { password ->
-                    navController.navigate(Screen.SignUpPin.route)
-                }
+                onConfirmClick = { navController.navigate(Screen.SignUpPin.route) }
             )
         }
 
-// 7/8 PIN
         composable(Screen.SignUpPin.route) {
             SignUpPinScreen(
+                signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { _ ->
-                    AuthPrefs.clearSession(context)
+                onConfirmClick = {
+                    AuthPrefs.setLoggedIn(context, false)
+                    AuthPrefs.setFaceRegistered(context, false)
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Welcome.route) { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             )
         }
 
-        // ═══════════════════════════════════════
-        // 메인 5탭
-        // ═══════════════════════════════════════
+        // ═══ 메인 5탭 ═══
 
         composable(Screen.Home.route) {
             val displayName = AuthPrefs.getUsername(context)
                 ?.takeUnless { it.isBlank() }
                 ?: "사용자"
-            var isFaceRegistered by remember { mutableStateOf(AuthPrefs.isFaceRegistered(context)) }
+
+            var isFaceRegistered by remember {
+                mutableStateOf(AuthPrefs.isFaceRegistered(context))
+            }
+
             LaunchedEffect(Unit) {
                 runCatching { FaceRegistrationRepository.getFacePaySettings() }
                     .onSuccess { settings ->
@@ -174,6 +187,7 @@ fun NaedaNavGraph(
                         isFaceRegistered = settings.faceRegistered
                     }
             }
+
             HomeScreen(
                 uiState = HomeUiState(
                     userName = displayName,
@@ -182,11 +196,11 @@ fun NaedaNavGraph(
                 onTransferClick = { navController.navigate(Screen.Transfer.route) },
                 onTransactionClick = { navController.navigate(Screen.Transaction.route) },
                 onFacePaySettingClick = { navController.navigate(Screen.FaceRegister.route) },
-                onLinkAccountClick = { /* TODO: 계좌 연결 화면 */ },
+                onLinkAccountClick = { navController.navigate(Screen.AccountList.createRoute(0)) },
                 onViewAllTransactionsClick = { navController.navigate(Screen.Transaction.route) },
-                onSearchClick = { /* TODO */ },
+                onSearchClick = { },
                 onAlarmClick = { navController.navigate(Screen.Notification.route) },
-                onProfileClick = { navController.navigate(Screen.Settings.route) },
+                onProfileClick = { navController.navigate(Screen.MyPage.route) },
                 onSecretFaceMatchTestClick = { navController.navigate(Screen.FaceMatchRecognize.route) }
             )
         }
@@ -200,16 +214,33 @@ fun NaedaNavGraph(
         }
 
         composable(Screen.Asset.route) {
-            PlaceholderScreen("💰 자산")
+            AccountListScreen(
+                initialTab = 0,
+                onBack = { navController.popBackStack() },
+                onRegisterNewAccount = {
+                    navController.navigate(Screen.RegisterAsset.createRoute(0))
+                },
+                onRegisterNewCard = {
+                    navController.navigate(Screen.RegisterAsset.createRoute(1))
+                },
+                onAccountClick = { account ->
+                    navController.navigate(Screen.AccountDetail.createRoute(account.id))
+                },
+                onCardClick = { card ->
+                    navController.navigate(Screen.CardDetail.createRoute(card.id))
+                },
+                onDeleteAccount = { },
+                onSetPrimary = { },
+                onSetPrimaryCard = { },
+                onDeleteCard = { }
+            )
         }
 
         composable(Screen.More.route) {
             PlaceholderScreen("⋯ 더보기")
         }
 
-        // ═══════════════════════════════════════
-        // 스캔 탭 하위 화면
-        // ═══════════════════════════════════════
+        // ═══ 스캔 탭 하위 ═══
 
         composable(Screen.FaceRegister.route) {
             FaceRegisterScreen(
@@ -217,6 +248,7 @@ fun NaedaNavGraph(
                 onRegisterComplete = {
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Home.route) { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             )
@@ -261,22 +293,99 @@ fun NaedaNavGraph(
 
         composable(
             route = Screen.StoreDetail.route,
-            arguments = listOf(navArgument("storeId") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("storeId") { type = NavType.StringType }
+            )
         ) { backStackEntry ->
             val storeId = backStackEntry.arguments?.getString("storeId") ?: ""
             PlaceholderScreen("매장 상세: $storeId")
         }
 
-        // ═══════════════════════════════════════
-        // 자산 탭 하위 화면
-        // ═══════════════════════════════════════
+        // ═══ 자산 탭 하위 ═══
+
+        composable(
+            route = Screen.AccountList.route,
+            arguments = listOf(
+                navArgument("tab") {
+                    type = NavType.IntType
+                    defaultValue = 0
+                }
+            )
+        ) { backStackEntry ->
+            val tab = backStackEntry.arguments?.getInt("tab") ?: 0
+
+            AccountListScreen(
+                initialTab = tab,
+                onBack = { navController.popBackStack() },
+                onRegisterNewAccount = {
+                    navController.navigate(Screen.RegisterAsset.createRoute(0))
+                },
+                onRegisterNewCard = {
+                    navController.navigate(Screen.RegisterAsset.createRoute(1))
+                },
+                onAccountClick = { account ->
+                    navController.navigate(Screen.AccountDetail.createRoute(account.id))
+                },
+                onCardClick = { card ->
+                    navController.navigate(Screen.CardDetail.createRoute(card.id))
+                },
+                onDeleteAccount = { },
+                onSetPrimary = { },
+                onSetPrimaryCard = { },
+                onDeleteCard = { }
+            )
+        }
+
+        composable(
+            route = Screen.RegisterAsset.route,
+            arguments = listOf(
+                navArgument("tab") { type = NavType.IntType }
+            )
+        ) { backStackEntry ->
+            val tab = backStackEntry.arguments?.getInt("tab") ?: 0
+
+            RegisterAssetScreen(
+                initialTab = tab,
+                onBack = {
+                    navController.navigate(Screen.AccountList.createRoute(tab)) {
+                        popUpTo(Screen.AccountList.route) { inclusive = true }
+                    }
+                },
+                onRegisterComplete = {
+                    navController.navigate(Screen.AccountList.createRoute(tab)) {
+                        popUpTo(Screen.AccountList.route) { inclusive = true }
+                    }
+                }
+            )
+        }
 
         composable(
             route = Screen.AccountDetail.route,
-            arguments = listOf(navArgument("accountId") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("accountId") { type = NavType.StringType }
+            )
         ) { backStackEntry ->
             val accountId = backStackEntry.arguments?.getString("accountId") ?: ""
-            PlaceholderScreen("계좌 상세: $accountId")
+
+            AccountDetailScreen(
+                accountId = accountId,
+                onBack = { navController.popBackStack() },
+                onTransferClick = { navController.navigate(Screen.Transfer.route) }
+            )
+        }
+
+        composable(
+            route = Screen.CardDetail.route,
+            arguments = listOf(
+                navArgument("cardId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val cardId = backStackEntry.arguments?.getString("cardId") ?: ""
+
+            CardDetailScreen(
+                cardId = cardId,
+                onBack = { navController.popBackStack() }
+            )
         }
 
         composable(Screen.Transfer.route) {
@@ -291,9 +400,7 @@ fun NaedaNavGraph(
             PlaceholderScreen("📊 소비 리포트")
         }
 
-        // ═══════════════════════════════════════
-        // 혜택 탭 하위 화면
-        // ═══════════════════════════════════════
+        // ═══ 혜택 탭 하위 ═══
 
         composable(Screen.Coupon.route) {
             PlaceholderScreen("할인권 교환")
@@ -303,9 +410,39 @@ fun NaedaNavGraph(
             PlaceholderScreen("후원하기")
         }
 
-        // ═══════════════════════════════════════
-        // 더보기 탭 하위 화면
-        // ═══════════════════════════════════════
+        // ═══ 마이페이지 / 더보기 하위 ═══
+
+        composable(Screen.MyPage.route) {
+            val myPageViewModel: MyPageViewModel = viewModel()
+
+            MyPageScreen(
+                viewModel = myPageViewModel,
+                onBackClick = { navController.popBackStack() },
+                onNotificationClick = {
+                    navController.navigate(Screen.Notification.route)
+                },
+                onSettingsClick = {
+                    navController.navigate(Screen.Settings.route)
+                },
+                onFaceReRegisterClick = {
+                    navController.navigate(Screen.FaceRegister.route)
+                },
+                onPinChangeClick = {
+                    navController.navigate(Screen.Security.route)
+                },
+                onEditProfileClick = { },
+                onContactManageClick = { },
+                onCustomerCenterClick = { },
+                onLogoutClick = {
+                    AuthPrefs.clearSession(context)
+                    navController.navigate(Screen.Welcome.route) {
+                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onFabClick = { }
+            )
+        }
 
         composable(Screen.Settings.route) {
             PlaceholderScreen("⚙️ 설정")
@@ -321,10 +458,6 @@ fun NaedaNavGraph(
     }
 }
 
-/**
- * 개발 중 임시 화면
- * 실제 Screen Composable이 만들어지면 하나씩 교체
- */
 @Composable
 private fun PlaceholderScreen(name: String) {
     Box(

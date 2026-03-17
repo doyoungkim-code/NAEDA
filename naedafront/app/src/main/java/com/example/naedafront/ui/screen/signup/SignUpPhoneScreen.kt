@@ -2,15 +2,37 @@ package com.example.naedafront.ui.screen.signup
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -21,14 +43,24 @@ import com.example.naedafront.ui.theme.Mint900
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpPhoneScreen(
+    signUpViewModel: SignUpViewModel,
     onBackClick: () -> Unit = {},
     onConfirmClick: (String) -> Unit = {}
 ) {
     var phoneDigits by remember { mutableStateOf("") }
 
-    // 010-1234-5678 포맷
     val formattedPhone = formatPhone(phoneDigits)
     val isValid = phoneDigits.length == 11
+
+    fun handleConfirm() {
+        if (!isValid) return
+
+        // API 스펙에 맞게 하이픈 없는 숫자만 저장
+        signUpViewModel.updatePhone(phoneDigits)
+
+        // 다음 화면으로 실제 전화번호 전달
+        onConfirmClick(phoneDigits)
+    }
 
     Scaffold(
         topBar = {
@@ -43,7 +75,6 @@ fun SignUpPhoneScreen(
                         )
                     }
                 },
-
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -58,9 +89,10 @@ fun SignUpPhoneScreen(
                 .padding(horizontal = 24.dp)
         ) {
             SignUpProgressBar(
-                currentStep = 2,  // 각 화면마다 번호 다르게
+                currentStep = 3,
                 modifier = Modifier.padding(horizontal = 24.dp)
             )
+
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
@@ -73,7 +105,6 @@ fun SignUpPhoneScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // 라벨
             Text(
                 text = "휴대폰 번호",
                 fontSize = 13.sp,
@@ -83,18 +114,20 @@ fun SignUpPhoneScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 번호 표시
             Text(
                 text = formattedPhone.ifEmpty { "010-0000-0000" },
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Medium,
-                color = if (phoneDigits.isNotEmpty()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
+                color = if (phoneDigits.isNotEmpty()) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.outlineVariant
+                },
                 letterSpacing = 1.sp
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 밑줄
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -104,7 +137,6 @@ fun SignUpPhoneScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 안내 문구
             Text(
                 text = "본인 명의의 휴대폰 번호를 입력해 주세요.",
                 fontSize = 12.sp,
@@ -113,9 +145,8 @@ fun SignUpPhoneScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // 확인 버튼
             Button(
-                onClick = { onConfirmClick(formattedPhone) },
+                onClick = { handleConfirm() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
@@ -136,7 +167,6 @@ fun SignUpPhoneScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 숫자 키패드
             NumberKeypad(
                 onNumberClick = { digit ->
                     if (phoneDigits.length < 11) {
@@ -166,7 +196,6 @@ private fun formatPhone(digits: String): String {
     }
 }
 
-
 /**
  * 공용 숫자 키패드
  */
@@ -174,7 +203,7 @@ private fun formatPhone(digits: String): String {
 fun NumberKeypad(
     onNumberClick: (String) -> Unit,
     onDeleteClick: () -> Unit,
-    textColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface
+    textColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
     val keys = listOf(
         listOf("1", "2", "3"),
@@ -202,7 +231,9 @@ fun NumberKeypad(
                                             if (key == "⌫") onDeleteClick()
                                             else onNumberClick(key)
                                         }
-                                } else Modifier
+                                } else {
+                                    Modifier
+                                }
                             ),
                         contentAlignment = Alignment.Center
                     ) {
@@ -225,6 +256,8 @@ fun NumberKeypad(
 @Composable
 private fun SignUpPhoneScreenPreview() {
     MaterialTheme {
-        SignUpPhoneScreen()
+        SignUpPhoneScreen(
+            signUpViewModel = SignUpViewModel()
+        )
     }
 }
