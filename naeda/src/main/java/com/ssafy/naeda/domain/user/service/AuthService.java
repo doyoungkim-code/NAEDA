@@ -1,5 +1,6 @@
 package com.ssafy.naeda.domain.user.service;
 
+import com.ssafy.naeda.domain.payment.service.PaymentLimitService;
 import com.ssafy.naeda.domain.user.dto.request.LoginRequest;
 import com.ssafy.naeda.domain.user.dto.request.RefreshTokenRequest;
 import com.ssafy.naeda.domain.user.dto.request.SignupRequest;
@@ -38,6 +39,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final RestTemplate restTemplate;
     private final RedisTemplate<String,String> redisTemplate;
+    private final PaymentLimitService paymentLimitService;
 
     @Value("${ssafy.api.base-url}")
     private String ssafyBaseUrl;
@@ -81,7 +83,10 @@ public class AuthService {
         String userKey = registerSsafyMember(saved.getUserId());
         saved.updateUserKey(userKey);
 
-        // 4. JWT 토큰 발급 (userKey를 claim에 포함)
+        // 4. 결제 한도 기본값 자동 생성
+        paymentLimitService.createDefaultLimit(saved.getUserNo());
+
+        // 5. JWT 토큰 발급 (userKey를 claim에 포함)
         String accessToken = jwtTokenProvider.createAccessToken(saved.getUserId(), userKey);
         String refreshToken = jwtTokenProvider.createRefreshToken(saved.getUserId(), userKey);
 
