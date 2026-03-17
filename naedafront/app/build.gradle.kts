@@ -60,6 +60,9 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-scalars:2.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("com.google.mlkit:face-detection:16.1.0")
+    implementation("androidx.navigation:navigation-compose:2.8.5")
+    implementation("com.naver.maps:map-sdk:3.23.1")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
