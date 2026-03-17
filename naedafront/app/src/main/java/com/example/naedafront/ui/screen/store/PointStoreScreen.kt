@@ -68,7 +68,8 @@ private data class StoreItem(
 @Composable
 fun PointStoreScreen(
     onCartClick: () -> Unit = {},
-    onGiftClick: () -> Unit = {}
+    onGiftClick: () -> Unit = {},
+    onHistoryClick: () -> Unit = {}
 ) {
     val categories = remember {
         listOf(
@@ -148,7 +149,8 @@ fun PointStoreScreen(
         ) {
             PointStoreHeader(
                 point = 8500,
-                onCartClick = onCartClick
+                onCartClick = onCartClick,
+                onHistoryClick = onHistoryClick
             )
 
             Row(
@@ -205,13 +207,14 @@ fun PointStoreScreen(
 @Composable
 private fun PointStoreHeader(
     point: Int,
-    onCartClick: () -> Unit
+    onCartClick: () -> Unit,
+    onHistoryClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(270.dp)
-            .background(Color(0xFF006B60))
+            .background(Color(0xFF005E54))
             .statusBarsPadding()
     ) {
         Canvas(
@@ -330,6 +333,7 @@ private fun PointStoreHeader(
                     Spacer(modifier = Modifier.weight(1f))
 
                     Row(
+                        modifier = Modifier.clickable(onClick = onHistoryClick),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(

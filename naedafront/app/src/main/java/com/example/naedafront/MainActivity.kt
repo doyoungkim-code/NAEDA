@@ -51,8 +51,9 @@ fun NaedaApp() {
 
     val bottomBarRoutes = listOf(
         Screen.Home.route,
-        Screen.Benefit.route,
+        Screen.Store.route,
         Screen.Scan.route,
+        Screen.PointHistory.route,
         Screen.Asset.route,
         Screen.More.route
     )

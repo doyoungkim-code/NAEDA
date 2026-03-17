@@ -45,6 +45,7 @@ import com.example.naedafront.ui.screen.signup.SignUpPinScreen
 import com.example.naedafront.ui.screen.signup.SignUpRrnScreen
 import com.example.naedafront.ui.screen.signup.SignUpVerifyScreen
 import com.example.naedafront.ui.screen.signup.SignUpViewModel
+import com.example.naedafront.ui.screen.store.PointHistoryScreen
 
 @Composable
 fun NaedaNavGraph(
@@ -198,14 +199,20 @@ fun NaedaNavGraph(
             )
         }
 
-        composable(Screen.Benefit.route) {
+        composable(Screen.Store.route) {
             PointStoreScreen(
-                onCartClick = {
-                    // 장바구니 화면 생기면 연결
-                },
-                onGiftClick = {
-                    // 우하단 FAB 기능 연결
+                onCartClick = { },
+                onGiftClick = { },
+                onHistoryClick = {
+                    navController.navigate(Screen.PointHistory.route)
                 }
+            )
+        }
+
+        composable(Screen.PointHistory.route) {
+            PointHistoryScreen(
+                onBackClick = { navController.popBackStack() },
+                onGiftClick = { }
             )
         }
 
