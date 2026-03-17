@@ -51,7 +51,7 @@ const SAMPLE_MENU = {
   ],
 }
 
-export default function POSPage() {
+export default function POSPage({ onGoAdmin }) {
   const [storeId, setStoreId] = useState(localStorage.getItem('pos_storeId') || '1')
   const [storeName, setStoreName] = useState(localStorage.getItem('pos_storeName') || 'NAEDA 카페')
   const [orderItems, setOrderItems] = useState([])
@@ -198,6 +198,7 @@ export default function POSPage() {
             setSettingsForm({ storeId, storeName, token: getToken() })
             setShowSettings(true)
           }}>설정</button>
+          {onGoAdmin && <button className="settings-btn" onClick={onGoAdmin}>관리자</button>}
         </div>
       </div>
 
