@@ -55,6 +55,11 @@ dependencies {
 	// Firebase Admin SDK (FCM)
 	implementation 'com.google.firebase:firebase-admin:9.4.3'
 
+	// Kafka
+	implementation 'org.springframework.kafka:spring-kafka'
+	testImplementation 'org.springframework.kafka:spring-kafka-test'
+
+
 }
 
 tasks.named('test') {
