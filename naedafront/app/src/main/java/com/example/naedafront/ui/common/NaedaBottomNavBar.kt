@@ -2,11 +2,8 @@ package com.example.naedafront.ui.common
 
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CardGiftcard
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Store
@@ -25,17 +22,13 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.naedafront.ui.navigation.Screen
 
-/**
- * 하단 5탭 아이템 정의
- * Material Icons 사용 (나중에 커스텀 아이콘으로 교체 가능)
- */
 enum class BottomNavItem(
     val route: String,
     val label: String,
     val icon: ImageVector
 ) {
     HOME(Screen.Home.route, "홈", Icons.Default.Home),
-    BENEFIT(Screen.Benefit.route, "상점", Icons.Default.Store),
+    BENEFIT(Screen.Store.route, "상점", Icons.Default.Store),
     SCAN(Screen.Scan.route, "지도", Icons.Default.Map),
     ASSET(Screen.Asset.route, "지갑", Icons.Default.AccountBalanceWallet),
     MORE(Screen.More.route, "설정", Icons.Default.Settings)
@@ -46,17 +39,22 @@ fun NaedaBottomNavBar(
     navController: NavHostController,
     currentRoute: String?
 ) {
+    val selectedRoute = when (currentRoute) {
+        Screen.PointHistory.route -> Screen.Store.route
+        else -> currentRoute
+    }
+
     NavigationBar(
         containerColor = Color.White,
         tonalElevation = 8.dp
     ) {
         BottomNavItem.entries.forEach { item ->
-            val isSelected = currentRoute == item.route
+            val isSelected = selectedRoute == item.route
 
             NavigationBarItem(
                 selected = isSelected,
                 onClick = {
-                    if (currentRoute != item.route) {
+                    if (selectedRoute != item.route) {
                         navController.navigate(item.route) {
                             popUpTo(Screen.Home.route) {
                                 saveState = true

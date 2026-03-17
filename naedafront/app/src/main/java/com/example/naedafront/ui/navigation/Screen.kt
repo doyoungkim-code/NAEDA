@@ -28,7 +28,8 @@ sealed class Screen(val route: String) {
 
     // ── 메인 5탭 ──
     object Home : Screen("home")
-    object Benefit : Screen("benefit")
+    object Store : Screen("store")
+    object PointHistory : Screen("point_history")
     object Scan : Screen("scan")
     object Asset : Screen("asset")
     object More : Screen("more")
