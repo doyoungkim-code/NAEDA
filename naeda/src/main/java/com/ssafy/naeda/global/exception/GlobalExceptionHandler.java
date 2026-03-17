@@ -1,6 +1,7 @@
 package com.ssafy.naeda.global.exception;
 
 import com.ssafy.naeda.domain.face.exception.FaceException;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -13,6 +14,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.RestClientException;
 
 @Slf4j
 @RestControllerAdvice
@@ -40,6 +42,22 @@ public class GlobalExceptionHandler {
                 : HttpStatus.BAD_GATEWAY;          // 502
         return ResponseEntity.status(status)
                 .body(new ErrorResponse(e.getErrorCode(), e.getMessage()));
+    }
+
+    @ExceptionHandler(CallNotPermittedException.class)
+    public ResponseEntity<ErrorResponse> handleCircuitBreakerOpen(CallNotPermittedException e) {
+        log.warn("CircuitBreaker OPEN: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ErrorResponse("SERVICE_UNAVAILABLE",
+                        "현재 금융 서비스가 일시적으로 불안정합니다. 잠시 후 다시 시도해주세요."));
+    }
+
+    @ExceptionHandler(RestClientException.class)
+    public ResponseEntity<ErrorResponse> handleRestClientException(RestClientException e) {
+        log.error("RestClientException: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ErrorResponse("NETWORK_ERROR",
+                        "외부 API 연결에 실패했습니다. 잠시 후 다시 시도해주세요."));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

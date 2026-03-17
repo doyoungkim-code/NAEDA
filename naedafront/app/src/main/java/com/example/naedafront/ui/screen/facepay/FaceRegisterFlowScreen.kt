@@ -24,6 +24,8 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -46,8 +48,15 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Face
+import androidx.compose.material.icons.outlined.FaceRetouchingNatural
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -72,12 +81,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -105,6 +118,10 @@ import com.example.naedafront.ui.theme.NaedaFontFamily
 import com.example.naedafront.ui.theme.OnBackground
 import com.example.naedafront.ui.theme.OnSurfaceVariant
 import com.example.naedafront.ui.theme.Outline
+import com.example.naedafront.ui.theme.SurfaceVariant
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceDetection
@@ -302,37 +319,29 @@ fun FaceRegisterFlowScreen(
                         }
                     )
 
-                    is RegisterStage.Intro -> RegistrationMessageScreen(
-                        title = "이제 오프라인에서 얼굴 인증으로 결제하세요",
-                        description = "얼굴 등록, 신분증 확인, PIN 설정까지 완료하면 페이스페이 사용 준비가 끝납니다.",
-                        primaryButtonText = "페이스페이 시작하기",
-                        onPrimaryClick = { stage = RegisterStage.Guide }
+                    is RegisterStage.Intro -> IntroStageContent(
+                        onStartClick = { stage = RegisterStage.Guide }
                     )
 
-                    is RegisterStage.Guide -> RegistrationChecklistScreen(
-                        title = "얼굴 등록을 시작할게요",
-                        tips = listOf(
-                            "휴대폰을 세로로 똑바로 세워주세요.",
-                            "정면 3장과 좌우상하 4장을 포함해 총 7장을 촬영합니다.",
-                            "실제 사람 판정과 자세 1초 유지가 모두 필요합니다."
-                        ),
-                        primaryButtonText = "등록 시작하기",
-                        onPrimaryClick = { stage = RegisterStage.FaceCapture(0) }
+                    is RegisterStage.Guide -> FaceGuideStageContent(
+                        onStartClick = { stage = RegisterStage.FaceCapture(0) }
                     )
 
-                    is RegisterStage.FaceCapture -> FaceCaptureStageContent(
-                        spec = faceCaptureSequence[currentStage.index],
-                        currentIndex = currentStage.index,
-                        totalCount = faceCaptureSequence.size,
-                        onPoseSaved = {
-                            stage = if (currentStage.index + 1 < faceCaptureSequence.size) {
-                                RegisterStage.FaceCapture(currentStage.index + 1)
-                            } else {
-                                RegisterStage.IdGuide
-                            }
-                        },
-                        onError = { globalError = it }
-                    )
+                    is RegisterStage.FaceCapture -> key(currentStage.index) {
+                        FaceCaptureStageContent(
+                            spec = faceCaptureSequence[currentStage.index],
+                            currentIndex = currentStage.index,
+                            totalCount = faceCaptureSequence.size,
+                            onPoseSaved = {
+                                stage = if (currentStage.index + 1 < faceCaptureSequence.size) {
+                                    RegisterStage.FaceCapture(currentStage.index + 1)
+                                } else {
+                                    RegisterStage.IdGuide
+                                }
+                            },
+                            onError = { globalError = it }
+                        )
+                    }
 
                     is RegisterStage.IdGuide -> RegistrationChecklistScreen(
                         title = "신분증을 준비해 주세요",
@@ -414,18 +423,465 @@ private fun PermissionRequestContentReal(
     onRequestPermission: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
-    RegistrationMessageScreen(
-        title = if (isPermanentlyDenied) "카메라 권한이 차단되었습니다" else "카메라 권한이 필요합니다",
-        description = if (isPermanentlyDenied) {
-            "얼굴 등록과 신분증 촬영을 위해 설정에서 카메라 권한을 허용해 주세요."
-        } else {
-            "페이스페이 등록을 위해 카메라 권한을 허용해 주세요."
-        },
-        primaryButtonText = if (isPermanentlyDenied) "설정으로 이동" else "권한 허용하기",
-        onPrimaryClick = if (isPermanentlyDenied) onOpenSettings else onRequestPermission
-    )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.Start
+    ) {
+        Spacer(modifier = Modifier.height(40.dp))
+
+        // ── 일러스트 카드 (Intro/Guide 동일 스타일) ──────────────
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(Color(0xFFE0F5F3), Color(0xFFF0FAF9))
+                        ),
+                        shape = RoundedCornerShape(20.dp)
+                    )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 36.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // 바깥 연한 원
+                    Box(
+                        modifier = Modifier
+                            .size(140.dp)
+                            .background(Color(0xFFCCEAE7), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // 안쪽 민트 원
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .background(Mint500, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PhotoCamera,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(52.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+        Text(
+            text = if (isPermanentlyDenied) "카메라 권한이\n차단되었습니다" else "카메라 권한이\n필요합니다",
+            fontFamily = NaedaFontFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = 26.sp,
+            color = OnBackground,
+            lineHeight = 34.sp
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = if (isPermanentlyDenied)
+                "얼굴 등록과 신분증 촬영을 위해\n설정에서 카메라 권한을 허용해 주세요."
+            else
+                "페이스페이 등록을 위해\n카메라 권한을 허용해 주세요.",
+            fontFamily = NaedaFontFamily,
+            fontSize = 15.sp,
+            color = OnSurfaceVariant,
+            lineHeight = 24.sp
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        Button(
+            onClick = if (isPermanentlyDenied) onOpenSettings else onRequestPermission,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+        ) {
+            Text(
+                text = if (isPermanentlyDenied) "설정으로 이동" else "권한 허용하기",
+                fontFamily = NaedaFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+                color = Color.White
+            )
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+    }
 }
 
+@Composable
+private fun IntroStageContent(onStartClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.Start
+    ) {
+        Spacer(modifier = Modifier.height(32.dp))
+        Text(
+            text = "이제 오프라인에서\n얼굴 인증으로 결제하세요",
+            fontFamily = NaedaFontFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = 26.sp,
+            color = OnBackground,
+            lineHeight = 34.sp
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // ── 얼굴 일러스트 카드 ─────────────────────────────────
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(Color(0xFFE0F5F3), Color(0xFFF0FAF9))
+                        ),
+                        shape = RoundedCornerShape(20.dp)
+                    )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 28.dp, horizontal = 20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // 2겹 원 + 얼굴 아이콘
+                    Box(
+                        modifier = Modifier
+                            .size(140.dp)
+                            .background(Color(0xFFCCEAE7), CircleShape),  // 바깥 연한 원
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .background(Color.Transparent, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.FaceRetouchingNatural,
+                                contentDescription = null,
+                                tint = Color(0xFF5B9E94),
+                                modifier = Modifier.size(64.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = "지갑, 휴대폰 두고 나와도\n결제할 수 있어요",
+                        fontFamily = NaedaFontFamily,
+                        fontSize = 15.sp,
+                        color = OnBackground,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 24.sp
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(28.dp))
+        Text(
+            text = "어디서, 어떻게 사용하나요?",
+            fontFamily = NaedaFontFamily,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 15.sp,
+            color = OnBackground
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        listOf("매장 기기에", "얼굴을 인식하면 결제완료!").forEachIndexed { index, step ->
+            Row(
+                modifier = Modifier.padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 사진과 동일한 번호 뱃지
+                Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .background(Mint500, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "${index + 1}",
+                        fontFamily = NaedaFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = Color.White
+                    )
+                }
+                Text(
+                    text = step,
+                    fontFamily = NaedaFontFamily,
+                    fontSize = 15.sp,
+                    color = OnBackground
+                )
+            }
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        Button(
+            onClick = onStartClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+        ) {
+            Text(
+                text = "페이스페이 시작하기",
+                fontFamily = NaedaFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+                color = Color.White
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "NADA PAY  •  SECURE CORE",
+            fontFamily = NaedaFontFamily,
+            fontSize = 11.sp,
+            color = OnSurfaceVariant,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+@Composable
+private fun FaceGuideStageContent(onStartClick: () -> Unit) {
+    val tipItems = listOf(
+        Pair(Icons.Default.Face,              "마스크나 모자를 벗어주세요"),
+        Pair(Icons.Default.WbSunny,           "밝은 곳에서 촬영해주세요"),
+        Pair(Icons.Default.CenterFocusStrong, "카메라를 정면으로 응시하세요")
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            text = "페이스페이 사용을 위해\n얼굴을 등록할게요.",
+            fontFamily = NaedaFontFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = 24.sp,
+            color = OnBackground,
+            lineHeight = 32.sp
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = "빠르고 안전한 결제를 시작해 보세요.",
+            fontFamily = NaedaFontFamily,
+            fontSize = 14.sp,
+            color = OnSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // ── 얼굴 일러스트 카드 (그라데이션 배경) ──────────────
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(Color(0xFFE0F5F3), Color(0xFFF0FAF9))
+                        ),
+                        shape = RoundedCornerShape(20.dp)
+                    )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp, horizontal = 20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // 점선 원 + 2겹 원 + 얼굴 아이콘
+                    Box(
+                        modifier = Modifier
+                            .size(160.dp)
+                            .drawBehind {
+                                val radius = size.minDimension / 2f
+                                val dashEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 9f), 0f)
+                                drawCircle(
+                                    color = Color(0xFF009688),
+                                    radius = radius - 2.dp.toPx(),
+                                    style = Stroke(width = 2.dp.toPx(), pathEffect = dashEffect)
+                                )
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // 바깥 연한 원
+                        Box(
+                            modifier = Modifier
+                                .size(130.dp)
+                                .background(Color(0xFFCCEAE7), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            // 안쪽 진한 원
+                            Box(
+                                modifier = Modifier
+                                    .size(92.dp)
+                                    .background(Color.Transparent, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.FaceRetouchingNatural,
+                                    contentDescription = null,
+                                    tint = Color(0xFF5B9E94),
+                                    modifier = Modifier.size(58.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // 안내 칩
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color.White,
+                        shadowElevation = 2.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PhotoCamera,
+                                contentDescription = null,
+                                tint = OnSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "정면을 바라봐 주세요",
+                                fontFamily = NaedaFontFamily,
+                                fontSize = 13.sp,
+                                color = OnBackground
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // ── 등록 팁 ────────────────────────────────────────────
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = OnSurfaceVariant,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = "등록 팁",
+                fontFamily = NaedaFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp,
+                color = OnBackground
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        tipItems.forEachIndexed { index, (icon, text) ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    // Color.kt 기반 아이콘 배경 (SurfaceVariant), 아이콘 색(OnSurfaceVariant)
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .background(Color(0xFFCCEAE7), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = Color(0xFF5B9E94),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Text(
+                        text = text,
+                        fontFamily = NaedaFontFamily,
+                        fontSize = 14.sp,
+                        color = OnBackground,
+                        lineHeight = 22.sp
+                    )
+                }
+                // 체크 뱃지 (Mint500 배경)
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .background(Mint500, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+            if (index < tipItems.lastIndex) {
+                HorizontalDivider(color = Outline)
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+        Button(
+            onClick = onStartClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+        ) {
+            Text(
+                text = "등록 시작하기",
+                fontFamily = NaedaFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+                color = Color.White
+            )
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
 @Composable
 private fun RegistrationMessageScreen(
     title: String,
@@ -444,10 +900,15 @@ private fun RegistrationMessageScreen(
         Box(
             modifier = Modifier
                 .size(84.dp)
-                .background(Mint100, CircleShape),
+                .background(Color(0xFFCCEAE7), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text("😊", fontSize = 36.sp)
+            Icon(
+                imageVector = Icons.Outlined.FaceRetouchingNatural,
+                contentDescription = null,
+                tint = Color(0xFF5B9E94),
+                modifier = Modifier.size(48.dp)
+            )
         }
         Spacer(modifier = Modifier.height(24.dp))
         Text(
@@ -547,12 +1008,12 @@ private fun RegistrationChecklistScreen(
             }
         }
         Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = onPrimaryClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
-                .padding(top = 24.dp),
+                .height(56.dp),
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Mint900)
         ) {
@@ -611,70 +1072,40 @@ private fun FaceCaptureStageContent(
 ) {
     val scope = rememberCoroutineScope()
     val postureState = rememberDevicePostureState()
-    var statusMessage by remember { mutableStateOf("휴대폰을 세로로 똑바로 세워주세요.") }
+    var statusMessage by remember { mutableStateOf("얼굴을 화면 중앙에 맞춰주세요.") }
     var holdProgress by remember { mutableFloatStateOf(0f) }
     var isUploading by remember { mutableStateOf(false) }
+    var poseCompleted by remember { mutableStateOf(false) }
+    var headPoseRetryCount by remember { mutableStateOf(0) }  // AI matched=false 재시도 횟수
+    // 실시간 yaw/pitch → 가이드라인 애니메이션용
+    var currentYaw by remember { mutableFloatStateOf(0f) }
+    var currentPitch by remember { mutableFloatStateOf(0f) }
+    var isDirectionMatched by remember { mutableStateOf(false) }
     val requestInFlight = remember { AtomicBoolean(false) }
     val holdStartedAt = remember { AtomicLong(0L) }
     val livenessEvaluator = remember { RegistrationPassiveLivenessEvaluator() }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF0E1717))
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp)
-        ) {
-            Text(
-                text = "STEP ${currentIndex + 1} / $totalCount",
-                fontFamily = NaedaFontFamily,
-                fontSize = 13.sp,
-                color = Color.White.copy(alpha = 0.7f),
-                modifier = Modifier.align(Alignment.Center)
-            )
+    // poseCompleted가 true로 바뀌는 순간 확실히 트리거
+    val onPoseSavedUpdated by rememberUpdatedState(onPoseSaved)
+    LaunchedEffect(poseCompleted) {
+        if (poseCompleted) {
+            delay(600L)
+            onPoseSavedUpdated()
         }
+    }
 
-        Text(
-            text = spec.instruction,
-            fontFamily = NaedaFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 22.sp,
-            color = Color.White,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = statusMessage,
-            fontFamily = NaedaFontFamily,
-            fontSize = 14.sp,
-            color = Color.White.copy(alpha = 0.78f),
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 28.dp)
-        )
-
-        Spacer(modifier = Modifier.height(18.dp))
-
+    Box(modifier = Modifier.fillMaxSize()) {
         FaceRegistrationCameraCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(horizontal = 16.dp),
+            modifier = Modifier.fillMaxSize(),
             cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA,
             onFaceFrame = { imageProxy, face, luminance ->
-                if (requestInFlight.get()) {
+                if (requestInFlight.get() || poseCompleted) {
                     imageProxy.close()
                     return@FaceRegistrationCameraCard
                 }
+                // 실시간 각도 업데이트 (가이드라인용)
+                currentYaw = face.headEulerAngleY
+                currentPitch = face.headEulerAngleX
 
                 val posture = postureState
                 val isCentered = isFaceCentered(face, imageProxy.width, imageProxy.height)
@@ -689,217 +1120,465 @@ private fun FaceCaptureStageContent(
                 when {
                     !posture.isUpright -> {
                         resetHold(holdStartedAt) { holdProgress = it }
+                        isDirectionMatched = false
                         statusMessage = posture.message
-                        imageProxy.close()
-                        return@FaceRegistrationCameraCard
+                        imageProxy.close(); return@FaceRegistrationCameraCard
                     }
-
                     luminance < 35.0 -> {
                         resetHold(holdStartedAt) { holdProgress = it }
-                        statusMessage = "화면이 어두워서 얼굴 인식이 어렵습니다."
-                        imageProxy.close()
-                        return@FaceRegistrationCameraCard
+                        isDirectionMatched = false
+                        statusMessage = "너무 어둡습니다. 밝은 곳으로 이동해 주세요."
+                        imageProxy.close(); return@FaceRegistrationCameraCard
                     }
-
                     !isCentered -> {
                         resetHold(holdStartedAt) { holdProgress = it }
+                        isDirectionMatched = false
                         statusMessage = "얼굴을 가이드 중앙에 맞춰주세요."
-                        imageProxy.close()
-                        return@FaceRegistrationCameraCard
+                        imageProxy.close(); return@FaceRegistrationCameraCard
                     }
-
                     !isLive -> {
                         resetHold(holdStartedAt) { holdProgress = it }
+                        isDirectionMatched = false
                         statusMessage = livenessEvaluator.guideText()
-                        imageProxy.close()
-                        return@FaceRegistrationCameraCard
+                        imageProxy.close(); return@FaceRegistrationCameraCard
                     }
-
                     !locallyMatched -> {
                         resetHold(holdStartedAt) { holdProgress = it }
+                        isDirectionMatched = false
                         statusMessage = spec.instruction
-                        imageProxy.close()
-                        return@FaceRegistrationCameraCard
+                        imageProxy.close(); return@FaceRegistrationCameraCard
                     }
                 }
+                // 모든 조건 통과 후에만 matched = true
+                isDirectionMatched = true
 
                 val now = System.currentTimeMillis()
-                if (holdStartedAt.get() == 0L) {
-                    holdStartedAt.set(now)
-                }
+                if (holdStartedAt.get() == 0L) holdStartedAt.set(now)
                 val elapsed = now - holdStartedAt.get()
                 holdProgress = (elapsed / 1000f).coerceIn(0f, 1f)
-                statusMessage = if (elapsed < 1000L) {
-                    "현재 자세를 1초 유지해주세요."
-                } else {
-                    "자세 확인 완료. 서버에 저장 중입니다."
-                }
+                statusMessage = if (elapsed < 1000L) "현재 자세를 유지해주세요." else "자세 확인 완료. 저장 중입니다."
 
                 if (elapsed < 1000L) {
-                    imageProxy.close()
-                    return@FaceRegistrationCameraCard
+                    imageProxy.close(); return@FaceRegistrationCameraCard
                 }
 
                 val payload = runCatching {
                     createFaceFramePayload(imageProxy, face.boundingBox)
-                }.onFailure { throwable ->
-                    onError("촬영 프레임 변환에 실패했습니다: ${throwable.message}")
-                }.getOrNull()
+                }.onFailure { onError("촬영 프레임 변환에 실패했습니다: ${it.message}") }.getOrNull()
                 imageProxy.close()
-
                 if (payload == null) {
-                    resetHold(holdStartedAt) { holdProgress = it }
-                    return@FaceRegistrationCameraCard
+                    resetHold(holdStartedAt) { holdProgress = it }; return@FaceRegistrationCameraCard
                 }
 
                 requestInFlight.set(true)
                 isUploading = true
                 scope.launch(Dispatchers.IO) {
-                    runCatching {
-                        val headPose = FaceRegistrationRepository.checkHeadPose(
+                    // ── headpose 체크 ──────────────────────────────
+                    val headPoseResult = runCatching {
+                        FaceRegistrationRepository.checkHeadPose(
                             expectedDirection = spec.expectedDirection,
                             imageBytes = payload.fullFrameJpeg
                         )
-                        ensureHeadPoseMatched(headPose, spec)
+                    }
+
+                    // headpose API 자체 실패 (네트워크/서버 오류)
+                    val headPoseException = headPoseResult.exceptionOrNull()
+                    if (headPoseException != null) {
+                        withContext(Dispatchers.Main) {
+                            requestInFlight.set(false)
+                            isUploading = false
+                            resetHold(holdStartedAt) { holdProgress = it }
+                            val msg = when {
+                                headPoseException is ApiRequestException -> when (headPoseException.errorCode) {
+                                    "NO_FACE"        -> "얼굴이 화면 안에 오도록 맞춰주세요."
+                                    "MULTIPLE_FACES" -> "한 명만 화면에 나오게 해주세요."
+                                    "AI_TIMEOUT",
+                                    "AI_UNAVAILABLE" -> "서버 상태를 확인 후 다시 시도해주세요."
+                                    else             -> "서버 오류가 발생했습니다. 다시 시도해주세요."
+                                }
+                                else -> "서버 오류가 발생했습니다. 다시 시도해주세요."
+                            }
+                            onError(msg)
+                        }
+                        return@launch
+                    }
+
+                    val headPose = headPoseResult.getOrNull()!!
+
+                    // ── matched=false → Main 스레드에서 재시도 처리 ──
+                    if (!headPose.matched) {
+                        withContext(Dispatchers.Main) {
+                            requestInFlight.set(false)
+                            isUploading = false
+                            resetHold(holdStartedAt) { holdProgress = it }
+                            val retry = headPoseRetryCount + 1
+                            headPoseRetryCount = retry
+                            statusMessage = when {
+                                retry >= 5 -> {
+                                    headPoseRetryCount = 0
+                                    // 배너 에러 대신 상태 메시지로만 표시 (UX 방해 최소화)
+                                    "정면을 더 정확히 바라봐 주세요."
+                                }
+                                retry >= 3 -> "각도를 조금 더 맞춰주세요. (${retry}/5)"
+                                else -> spec.instruction
+                            }
+                        }
+                        return@launch
+                    }
+
+                    // ── matched=true → 등록 진행 ──────────────────
+                    val enrollResult = runCatching {
                         enrollWithFallback(spec.backendPose, payload)
-                    }.onSuccess {
+                    }
+
+                    withContext(Dispatchers.Main) {
                         requestInFlight.set(false)
                         isUploading = false
-                        holdStartedAt.set(0L)
-                        holdProgress = 0f
-                        onPoseSaved()
-                    }.onFailure { throwable ->
-                        requestInFlight.set(false)
-                        isUploading = false
-                        resetHold(holdStartedAt) { holdProgress = it }
-                        onError(throwable.message ?: "얼굴 등록에 실패했습니다.")
+                        headPoseRetryCount = 0  // Main 스레드에서 state 수정
+                        if (enrollResult.isSuccess) {
+                            holdStartedAt.set(0L)
+                            holdProgress = 0f
+                            poseCompleted = true  // → LaunchedEffect 트리거
+                        } else {
+                            val throwable = enrollResult.exceptionOrNull()!!
+                            resetHold(holdStartedAt) { holdProgress = it }
+                            val msg = when {
+                                throwable is ApiRequestException -> when (throwable.errorCode) {
+                                    "NO_FACE"        -> "얼굴이 화면 안에 오도록 맞춰주세요."
+                                    "MULTIPLE_FACES" -> "한 명만 화면에 나오게 해주세요."
+                                    "AI_TIMEOUT",
+                                    "AI_UNAVAILABLE" -> "서버 상태를 확인 후 다시 시도해주세요."
+                                    else             -> throwable.message ?: "얼굴 등록에 실패했습니다."
+                                }
+                                else -> throwable.message ?: "얼굴 등록에 실패했습니다."
+                            }
+                            onError(msg)
+                        }
                     }
                 }
             },
             onNoFace = {
                 resetHold(holdStartedAt) { holdProgress = it }
-                statusMessage = "얼굴을 화면 중앙에 맞춰주세요."
+                isDirectionMatched = false
+                headPoseRetryCount = 0
+                statusMessage = "얼굴이 화면 안에 오도록 맞춰주세요."
             },
             overlay = {
                 FaceCaptureOverlay(
-                    poseLabel = spec.title,
+                    spec = spec,
+                    currentIndex = currentIndex,
+                    totalCount = totalCount,
+                    statusMessage = statusMessage,
                     holdProgress = holdProgress,
-                    isUploading = isUploading
+                    isUploading = isUploading,
+                    poseCompleted = poseCompleted,
+                    currentYaw = currentYaw,
+                    currentPitch = currentPitch,
+                    isDirectionMatched = isDirectionMatched
                 )
             }
         )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        LinearProgressIndicator(
-            progress = { (currentIndex + holdProgress) / totalCount.toFloat() },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp),
-            color = Mint500,
-            trackColor = Color.White.copy(alpha = 0.16f)
-        )
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
-        ) {
-            faceCaptureSequence.forEachIndexed { index, _ ->
-                Box(
-                    modifier = Modifier
-                        .size(if (index == currentIndex) 14.dp else 10.dp)
-                        .background(
-                            color = when {
-                                index < currentIndex -> Mint500
-                                index == currentIndex -> Color.White
-                                else -> Color.White.copy(alpha = 0.18f)
-                            },
-                            shape = CircleShape
-                        )
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
 @Composable
 private fun FaceCaptureOverlay(
-    poseLabel: String,
+    spec: FaceCaptureSpec,
+    currentIndex: Int,
+    totalCount: Int,
+    statusMessage: String,
     holdProgress: Float,
-    isUploading: Boolean
+    isUploading: Boolean,
+    poseCompleted: Boolean,
+    currentYaw: Float,
+    currentPitch: Float,
+    isDirectionMatched: Boolean
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .fillMaxWidth(0.7f)
-                .aspectRatio(0.78f)
-                .border(
-                    width = 2.dp,
-                    color = if (isUploading) Mint500 else Color.White.copy(alpha = 0.8f),
-                    shape = RoundedCornerShape(180.dp)
-                )
-        )
+    val infiniteTransition = rememberInfiniteTransition(label = "ovalPulse")
+    val ovalAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.5f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            androidx.compose.animation.core.tween(900),
+            RepeatMode.Reverse
+        ),
+        label = "ovalAlpha"
+    )
 
-        Card(
+    // 가이드라인 yaw/pitch 애니메이션 (부드럽게)
+    val animYaw by animateFloatAsState(
+        targetValue = currentYaw,
+        animationSpec = androidx.compose.animation.core.tween(80),
+        label = "yaw"
+    )
+    val animPitch by animateFloatAsState(
+        targetValue = currentPitch,
+        animationSpec = androidx.compose.animation.core.tween(80),
+        label = "pitch"
+    )
+
+    // 타원 색: 기본=흰색, 방향맞음=민트, 완료=초록
+    val ovalColor = when {
+        poseCompleted    -> Color(0xFF4CAF50)
+        isDirectionMatched && holdProgress > 0f -> Color(0xFF009688)
+        isDirectionMatched -> Color(0xFF44E3D3)
+        else             -> Color.White.copy(alpha = ovalAlpha)
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        // ── 어두운 오버레이 + 타원 구멍 ──────────────────────────
+        androidx.compose.foundation.Canvas(
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.36f)),
-            shape = RoundedCornerShape(20.dp)
+                .fillMaxSize()
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
         ) {
-            Text(
-                text = poseLabel,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                fontFamily = NaedaFontFamily,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                color = Color.White
+            val ovalW = size.width * 0.72f
+            val ovalH = ovalW * 1.28f
+            val cx = size.width / 2f
+            val cy = size.height * 0.44f
+            drawRect(Color(0xFF0E1717).copy(alpha = 0.68f))
+            drawOval(
+                color = Color.Transparent,
+                topLeft = androidx.compose.ui.geometry.Offset(cx - ovalW / 2f, cy - ovalH / 2f),
+                size = androidx.compose.ui.geometry.Size(ovalW, ovalH),
+                blendMode = BlendMode.Clear
             )
         }
 
-        if (holdProgress > 0f || isUploading) {
+        // ── 타원 + 코 가이드라인 (yaw/pitch 기반 원근 변형) ─────
+        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+            val ovalW = size.width * 0.72f
+            val ovalH = ovalW * 1.28f
+            val cx = size.width / 2f
+            val cy = size.height * 0.44f
+
+            // yaw/pitch 정규화 (-1 ~ 1)
+            // 전면 카메라 거울 모드 → yaw 부호 반전
+            val yawNorm   = (-animYaw  / 45f).coerceIn(-1f, 1f)
+            val pitchNorm = (animPitch / 30f).coerceIn(-1f, 1f)
+
+            // ── 원근감 적용된 타원 크기 계산 ──────────────────
+            // 좌우 회전 시 가로가 줄어들고 (cos), 위아래 회전 시 세로가 줄어듦
+            val perspW = ovalW * (1f - kotlin.math.abs(yawNorm) * 0.38f)
+            val perspH = ovalH * (1f - kotlin.math.abs(pitchNorm) * 0.32f)
+
+            // 타원 중심이 회전 방향으로 살짝 이동 (입체감)
+            val shiftX = yawNorm   * ovalW * 0.06f
+            val shiftY = -pitchNorm * ovalH * 0.05f
+            val ocx = cx + shiftX
+            val ocy = cy + shiftY
+
+            val dashEffect = PathEffect.dashPathEffect(floatArrayOf(18f, 10f), 0f)
+            val borderStyle = if (isDirectionMatched && holdProgress > 0f)
+                Stroke(width = 3.dp.toPx())
+            else
+                Stroke(width = 2.5.dp.toPx(), pathEffect = dashEffect)
+
+            // 변형된 타원 테두리
+            drawOval(
+                color = ovalColor,
+                topLeft = androidx.compose.ui.geometry.Offset(ocx - perspW / 2f, ocy - perspH / 2f),
+                size = androidx.compose.ui.geometry.Size(perspW, perspH),
+                style = borderStyle
+            )
+
+            // ── 코 중심 가이드라인 ─────────────────────────────
+            // 코 끝 위치: yaw에 따라 가로로, pitch에 따라 세로로 이동
+            val noseX = ocx + yawNorm  * perspW * 0.28f
+            val noseY = ocy - pitchNorm * perspH * 0.20f
+
+            val lineTop    = ocy - perspH * 0.38f
+            val lineBottom = ocy + perspH * 0.38f
+
+            val mintGlow  = Color(0xFF44E3D3)
+            val lineColor = if (isDirectionMatched) mintGlow else mintGlow.copy(alpha = 0.65f)
+
+            // 고개 방향 따라 휘는 베지어 곡선
+            val path = androidx.compose.ui.graphics.Path().apply {
+                moveTo(ocx + yawNorm * perspW * 0.07f, lineTop)
+                cubicTo(
+                    ocx + yawNorm * perspW * 0.16f, lineTop + (noseY - lineTop) * 0.4f,
+                    noseX - yawNorm * perspW * 0.04f, noseY - perspH * 0.05f,
+                    noseX, noseY
+                )
+                cubicTo(
+                    noseX + yawNorm * perspW * 0.04f, noseY + perspH * 0.05f,
+                    ocx + yawNorm * perspW * 0.16f, noseY + (lineBottom - noseY) * 0.6f,
+                    ocx + yawNorm * perspW * 0.07f, lineBottom
+                )
+            }
+
+            // 글로우
+            drawPath(path = path, color = lineColor.copy(alpha = 0.22f),
+                style = Stroke(width = 7.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            // 선명한 선
+            drawPath(path = path, color = lineColor,
+                style = Stroke(width = 2.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
+
+            // 코 끝 포인트
+            drawCircle(color = lineColor.copy(alpha = 0.3f), radius = 9.dp.toPx(),
+                center = androidx.compose.ui.geometry.Offset(noseX, noseY))
+            drawCircle(color = lineColor, radius = 3.5.dp.toPx(),
+                center = androidx.compose.ui.geometry.Offset(noseX, noseY))
+        }
+
+        // ── 상단: STEP + 제목 ─────────────────────────────────────
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color.Black.copy(alpha = 0.35f)
+            ) {
+                Text(
+                    text = "STEP ${currentIndex + 1} / $totalCount",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                    fontFamily = NaedaFontFamily,
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.85f)
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = if (isDirectionMatched && !poseCompleted) "현재 자세를 유지해주세요"
+                else spec.instruction,
+                fontFamily = NaedaFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp,
+                color = if (isDirectionMatched) Color(0xFF44E3D3) else Color.White,
+                textAlign = TextAlign.Center
+            )
+            // 방향 화살표 (정면 제외)
+            if (spec.localDirection != FaceCaptureDirection.FRONT && !isDirectionMatched) {
+                Spacer(modifier = Modifier.height(6.dp))
+                val rotation = when (spec.localDirection) {
+                    FaceCaptureDirection.RIGHT -> 180f
+                    FaceCaptureDirection.UP    -> 90f
+                    FaceCaptureDirection.DOWN  -> 270f
+                    else -> 0f
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = null,
+                    tint = Color(0xFF44E3D3),
+                    modifier = Modifier
+                        .size(28.dp)
+                        .graphicsLayer { rotationZ = rotation }
+                )
+            }
+        }
+
+        // ── 완료 체크 ─────────────────────────────────────────────
+        if (poseCompleted) {
+            Box(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 24.dp),
-                shape = RoundedCornerShape(18.dp),
-                color = Color.Black.copy(alpha = 0.36f)
+                    .align(Alignment.Center)
+                    .size(88.dp)
+                    .background(Color(0xFF4CAF50), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(48.dp)
+                )
+            }
+        }
+
+        // ── 하단 ─────────────────────────────────────────────────
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 36.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // 상태 메시지 칩
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = if (isDirectionMatched) Color(0xFF009688).copy(alpha = 0.85f)
+                else Color.Black.copy(alpha = 0.40f)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    if (isUploading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = Mint500
-                        )
-                        Text("서버 저장 중", color = Color.White, fontFamily = NaedaFontFamily, fontSize = 13.sp)
-                    } else {
-                        CircularProgressIndicator(
-                            progress = { holdProgress },
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = Mint500,
-                            trackColor = Color.White.copy(alpha = 0.18f)
-                        )
-                        Text("${(holdProgress * 100).roundToInt()}% 유지", color = Color.White, fontFamily = NaedaFontFamily, fontSize = 13.sp)
+                    when {
+                        isUploading -> {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White
+                            )
+                            Text("저장 중...", color = Color.White, fontFamily = NaedaFontFamily, fontSize = 13.sp)
+                        }
+                        holdProgress > 0f -> {
+                            CircularProgressIndicator(
+                                progress = { holdProgress },
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White,
+                                trackColor = Color.White.copy(alpha = 0.3f)
+                            )
+                            Text(
+                                "${(holdProgress * 100).roundToInt()}% 유지 중",
+                                color = Color.White, fontFamily = NaedaFontFamily, fontSize = 13.sp
+                            )
+                        }
+                        else -> {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                statusMessage,
+                                color = Color.White.copy(alpha = 0.9f),
+                                fontFamily = NaedaFontFamily,
+                                fontSize = 13.sp
+                            )
+                        }
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 진행 바
+            LinearProgressIndicator(
+                progress = { (currentIndex + holdProgress) / totalCount.toFloat() },
+                modifier = Modifier.fillMaxWidth(0.7f),
+                color = Mint500,
+                trackColor = Color.White.copy(alpha = 0.2f)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 진행 도트
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                faceCaptureSequence.forEachIndexed { index, _ ->
+                    Box(
+                        modifier = Modifier
+                            .size(if (index == currentIndex) 14.dp else 8.dp)
+                            .background(
+                                color = when {
+                                    index < currentIndex  -> Mint500
+                                    index == currentIndex -> Color.White
+                                    else                  -> Color.White.copy(alpha = 0.25f)
+                                },
+                                shape = CircleShape
+                            )
+                    )
                 }
             }
         }
     }
 }
-
 @Composable
 private fun IdCardScanningStageContent(
     onExtracted: (ResidentIdExtractResponseDto) -> Unit,
@@ -1025,9 +1704,9 @@ private fun IdCardScanningStageContent(
                         }
 
                         val isValid = extracted.documentMatched &&
-                            !extracted.name.isNullOrBlank() &&
-                            extracted.residentFront6?.length == 6 &&
-                            extracted.residentBackFirst1?.length == 1
+                                !extracted.name.isNullOrBlank() &&
+                                extracted.residentFront6?.length == 6 &&
+                                extracted.residentBackFirst1?.length == 1
 
                         if (!isValid) {
                             if (holdStartedAt != 0L && consecutiveRecoverableMisses < ID_CARD_ALLOWED_MISSES) {
@@ -1547,10 +2226,22 @@ private fun SuccessStageContent(
         Box(
             modifier = Modifier
                 .size(160.dp)
-                .background(Mint500, CircleShape),
+                .background(Color(0xFFCCEAE7), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text("😊", fontSize = 70.sp)
+            Box(
+                modifier = Modifier
+                    .size(116.dp)
+                    .background(Mint500, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.FaceRetouchingNatural,
+                    contentDescription = null,
+                    tint = Color(0xFF5B9E94),
+                    modifier = Modifier.size(72.dp)
+                )
+            }
         }
         Spacer(modifier = Modifier.height(28.dp))
         Text(
@@ -1585,6 +2276,7 @@ private fun SuccessStageContent(
     }
 }
 
+@androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
 @Composable
 private fun FaceRegistrationCameraCard(
     modifier: Modifier,
@@ -2019,6 +2711,3 @@ private fun yuv420888ToNv21(image: ImageProxy): ByteArray {
 
     return nv21
 }
-
-
-

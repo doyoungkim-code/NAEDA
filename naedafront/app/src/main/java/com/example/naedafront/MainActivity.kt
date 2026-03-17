@@ -29,6 +29,12 @@ class MainActivity : ComponentActivity() {
                 NaedaApp()
             }
         }
+
+        // FCM 토큰 확인용 (나중에 지워도 됨)
+        com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+            .addOnSuccessListener { token ->
+                android.util.Log.d("FCM_TOKEN", "토큰: $token")
+            }
     }
 }
 
