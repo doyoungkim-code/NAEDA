@@ -27,6 +27,7 @@ import com.example.naedafront.ui.screen.asset.AccountDetailScreen
 import com.example.naedafront.ui.screen.asset.AccountListScreen
 import com.example.naedafront.ui.screen.asset.CardDetailScreen
 import com.example.naedafront.ui.screen.asset.RegisterAssetScreen
+import com.example.naedafront.ui.screen.store.PointStoreScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchRecognizeScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchResultScreen
 import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
@@ -44,6 +45,7 @@ import com.example.naedafront.ui.screen.signup.SignUpPinScreen
 import com.example.naedafront.ui.screen.signup.SignUpRrnScreen
 import com.example.naedafront.ui.screen.signup.SignUpVerifyScreen
 import com.example.naedafront.ui.screen.signup.SignUpViewModel
+import com.example.naedafront.ui.screen.store.PointHistoryScreen
 
 @Composable
 fun NaedaNavGraph(
@@ -197,8 +199,21 @@ fun NaedaNavGraph(
             )
         }
 
-        composable(Screen.Benefit.route) {
-            PlaceholderScreen("🎁 혜택")
+        composable(Screen.Store.route) {
+            PointStoreScreen(
+                onCartClick = { },
+                onGiftClick = { },
+                onHistoryClick = {
+                    navController.navigate(Screen.PointHistory.route)
+                }
+            )
+        }
+
+        composable(Screen.PointHistory.route) {
+            PointHistoryScreen(
+                onBackClick = { navController.popBackStack() },
+                onGiftClick = { }
+            )
         }
 
         composable(Screen.Scan.route) {
