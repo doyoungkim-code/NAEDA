@@ -27,6 +27,7 @@ import com.example.naedafront.ui.screen.asset.AccountDetailScreen
 import com.example.naedafront.ui.screen.asset.AccountListScreen
 import com.example.naedafront.ui.screen.asset.CardDetailScreen
 import com.example.naedafront.ui.screen.asset.RegisterAssetScreen
+import com.example.naedafront.ui.screen.store.PointStoreScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchRecognizeScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchResultScreen
 import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
@@ -198,7 +199,14 @@ fun NaedaNavGraph(
         }
 
         composable(Screen.Benefit.route) {
-            PlaceholderScreen("🎁 혜택")
+            PointStoreScreen(
+                onCartClick = {
+                    // 장바구니 화면 생기면 연결
+                },
+                onGiftClick = {
+                    // 우하단 FAB 기능 연결
+                }
+            )
         }
 
         composable(Screen.Scan.route) {
