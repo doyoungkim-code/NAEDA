@@ -50,6 +50,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.outlined.FaceRetouchingNatural
@@ -119,6 +120,7 @@ import com.example.naedafront.ui.theme.OnBackground
 import com.example.naedafront.ui.theme.OnSurfaceVariant
 import com.example.naedafront.ui.theme.Outline
 import com.example.naedafront.ui.theme.SurfaceVariant
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -959,56 +961,113 @@ private fun RegistrationChecklistScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 24.dp)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // ── 상단 칩 ──────────────────────────────────────────────
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(Mint50)
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = "준비하기",
+                fontFamily = NaedaFontFamily,
+                fontWeight = FontWeight.Medium,
+                fontSize = 13.sp,
+                color = Mint500
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // ── 제목 ─────────────────────────────────────────────────
         Text(
             text = title,
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Bold,
-            fontSize = 24.sp,
+            fontSize = 26.sp,
             color = OnBackground,
+            textAlign = TextAlign.Center,
             lineHeight = 34.sp
         )
-        Spacer(modifier = Modifier.height(12.dp))
-        tips.forEach { tip ->
-            Card(
+
+        Spacer(modifier = Modifier.height(40.dp))
+
+        // ── 신분증 아이콘 (2겹 원) ───────────────────────────────
+        Box(
+            modifier = Modifier
+                .size(200.dp)
+                .background(Color(0xFFCCEAE7), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 10.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                shape = RoundedCornerShape(16.dp)
+                    .size(144.dp)
+                    .background(Mint500, CircleShape),
+                contentAlignment = Alignment.Center
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .background(Mint50, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = Mint500,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Text(
-                        text = tip,
-                        fontFamily = NaedaFontFamily,
-                        fontSize = 14.sp,
-                        color = OnBackground,
-                        lineHeight = 22.sp
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.CreditCard,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(72.dp)
+                )
             }
         }
+
         Spacer(modifier = Modifier.weight(1f))
-        Spacer(modifier = Modifier.height(24.dp))
+
+        // ── 보안 안내 섹션 ────────────────────────────────────────
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = Mint500,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = "신분증 안내",
+                fontFamily = NaedaFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp,
+                color = OnBackground
+            )
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        Text(
+            text = tips.joinToString("\n") { "• $it" },
+            fontFamily = NaedaFontFamily,
+            fontWeight = FontWeight.Normal,
+            fontSize = 14.sp,
+            color = OnSurfaceVariant,
+            textAlign = TextAlign.Center,
+            lineHeight = 24.sp
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // ── 프로그레스 인디케이터 ─────────────────────────────────
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            repeat(4) { i ->
+                Box(
+                    modifier = Modifier
+                        .height(4.dp)
+                        .width(if (i < 2) 32.dp else 16.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(if (i < 2) Mint500 else SurfaceVariant)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
         Button(
             onClick = onPrimaryClick,
             modifier = Modifier
@@ -1368,19 +1427,41 @@ private fun FaceCaptureOverlay(
             val ocx = cx + shiftX
             val ocy = cy + shiftY
 
+            // ── 배경 점선 타원 (고정 크기 - 원근 변형 없음) ──
             val dashEffect = PathEffect.dashPathEffect(floatArrayOf(18f, 10f), 0f)
-            val borderStyle = if (isDirectionMatched && holdProgress > 0f)
-                Stroke(width = 3.dp.toPx())
-            else
-                Stroke(width = 2.5.dp.toPx(), pathEffect = dashEffect)
-
-            // 변형된 타원 테두리
             drawOval(
-                color = ovalColor,
-                topLeft = androidx.compose.ui.geometry.Offset(ocx - perspW / 2f, ocy - perspH / 2f),
-                size = androidx.compose.ui.geometry.Size(perspW, perspH),
-                style = borderStyle
+                color = Color.White.copy(alpha = 0.5f),
+                topLeft = androidx.compose.ui.geometry.Offset(cx - ovalW / 2f, cy - ovalH / 2f),
+                size = androidx.compose.ui.geometry.Size(ovalW, ovalH),
+                style = Stroke(width = 2.5.dp.toPx(), pathEffect = dashEffect)
             )
+
+            // ── 진행도 Arc (hold 진행에 따라 타원 테두리 채움) ─
+            if (holdProgress > 0f || poseCompleted) {
+                val sweepAngle = if (poseCompleted) 360f else holdProgress * 360f
+                val arcColor = if (poseCompleted) Color(0xFF4CAF50) else Color(0xFF009688)
+
+                // 글로우 (두껍고 흐릿)
+                drawArc(
+                    color = arcColor.copy(alpha = 0.35f),
+                    startAngle = -90f,
+                    sweepAngle = sweepAngle,
+                    useCenter = false,
+                    topLeft = androidx.compose.ui.geometry.Offset(cx - ovalW / 2f, cy - ovalH / 2f),
+                    size = androidx.compose.ui.geometry.Size(ovalW, ovalH),
+                    style = Stroke(width = 10.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                )
+                // 선명한 선
+                drawArc(
+                    color = arcColor,
+                    startAngle = -90f,
+                    sweepAngle = sweepAngle,
+                    useCenter = false,
+                    topLeft = androidx.compose.ui.geometry.Offset(cx - ovalW / 2f, cy - ovalH / 2f),
+                    size = androidx.compose.ui.geometry.Size(ovalW, ovalH),
+                    style = Stroke(width = 3.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                )
+            }
 
             // ── 코 중심 가이드라인 ─────────────────────────────
             // 코 끝 위치: yaw에 따라 가로로, pitch에 따라 세로로 이동
@@ -1408,17 +1489,22 @@ private fun FaceCaptureOverlay(
                 )
             }
 
-            // 글로우
-            drawPath(path = path, color = lineColor.copy(alpha = 0.22f),
-                style = Stroke(width = 7.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            // 글로우 - 방향 맞을 때 더 강하게 빛남
+            val glowAlpha  = if (isDirectionMatched) 0.45f else 0.18f
+            val glowWidth  = if (isDirectionMatched) 12.dp.toPx() else 7.dp.toPx()
+            val lineWidth  = if (isDirectionMatched) 3.dp.toPx() else 2.dp.toPx()
+            drawPath(path = path, color = lineColor.copy(alpha = glowAlpha),
+                style = Stroke(width = glowWidth, cap = androidx.compose.ui.graphics.StrokeCap.Round))
             // 선명한 선
             drawPath(path = path, color = lineColor,
-                style = Stroke(width = 2.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                style = Stroke(width = lineWidth, cap = androidx.compose.ui.graphics.StrokeCap.Round))
 
-            // 코 끝 포인트
-            drawCircle(color = lineColor.copy(alpha = 0.3f), radius = 9.dp.toPx(),
-                center = androidx.compose.ui.geometry.Offset(noseX, noseY))
-            drawCircle(color = lineColor, radius = 3.5.dp.toPx(),
+            // 코 끝 포인트 - 방향 맞을 때 더 크고 밝게
+            val dotGlowR = if (isDirectionMatched) 14.dp.toPx() else 9.dp.toPx()
+            val dotR     = if (isDirectionMatched) 5.dp.toPx()  else 3.5.dp.toPx()
+            drawCircle(color = lineColor.copy(alpha = if (isDirectionMatched) 0.5f else 0.3f),
+                radius = dotGlowR, center = androidx.compose.ui.geometry.Offset(noseX, noseY))
+            drawCircle(color = lineColor, radius = dotR,
                 center = androidx.compose.ui.geometry.Offset(noseX, noseY))
         }
 
@@ -1548,16 +1634,6 @@ private fun FaceCaptureOverlay(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-
-            // 진행 바
-            LinearProgressIndicator(
-                progress = { (currentIndex + holdProgress) / totalCount.toFloat() },
-                modifier = Modifier.fillMaxWidth(0.7f),
-                color = Mint500,
-                trackColor = Color.White.copy(alpha = 0.2f)
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
 
             // 진행 도트
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
