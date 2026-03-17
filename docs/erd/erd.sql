@@ -289,6 +289,17 @@ CREATE TABLE notification (
     sent            TIMESTAMP               NOT NULL DEFAULT NOW()
 );
 
+-- 19) Payment_Limit (결제 한도)
+CREATE TABLE payment_limit (
+    payment_limit_id  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_no           BIGINT    NOT NULL UNIQUE,              -- FK → user (1인 1건)
+    daily_limit       BIGINT    NOT NULL,                     -- 1일 한도
+    monthly_limit     BIGINT    NOT NULL,                     -- 월 한도
+    single_transaction_limit BIGINT NOT NULL,                 -- 1회 한도
+    created           TIMESTAMP NOT NULL DEFAULT NOW(),       -- 등록일시
+    modified          TIMESTAMP                               -- 수정일시
+);
+
 -- ================================================
 -- 3. FK 제약 조건
 -- ================================================
@@ -418,4 +429,9 @@ ALTER TABLE fds_log
 -- Notification → User
 ALTER TABLE notification
     ADD CONSTRAINT fk_notification_user
+    FOREIGN KEY (user_no) REFERENCES "user" (user_no) ON DELETE CASCADE;
+
+-- Payment_Limit → User
+ALTER TABLE payment_limit
+    ADD CONSTRAINT fk_payment_limit_user
     FOREIGN KEY (user_no) REFERENCES "user" (user_no) ON DELETE CASCADE;
