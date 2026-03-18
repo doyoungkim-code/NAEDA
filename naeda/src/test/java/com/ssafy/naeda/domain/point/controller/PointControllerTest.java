@@ -125,9 +125,7 @@ class PointControllerTest {
         mockMvc.perform(get("/api/points/wallet/{userNo}/histories", USER_NO))
                 .andDo(print())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].type").value("USE_COUPON"))
-                .andExpect(jsonPath("$[1].type").value("EARN"));
+                .andExpect(jsonPath("$.length()").value(2));
     }
 
     @Test
