@@ -44,8 +44,6 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
               and (
                     s.imageUrl is null
                     or s.description is null
-                    or s.rating is null
-                    or s.rating = 0
                   )
             order by s.storeId asc
             """)

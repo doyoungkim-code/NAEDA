@@ -4,15 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.naeda.domain.store.entity.Store;
 import java.net.URI;
-import java.time.Duration;
 import java.util.Iterator;
 import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -22,13 +18,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Component
 @RequiredArgsConstructor
 public class NaverStoreEnrichmentClient {
-
-    private static final Pattern[] RATING_PATTERNS = new Pattern[]{
-            Pattern.compile("\"averageRating\"\\s*:\\s*\"?([0-9]+(?:\\.[0-9]+)?)\"?"),
-            Pattern.compile("\"rating\"\\s*:\\s*\"?([0-9]+(?:\\.[0-9]+)?)\"?"),
-            Pattern.compile("\"visitorReviewScore\"\\s*:\\s*\"?([0-9]+(?:\\.[0-9]+)?)\"?"),
-            Pattern.compile("평점[^0-9]*([0-9]+(?:\\.[0-9]+)?)")
-    };
 
     private final ObjectMapper objectMapper;
 
@@ -44,33 +33,40 @@ public class NaverStoreEnrichmentClient {
     @Value("${store.enrichment.user-agent:Mozilla/5.0}")
     private String userAgent;
 
+    @Value("${store.enrichment.defaults.image.restaurant:/images/store/default-restaurant.svg}")
+    private String defaultRestaurantImageUrl;
+
+    @Value("${store.enrichment.defaults.image.bakery:/images/store/default-bakery.svg}")
+    private String defaultBakeryImageUrl;
+
+    @Value("${store.enrichment.defaults.image.store:/images/store/default-store.svg}")
+    private String defaultStoreImageUrl;
+
     public boolean isConfigured() {
         return hasText(clientId) && hasText(clientSecret);
     }
 
     public Optional<StoreEnrichmentData> enrich(Store store) {
-        if (!isConfigured()) {
-            return Optional.empty();
-        }
-
         try {
-            JsonNode bestLocalItem = findBestLocalItem(store).orElse(null);
-            String description = extractDescription(bestLocalItem).orElse(null);
-            String imageUrl = findImageUrl(store).orElse(null);
-            Double rating = extractRating(bestLocalItem).orElse(null);
+            JsonNode bestLocalItem = isConfigured() ? findBestLocalItem(store).orElse(null) : null;
+            String description = extractDescription(bestLocalItem, store);
+            String imageUrl = isConfigured()
+                    ? findImageUrl(store).orElseGet(() -> defaultImageUrl(store))
+                    : defaultImageUrl(store);
 
-            if (!hasText(imageUrl) && !hasText(description) && rating == null) {
-                return Optional.empty();
-            }
             return Optional.of(new StoreEnrichmentData(
                     hasText(imageUrl) ? imageUrl : null,
                     hasText(description) ? description : null,
-                    rating
+                    null
             ));
         } catch (Exception e) {
             log.warn("[StoreEnrichment] 네이버 보강 실패 storeId={}, name={}, error={}",
                     store.getStoreId(), store.getStoreName(), e.getMessage());
-            return Optional.empty();
+            return Optional.of(new StoreEnrichmentData(
+                    defaultImageUrl(store),
+                    fallbackDescription(store),
+                    null
+            ));
         }
     }
 
@@ -141,45 +137,20 @@ public class NaverStoreEnrichmentClient {
         return Optional.ofNullable(trimToNull(first.path("link").asText(null)));
     }
 
-    private Optional<String> extractDescription(JsonNode item) {
-        if (item == null) {
-            return Optional.empty();
-        }
-        String description = trimToNull(text(item.path("description").asText(null)));
-        if (description != null) {
-            return Optional.of(description);
-        }
-        return Optional.ofNullable(trimToNull(text(item.path("category").asText(null))));
-    }
-
-    private Optional<Double> extractRating(JsonNode item) {
-        if (item == null) {
-            return Optional.empty();
-        }
-        String link = trimToNull(item.path("link").asText(null));
-        if (!hasText(link)) {
-            return Optional.empty();
-        }
-
-        try {
-            Document document = Jsoup.connect(link)
-                    .userAgent(userAgent)
-                    .timeout(Math.toIntExact(Duration.ofSeconds(timeoutSeconds).toMillis()))
-                    .get();
-            String html = document.html();
-            for (Pattern pattern : RATING_PATTERNS) {
-                Matcher matcher = pattern.matcher(html);
-                if (matcher.find()) {
-                    double rating = Double.parseDouble(matcher.group(1));
-                    if (rating >= 0.0d && rating <= 5.0d) {
-                        return Optional.of(rating);
-                    }
-                }
+    private String extractDescription(JsonNode item, Store store) {
+        if (item != null) {
+            String description = trimToNull(text(item.path("description").asText(null)));
+            if (description != null) {
+                return description;
             }
-        } catch (Exception e) {
-            log.debug("[StoreEnrichment] 평점 추출 실패 link={}, error={}", link, e.getMessage());
+
+            String category = trimToNull(text(item.path("category").asText(null)));
+            if (category != null) {
+                return category + " 매장입니다.";
+            }
         }
-        return Optional.empty();
+
+        return fallbackDescription(store);
     }
 
     private double score(JsonNode item, Store store) {
@@ -226,6 +197,35 @@ public class NaverStoreEnrichmentClient {
             query.append(' ').append(store.getNumberAddress());
         }
         return query.toString();
+    }
+
+    private String defaultImageUrl(Store store) {
+        if ("PUBLIC_BAKERY".equals(store.getCategoryId())) {
+            return defaultBakeryImageUrl;
+        }
+        if ("PUBLIC_RESTAURANT".equals(store.getCategoryId())) {
+            return defaultRestaurantImageUrl;
+        }
+        return defaultStoreImageUrl;
+    }
+
+    private String fallbackDescription(Store store) {
+        String categoryName = trimToNull(store.getCategoryName());
+        String storeName = trimToNull(store.getStoreName());
+
+        if (categoryName != null && storeName != null) {
+            return storeName + "는 구미 지역 " + categoryName + " 매장입니다.";
+        }
+        if (categoryName != null) {
+            return "구미 지역 " + categoryName + " 매장입니다.";
+        }
+        if ("PUBLIC_BAKERY".equals(store.getCategoryId())) {
+            return "구미 지역 제과점 매장입니다.";
+        }
+        if ("PUBLIC_RESTAURANT".equals(store.getCategoryId())) {
+            return "구미 지역 음식점 매장입니다.";
+        }
+        return "구미 지역 매장입니다.";
     }
 
     private String text(String value) {

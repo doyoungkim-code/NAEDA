@@ -96,6 +96,11 @@ store:
     enabled: true
     timeout-seconds: 3
     user-agent: Mozilla/5.0
+    defaults:
+      image:
+        restaurant: /images/store/default-restaurant.svg
+        bakery: /images/store/default-bakery.svg
+        store: /images/store/default-store.svg
     naver:
       client-id: ${NAVER_SEARCH_CLIENT_ID:}
       client-secret: ${NAVER_SEARCH_CLIENT_SECRET:}
