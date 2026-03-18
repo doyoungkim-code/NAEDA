@@ -14,6 +14,8 @@ sealed class Screen(val route: String) {
     // 회원가입 플로우 전체를 묶는 부모 graph
     object SignUpGraph : Screen("signup_graph")
 
+    object OrderComplete : Screen("order_complete")
+    object DeliveryAddress : Screen("delivery_address")
     object SignUp : Screen("signup")
     object SignUpRrn : Screen("signup_rrn")
     object SignUpPhone : Screen("signup_phone")
