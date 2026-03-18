@@ -46,14 +46,13 @@ class StoreEnrichmentServiceTest {
                 .rating(0.0)
                 .build();
 
-        given(naverStoreEnrichmentClient.isConfigured()).willReturn(true);
         given(storeRepository.findIncompleteStoresForEnrichment(any(StoreSourceType.class), any(Pageable.class)))
                 .willReturn(List.of(store));
         given(naverStoreEnrichmentClient.enrich(store))
                 .willReturn(Optional.of(new StoreEnrichmentData(
                         "https://example.com/store.jpg",
                         "한식당",
-                        4.3
+                        null
                 )));
 
         int result = storeEnrichmentService.retryIncompleteStores();
@@ -61,7 +60,7 @@ class StoreEnrichmentServiceTest {
         assertThat(result).isEqualTo(1);
         assertThat(store.getImageUrl()).isEqualTo("https://example.com/store.jpg");
         assertThat(store.getDescription()).isEqualTo("한식당");
-        assertThat(store.getRating()).isEqualTo(4.3);
+        assertThat(store.getRating()).isEqualTo(0.0);
         verify(storeRepository).save(store);
     }
 
@@ -82,7 +81,6 @@ class StoreEnrichmentServiceTest {
                 .rating(4.1)
                 .build();
 
-        given(naverStoreEnrichmentClient.isConfigured()).willReturn(true);
         given(storeRepository.findIncompleteStoresForEnrichment(any(StoreSourceType.class), any(Pageable.class)))
                 .willReturn(List.of(store));
         given(naverStoreEnrichmentClient.enrich(store)).willReturn(Optional.empty());
