@@ -2,10 +2,12 @@ package com.ssafy.naeda.domain.pay.service;
 
 import com.ssafy.naeda.domain.pay.entity.PayTransaction;
 import com.ssafy.naeda.domain.pay.repository.PayTransactionRepository;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,6 +15,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class PayDBService {
 
+    @Getter
     private final PayTransactionRepository payTransactionRepository;
 
     @Transactional
@@ -38,5 +41,10 @@ public class PayDBService {
     @Transactional(readOnly = true)
     public Optional<PayTransaction> findByIdempotencyKey(String idempotencyKey) {
         return payTransactionRepository.findByIdempotencyKey(idempotencyKey);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PayTransaction> findByUserNoAndPeriod(Long userNo, LocalDateTime from, LocalDateTime to){
+        return payTransactionRepository.findByUserNoAndCreatedAtBetweenOrderByCreatedAtDesc(userNo,from,to);
     }
 }

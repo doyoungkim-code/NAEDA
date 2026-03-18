@@ -1,6 +1,6 @@
 package com.ssafy.naeda.domain.user.service;
 
-import com.ssafy.naeda.domain.payment.service.PaymentLimitService;
+import com.ssafy.naeda.domain.pay.service.PayLimitService;
 import com.ssafy.naeda.domain.user.dto.request.LoginRequest;
 import com.ssafy.naeda.domain.user.dto.request.RefreshTokenRequest;
 import com.ssafy.naeda.domain.user.dto.request.SignupRequest;
@@ -39,7 +39,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final RestTemplate restTemplate;
     private final RedisTemplate<String,String> redisTemplate;
-    private final PaymentLimitService paymentLimitService;
+    private final PayLimitService paymentLimitService;
 
     @Value("${ssafy.api.base-url}")
     private String ssafyBaseUrl;
