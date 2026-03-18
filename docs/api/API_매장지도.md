@@ -74,8 +74,8 @@
 | isLocalBusiness | Boolean | 구미 지역 소상공인 여부 |
 | facePayEnabled | Boolean | 페이스페이 사용 가능 여부 |
 | rating | Double | 평점. 값이 없으면 `0.0`일 수 있음 |
-| imageUrl | String | 대표 이미지 URL. 없으면 null |
-| description | String | 매장 설명. 없으면 null |
+| imageUrl | String | 대표 이미지 URL. 네이버 결과가 없으면 기본 placeholder 이미지 |
+| description | String | 매장 설명. 네이버 결과가 없으면 업종 기반 기본 설명 |
 | sourceType | String | 매장 출처 (`PUBLIC_CSV`, `SSAFY`) |
 | isActive | Boolean | 활성 여부 |
 
@@ -103,10 +103,6 @@
 
 ### null / 기본값 처리 권장
 
-- `imageUrl == null`
-  - 기본 플레이스홀더 이미지 사용
-- `description == null`
-  - `"설명 없음"` 또는 `categoryName`으로 대체
 - `rating == 0.0`
   - 평점 미노출 또는 `"평점 없음"` 처리 권장
 
@@ -142,7 +138,8 @@ private interface StoreMapApiService {
 
 ### 주의 사항
 
-- `imageUrl`, `description`, `rating`은 네이버 보강 결과이므로 서버 환경에 네이버 검색 API 키가 없으면 비어 있을 수 있다.
-- 이 경우에도 지도 마커 표시에는 문제가 없다.
+- `imageUrl`, `description`은 네이버 보강 결과를 우선 사용하며, 실패 시 서버 기본값으로 채울 수 있다.
+- `rating`은 보강 보조값이라 `0.0`일 수 있다.
+  - 이 경우에도 지도 마커 표시에는 문제가 없다.
 
 ---

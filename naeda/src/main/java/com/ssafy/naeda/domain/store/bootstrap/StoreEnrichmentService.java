@@ -66,10 +66,6 @@ public class StoreEnrichmentService {
             log.info("[StoreEnrichment] 비활성화되어 있어 보강을 건너뜁니다.");
             return false;
         }
-        if (!naverStoreEnrichmentClient.isConfigured()) {
-            log.info("[StoreEnrichment] 네이버 API 키가 없어 보강을 건너뜁니다.");
-            return false;
-        }
         return true;
     }
 
