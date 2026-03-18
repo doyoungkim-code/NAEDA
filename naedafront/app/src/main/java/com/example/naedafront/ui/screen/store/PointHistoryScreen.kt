@@ -1,5 +1,6 @@
 package com.example.naedafront.ui.screen.store
 
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,18 +26,26 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CardGiftcard
+import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,6 +72,12 @@ private data class PointHistoryItem(
     val positive: Boolean,
     val iconText: String
 )
+
+private enum class HistoryFilterType(val label: String) {
+    ALL("전체 내역"),
+    EARN("적립 내역"),
+    CONVERT("사용 내역")
+}
 
 @Composable
 fun PointHistoryScreen(
@@ -119,6 +134,17 @@ fun PointHistoryScreen(
         )
     }
 
+    var showFilterSheet by remember { mutableStateOf(false) }
+    var selectedFilter by remember { mutableStateOf(HistoryFilterType.ALL) }
+
+    val filteredHistoryItems = remember(historyItems, selectedFilter) {
+        when (selectedFilter) {
+            HistoryFilterType.ALL -> historyItems
+            HistoryFilterType.EARN -> historyItems.filter { it.positive }
+            HistoryFilterType.CONVERT -> historyItems.filter { !it.positive }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -140,7 +166,10 @@ fun PointHistoryScreen(
             }
 
             item {
-                MonthSection(months = months)
+                MonthSection(
+                    months = months,
+                    onFilterClick = { showFilterSheet = true }
+                )
             }
 
             item {
@@ -151,7 +180,7 @@ fun PointHistoryScreen(
                 HistoryTitleRow()
             }
 
-            items(historyItems) { item ->
+            items(filteredHistoryItems) { item ->
                 HistoryRow(item = item)
             }
         }
@@ -171,6 +200,15 @@ fun PointHistoryScreen(
                 contentDescription = "gift"
             )
         }
+    }
+
+    if (showFilterSheet) {
+        FilterBottomSheet(
+            selectedFilter = selectedFilter,
+            onSelectFilter = { selectedFilter = it },
+            onDismiss = { showFilterSheet = false },
+            onApply = { showFilterSheet = false }
+        )
     }
 }
 
@@ -245,8 +283,6 @@ private fun PointHistoryHeader(
                     )
                 }
             }
-
-
 
             Spacer(modifier = Modifier.height(14.dp))
 
@@ -496,7 +532,8 @@ private fun ProgressNode(
 
 @Composable
 private fun MonthSection(
-    months: List<MonthTab>
+    months: List<MonthTab>,
+    onFilterClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -534,7 +571,8 @@ private fun MonthSection(
             modifier = Modifier
                 .size(42.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFF0F2F5)),
+                .background(Color(0xFFF0F2F5))
+                .clickable(onClick = onFilterClick),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -713,5 +751,125 @@ private fun HistoryRow(
             thickness = 1.dp,
             color = Color(0xFFEEF1F4)
         )
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FilterBottomSheet(
+    selectedFilter: HistoryFilterType,
+    onSelectFilter: (HistoryFilterType) -> Unit,
+    onDismiss: () -> Unit,
+    onApply: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color(0xFFF7F7F7),
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(top = 10.dp, bottom = 8.dp)
+                    .width(52.dp)
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(Color(0xFFD1D5DB))
+            )
+        },
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 28.dp)
+        ) {
+            Text(
+                text = "필터 설정",
+                color = Color(0xFF111827),
+                fontSize = 30.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Spacer(modifier = Modifier.height(22.dp))
+
+            FilterOptionRow(
+                title = "전체 내역",
+                selected = selectedFilter == HistoryFilterType.ALL,
+                onClick = { onSelectFilter(HistoryFilterType.ALL) }
+            )
+
+            HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp)
+
+            FilterOptionRow(
+                title = "적립 내역",
+                selected = selectedFilter == HistoryFilterType.EARN,
+                onClick = { onSelectFilter(HistoryFilterType.EARN) }
+            )
+
+            HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp)
+
+            FilterOptionRow(
+                title = "전환 내역",
+                selected = selectedFilter == HistoryFilterType.CONVERT,
+                onClick = { onSelectFilter(HistoryFilterType.CONVERT) }
+            )
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            Button(
+                onClick = onApply,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF00695C),
+                    contentColor = Color.White
+                )
+            ) {
+                Text(
+                    text = "적용하기",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FilterOptionRow(
+    title: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 24.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            color = if (selected) Color(0xFF00695C) else Color(0xFF6B7280),
+            fontSize = 18.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        if (selected) {
+            Icon(
+                imageVector = Icons.Default.CheckCircleOutline,
+                contentDescription = "selected",
+                tint = Color(0xFF00695C),
+                modifier = Modifier.size(24.dp)
+            )
+        }
     }
 }

@@ -27,7 +27,6 @@ import com.example.naedafront.ui.screen.asset.AccountDetailScreen
 import com.example.naedafront.ui.screen.asset.AccountListScreen
 import com.example.naedafront.ui.screen.asset.CardDetailScreen
 import com.example.naedafront.ui.screen.asset.RegisterAssetScreen
-import com.example.naedafront.ui.screen.store.PointStoreScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchRecognizeScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchResultScreen
 import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
@@ -45,7 +44,10 @@ import com.example.naedafront.ui.screen.signup.SignUpPinScreen
 import com.example.naedafront.ui.screen.signup.SignUpRrnScreen
 import com.example.naedafront.ui.screen.signup.SignUpVerifyScreen
 import com.example.naedafront.ui.screen.signup.SignUpViewModel
+import com.example.naedafront.ui.screen.store.DeliveryAddressScreen
 import com.example.naedafront.ui.screen.store.PointHistoryScreen
+import com.example.naedafront.ui.screen.store.PointStoreScreen
+import com.example.naedafront.ui.screen.store.OrderCompleteScreen
 
 @Composable
 fun NaedaNavGraph(
@@ -205,6 +207,9 @@ fun NaedaNavGraph(
                 onGiftClick = { },
                 onHistoryClick = {
                     navController.navigate(Screen.PointHistory.route)
+                },
+                onPurchaseClick = { _, _ ->
+                    navController.navigate(Screen.DeliveryAddress.route)
                 }
             )
         }
@@ -213,6 +218,37 @@ fun NaedaNavGraph(
             PointHistoryScreen(
                 onBackClick = { navController.popBackStack() },
                 onGiftClick = { }
+            )
+        }
+
+        composable(Screen.DeliveryAddress.route) {
+            DeliveryAddressScreen(
+                onBackClick = { navController.popBackStack() },
+                onSearchPostCodeClick = { },
+                onRequestClick = { },
+                onSaveAndPayClick = { _, _, _, _, _, _, _ ->
+                    navController.navigate(Screen.OrderComplete.route)
+                }
+            )
+        }
+
+        composable(Screen.OrderComplete.route) {
+            OrderCompleteScreen(
+                onCloseClick = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Home.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onOrderHistoryClick = {
+                    navController.navigate(Screen.PointHistory.route)
+                },
+                onHomeClick = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Home.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
             )
         }
 
