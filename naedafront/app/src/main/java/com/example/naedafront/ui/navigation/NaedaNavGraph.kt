@@ -27,6 +27,7 @@ import com.example.naedafront.ui.screen.asset.AccountDetailScreen
 import com.example.naedafront.ui.screen.asset.AccountListScreen
 import com.example.naedafront.ui.screen.asset.CardDetailScreen
 import com.example.naedafront.ui.screen.asset.RegisterAssetScreen
+import com.example.naedafront.ui.screen.asset.TradeReportScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchRecognizeScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchResultScreen
 import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
@@ -45,9 +46,9 @@ import com.example.naedafront.ui.screen.signup.SignUpRrnScreen
 import com.example.naedafront.ui.screen.signup.SignUpVerifyScreen
 import com.example.naedafront.ui.screen.signup.SignUpViewModel
 import com.example.naedafront.ui.screen.store.DeliveryAddressScreen
+import com.example.naedafront.ui.screen.store.OrderCompleteScreen
 import com.example.naedafront.ui.screen.store.PointHistoryScreen
 import com.example.naedafront.ui.screen.store.PointStoreScreen
-import com.example.naedafront.ui.screen.store.OrderCompleteScreen
 
 @Composable
 fun NaedaNavGraph(
@@ -469,7 +470,9 @@ fun NaedaNavGraph(
         }
 
         composable(Screen.Transaction.route) {
-            PlaceholderScreen("거래내역")
+            TradeReportScreen(
+                onBackClick = { navController.popBackStack() }
+            )
         }
 
         composable(Screen.Report.route) {
