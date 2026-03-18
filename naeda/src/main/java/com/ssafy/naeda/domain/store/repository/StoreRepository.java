@@ -53,4 +53,32 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
             @Param("sourceType") StoreSourceType sourceType,
             Pageable pageable
     );
+
+    // ── 추천 API 용 쿼리 ──
+
+    /** 활성 가게가 존재하는 동 목록 (roadAddress에서 추출) */
+    @Query("""
+            select distinct substring(s.roadAddress, 1,
+                   locate(' ', s.roadAddress,
+                          locate(' ', s.roadAddress,
+                                 locate(' ', s.roadAddress) + 1) + 1) - 1)
+            from Store s
+            where s.isActive = true
+              and s.roadAddress is not null
+            order by 1
+            """)
+    List<String> findDistinctDongs();
+
+    /** 동 + 카테고리 필터 조합 (null이면 무시) */
+    @Query("""
+            select s
+            from Store s
+            where s.isActive = true
+              and (:dong is null or s.roadAddress like concat('%', :dong, '%'))
+              and (:categoryName is null or s.categoryName = :categoryName)
+            """)
+    List<Store> findByFilters(
+            @Param("dong") String dong,
+            @Param("categoryName") String categoryName
+    );
 }
