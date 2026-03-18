@@ -190,7 +190,6 @@ fun NaedaNavGraph(
                     userName = displayName,
                     isFaceRegistered = isFaceRegistered
                 ),
-                onTransferClick = { navController.navigate(Screen.Transfer.route) },
                 onTransactionClick = { navController.navigate(Screen.Transaction.route) },
                 onFacePaySettingClick = { navController.navigate(Screen.FaceRegister.route) },
                 onLinkAccountClick = { navController.navigate(Screen.AccountList.createRoute(0)) },
