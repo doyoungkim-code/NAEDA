@@ -1,6 +1,13 @@
 package com.ssafy.naeda.domain.user.service;
 
+import com.ssafy.naeda.domain.account.entity.Account;
+import com.ssafy.naeda.domain.account.repository.AccountRepository;
+import com.ssafy.naeda.domain.pay.entity.MethodType;
+import com.ssafy.naeda.domain.pay.entity.PayMethod;
+import com.ssafy.naeda.domain.pay.repository.PayMethodRepository;
 import com.ssafy.naeda.domain.pay.service.PayLimitService;
+import com.ssafy.naeda.global.ssafy.SsafyApiClient;
+import com.ssafy.naeda.global.ssafy.SsafyHeaderFactory;
 import com.ssafy.naeda.domain.user.dto.request.LoginRequest;
 import com.ssafy.naeda.domain.user.dto.request.RefreshTokenRequest;
 import com.ssafy.naeda.domain.user.dto.request.SignupRequest;
@@ -40,6 +47,10 @@ public class AuthService {
     private final RestTemplate restTemplate;
     private final RedisTemplate<String,String> redisTemplate;
     private final PayLimitService paymentLimitService;
+    private final AccountRepository accountRepository;
+    private final PayMethodRepository payMethodRepository;
+    private final SsafyApiClient ssafyApiClient;
+    private final SsafyHeaderFactory ssafyHeaderFactory;
 
     @Value("${ssafy.api.base-url}")
     private String ssafyBaseUrl;
@@ -86,7 +97,10 @@ public class AuthService {
         // 4. 결제 한도 기본값 자동 생성
         paymentLimitService.createDefaultLimit(saved.getUserNo());
 
-        // 5. JWT 토큰 발급 (userKey를 claim에 포함)
+        // 5. SSAFY 수시입출금 계좌 자동 생성 + Account/PayMethod 저장
+        createDefaultAccount(saved.getUserNo(), saved.getUserKey());
+
+        // 6. JWT 토큰 발급 (userKey를 claim에 포함)
         String accessToken = jwtTokenProvider.createAccessToken(saved.getUserId(), userKey);
         String refreshToken = jwtTokenProvider.createRefreshToken(saved.getUserId(), userKey);
 
@@ -99,6 +113,57 @@ public class AuthService {
         );
 
         return SignupResponse.of(saved, accessToken, refreshToken);
+    }
+
+    /**
+     * SSAFY 수시입출금 계좌를 생성하고, Account + PayMethod(ACCOUNT)를 자동 등록한다.
+     * 회원가입 직후 호출되며, 실패해도 회원가입 자체는 롤백하지 않는다.
+     */
+    @SuppressWarnings("unchecked")
+    private void createDefaultAccount(Long userNo, String userKey) {
+        try {
+            // 1. SSAFY 계좌 생성 API 호출
+            Map<String, Object> header = ssafyHeaderFactory.create("createDemandDepositAccount", userKey);
+            Map<String, Object> body = ssafyApiClient.buildBody(header,
+                    "accountTypeUniqueNo", "001-1-d6e9d88be46a43"  // SSAFY 수시입출금 상품 고유번호
+            );
+
+            Map<String, Object> response = ssafyApiClient.post(
+                    "/edu/demandDeposit/createDemandDepositAccount", body);
+
+            Map<String, Object> rec = (Map<String, Object>) response.get("REC");
+            if (rec == null) {
+                log.warn("[AuthService] 계좌 생성 응답에 REC이 없습니다. userNo={}", userNo);
+                return;
+            }
+
+            String accountNo = (String) rec.get("accountNo");
+            String bankCode = (String) rec.getOrDefault("bankCode", "001");
+            String bankName = (String) rec.getOrDefault("bankName", "한국은행");
+            String accountName = (String) rec.getOrDefault("accountName", "수시입출금");
+
+            // 2. Account 엔티티 저장
+            Account account = accountRepository.save(Account.builder()
+                    .userNo(userNo)
+                    .bankCode(bankCode)
+                    .bankName(bankName)
+                    .accountNo(accountNo)
+                    .accountName(accountName)
+                    .build());
+
+            // 3. PayMethod(ACCOUNT 타입) 자동 생성
+            PayMethod payMethod = PayMethod.builder()
+                    .userNo(userNo)
+                    .methodType(MethodType.ACCOUNT)
+                    .accountId(account.getAccountId())
+                    .build();
+            payMethodRepository.save(payMethod);
+
+            log.info("[AuthService] 기본 계좌 + 결제수단 생성 완료: userNo={}, accountNo={}", userNo, accountNo);
+
+        } catch (Exception e) {
+            log.error("[AuthService] 기본 계좌 생성 실패 (회원가입은 정상 처리됨): userNo={}", userNo, e);
+        }
     }
 
     @Transactional(readOnly = true)
