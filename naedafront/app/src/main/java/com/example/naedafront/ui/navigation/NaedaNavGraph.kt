@@ -37,6 +37,7 @@ import com.example.naedafront.ui.screen.map.MapRegion
 import com.example.naedafront.ui.screen.map.MapSelectScreen
 import com.example.naedafront.ui.screen.mypage.MyPageScreen
 import com.example.naedafront.ui.screen.mypage.MyPageViewModel
+import com.example.naedafront.ui.screen.setting.SettingsScreen
 import com.example.naedafront.ui.screen.signup.SignUpEmailScreen
 import com.example.naedafront.ui.screen.signup.SignUpNameScreen
 import com.example.naedafront.ui.screen.signup.SignUpPasswordScreen
@@ -293,7 +294,25 @@ fun NaedaNavGraph(
         }
 
         composable(Screen.More.route) {
-            PlaceholderScreen("⋯ 더보기")
+            SettingsScreen(
+                onNotificationClick = {
+                    navController.navigate(Screen.Notification.route)
+                },
+                onPinChangeClick = {
+                    navController.navigate(Screen.Security.route)
+                },
+                onTermsClick = { },
+                onPrivacyClick = { },
+                onSupportClick = { },
+                onLogoutClick = {
+                    AuthPrefs.clearSession(context)
+                    navController.navigate(Screen.Welcome.route) {
+                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onWithdrawClick = { }
+            )
         }
 
         composable(Screen.FaceRegister.route) {
@@ -519,7 +538,25 @@ fun NaedaNavGraph(
         }
 
         composable(Screen.Settings.route) {
-            PlaceholderScreen("⚙️ 설정")
+            SettingsScreen(
+                onNotificationClick = {
+                    navController.navigate(Screen.Notification.route)
+                },
+                onPinChangeClick = {
+                    navController.navigate(Screen.Security.route)
+                },
+                onTermsClick = { },
+                onPrivacyClick = { },
+                onSupportClick = { },
+                onLogoutClick = {
+                    AuthPrefs.clearSession(context)
+                    navController.navigate(Screen.Welcome.route) {
+                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onWithdrawClick = { }
+            )
         }
 
         composable(Screen.Notification.route) {
