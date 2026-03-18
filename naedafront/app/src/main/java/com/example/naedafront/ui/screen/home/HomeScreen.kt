@@ -1,35 +1,78 @@
 package com.example.naedafront.ui.screen.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.LocalCafe
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.naedafront.ui.theme.*
+import com.example.naedafront.ui.theme.Background
+import com.example.naedafront.ui.theme.KronaOneFontFamily
+import com.example.naedafront.ui.theme.Mint100
+import com.example.naedafront.ui.theme.Mint900
+import com.example.naedafront.ui.theme.NaedaTheme
+import com.example.naedafront.ui.theme.OnBackground
+import com.example.naedafront.ui.theme.Success
+import com.example.naedafront.ui.theme.Surface
 import kotlinx.coroutines.delay
-
-// ────────────────────────────────────────
-// 데이터 모델 (임시 — 나중에 data/model 로 이동)
-// ────────────────────────────────────────
 
 data class TransactionItem(
     val title: String,
@@ -47,20 +90,16 @@ data class SpendingCategory(
 )
 
 data class NoticeItem(
-    val tag: String,       // 예: "축제", "공지", "이벤트"
+    val tag: String,
     val tagColor: Color,
     val title: String,
     val date: String
 )
 
-// ────────────────────────────────────────
-// HomeUiState
-// ────────────────────────────────────────
-
 data class HomeUiState(
     val userName: String = "사용자",
-    val isAccountLinked: Boolean = true,       // 계좌 연결 여부 ← 핵심 분기
-    val isFaceRegistered: Boolean = false,     // 얼굴 등록 여부 ← 페이스페이 배너 분기
+    val isAccountLinked: Boolean = true,
+    val isFaceRegistered: Boolean = false,
     val totalBalance: Long = 18_240_500L,
     val recentTransactions: List<TransactionItem> = emptyList(),
     val spendingCategories: List<SpendingCategory> = emptyList(),
@@ -69,15 +108,10 @@ data class HomeUiState(
     val notices: List<NoticeItem> = emptyList()
 )
 
-// ────────────────────────────────────────
-// HomeScreen
-// ────────────────────────────────────────
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     uiState: HomeUiState = HomeUiState(),
-    onTransferClick: () -> Unit = {},
     onTransactionClick: () -> Unit = {},
     onFacePaySettingClick: () -> Unit = {},
     onLinkAccountClick: () -> Unit = {},
@@ -103,7 +137,6 @@ fun HomeScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
-            // 인사말
             GreetingSection(
                 userName = uiState.userName,
                 onSecretFaceMatchTestClick = onSecretFaceMatchTestClick
@@ -111,22 +144,17 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ★ 계좌 연결 여부에 따른 분기
             if (uiState.isAccountLinked) {
-                // 계좌 연결 O → 총 잔액 카드
                 BalanceCard(
                     totalBalance = uiState.totalBalance,
-                    onTransferClick = onTransferClick,
                     onTransactionClick = onTransactionClick
                 )
             } else {
-                // 계좌 연결 X → 계좌 등록 유도 카드
                 LinkAccountCard(onLinkAccountClick = onLinkAccountClick)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 페이스페이 배너 (등록 여부에 따라 분기)
             if (uiState.isFaceRegistered) {
                 FacePayBenefitCard(onReRegisterClick = onFacePaySettingClick)
             } else {
@@ -135,12 +163,10 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 구미시 공지사항
             NoticeCard(notices = uiState.notices)
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 이번 달 소비 분석
             SpendingAnalysisCard(
                 topCategory = uiState.topSpendingCategory,
                 topAmount = uiState.topSpendingAmount,
@@ -149,7 +175,6 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 최근 거래 내역
             RecentTransactionsSection(
                 transactions = uiState.recentTransactions,
                 onViewAllClick = onViewAllTransactionsClick
@@ -159,10 +184,6 @@ fun HomeScreen(
         }
     }
 }
-
-// ────────────────────────────────────────
-// 탑바
-// ────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -177,7 +198,7 @@ private fun NaedaHomeTopBar(
                 text = "NAEDA",
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontFamily = KronaOneFontFamily,
-                    fontWeight = FontWeight.Normal,  // Krona One은 Regular만 있음
+                    fontWeight = FontWeight.Normal,
                     fontSize = 32.sp,
                     letterSpacing = 1.sp
                 ),
@@ -211,10 +232,6 @@ private fun NaedaHomeTopBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Background)
     )
 }
-
-// ────────────────────────────────────────
-// 인사말
-// ────────────────────────────────────────
 
 @Composable
 private fun GreetingSection(
@@ -250,7 +267,7 @@ private fun GreetingSection(
             }
     ) {
         Text(
-            text = "하이콩, ${userName}님",
+            text = "안녕하세요, ${userName}님",
             style = MaterialTheme.typography.headlineSmall.copy(
                 fontWeight = FontWeight.Bold
             ),
@@ -260,22 +277,19 @@ private fun GreetingSection(
     }
 }
 
-// ────────────────────────────────────────
-// 총 잔액 카드 (계좌 연결됨)
-// ────────────────────────────────────────
-
 @Composable
 private fun BalanceCard(
     totalBalance: Long,
-    onTransferClick: () -> Unit,
     onTransactionClick: () -> Unit
 ) {
+    val balanceCardColor = Color(0xFF00635A)
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Surface),
+        colors = CardDefaults.cardColors(containerColor = balanceCardColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -287,12 +301,12 @@ private fun BalanceCard(
                 Text(
                     text = "총 잔액",
                     style = MaterialTheme.typography.bodySmall,
-                    color = OnBackground.copy(alpha = 0.5f)
+                    color = Color.White.copy(alpha = 0.78f)
                 )
                 Icon(
                     Icons.Default.AccountBalanceWallet,
                     contentDescription = null,
-                    tint = Mint900.copy(alpha = 0.6f),
+                    tint = Color.White.copy(alpha = 0.85f),
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -305,59 +319,37 @@ private fun BalanceCard(
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 30.sp
                 ),
-                color = OnBackground
+                color = Color.White
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                // 송금하기 버튼 (Mint900)
-                Button(
-                    onClick = onTransferClick,
-                    modifier = Modifier.weight(1f).height(44.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Mint900)
-                ) {
-                    Icon(
-                        Icons.Default.Send,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        "송금하기",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    )
-                }
-
-                // 거래내역 버튼 (Outline)
-                OutlinedButton(
-                    onClick = onTransactionClick,
-                    modifier = Modifier.weight(1f).height(44.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = OnBackground),
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        OnBackground.copy(alpha = 0.15f)
-                    )
-                ) {
-                    Text(
-                        "거래내역",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    )
-                }
+            OutlinedButton(
+                onClick = onTransactionClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color.White.copy(alpha = 0.08f),
+                    contentColor = Color.White
+                ),
+                border = BorderStroke(
+                    1.dp,
+                    Color.White.copy(alpha = 0.28f)
+                )
+            ) {
+                Text(
+                    "거래내역",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = Color.White
+                )
             }
         }
     }
 }
-
-// ────────────────────────────────────────
-// 계좌 등록 유도 카드 (계좌 미연결)
-// ────────────────────────────────────────
 
 @Composable
 private fun LinkAccountCard(onLinkAccountClick: () -> Unit) {
@@ -375,7 +367,6 @@ private fun LinkAccountCard(onLinkAccountClick: () -> Unit) {
                 .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 아이콘
             Box(
                 modifier = Modifier
                     .size(56.dp)
@@ -407,7 +398,7 @@ private fun LinkAccountCard(onLinkAccountClick: () -> Unit) {
                 text = "계좌를 연결하면 잔액과 거래내역을\n한눈에 확인할 수 있어요",
                 style = MaterialTheme.typography.bodySmall,
                 color = OnBackground.copy(alpha = 0.5f),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -436,10 +427,6 @@ private fun LinkAccountCard(onLinkAccountClick: () -> Unit) {
         }
     }
 }
-
-// ────────────────────────────────────────
-// 페이스페이 배너 카드
-// ────────────────────────────────────────
 
 @Composable
 private fun FacePayBannerCard(onFacePaySettingClick: () -> Unit) {
@@ -488,7 +475,6 @@ private fun FacePayBannerCard(onFacePaySettingClick: () -> Unit) {
                 }
             }
 
-            // 얼굴 아이콘 (스마일)
             Box(
                 modifier = Modifier
                     .size(80.dp)
@@ -501,10 +487,6 @@ private fun FacePayBannerCard(onFacePaySettingClick: () -> Unit) {
         }
     }
 }
-
-// ────────────────────────────────────────
-// 페이스페이 혜택 안내 카드 (얼굴 등록 완료 시)
-// ────────────────────────────────────────
 
 @Composable
 private fun FacePayBenefitCard(onReRegisterClick: () -> Unit = {}) {
@@ -585,10 +567,6 @@ private fun FacePayBenefitCard(onReRegisterClick: () -> Unit = {}) {
     }
 }
 
-// ────────────────────────────────────────
-// 구미시 공지사항 카드
-// ────────────────────────────────────────
-
 @Composable
 private fun NoticeCard(notices: List<NoticeItem>) {
     val displayNotices = if (notices.isEmpty()) {
@@ -623,7 +601,6 @@ private fun NoticeCard(notices: List<NoticeItem>) {
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            // 헤더
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -674,7 +651,6 @@ private fun NoticeRow(notice: NoticeItem) {
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 태그 뱃지
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(4.dp))
@@ -692,7 +668,6 @@ private fun NoticeRow(notice: NoticeItem) {
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // 제목
         Text(
             text = notice.title,
             style = MaterialTheme.typography.bodySmall.copy(
@@ -706,7 +681,6 @@ private fun NoticeRow(notice: NoticeItem) {
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // 날짜
         Text(
             text = notice.date,
             style = MaterialTheme.typography.labelSmall,
@@ -715,17 +689,12 @@ private fun NoticeRow(notice: NoticeItem) {
     }
 }
 
-// ────────────────────────────────────────
-// 이번 달 소비 분석 카드
-// ────────────────────────────────────────
-
 @Composable
 private fun SpendingAnalysisCard(
     topCategory: String,
     topAmount: Long,
     categories: List<SpendingCategory>
 ) {
-    // 기본 샘플 데이터 (ViewModel에서 실제 데이터로 교체)
     val displayCategories = if (categories.isEmpty()) {
         listOf(
             SpendingCategory("식비 45%", 0.45f, Color(0xFFFF6B35)),
@@ -783,12 +752,10 @@ private fun SpendingAnalysisCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 프로그레스 바 (비율 막대)
             SpendingProgressBar(categories = displayCategories)
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 레전드
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -844,16 +811,11 @@ private fun SpendingProgressBar(categories: List<SpendingCategory>) {
     }
 }
 
-// ────────────────────────────────────────
-// 최근 거래 내역
-// ────────────────────────────────────────
-
 @Composable
 private fun RecentTransactionsSection(
     transactions: List<TransactionItem>,
     onViewAllClick: () -> Unit
 ) {
-    // 기본 샘플 데이터
     val displayItems = if (transactions.isEmpty()) {
         listOf(
             TransactionItem(
@@ -923,7 +885,6 @@ private fun TransactionRow(item: TransactionItem) {
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 아이콘
         Box(
             modifier = Modifier
                 .size(40.dp)
@@ -941,7 +902,6 @@ private fun TransactionRow(item: TransactionItem) {
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        // 텍스트
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.title,
@@ -958,7 +918,6 @@ private fun TransactionRow(item: TransactionItem) {
             )
         }
 
-        // 금액
         Text(
             text = item.amount,
             style = MaterialTheme.typography.bodyMedium.copy(
@@ -968,10 +927,6 @@ private fun TransactionRow(item: TransactionItem) {
         )
     }
 }
-
-// ────────────────────────────────────────
-// Preview
-// ────────────────────────────────────────
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
