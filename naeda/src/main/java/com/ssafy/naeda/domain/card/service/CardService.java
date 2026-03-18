@@ -14,9 +14,9 @@ import com.ssafy.naeda.domain.card.repository.DebitCardRepository;
 import com.ssafy.naeda.domain.consumption.client.ConsumptionCategoryAiClient;
 import com.ssafy.naeda.domain.consumption.client.ConsumptionCategoryFallbackMapper;
 import com.ssafy.naeda.domain.consumption.client.dto.AiConsumptionCategoryItem;
-import com.ssafy.naeda.domain.payment.entity.MethodType;
-import com.ssafy.naeda.domain.payment.entity.PaymentMethod;
-import com.ssafy.naeda.domain.payment.repository.PaymentMethodRepository;
+import com.ssafy.naeda.domain.pay.entity.MethodType;
+import com.ssafy.naeda.domain.pay.entity.PayMethod;
+import com.ssafy.naeda.domain.pay.repository.PayMethodRepository;
 import com.ssafy.naeda.domain.transaction.entity.TransactionLog;
 import com.ssafy.naeda.domain.transaction.entity.TransactionType;
 import com.ssafy.naeda.domain.transaction.repository.TransactionLogRepository;
@@ -62,7 +62,7 @@ public class CardService {
     private final AccountRepository accountRepository;
     private final CreditCardRepository creditCardRepository;
     private final DebitCardRepository debitCardRepository;
-    private final PaymentMethodRepository paymentMethodRepository;
+    private final PayMethodRepository paymentMethodRepository;
     private final TransactionLogRepository transactionLogRepository;
     private final ConsumptionCategoryAiClient consumptionCategoryAiClient;
 
@@ -118,7 +118,7 @@ public class CardService {
             throw new DuplicateException("이미 등록된 카드입니다: " + cardNo);
         }
 
-        // ── 4. cardTypeCode 분기 저장 + PaymentMethod 생성 ──
+        // ── 4. cardTypeCode 분기 저장 + PayMethod 생성 ──
         if (CREDIT_TYPE_CODE.equals(cardTypeCode)) {
             return registerCreditCard(userNo, cardNo, cvc, cardUniqueNo,
                     cardIssuerCode, cardIssuerName, cardName, cardExpiryDate,
@@ -131,7 +131,7 @@ public class CardService {
     }
 
     /**
-     * 신용카드 저장 + PaymentMethod 생성
+     * 신용카드 저장 + PayMethod 생성
      */
     private CardRegisterResponse registerCreditCard(Long userNo, String cardNo, String cvc,
                                                     String cardUniqueNo, String cardIssuerCode,
@@ -165,8 +165,8 @@ public class CardService {
         creditCard = creditCardRepository.save(creditCard);
         log.info("[CardService] 신용카드 등록 완료: userNo={}, cardNo={}", userNo, cardNo);
 
-        // PaymentMethod 자동 생성
-        PaymentMethod paymentMethod = PaymentMethod.builder()
+        // PayMethod 자동 생성
+        PayMethod paymentMethod = PayMethod.builder()
                 .userNo(userNo)
                 .methodType(MethodType.CREDIT_CARD)
                 .creditCardId(creditCard.getCreditCardId())
@@ -180,7 +180,7 @@ public class CardService {
     }
 
     /**
-     * 체크카드 저장 + PaymentMethod 생성
+     * 체크카드 저장 + PayMethod 생성
      */
     private CardRegisterResponse registerDebitCard(Long userNo, String cardNo, String cvc,
                                                    String cardUniqueNo, String cardIssuerCode,
@@ -208,8 +208,8 @@ public class CardService {
         debitCard = debitCardRepository.save(debitCard);
         log.info("[CardService] 체크카드 등록 완료: userNo={}, cardNo={}", userNo, cardNo);
 
-        // PaymentMethod 자동 생성
-        PaymentMethod paymentMethod = PaymentMethod.builder()
+        // PayMethod 자동 생성
+        PayMethod paymentMethod = PayMethod.builder()
                 .userNo(userNo)
                 .methodType(MethodType.DEBIT_CARD)
                 .debitCardId(debitCard.getDebitCardId())
@@ -249,8 +249,8 @@ public class CardService {
 
             creditCard.deactivate();
 
-            List<PaymentMethod> methods = paymentMethodRepository.findByCreditCardIdAndIsActiveTrue(cardId);
-            methods.forEach(PaymentMethod::deactivate);
+            List<PayMethod> methods = paymentMethodRepository.findAllByCreditCardIdAndIsActiveTrue(cardId);
+            methods.forEach(PayMethod::deactivate);
 
             log.info("[CardService] 신용카드 삭제: userNo={}, cardId={}", userNo, cardId);
 
@@ -261,8 +261,8 @@ public class CardService {
 
             debitCard.deactivate();
 
-            List<PaymentMethod> methods = paymentMethodRepository.findByDebitCardIdAndIsActiveTrue(cardId);
-            methods.forEach(PaymentMethod::deactivate);
+            List<PayMethod> methods = paymentMethodRepository.findAllByDebitCardIdAndIsActiveTrue(cardId);
+            methods.forEach(PayMethod::deactivate);
 
             log.info("[CardService] 체크카드 삭제: userNo={}, cardId={}", userNo, cardId);
 

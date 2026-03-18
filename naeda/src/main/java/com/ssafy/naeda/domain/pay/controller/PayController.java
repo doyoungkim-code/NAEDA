@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -44,26 +45,55 @@ public class PayController {
         return ResponseEntity.ok(PayTransactionResponse.from(tx));
     }
 
-    @GetMapping
-    @Operation(summary = "결제 내역 목록 조회", description = "해당 사용자의 전체 결제 내역을 최신순으로 조회합니다.")
-    public ResponseEntity<List<PayTransactionResponse>> getPayments(
-            @Parameter(description = "사용자 번호", required = true)
-            @RequestHeader("X-User-No") Long userNo) {
-
-        List<PayTransactionResponse> responses = payFacadeService.getPayments(userNo)
+      @GetMapping
+      @Operation(summary = "결제 내역 목록 조회", description = "해당 사용자의 전체 결제 내역을 최신순으로 조회합니다.")
+      public ResponseEntity<List<PayTransactionResponse>> getPayments(
+              @Parameter(description = "사용자 번호", required = true)
+              @RequestHeader("X-User-No") Long userNo,
+              @Parameter(description = "조회 시작 일시 (ISO 8601)")
+              @RequestParam(required = false)LocalDateTime from,
+              @Parameter(description = "조회 종료 일시 (ISO 8601)")
+              @RequestParam(required = false) LocalDateTime to
+              ){
+        List<PayTransactionResponse> responses = payFacadeService.getPayments(userNo,from,to)
                 .stream()
                 .map(PayTransactionResponse::from)
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(responses);
-    }
+      }
 
-    @GetMapping("/{id}")
-    @Operation(summary = "결제 상세 조회", description = "결제 ID로 단건 상세 조회합니다.")
-    public ResponseEntity<PayTransactionResponse> getPayment(
-            @Parameter(description = "결제 트랜잭션 ID") @PathVariable Long id) {
+      @GetMapping("/{id}")
+      @Operation(summary = "결제 상세 조회", description = "결제 ID로 단건 상세 조회합니다.")
+      public ResponseEntity<PayTransactionResponse> getPayment(
+              @Parameter(description = "사용자 번호", required = true)
+              @RequestHeader("X-User-No") Long userNo,
+              @Parameter(description = "결제 트랜잭션 ID") @PathVariable Long id
+      ){
+            PayTransaction tx = payFacadeService.getPayment(userNo, id);
+            return ResponseEntity.ok(PayTransactionResponse.from(tx));
+      }
 
-        PayTransaction tx = payFacadeService.getPayment(id);
-        return ResponseEntity.ok(PayTransactionResponse.from(tx));
-    }
+//    @GetMapping
+//    @Operation(summary = "결제 내역 목록 조회", description = "해당 사용자의 전체 결제 내역을 최신순으로 조회합니다.")
+//    public ResponseEntity<List<PayTransactionResponse>> getPayments(
+//            @Parameter(description = "사용자 번호", required = true)
+//            @RequestHeader("X-User-No") Long userNo) {
+//
+//        List<PayTransactionResponse> responses = payFacadeService.getPayments(userNo)
+//                .stream()
+//                .map(PayTransactionResponse::from)
+//                .collect(Collectors.toList());
+//
+//        return ResponseEntity.ok(responses);
+//    }
+
+//    @GetMapping("/{id}")
+//    @Operation(summary = "결제 상세 조회", description = "결제 ID로 단건 상세 조회합니다.")
+//    public ResponseEntity<PayTransactionResponse> getPayment(
+//            @Parameter(description = "결제 트랜잭션 ID") @PathVariable Long id) {
+//
+//        PayTransaction tx = payFacadeService.getPayment(id);
+//        return ResponseEntity.ok(PayTransactionResponse.from(tx));
+//    }
 }

@@ -11,9 +11,9 @@ import com.ssafy.naeda.domain.card.entity.DebitCard;
 import com.ssafy.naeda.domain.consumption.client.ConsumptionCategoryAiClient;
 import com.ssafy.naeda.domain.card.repository.CreditCardRepository;
 import com.ssafy.naeda.domain.card.repository.DebitCardRepository;
-import com.ssafy.naeda.domain.payment.entity.MethodType;
-import com.ssafy.naeda.domain.payment.entity.PaymentMethod;
-import com.ssafy.naeda.domain.payment.repository.PaymentMethodRepository;
+import com.ssafy.naeda.domain.pay.entity.MethodType;
+import com.ssafy.naeda.domain.pay.entity.PayMethod;
+import com.ssafy.naeda.domain.pay.repository.PayMethodRepository;
 import com.ssafy.naeda.domain.transaction.entity.TransactionLog;
 import com.ssafy.naeda.domain.transaction.entity.TransactionType;
 import com.ssafy.naeda.domain.transaction.repository.TransactionLogRepository;
@@ -56,7 +56,7 @@ class CardServiceTest {
     @Mock private AccountRepository accountRepository;
     @Mock private CreditCardRepository creditCardRepository;
     @Mock private DebitCardRepository debitCardRepository;
-    @Mock private PaymentMethodRepository paymentMethodRepository;
+    @Mock private PayMethodRepository paymentMethodRepository;
     @Mock private TransactionLogRepository transactionLogRepository;
     @Mock private ConsumptionCategoryAiClient consumptionCategoryAiClient;
 
@@ -154,9 +154,9 @@ class CardServiceTest {
         });
     }
 
-    private void stubPaymentMethodSave() {
-        given(paymentMethodRepository.save(any(PaymentMethod.class))).willAnswer(invocation -> {
-            PaymentMethod pm = invocation.getArgument(0);
+    private void stubPayMethodSave() {
+        given(paymentMethodRepository.save(any(PayMethod.class))).willAnswer(invocation -> {
+            PayMethod pm = invocation.getArgument(0);
             setField(pm, "paymentMethodId", 50L);
             return pm;
         });
@@ -169,7 +169,7 @@ class CardServiceTest {
     // ── 신용카드 등록 성공 ──
 
     @Test
-    @DisplayName("신용카드 등록 성공 - cardTypeCode '1'이면 CreditCard 저장 및 PaymentMethod 생성")
+    @DisplayName("신용카드 등록 성공 - cardTypeCode '1'이면 CreditCard 저장 및 PayMethod 생성")
     void registerCard_creditCard_success() throws Exception {
         CardRegisterRequest request = createRequest();
 
@@ -179,7 +179,7 @@ class CardServiceTest {
         given(debitCardRepository.existsByCardNo(anyString())).willReturn(false);
         stubAccountLookup();
         stubCreditCardSave();
-        stubPaymentMethodSave();
+        stubPayMethodSave();
 
         CardRegisterResponse result = cardService.registerCard(USER_NO, request);
 
@@ -197,7 +197,7 @@ class CardServiceTest {
         assertThat(savedCard.getCreditLimit()).isEqualTo(200_000L);
         assertThat(savedCard.getBillingDate()).isEqualTo(15);
 
-        ArgumentCaptor<PaymentMethod> pmCaptor = ArgumentCaptor.forClass(PaymentMethod.class);
+        ArgumentCaptor<PayMethod> pmCaptor = ArgumentCaptor.forClass(PayMethod.class);
         verify(paymentMethodRepository).save(pmCaptor.capture());
         assertThat(pmCaptor.getValue().getMethodType()).isEqualTo(MethodType.CREDIT_CARD);
     }
@@ -205,7 +205,7 @@ class CardServiceTest {
     // ── 체크카드 등록 성공 ──
 
     @Test
-    @DisplayName("체크카드 등록 성공 - cardTypeCode '2'이면 DebitCard 저장 및 PaymentMethod 생성")
+    @DisplayName("체크카드 등록 성공 - cardTypeCode '2'이면 DebitCard 저장 및 PayMethod 생성")
     void registerCard_debitCard_success() throws Exception {
         CardRegisterRequest request = createDebitRequest();
 
@@ -215,7 +215,7 @@ class CardServiceTest {
         given(debitCardRepository.existsByCardNo(anyString())).willReturn(false);
         stubAccountLookup();
         stubDebitCardSave();
-        stubPaymentMethodSave();
+        stubPayMethodSave();
 
         CardRegisterResponse result = cardService.registerCard(USER_NO, request);
 
@@ -227,7 +227,7 @@ class CardServiceTest {
         verify(debitCardRepository).save(cardCaptor.capture());
         assertThat(cardCaptor.getValue().getUserNo()).isEqualTo(USER_NO);
 
-        ArgumentCaptor<PaymentMethod> pmCaptor = ArgumentCaptor.forClass(PaymentMethod.class);
+        ArgumentCaptor<PayMethod> pmCaptor = ArgumentCaptor.forClass(PayMethod.class);
         verify(paymentMethodRepository).save(pmCaptor.capture());
         assertThat(pmCaptor.getValue().getMethodType()).isEqualTo(MethodType.DEBIT_CARD);
     }
@@ -307,7 +307,7 @@ class CardServiceTest {
         given(debitCardRepository.existsByCardNo(anyString())).willReturn(false);
         stubAccountLookup();
         stubCreditCardSave();
-        stubPaymentMethodSave();
+        stubPayMethodSave();
 
         cardService.registerCard(USER_NO, request);
 
@@ -370,33 +370,33 @@ class CardServiceTest {
     // ── deleteCard ──
 
     @Test
-    @DisplayName("신용카드 삭제 성공 - 비활성화 및 PaymentMethod 삭제")
+    @DisplayName("신용카드 삭제 성공 - 비활성화 및 PayMethod 삭제")
     void deleteCard_creditCard_success() throws Exception {
         CreditCard card = buildCreditCard(100L, USER_NO, "1003000000001111");
         given(creditCardRepository.findById(100L)).willReturn(Optional.of(card));
-        given(paymentMethodRepository.findByCreditCardIdAndIsActiveTrue(100L)).willReturn(List.of(
-                PaymentMethod.builder().userNo(USER_NO).methodType(MethodType.CREDIT_CARD).creditCardId(100L).build()
+        given(paymentMethodRepository.findAllByCreditCardIdAndIsActiveTrue(100L)).willReturn(List.of(
+                PayMethod.builder().userNo(USER_NO).methodType(MethodType.CREDIT_CARD).creditCardId(100L).build()
         ));
 
         cardService.deleteCard(USER_NO, 100L, "CREDIT");
 
         assertThat(card.getIsActive()).isFalse();
-        verify(paymentMethodRepository).findByCreditCardIdAndIsActiveTrue(100L);
+        verify(paymentMethodRepository).findAllByCreditCardIdAndIsActiveTrue(100L);
     }
 
     @Test
-    @DisplayName("체크카드 삭제 성공 - 비활성화 및 PaymentMethod 삭제")
+    @DisplayName("체크카드 삭제 성공 - 비활성화 및 PayMethod 삭제")
     void deleteCard_debitCard_success() throws Exception {
         DebitCard card = buildDebitCard(200L, USER_NO, "1005000000002222");
         given(debitCardRepository.findById(200L)).willReturn(Optional.of(card));
-        given(paymentMethodRepository.findByDebitCardIdAndIsActiveTrue(200L)).willReturn(List.of(
-                PaymentMethod.builder().userNo(USER_NO).methodType(MethodType.DEBIT_CARD).debitCardId(200L).build()
+        given(paymentMethodRepository.findAllByDebitCardIdAndIsActiveTrue(200L)).willReturn(List.of(
+                PayMethod.builder().userNo(USER_NO).methodType(MethodType.DEBIT_CARD).debitCardId(200L).build()
         ));
 
         cardService.deleteCard(USER_NO, 200L, "DEBIT");
 
         assertThat(card.getIsActive()).isFalse();
-        verify(paymentMethodRepository).findByDebitCardIdAndIsActiveTrue(200L);
+        verify(paymentMethodRepository).findAllByDebitCardIdAndIsActiveTrue(200L);
     }
 
     @Test
