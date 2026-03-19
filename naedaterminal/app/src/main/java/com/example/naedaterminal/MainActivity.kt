@@ -5,7 +5,20 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import com.example.naedaterminal.ui.screen.*
 import com.example.naedaterminal.ui.screen.payment.RbaAuthContainer
 import com.example.naedaterminal.ui.screen.payment.RbaAuthType
@@ -21,6 +34,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // 상태바 색상을 검은색으로
+        window.statusBarColor = android.graphics.Color.BLACK
 
         setContent {
             NaedaTheme {
@@ -72,6 +88,16 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+
+                // 상단 검은색 바 (카메라 영역 가림) + 앱 콘텐츠
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // 상태바 아래 추가 검은색 영역 (카메라 가림용)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .background(Color.Black)
+                    )
 
                 when (route) {
 
@@ -136,7 +162,7 @@ class MainActivity : ComponentActivity() {
 
                             matchedUserInfo = MatchedUserInfo(
                                 userId = faceResult.bestUserId ?: "",
-                                userName = faceResult.bestUserId ?: "알 수 없음",
+                                userName = faceResult.username ?: faceResult.bestUserId ?: "알 수 없음",
                                 userNo = faceResult.matchedUserNo,
                                 requiresAdditionalAuth = ambiguousSteps.isNotEmpty(),
                                 authReason = when {
@@ -183,6 +209,7 @@ class MainActivity : ComponentActivity() {
                     Route.Processing -> PaymentProcessingScreen(
                         apiBaseUrl = apiBaseUrl,
                         requestId = currentRequestId,
+                        userNo = matchedUserInfo?.userNo,
                         pin = enteredPin,
                         amount = currentAmount,
                         merchant = currentMerchant,
@@ -190,12 +217,16 @@ class MainActivity : ComponentActivity() {
                             route = Route.PaymentDone
                         },
                         onFailure = { reason ->
-                            // 결제 실패 시 대기 화면으로
-                            route = Route.Waiting
+                            currentRequestId = 0L
+                            route = Route.PaymentFailed
                         }
                     )
 
                     Route.Cancelled -> PaymentCancelledScreen(
+                        onDone = { route = Route.Waiting }
+                    )
+
+                    Route.PaymentFailed -> PaymentFailedScreen(
                         onDone = { route = Route.Waiting }
                     )
 
@@ -206,6 +237,7 @@ class MainActivity : ComponentActivity() {
                         onDone = { route = Route.Waiting }
                     )
                 }
+                } // Column 끝
             }
         }
     }
@@ -236,4 +268,5 @@ private sealed interface Route {
     data object Processing : Route
     data object PaymentDone : Route
     data object Cancelled : Route
+    data object PaymentFailed : Route
 }

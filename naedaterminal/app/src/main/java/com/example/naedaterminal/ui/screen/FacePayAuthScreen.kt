@@ -66,6 +66,7 @@ data class FaceSearchResponse(
     val status: String?,
     val nextAction: String?,
     val bestUserId: String?,
+    val username: String?,
     val matchedUserNo: Long?,
     val similarity: Double,
     val matchThreshold: Double,
@@ -469,6 +470,7 @@ private fun postFaceSearchFile(
             status = json.optString("status").takeIf { it.isNotBlank() },
             nextAction = json.optString("nextAction").takeIf { it.isNotBlank() },
             bestUserId = json.optString("bestUserId").takeIf { it.isNotBlank() },
+            username = json.optString("username").takeIf { it.isNotBlank() },
             matchedUserNo = if (json.has("matchedUserNo") && !json.isNull("matchedUserNo"))
                 json.optLong("matchedUserNo") else null,
             similarity = json.optDouble("similarity", 0.0),

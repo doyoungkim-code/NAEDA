@@ -18,13 +18,10 @@ import com.example.naedaterminal.ui.theme.NaedaFontFamily
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.io.File
 import java.util.UUID
 
 private val Primary = Color(0xFF00635A)
@@ -43,6 +40,7 @@ data class PaymentResult(
 fun PaymentProcessingScreen(
     apiBaseUrl: String,
     requestId: Long,
+    userNo: Long?,
     pin: String?,
     amount: Long,
     merchant: String,
@@ -62,9 +60,10 @@ fun PaymentProcessingScreen(
     // 결제 API 호출
     LaunchedEffect(requestId) {
         val result = withContext(Dispatchers.IO) {
-            processPaymentRequest(client, apiBaseUrl, requestId, pin, ctx.cacheDir)
+            processPaymentRequest(client, apiBaseUrl, requestId, userNo, pin)
         }
-        if (result != null && (result.status == "SUCCESS" || result.status == "COMPLETED")) {
+        android.util.Log.d("PayProcess", "result=$result")
+        if (result != null && result.status != "FAILED" && result.status != "BLOCKED") {
             onSuccess(result)
         } else {
             onFailure(result?.failureReason ?: "결제 처리에 실패했습니다")
@@ -126,38 +125,19 @@ private fun processPaymentRequest(
     client: OkHttpClient,
     apiBaseUrl: String,
     requestId: Long,
-    pin: String?,
-    cacheDir: File
+    userNo: Long?,
+    pin: String?
 ): PaymentResult? {
     return runCatching {
-        // 얼굴 이미지 파일 찾기 (FacePayAuthScreen에서 저장한 파일)
-        val faceFile = cacheDir.listFiles()
-            ?.filter { it.name.startsWith("face_terminal_") && it.name.endsWith(".jpg") }
-            ?.maxByOrNull { it.lastModified() }
-
-        // request JSON 구성
         val requestJson = JSONObject().apply {
+            put("userNo", userNo)
             put("idempotencyKey", UUID.randomUUID().toString())
             if (!pin.isNullOrBlank()) put("pin", pin)
         }
 
-        val bodyBuilder = MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart(
-                "request", null,
-                requestJson.toString().toRequestBody("application/json".toMediaType())
-            )
-
-        if (faceFile != null && faceFile.exists()) {
-            bodyBuilder.addFormDataPart(
-                "faceImage", faceFile.name,
-                faceFile.asRequestBody("image/jpeg".toMediaType())
-            )
-        }
-
         val req = Request.Builder()
             .url("${apiBaseUrl.trimEnd('/')}/api/pay-requests/$requestId/process")
-            .post(bodyBuilder.build())
+            .post(requestJson.toString().toRequestBody("application/json".toMediaType()))
             .build()
 
         client.newCall(req).execute().use { res ->
