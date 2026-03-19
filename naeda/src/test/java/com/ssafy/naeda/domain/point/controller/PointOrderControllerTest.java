@@ -54,8 +54,7 @@ class PointOrderControllerTest {
                 .productId(1L)
                 .productName("아메리카노 쿠폰")
                 .pointPrice(3000L)
-                .roadAddress("구미시 인동중앙로 100")
-                .numberAddress("인동동 123-4")
+                .addressId(1L)
                 .orderAt(LocalDateTime.now())
                 .build();
     }
@@ -65,8 +64,7 @@ class PointOrderControllerTest {
     void purchaseProduct_success() throws Exception {
         PointOrderCreateRequest request = PointOrderCreateRequest.builder()
                 .productId(1L)
-                .roadAddress("구미시 인동중앙로 100")
-                .numberAddress("인동동 123-4")
+                .addressId(1L)
                 .build();
 
         given(pointOrderService.purchaseProduct(eq(1L), any(PointOrderCreateRequest.class)))
@@ -80,14 +78,14 @@ class PointOrderControllerTest {
                 .andExpect(jsonPath("$.orderId").value(1))
                 .andExpect(jsonPath("$.productName").value("아메리카노 쿠폰"))
                 .andExpect(jsonPath("$.pointPrice").value(3000))
-                .andExpect(jsonPath("$.roadAddress").value("구미시 인동중앙로 100"));
+                .andExpect(jsonPath("$.addressId").value(1));
     }
 
     @Test
     @DisplayName("구매 실패 - productId 누락 400")
     void purchaseProduct_missingProductId() throws Exception {
         PointOrderCreateRequest request = PointOrderCreateRequest.builder()
-                .roadAddress("구미시 인동중앙로 100")
+                .addressId(1L)
                 .build();
 
         mockMvc.perform(post("/api/orders")
@@ -185,8 +183,7 @@ class PointOrderControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.roadAddress").doesNotExist())
-                .andExpect(jsonPath("$.numberAddress").doesNotExist());
+                .andExpect(jsonPath("$.addressId").doesNotExist());
     }
 
     // === getMyOrders 테스트 ===
