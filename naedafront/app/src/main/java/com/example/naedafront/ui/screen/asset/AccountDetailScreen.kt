@@ -1,5 +1,6 @@
 package com.example.naedafront.ui.screen.asset
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,6 +14,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,48 +22,148 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.naedafront.AuthPrefs
+import com.example.naedafront.data.remote.AssetRepository
+import com.example.naedafront.data.remote.PaymentResponse
 import com.example.naedafront.ui.theme.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+import java.util.TimeZone
 
 // ─────────────────────────────────────────────
-// 샘플 데이터
+// UiState
 // ─────────────────────────────────────────────
 
-data class TransactionItem(
-    val id: String,                   // log_id
-    val transactionType: String,      // transaction_type: DEPOSIT / WITHDRAW / TRANSFER
-    val counterpart: String,          // counterpart (상대방, 거래처명)
-    val memo: String = "",            // memo (AI 분류 태그)
-    val category: String,             // category
-    val amount: Long,                 // amount (항상 양수, transactionType으로 방향 결정)
-    val balanceAfter: Long,           // balance_after
-    val transacted: String,           // transacted → "2026.03.12 14:32" 파싱해서 사용
-) {
-    val isIncome get() = transactionType == "DEPOSIT"
-    val date get() = transacted.take(10)   // "2026.03.12"
-    val time get() = if (transacted.length >= 16) transacted.takeLast(5) else ""
-}
-
-val sampleTransactions = listOf(
-    TransactionItem("1", "WITHDRAW",  "스타벅스 구미 인동점", "카페",      "카페",   6500,       1_243_500, "2026.03.12 14:32"),
-    TransactionItem("2", "DEPOSIT",   "급여",               "급여",      "급여",   3_000_000,  1_250_000, "2026.03.10 09:00"),
-    TransactionItem("3", "WITHDRAW",  "GS25 구미공단점",     "편의점",    "편의점",  3200,       1_246_800, "2026.03.09 22:10"),
-    TransactionItem("4", "TRANSFER",  "카카오페이 송금",      "이체",      "이체",   50_000,     1_246_800, "2026.03.08 18:45"),
-    TransactionItem("5", "WITHDRAW",  "구미시 버스",          "교통",      "교통",   1500,       1_296_800, "2026.03.08 08:12"),
-    TransactionItem("6", "WITHDRAW",  "이마트 구미점",        "쇼핑",      "쇼핑",   43_200,     1_298_300, "2026.03.07 16:30"),
-    TransactionItem("7", "DEPOSIT",   "부모님 송금",          "이체",      "이체",   200_000,    1_341_500, "2026.03.05 11:20"),
-    TransactionItem("8", "WITHDRAW",  "올리브영 구미",        "쇼핑",      "쇼핑",   28_900,     1_141_500, "2026.03.04 15:00"),
-    TransactionItem("9", "WITHDRAW",  "넷플릭스",             "구독",      "구독",   17_000,     1_170_400, "2026.03.01 00:00"),
-    TransactionItem("10", "WITHDRAW", "CGV 구미",            "여가",      "여가",   14_000,     1_187_400, "2026.02.28 19:30"),
+data class AccountDetailUiState(
+    val accountName: String = "",
+    val accountNumber: String = "",
+    val bankName: String = "",
+    val balance: Long = 0L,
+    val transactions: List<PaymentUiItem> = emptyList(),
+    val isLoading: Boolean = false,
+    val error: String? = null
 )
 
-val categoryList = listOf("전체", "카페", "편의점", "이체", "교통", "쇼핑", "급여", "구독", "여가")
+data class PaymentUiItem(
+    val paymentId: Long,
+    val title: String,
+    val date: String,
+    val time: String,
+    val amount: Long,
+    val isSuccess: Boolean,
+    val earnedPoints: Long,
+    val status: String
+)
 
-val periodList = listOf("1주일", "1개월", "3개월", "6개월", "직접 설정")
+val periodList = listOf("1주일", "1개월", "3개월", "직접 설정")
+
+// ─────────────────────────────────────────────
+// ViewModel
+// ─────────────────────────────────────────────
+
+class AccountDetailViewModel : ViewModel() {
+
+    private val _uiState = MutableStateFlow(AccountDetailUiState())
+    val uiState: StateFlow<AccountDetailUiState> = _uiState.asStateFlow()
+
+    fun loadData(context: Context, accountId: String) {
+        val userNo = AuthPrefs.getUserNo(context) ?: return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+
+            // 계좌 정보
+            runCatching {
+                AssetRepository.getWalletAssets(userNo).accounts
+                    .find { it.accountId?.toString() == accountId }
+                    ?: AssetRepository.getWalletAssets(userNo).accounts.firstOrNull()
+            }.onSuccess { account ->
+                _uiState.update {
+                    it.copy(
+                        accountName = account?.accountName ?: "",
+                        accountNumber = account?.accountNo ?: "",
+                        bankName = account?.bankName ?: "",
+                        balance = account?.accountBalance ?: 0L
+                    )
+                }
+            }
+
+            // 결제 내역
+            AssetRepository.getPayments(userNo)
+                .onSuccess { payments ->
+                    _uiState.update {
+                        it.copy(
+                            transactions = payments.map { it.toUiItem() },
+                            isLoading = false
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    _uiState.update {
+                        it.copy(isLoading = false, error = e.message)
+                    }
+                }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────
+// PaymentResponse → PaymentUiItem 변환
+// ─────────────────────────────────────────────
+
+private fun PaymentResponse.toUiItem(): PaymentUiItem {
+    val isSuccess = status?.uppercase() in listOf("APPROVED", "SUCCESS", "COMPLETED")
+    val parsed = createdAt?.parseDateTime()
+
+    return PaymentUiItem(
+        paymentId = paymentId ?: 0L,
+        title = when {
+            !isSuccess -> "결제 실패"
+            authMethod?.uppercase() == "FACE" -> "내다페이 (얼굴인증)"
+            authMethod?.uppercase() == "PIN" -> "내다페이 (PIN인증)"
+            else -> "내다페이 결제"
+        },
+        date = parsed?.first ?: "",
+        time = parsed?.second ?: "",
+        amount = amount ?: 0L,
+        isSuccess = isSuccess,
+        earnedPoints = earnedPoints ?: 0L,
+        status = status ?: ""
+    )
+}
+
+private fun String.parseDateTime(): Pair<String, String>? {
+    return try {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+        val date = inputFormat.parse(this) ?: return null
+        val cal = Calendar.getInstance().apply { time = date }
+
+        val year = cal.get(Calendar.YEAR)
+        val month = "%02d".format(cal.get(Calendar.MONTH) + 1)
+        val day = "%02d".format(cal.get(Calendar.DAY_OF_MONTH))
+        val hour = "%02d".format(cal.get(Calendar.HOUR_OF_DAY))
+        val minute = "%02d".format(cal.get(Calendar.MINUTE))
+
+        Pair("$year.$month.$day", "$hour:$minute")
+    } catch (e: Exception) {
+        null
+    }
+}
 
 // ─────────────────────────────────────────────
 // 메인 화면
@@ -70,22 +172,25 @@ val periodList = listOf("1주일", "1개월", "3개월", "6개월", "직접 설�
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountDetailScreen(
-    accountId: String = "1",
-    transactions: List<TransactionItem> = sampleTransactions,
+    accountId: String = "",
     onBack: () -> Unit = {},
     onTransferClick: () -> Unit = {}
 ) {
-    val account = sampleAccounts.find { it.id == accountId } ?: sampleAccounts.first()
+    val context = LocalContext.current
+    val viewModel: AccountDetailViewModel = viewModel()
+    val uiState by viewModel.uiState.collectAsState()
+
     var selectedPeriod by remember { mutableStateOf("1개월") }
-    var selectedCategory by remember { mutableStateOf("전체") }
     var showPeriodDialog by remember { mutableStateOf(false) }
 
-    val filtered = transactions.filter { tx ->
-        selectedCategory == "전체" || tx.category == selectedCategory
+    LaunchedEffect(accountId) {
+        viewModel.loadData(context, accountId)
     }
 
     // 날짜별 그룹핑
-    val grouped = filtered.groupBy { it.date }.toSortedMap(reverseOrder())
+    val grouped = uiState.transactions
+        .groupBy { it.date }
+        .toSortedMap(reverseOrder())
 
     Scaffold(containerColor = Background) { innerPadding ->
         LazyColumn(
@@ -93,17 +198,19 @@ fun AccountDetailScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // ── 민트 헤더 카드 ──────────────────────
+            // 헤더
             item {
                 AccountDetailHeader(
-                    account = account,
-                    balance = 1_250_000L,
+                    bankName = uiState.bankName,
+                    accountName = uiState.accountName,
+                    accountNumber = uiState.accountNumber,
+                    balance = uiState.balance,
                     onBack = onBack,
                     onTransferClick = onTransferClick
                 )
             }
 
-            // ── 기간 필터 ───────────────────────────
+            // 기간 필터
             item {
                 PeriodFilterRow(
                     selectedPeriod = selectedPeriod,
@@ -111,16 +218,40 @@ fun AccountDetailScreen(
                 )
             }
 
-            // ── 카테고리 필터 ────────────────────────
-            item {
-                CategoryFilterRow(
-                    selected = selectedCategory,
-                    onSelect = { selectedCategory = it }
-                )
+            // 로딩
+            if (uiState.isLoading) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 64.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = Mint900)
+                    }
+                }
             }
 
-            // ── 거래 내역 없음 ───────────────────────
-            if (grouped.isEmpty()) {
+            // 에러
+            if (uiState.error != null) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 64.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "데이터를 불러오지 못했습니다.",
+                            style = NaedaTypography.bodyMedium,
+                            color = OnSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // 거래 없음
+            if (!uiState.isLoading && uiState.error == null && grouped.isEmpty()) {
                 item {
                     Box(
                         modifier = Modifier
@@ -137,13 +268,13 @@ fun AccountDetailScreen(
                 }
             }
 
-            // ── 날짜별 거래 그룹 ─────────────────────
+            // 날짜별 거래 그룹
             grouped.forEach { (date, txList) ->
                 item {
                     TransactionDateHeader(date = date)
                 }
-                items(txList, key = { it.id }) { tx ->
-                    TransactionRow(tx = tx)
+                items(txList, key = { it.paymentId }) { tx ->
+                    PaymentRow(item = tx)
                 }
             }
 
@@ -151,7 +282,6 @@ fun AccountDetailScreen(
         }
     }
 
-    // 기간 선택 다이얼로그
     if (showPeriodDialog) {
         PeriodPickerDialog(
             selected = selectedPeriod,
@@ -165,12 +295,14 @@ fun AccountDetailScreen(
 }
 
 // ─────────────────────────────────────────────
-// 민트 헤더 카드 (토스 스타일)
+// 헤더 카드
 // ─────────────────────────────────────────────
 
 @Composable
 private fun AccountDetailHeader(
-    account: AccountItem,
+    bankName: String,
+    accountName: String,
+    accountNumber: String,
     balance: Long,
     onBack: () -> Unit,
     onTransferClick: () -> Unit
@@ -186,7 +318,6 @@ private fun AccountDetailHeader(
             .padding(bottom = 28.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // 상단 바 (뒤로가기 + 더보기)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -211,25 +342,25 @@ private fun AccountDetailHeader(
                 }
             }
 
-            // 은행명 + 계좌번호
-            Column(
-                modifier = Modifier.padding(horizontal = 24.dp)
-            ) {
+            Column(modifier = Modifier.padding(horizontal = 24.dp)) {
                 Text(
-                    text = account.bankName,
+                    text = bankName,
                     style = NaedaTypography.labelMedium,
                     color = Color.White.copy(alpha = 0.8f)
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = account.accountNumber,
+                    text = accountNumber,
                     style = NaedaTypography.labelSmall,
                     color = Color.White.copy(alpha = 0.6f)
                 )
-
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = accountName,
+                    style = NaedaTypography.labelSmall,
+                    color = Color.White.copy(alpha = 0.6f)
+                )
                 Spacer(modifier = Modifier.height(20.dp))
-
-                // 잔액
                 Text(
                     text = "잔액",
                     style = NaedaTypography.labelMedium,
@@ -237,14 +368,11 @@ private fun AccountDetailHeader(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = formatAmount(balance) + "원",
+                    text = "%,d".format(balance) + "원",
                     style = NaedaTypography.displayMedium.copy(fontWeight = FontWeight.Bold),
                     color = Color.White
                 )
-
                 Spacer(modifier = Modifier.height(24.dp))
-
-                // 이체 버튼
                 Button(
                     onClick = onTransferClick,
                     shape = RoundedCornerShape(12.dp),
@@ -311,44 +439,6 @@ private fun PeriodFilterRow(
 }
 
 // ─────────────────────────────────────────────
-// 카테고리 필터 칩 행
-// ─────────────────────────────────────────────
-
-@Composable
-private fun CategoryFilterRow(
-    selected: String,
-    onSelect: (String) -> Unit
-) {
-    LazyRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Surface)
-            .padding(bottom = 12.dp),
-        contentPadding = PaddingValues(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(categoryList) { category ->
-            val isSelected = selected == category
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(if (isSelected) Mint900 else SurfaceVariant)
-                    .clickable { onSelect(category) }
-                    .padding(horizontal = 14.dp, vertical = 7.dp)
-            ) {
-                Text(
-                    text = category,
-                    style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = if (isSelected) Color.White else OnSurfaceVariant
-                )
-            }
-        }
-    }
-
-    HorizontalDivider(color = OutlineVariant, thickness = 1.dp)
-}
-
-// ─────────────────────────────────────────────
 // 날짜 헤더
 // ─────────────────────────────────────────────
 
@@ -366,20 +456,15 @@ private fun TransactionDateHeader(date: String) {
 }
 
 // ─────────────────────────────────────────────
-// 거래 내역 행
+// 결제 내역 행
 // ─────────────────────────────────────────────
 
 @Composable
-private fun TransactionRow(tx: TransactionItem) {
-    val isIncome = tx.isIncome
-    val amountColor = if (isIncome) Mint700 else OnBackground
-    val amountPrefix = if (isIncome) "+" else "-"
-
+private fun PaymentRow(item: PaymentUiItem) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(Surface)
-            .clickable { }
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -387,13 +472,13 @@ private fun TransactionRow(tx: TransactionItem) {
             modifier = Modifier
                 .size(42.dp)
                 .clip(CircleShape)
-                .background(if (isIncome) Mint50 else SurfaceVariant),
+                .background(if (item.isSuccess) Color(0xFFDCEBFF) else Color(0xFFFFEBEE)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = if (isIncome) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
+                imageVector = Icons.Default.ShoppingBag,
                 contentDescription = null,
-                tint = if (isIncome) Mint900 else OnSurfaceVariant,
+                tint = if (item.isSuccess) Mint900 else OnSurfaceVariant,
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -402,14 +487,14 @@ private fun TransactionRow(tx: TransactionItem) {
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = tx.counterpart,
+                text = item.title,
                 style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                 color = OnBackground,
                 maxLines = 1
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = tx.time,
+                text = item.time,
                 style = NaedaTypography.labelSmall,
                 color = OnSurfaceVariant
             )
@@ -417,16 +502,18 @@ private fun TransactionRow(tx: TransactionItem) {
 
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                text = "$amountPrefix${formatAmount(tx.amount)}원",
+                text = if (item.isSuccess) "-${"%,d".format(item.amount)}원" else "실패",
                 style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = amountColor
+                color = if (item.isSuccess) OnBackground else Color(0xFFE53935)
             )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = "잔액 ${formatAmount(tx.balanceAfter)}원",
-                style = NaedaTypography.labelSmall,
-                color = OnSurfaceVariant
-            )
+            if (item.earnedPoints > 0) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "+${"%,d".format(item.earnedPoints)}P",
+                    style = NaedaTypography.labelSmall,
+                    color = Mint900
+                )
+            }
         }
     }
 
@@ -447,7 +534,7 @@ private fun PeriodPickerDialog(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = Surface,
@@ -510,13 +597,4 @@ private fun PeriodPickerDialog(
             }
         }
     }
-}
-
-// ─────────────────────────────────────────────
-// 포맷 유틸
-// ─────────────────────────────────────────────
-
-private fun formatAmount(amount: Long): String {
-    val abs = Math.abs(amount)
-    return "%,d".format(abs)
 }
