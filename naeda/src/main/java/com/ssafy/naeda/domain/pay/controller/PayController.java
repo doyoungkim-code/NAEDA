@@ -4,6 +4,7 @@ import com.ssafy.naeda.domain.pay.dto.request.PayCardRequest;
 import com.ssafy.naeda.domain.pay.dto.response.PayTransactionResponse;
 import com.ssafy.naeda.domain.pay.entity.PayTransaction;
 import com.ssafy.naeda.domain.pay.service.PayFacadeService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 public class PayController {
 
     private final PayFacadeService payFacadeService;
+    private final ObjectMapper objectMapper;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "카드 FacePay 결제",
@@ -33,9 +35,11 @@ public class PayController {
             @Parameter(description = "사용자 번호", required = true)
             @RequestHeader("X-User-No") Long userNo,
             @Parameter(description = "결제 요청 JSON (storeId, paymentMethodId, amount, idempotencyKey, pin)")
-            @RequestPart("request") PayCardRequest request,
+            @RequestPart("request") String requestJson,
             @Parameter(description = "얼굴 이미지 파일")
-            @RequestPart("faceImage") MultipartFile faceImage) {
+            @RequestPart("faceImage") MultipartFile faceImage) throws Exception {
+
+        PayCardRequest request = objectMapper.readValue(requestJson, PayCardRequest.class);
 
         PayTransaction tx = payFacadeService.processCardPayment(
                 userNo, request.getStoreId(), request.getPaymentMethodId(),

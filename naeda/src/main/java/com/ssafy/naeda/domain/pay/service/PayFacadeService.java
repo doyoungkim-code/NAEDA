@@ -279,7 +279,6 @@ public class PayFacadeService {
 
             Long storeId = Long.parseLong((String) requestData.get("storeId"));
             Long amount = Long.parseLong((String) requestData.get("amount"));
-            Long paymentMethodId = Long.parseLong((String) requestData.get("paymentMethodId"));
 
             // 4. Redis 상태 전이: PENDING → PROCESSING
             boolean transitioned = payRequestRedisService.transition(

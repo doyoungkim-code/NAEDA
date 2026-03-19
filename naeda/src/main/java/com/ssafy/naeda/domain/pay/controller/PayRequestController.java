@@ -1,5 +1,6 @@
 package com.ssafy.naeda.domain.pay.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.naeda.domain.pay.dto.request.PayProcessRequest;
 import com.ssafy.naeda.domain.pay.dto.request.PayRequestCreateRequest;
 import com.ssafy.naeda.domain.pay.dto.PayRequestResponse;
@@ -26,6 +27,7 @@ public class PayRequestController {
 
     private final PayFacadeService payFacadeService;
     private final PayRequestRedisService payRequestRedisService;
+    private final ObjectMapper objectMapper;
 
     @PostMapping
     @Operation(summary = "결제 요청 생성",
@@ -38,9 +40,7 @@ public class PayRequestController {
         payRequestRedisService.createRequest(
                 requestId,
                 request.getStoreId(),
-                request.getUserNo(),
-                request.getAmount(),
-                request.getPaymentMethodId()
+                request.getAmount()
         );
 
         Map<Object, Object> data = payRequestRedisService.getRequest(requestId);
@@ -62,16 +62,18 @@ public class PayRequestController {
         return ResponseEntity.ok(PayRequestResponse.from(id, data));
     }
 
-    @PostMapping("/{id}/process")
+    @PostMapping(value = "/{id}/process", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "결제 처리 (얼굴인증 + 계좌이체)",
             description = "결제 요청을 실제로 처리합니다. 얼굴 인증 -> RBA -> PIN 2차인증(필요시) -> "
                     + "SSAFY 계좌이체 API -> 분산락으로 동시 처리 차단.")
     public ResponseEntity<PayTransactionResponse> processRequest(
             @Parameter(description = "결제 요청 ID") @PathVariable Long id,
             @Parameter(description = "처리 요청 JSON (idempotencyKey, pin)")
-            @RequestPart("request") PayProcessRequest request,
+            @RequestPart("request") String requestJson,
             @Parameter(description = "얼굴 이미지 파일")
-            @RequestPart("faceImage") MultipartFile faceImage) {
+            @RequestPart("faceImage") MultipartFile faceImage) throws Exception {
+
+        PayProcessRequest request = objectMapper.readValue(requestJson, PayProcessRequest.class);
 
         PayTransaction tx = payFacadeService.processAccountPayment(
                 id, request.getIdempotencyKey(), faceImage,
