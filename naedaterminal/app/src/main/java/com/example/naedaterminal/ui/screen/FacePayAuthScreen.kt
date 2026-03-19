@@ -70,6 +70,10 @@ data class FaceSearchResponse(
     val similarity: Double,
     val matchThreshold: Double,
     val ambiguousThreshold: Double,
+    val authLevel: String?,
+    val requiredMethods: Set<String>,
+    val blocked: Boolean,
+    val rbaReason: String?,
     val candidates: List<CandidateResult>
 )
 
@@ -80,15 +84,18 @@ fun FacePayAuthScreen(
     apiBaseUrl: String,
     topK: Int = 3,
     onBack: () -> Unit,
-    onAuthed: (bestUserId: String, similarity: Double) -> Unit,
+    onAuthed: (result: FaceSearchResponse) -> Unit,
     onNotMatched: () -> Unit,
 ) {
     val ctx = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
+    val client = remember { OkHttpClient() }
     val executor = remember { Executors.newSingleThreadExecutor() }
 
     var statusText by remember { mutableStateOf("얼굴 스캔 중...") }
+    var busy by remember { mutableStateOf(false) }
+    var scanResult by remember { mutableStateOf<FaceSearchResponse?>(null) }
     var hasPerm by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA)
@@ -105,14 +112,38 @@ fun FacePayAuthScreen(
     }
 
     val imageCapture = remember { ImageCapture.Builder().build() }
+    val photoFile = remember { File(ctx.cacheDir, "face_terminal_${System.currentTimeMillis()}.jpg") }
 
-    // ✅ 2초 후 자동으로 결제 완료로 이동 (테스트용)
+    // 2.5초 후 자동 캡처 → 서버 전송
     LaunchedEffect(hasPerm) {
         if (!hasPerm) return@LaunchedEffect
-        delay(2000)
-        statusText = "인증 완료!"
-        delay(300)
-        onAuthed("test_user", 0.95)
+        delay(2500)
+        if (busy) return@LaunchedEffect
+        busy = true
+        statusText = "서버 전송 중..."
+        scope.launch(Dispatchers.IO) {
+            runCatching {
+                captureImage(imageCapture, photoFile, executor)
+                postFaceSearchFile(client, apiBaseUrl, photoFile, topK)
+            }.onSuccess { resp ->
+                withContext(Dispatchers.Main) {
+                    if (resp.blocked) {
+                        onNotMatched()
+                    } else if (resp.matched && !resp.bestUserId.isNullOrBlank()) {
+                        onAuthed(resp)
+                    } else {
+                        onNotMatched()
+                    }
+                }
+            }.onFailure {
+                withContext(Dispatchers.Main) {
+                    busy = false
+                    statusText = "인식 실패, 다시 시도합니다"
+                }
+                delay(1500)
+                withContext(Dispatchers.Main) { statusText = "얼굴 스캔 중..." }
+            }
+        }
     }
 
     val transition = rememberInfiniteTransition(label = "scan")
@@ -384,6 +415,15 @@ private fun postFaceSearchFile(
             )
         }
 
+        val methodsArray = json.optJSONArray("requiredMethods")
+        val methods = buildSet {
+            if (methodsArray != null) {
+                for (i in 0 until methodsArray.length()) {
+                    add(methodsArray.getString(i))
+                }
+            }
+        }
+
         FaceSearchResponse(
             matched = json.optBoolean("matched", false),
             status = json.optString("status").takeIf { it.isNotBlank() },
@@ -394,6 +434,10 @@ private fun postFaceSearchFile(
             similarity = json.optDouble("similarity", 0.0),
             matchThreshold = json.optDouble("matchThreshold", 0.7),
             ambiguousThreshold = json.optDouble("ambiguousThreshold", 0.65),
+            authLevel = json.optString("authLevel").takeIf { it.isNotBlank() },
+            requiredMethods = methods,
+            blocked = json.optBoolean("blocked", false),
+            rbaReason = json.optString("rbaReason").takeIf { it.isNotBlank() },
             candidates = candidates
         )
     }

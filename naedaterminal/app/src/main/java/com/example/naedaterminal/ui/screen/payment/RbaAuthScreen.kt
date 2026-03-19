@@ -39,7 +39,9 @@ fun RbaAuthContainer(
     paymentAmount: Long,
     merchantName: String,
     onAuthComplete: () -> Unit,
-    onAuthCancel: () -> Unit
+    onAuthCancel: () -> Unit,
+    onPinEntered: ((pin: String) -> Unit)? = null,
+    onPhoneEntered: ((digits: String) -> Unit)? = null
 ) {
     var currentStepIndex by remember { mutableStateOf(0) }
 
@@ -63,7 +65,10 @@ fun RbaAuthContainer(
                 paymentAmount = paymentAmount,
                 merchantName = merchantName,
                 stepInfo = "${currentStepIndex + 1}/${authSteps.size}",
-                onSuccess = { currentStepIndex++ },
+                onSuccess = { pin ->
+                    onPinEntered?.invoke(pin)
+                    currentStepIndex++
+                },
                 onCancel = onAuthCancel
             )
             is RbaAuthType.PhoneMiddleFour -> RbaPhoneScreen(
@@ -72,7 +77,10 @@ fun RbaAuthContainer(
                 stepInfo = "${currentStepIndex + 1}/${authSteps.size}",
                 title = "전화번호 가운데\n4자리를 입력해주세요",
                 subtitle = "본인 확인을 위해 휴대폰 번호 가운데 4자리를 입력하세요",
-                onSuccess = { currentStepIndex++ },
+                onSuccess = { digits ->
+                    onPhoneEntered?.invoke(digits)
+                    currentStepIndex++
+                },
                 onCancel = onAuthCancel
             )
         }
@@ -185,7 +193,7 @@ fun RbaPinScreen(
     paymentAmount: Long,
     merchantName: String,
     stepInfo: String,
-    onSuccess: () -> Unit,
+    onSuccess: (pin: String) -> Unit,
     onCancel: () -> Unit
 ) {
     var enteredPin by remember { mutableStateOf("") }
@@ -208,8 +216,7 @@ fun RbaPinScreen(
 
     LaunchedEffect(enteredPin) {
         if (enteredPin.length == maxLength) {
-            // TODO: 백엔드 PIN 검증 후 onSuccess() 호출
-            onSuccess()
+            onSuccess(enteredPin)
         }
     }
 
@@ -280,7 +287,7 @@ fun RbaPhoneScreen(
     stepInfo: String,
     title: String,
     subtitle: String,
-    onSuccess: () -> Unit,
+    onSuccess: (digits: String) -> Unit,
     onCancel: () -> Unit
 ) {
     var enteredDigits by remember { mutableStateOf("") }
@@ -297,8 +304,7 @@ fun RbaPhoneScreen(
 
     LaunchedEffect(enteredDigits) {
         if (enteredDigits.length == maxLength) {
-            // TODO: 백엔드 전화번호 검증 후 onSuccess() 호출
-            onSuccess()
+            onSuccess(enteredDigits)
         }
     }
 
