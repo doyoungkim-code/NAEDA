@@ -10,6 +10,11 @@ import com.example.naedaterminal.ui.screen.*
 import com.example.naedaterminal.ui.screen.payment.RbaAuthContainer
 import com.example.naedaterminal.ui.screen.payment.RbaAuthType
 import com.example.naedaterminal.ui.theme.NaedaTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 class MainActivity : ComponentActivity() {
 
@@ -27,6 +32,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val apiBaseUrl = "https://j14d103.p.ssafy.io"
+                val pollClient = remember { OkHttpClient() }
 
                 var currentRequestId by remember { mutableStateOf(0L) }
                 var currentAmount by remember { mutableStateOf(0L) }
@@ -36,6 +42,36 @@ class MainActivity : ComponentActivity() {
                 var rbaAuthSteps by remember { mutableStateOf<List<RbaAuthType>>(emptyList()) }
                 var enteredPin by remember { mutableStateOf<String?>(null) }
                 var enteredPhoneDigits by remember { mutableStateOf<String?>(null) }
+
+                // 결제 진행 중 POS 취소 감지 폴링
+                val isInPaymentFlow = route in listOf(
+                    Route.PaymentSelect, Route.FacePay,
+                    Route.FaceMatchUser, Route.Rba
+                )
+                LaunchedEffect(isInPaymentFlow, currentRequestId) {
+                    if (!isInPaymentFlow || currentRequestId == 0L) return@LaunchedEffect
+                    while (true) {
+                        delay(2000)
+                        val cancelled = withContext(Dispatchers.IO) {
+                            runCatching {
+                                val req = Request.Builder()
+                                    .url("$apiBaseUrl/api/pay-requests/$currentRequestId")
+                                    .get().build()
+                                pollClient.newCall(req).execute().use { res ->
+                                    if (!res.isSuccessful || res.code == 404) return@use true
+                                    val raw = res.body?.string().orEmpty()
+                                    val status = org.json.JSONObject(raw).optString("status")
+                                    // PENDING이 아니고 SUCCESS도 아니면 취소/만료/실패
+                                    status != "PENDING" && status != "PROCESSING" && status != "SUCCESS"
+                                }
+                            }.getOrDefault(true) // 네트워크 에러 시에도 취소 처리
+                        }
+                        if (cancelled) {
+                            route = Route.Cancelled
+                            break
+                        }
+                    }
+                }
 
                 when (route) {
 
@@ -145,6 +181,10 @@ class MainActivity : ComponentActivity() {
                         }
                     )
 
+                    Route.Cancelled -> PaymentCancelledScreen(
+                        onDone = { route = Route.Waiting }
+                    )
+
                     Route.PaymentDone -> PaymentDoneScreen(
                         amount = currentAmount,
                         merchant = currentMerchant,
@@ -181,4 +221,5 @@ private sealed interface Route {
     data object Rba : Route
     data object Processing : Route
     data object PaymentDone : Route
+    data object Cancelled : Route
 }

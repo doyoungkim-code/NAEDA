@@ -50,7 +50,7 @@ fun FaceMatchUserScreen(
     var selectedAccount by remember {
         mutableStateOf(
             userInfo.linkedAccounts.firstOrNull { it.isPrimary }
-                ?: userInfo.linkedAccounts.first()
+                ?: userInfo.linkedAccounts.firstOrNull()
         )
     }
     var showAccountList by remember { mutableStateOf(false) }
@@ -114,8 +114,18 @@ fun FaceMatchUserScreen(
 
             Spacer(Modifier.height(32.dp))
 
+            if (selectedAccount == null) {
+                Text(
+                    text = "연결된 계좌 정보가 없습니다.",
+                    color = TextPrimary.copy(alpha = 0.45f),
+                    fontSize = 13.sp,
+                    fontFamily = NaedaFontFamily
+                )
+            }
+
             // 선택된 계좌 카드
-            Column(
+            val account = selectedAccount
+            if (account != null) Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
@@ -137,14 +147,14 @@ fun FaceMatchUserScreen(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = selectedAccount.bankName,
+                            text = account.bankName,
                             color = TextPrimary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             fontFamily = NaedaFontFamily
                         )
                     }
-                    if (selectedAccount.isPrimary) {
+                    if (account.isPrimary) {
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
@@ -165,7 +175,7 @@ fun FaceMatchUserScreen(
                 Spacer(Modifier.height(8.dp))
 
                 Text(
-                    text = maskAccountNumber(selectedAccount.accountNumber),
+                    text = maskAccountNumber(account.accountNumber),
                     color = TextPrimary.copy(alpha = 0.6f),
                     fontSize = 13.sp,
                     fontFamily = NaedaFontFamily
@@ -174,7 +184,7 @@ fun FaceMatchUserScreen(
                 Spacer(Modifier.height(4.dp))
 
                 Text(
-                    text = "%,d원".format(selectedAccount.balance),
+                    text = "%,d원".format(account.balance),
                     color = TextPrimary,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.ExtraBold,
@@ -224,7 +234,7 @@ fun FaceMatchUserScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     userInfo.linkedAccounts
-                        .filter { it.accountId != selectedAccount.accountId }
+                        .filter { it.accountId != selectedAccount?.accountId }
                         .forEach { account ->
                             AccountListItem(
                                 account = account,
@@ -267,7 +277,7 @@ fun FaceMatchUserScreen(
             Spacer(Modifier.height(16.dp))
 
             Button(
-                onClick = { onConfirm(selectedAccount.accountId) },
+                onClick = { onConfirm(selectedAccount?.accountId ?: "") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),

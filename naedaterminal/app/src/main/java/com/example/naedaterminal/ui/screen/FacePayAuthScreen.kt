@@ -90,7 +90,13 @@ fun FacePayAuthScreen(
     val ctx = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
-    val client = remember { OkHttpClient() }
+    val client = remember {
+        OkHttpClient.Builder()
+            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+    }
     val executor = remember { Executors.newSingleThreadExecutor() }
 
     var statusText by remember { mutableStateOf("얼굴 스캔 중...") }
@@ -114,35 +120,44 @@ fun FacePayAuthScreen(
     val imageCapture = remember { ImageCapture.Builder().build() }
     val photoFile = remember { File(ctx.cacheDir, "face_terminal_${System.currentTimeMillis()}.jpg") }
 
-    // 2.5초 후 자동 캡처 → 서버 전송
+    // 2.5초 후 자동 캡처 → 서버 전송 (자동 재시도)
     LaunchedEffect(hasPerm) {
         if (!hasPerm) return@LaunchedEffect
         delay(2500)
-        if (busy) return@LaunchedEffect
-        busy = true
-        statusText = "서버 전송 중..."
-        scope.launch(Dispatchers.IO) {
-            runCatching {
-                captureImage(imageCapture, photoFile, executor)
-                postFaceSearchFile(client, apiBaseUrl, photoFile, topK)
-            }.onSuccess { resp ->
-                withContext(Dispatchers.Main) {
-                    if (resp.blocked) {
-                        onNotMatched()
-                    } else if (resp.matched && !resp.bestUserId.isNullOrBlank()) {
-                        onAuthed(resp)
-                    } else {
-                        onNotMatched()
-                    }
+
+        while (true) {
+            withContext(Dispatchers.Main) { statusText = "서버 전송 중..." }
+
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    captureImage(imageCapture, photoFile, executor)
+                    postFaceSearchFile(client, apiBaseUrl, photoFile, topK, amount)
                 }
-            }.onFailure {
-                withContext(Dispatchers.Main) {
-                    busy = false
-                    statusText = "인식 실패, 다시 시도합니다"
-                }
-                delay(1500)
-                withContext(Dispatchers.Main) { statusText = "얼굴 스캔 중..." }
             }
+
+            result.onSuccess { resp ->
+                android.util.Log.d("FacePay", "응답: matched=${resp.matched}, bestUserId=${resp.bestUserId}, similarity=${resp.similarity}")
+                if (resp.blocked) {
+                    onNotMatched()
+                    return@LaunchedEffect
+                } else if (resp.matched && !resp.bestUserId.isNullOrBlank()) {
+                    onAuthed(resp)
+                    return@LaunchedEffect
+                } else {
+                    // 매칭 안 됨 → 재시도
+                    statusText = "얼굴을 인식하지 못했습니다. 다시 시도합니다..."
+                    android.util.Log.d("FacePay", "매칭 실패, 재시도...")
+                }
+            }
+
+            result.onFailure { error ->
+                android.util.Log.e("FacePay", "얼굴 인식 실패: ${error.message}", error)
+                statusText = "인식 실패: ${error.message?.take(40)}"
+            }
+
+            delay(2000) // 2초 후 재시도
+            withContext(Dispatchers.Main) { statusText = "얼굴 스캔 중..." }
+            delay(1500)
         }
     }
 
@@ -376,22 +391,47 @@ private suspend fun captureImage(
         ImageCapture.OutputFileOptions.Builder(file).build(),
         executor,
         object : ImageCapture.OnImageSavedCallback {
-            override fun onImageSaved(output: ImageCapture.OutputFileResults) = cont.resume(Unit)
+            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                // 이미지 리사이즈 + 압축 (3MB 제한)
+                compressImage(file, maxWidth = 720, quality = 85)
+                cont.resume(Unit)
+            }
             override fun onError(exc: ImageCaptureException) = cont.resumeWithException(exc)
         }
     )
+}
+
+private fun compressImage(file: File, maxWidth: Int, quality: Int) {
+    val bitmap = android.graphics.BitmapFactory.decodeFile(file.absolutePath) ?: return
+    val scale = if (bitmap.width > maxWidth) maxWidth.toFloat() / bitmap.width else 1f
+    val resized = if (scale < 1f) {
+        android.graphics.Bitmap.createScaledBitmap(
+            bitmap,
+            (bitmap.width * scale).toInt(),
+            (bitmap.height * scale).toInt(),
+            true
+        )
+    } else bitmap
+
+    file.outputStream().use { out ->
+        resized.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, out)
+    }
+    if (resized !== bitmap) resized.recycle()
+    bitmap.recycle()
 }
 
 private fun postFaceSearchFile(
     client: OkHttpClient,
     apiBaseUrl: String,
     file: File,
-    topK: Int
+    topK: Int,
+    amount: Long = 0L
 ): FaceSearchResponse {
     val body = MultipartBody.Builder()
         .setType(MultipartBody.FORM)
         .addFormDataPart("image", file.name, file.asRequestBody("image/jpeg".toMediaType()))
         .addFormDataPart("topK", topK.toString())
+        .addFormDataPart("amount", amount.toString())
         .build()
 
     val req = Request.Builder()
