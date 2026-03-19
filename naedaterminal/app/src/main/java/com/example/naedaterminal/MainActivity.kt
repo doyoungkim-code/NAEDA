@@ -118,21 +118,35 @@ class MainActivity : ComponentActivity() {
                         topK = 3,
                         onBack = { route = Route.PaymentSelect },
                         onAuthed = { faceResult ->
-                            // 백엔드 RBA 결정 사용
+                            val methods = faceResult.requiredMethods
+                            // RBA 인증 단계 결정
                             val steps = buildList {
-                                val methods = faceResult.requiredMethods
                                 if ("PIN" in methods) add(RbaAuthType.Pin)
                                 if ("PHONE" in methods) add(RbaAuthType.PhoneMiddleFour)
                             }
+                            // 유사도 애매한 경우 (ambiguous) 랜덤으로 PIN or 전화번호 요청
+                            val isAmbiguous = faceResult.nextAction == "REQUIRE_SECOND_FACTOR"
+                                    || faceResult.status == "AMBIGUOUS"
+                            val ambiguousSteps = if (isAmbiguous && steps.isEmpty()) {
+                                listOf(
+                                    if ((0..1).random() == 0) RbaAuthType.Pin
+                                    else RbaAuthType.PhoneMiddleFour
+                                )
+                            } else steps
 
                             matchedUserInfo = MatchedUserInfo(
                                 userId = faceResult.bestUserId ?: "",
                                 userName = faceResult.bestUserId ?: "알 수 없음",
-                                requiresPin = "PIN" in faceResult.requiredMethods,
-                                linkedAccounts = emptyList()
+                                userNo = faceResult.matchedUserNo,
+                                requiresAdditionalAuth = ambiguousSteps.isNotEmpty(),
+                                authReason = when {
+                                    isAmbiguous -> "AMBIGUOUS"
+                                    methods.isNotEmpty() -> "USER_SETTING"
+                                    else -> null
+                                }
                             )
 
-                            rbaAuthSteps = steps
+                            rbaAuthSteps = ambiguousSteps
                             enteredPin = null
                             enteredPhoneDigits = null
                             route = Route.FaceMatchUser
