@@ -25,6 +25,10 @@ public class PublicStoreSeedService {
 
     private static final String SEED_KEY = "public-gumi-store-csv-v1";
 
+    // 공공 매장을 귀속시킬 시스템 사용자 번호
+    // 실제 DB에 존재하는 user_no 값으로 바꿔야 함
+    private static final Long SYSTEM_USER_NO = 1L;
+
     private final PublicStoreCsvLoader csvLoader;
     private final PublicStoreCoordinateConverter coordinateConverter;
     private final StoreRepository storeRepository;
@@ -34,6 +38,7 @@ public class PublicStoreSeedService {
     public SeedSummary syncIfNeeded() {
         String contentHash = csvLoader.calculateContentHash();
         Optional<StoreSeedMetadata> metadata = storeSeedMetadataRepository.findById(SEED_KEY);
+
         if (metadata.isPresent() && contentHash.equals(metadata.get().getContentHash())) {
             log.info("[StoreSeed] CSV 변경 없음, 적재를 건너뜁니다.");
             return new SeedSummary(0, 0, 0, true);
@@ -41,6 +46,7 @@ public class PublicStoreSeedService {
 
         List<PublicStoreCsvRecord> records = csvLoader.loadActiveStores();
         List<Store> existingStores = storeRepository.findBySourceType(StoreSourceType.PUBLIC_CSV);
+
         Map<String, Store> existingBySourceKey = new HashMap<>();
         for (Store store : existingStores) {
             if (store.getSourceKey() != null) {
@@ -55,11 +61,14 @@ public class PublicStoreSeedService {
 
         for (PublicStoreCsvRecord record : records) {
             activeSourceKeys.add(record.sourceKey());
+
             Store store = existingBySourceKey.get(record.sourceKey());
-            PublicStoreCoordinateConverter.LatLng latLng = coordinateConverter.convert(record.x(), record.y());
+            PublicStoreCoordinateConverter.LatLng latLng =
+                    coordinateConverter.convert(record.x(), record.y());
 
             if (store == null) {
                 Store newStore = Store.builder()
+                        .userNo(SYSTEM_USER_NO)
                         .storeName(record.storeName())
                         .categoryId(record.categoryId())
                         .categoryName(record.categoryName())
@@ -75,6 +84,7 @@ public class PublicStoreSeedService {
                         .sourceKey(record.sourceKey())
                         .isActive(true)
                         .build();
+
                 newStores.add(newStore);
                 created++;
                 continue;
@@ -96,7 +106,8 @@ public class PublicStoreSeedService {
 
         int deactivated = 0;
         for (Store existingStore : existingStores) {
-            if (!activeSourceKeys.contains(existingStore.getSourceKey()) && Boolean.TRUE.equals(existingStore.getIsActive())) {
+            if (!activeSourceKeys.contains(existingStore.getSourceKey())
+                    && Boolean.TRUE.equals(existingStore.getIsActive())) {
                 existingStore.deactivate();
                 deactivated++;
             }
@@ -106,15 +117,24 @@ public class PublicStoreSeedService {
             storeRepository.saveAll(newStores);
         }
 
-        StoreSeedMetadata seedMetadata = metadata.orElseGet(() -> StoreSeedMetadata.builder()
-                .seedKey(SEED_KEY)
-                .contentHash(contentHash)
-                .updated(LocalDateTime.now())
-                .build());
+        StoreSeedMetadata seedMetadata = metadata.orElseGet(() ->
+                StoreSeedMetadata.builder()
+                        .seedKey(SEED_KEY)
+                        .contentHash(contentHash)
+                        .updated(LocalDateTime.now())
+                        .build()
+        );
+
         seedMetadata.updateHash(contentHash, LocalDateTime.now());
         storeSeedMetadataRepository.save(seedMetadata);
 
-        log.info("[StoreSeed] 공공 매장 적재 완료 created={}, updated={}, deactivated={}", created, updated, deactivated);
+        log.info(
+                "[StoreSeed] 공공 매장 적재 완료 created={}, updated={}, deactivated={}",
+                created,
+                updated,
+                deactivated
+        );
+
         return new SeedSummary(created, updated, deactivated, false);
     }
 
