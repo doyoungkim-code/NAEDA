@@ -3,6 +3,7 @@ package com.ssafy.naeda.domain.store.bootstrap;
 import com.ssafy.naeda.domain.store.entity.Store;
 import com.ssafy.naeda.domain.store.entity.StoreSourceType;
 import com.ssafy.naeda.domain.store.repository.StoreRepository;
+import com.ssafy.naeda.domain.store.repository.StoreSeedMetadataRepository;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +28,9 @@ class StoreEnrichmentServiceTest {
 
     @Mock
     private StoreRepository storeRepository;
+
+    @Mock
+    private StoreSeedMetadataRepository storeSeedMetadataRepository;
 
     @Mock
     private NaverStoreEnrichmentClient naverStoreEnrichmentClient;

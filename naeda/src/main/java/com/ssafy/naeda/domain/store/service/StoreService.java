@@ -1,6 +1,9 @@
 package com.ssafy.naeda.domain.store.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ssafy.naeda.domain.store.bootstrap.NaverStoreEnrichmentClient;
+import com.ssafy.naeda.domain.store.bootstrap.StoreEnrichmentData;
+import com.ssafy.naeda.domain.store.dto.request.PublicStoreCreateRequest;
 import com.ssafy.naeda.domain.store.dto.request.StoreCreateRequest;
 import com.ssafy.naeda.domain.store.dto.response.StoreResponse;
 import com.ssafy.naeda.domain.store.dto.ssafy.SsafyMerchantRec;
@@ -10,15 +13,18 @@ import com.ssafy.naeda.domain.store.repository.StoreRepository;
 import com.ssafy.naeda.global.exception.NotFoundException;
 import com.ssafy.naeda.global.ssafy.SsafyApiClient;
 import com.ssafy.naeda.global.ssafy.SsafyHeaderFactory;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -28,31 +34,21 @@ public class StoreService {
 
     private static final String MERCHANT_LIST_API  = "/edu/creditCard/inquireMerchantList";
     private static final String CREATE_MERCHANT_API = "/edu/creditCard/createMerchant";
+    private static final Set<String> PUBLIC_CATEGORY_IDS = Set.of("PUBLIC_RESTAURANT", "PUBLIC_BAKERY");
 
     private final StoreRepository storeRepository;
     private final SsafyApiClient ssafyApiClient;
     private final SsafyHeaderFactory ssafyHeaderFactory;
     private final ObjectMapper objectMapper;
+    private final NaverStoreEnrichmentClient naverStoreEnrichmentClient;
 
-    /**
-     * BE-036 매장 목록 조회.
-     *
-     * 흐름:
-     * 1. SSAFY inquireMerchantList 호출 → 등록된 전체 가맹점 목록
-     * 2. merchantId 기준으로 우리 DB Store와 병합
-     *    - DB에 있는 경우: 상세 데이터(위치, facePayEnabled 등) 포함
-     *    - DB에 없는 경우: SSAFY 기본 정보만 반환
-     * 3. category / facePayOnly 필터 적용
-     */
     public List<StoreResponse> getStores(String category, Boolean facePayOnly) {
-        // 1. SSAFY 가맹점 목록 조회
         Map<String, Object> header = ssafyHeaderFactory.create("inquireMerchantList");
         Map<String, Object> body   = ssafyApiClient.buildBody(header);
         Map<String, Object> response = ssafyApiClient.post(MERCHANT_LIST_API, body);
 
         List<SsafyMerchantRec> ssafyMerchants = parseMerchantList(response);
 
-        // 2. SSAFY merchantId → 우리 DB Map (ssafyMerchantId 기준)
         List<Long> merchantIds = ssafyMerchants.stream()
                 .map(rec -> parseLong(rec.getMerchantId()))
                 .filter(id -> id != null)
@@ -63,7 +59,6 @@ public class StoreService {
                 .filter(store -> store.resolveSsafyMerchantId() != null)
                 .collect(Collectors.toMap(Store::resolveSsafyMerchantId, s -> s));
 
-        // 3. 병합 후 필터 적용
         return ssafyMerchants.stream()
                 .map(rec -> {
                     Long id = parseLong(rec.getMerchantId());
@@ -75,9 +70,6 @@ public class StoreService {
                 .toList();
     }
 
-    /**
-     * 지도 표시용 공공 매장 목록 조회.
-     */
     public List<StoreResponse> getMapStores() {
         return storeRepository
                 .findBySourceTypeAndIsActiveTrueAndLatitudeIsNotNullAndLongitudeIsNotNullOrderByStoreNameAsc(
@@ -88,25 +80,14 @@ public class StoreService {
                 .toList();
     }
 
-    /**
-     * BE-036 매장 단건 조회.
-     */
     public StoreResponse getStore(Long storeId) {
         Store store = storeRepository.findById(storeId)
                 .orElseThrow(() -> new NotFoundException("존재하지 않는 매장입니다."));
         return StoreResponse.from(store);
     }
 
-    /**
-     * 매장 등록.
-     *
-     * 흐름:
-     * 1. SSAFY createMerchant 호출 → merchantId 발급
-     * 2. merchantId를 별도 컬럼(ssafyMerchantId)으로 저장하고 store_id는 내부 PK로 생성
-     */
     @Transactional
     public StoreResponse createStore(StoreCreateRequest request) {
-        // 1. SSAFY에 가맹점 등록
         Map<String, Object> header = ssafyHeaderFactory.create("createMerchant");
         Map<String, Object> body   = ssafyApiClient.buildBody(header,
                 "categoryId",   request.getCategoryId(),
@@ -114,16 +95,14 @@ public class StoreService {
         );
         Map<String, Object> response = ssafyApiClient.post(CREATE_MERCHANT_API, body);
 
-        // 2. 응답에서 신규 등록된 가맹점 추출 (merchantName 매칭)
         List<SsafyMerchantRec> merchants = parseMerchantList(response);
         SsafyMerchantRec created = merchants.stream()
                 .filter(rec -> Objects.equals(request.getStoreName(), rec.getMerchantName()))
-                .reduce((first, second) -> second)  // 동명 가맹점이 있을 경우 마지막(최신) 항목
+                .reduce((first, second) -> second)
                 .orElseThrow(() -> new NotFoundException("SSAFY 가맹점 등록 응답에서 매장을 찾을 수 없습니다."));
 
         Long ssafyMerchantId = parseLong(created.getMerchantId());
 
-        // 3. DB 저장
         Store store = Store.builder()
                 .userNo(request.getUserNo())
                 .accountId(request.getAccountId())
@@ -143,7 +122,50 @@ public class StoreService {
         return StoreResponse.from(storeRepository.save(store));
     }
 
-    // ── 파싱 헬퍼 ──────────────────────────────────────────────────────────
+    @Transactional
+    public StoreResponse createPublicStore(PublicStoreCreateRequest request) {
+        validatePublicCategory(request.getCategoryId());
+
+        Store store = Store.builder()
+                .userNo(request.getUserNo())
+                .accountId(request.getAccountId())
+                .storeName(request.getStoreName())
+                .categoryId(request.getCategoryId())
+                .categoryName(resolvePublicCategoryName(request))
+                .roadAddress(request.getRoadAddress())
+                .numberAddress(request.getNumberAddress())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
+                .phone(request.getPhone())
+                .isLocalBusiness(request.getIsLocalBusiness() == null ? true : request.getIsLocalBusiness())
+                .facePayEnabled(Boolean.TRUE.equals(request.getFacePayEnabled()))
+                .rating(0.0)
+                .sourceType(StoreSourceType.PUBLIC_CSV)
+                .sourceKey("manual:" + UUID.randomUUID())
+                .isActive(true)
+                .build();
+
+        Optional<StoreEnrichmentData> enrichment = naverStoreEnrichmentClient.enrich(store);
+        if (enrichment.isPresent() && enrichment.get().hasAnyValue()) {
+            StoreEnrichmentData data = enrichment.get();
+            store.updateEnrichment(data.imageUrl(), data.description(), data.rating(), LocalDateTime.now());
+        }
+
+        return StoreResponse.from(storeRepository.save(store));
+    }
+
+    private void validatePublicCategory(String categoryId) {
+        if (!PUBLIC_CATEGORY_IDS.contains(categoryId)) {
+            throw new IllegalArgumentException("공공 매장 categoryId는 PUBLIC_RESTAURANT 또는 PUBLIC_BAKERY 여야 합니다.");
+        }
+    }
+
+    private String resolvePublicCategoryName(PublicStoreCreateRequest request) {
+        if (request.getCategoryName() != null && !request.getCategoryName().isBlank()) {
+            return request.getCategoryName();
+        }
+        return "PUBLIC_BAKERY".equals(request.getCategoryId()) ? "제과점영업" : "한식";
+    }
 
     private List<SsafyMerchantRec> parseMerchantList(Map<String, Object> response) {
         Object rec = response.get("REC");
