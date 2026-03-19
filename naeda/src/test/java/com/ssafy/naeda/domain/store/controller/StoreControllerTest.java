@@ -1,13 +1,17 @@
 package com.ssafy.naeda.domain.store.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ssafy.naeda.domain.store.dto.request.PublicStoreCreateRequest;
 import com.ssafy.naeda.domain.store.dto.request.StoreCreateRequest;
 import com.ssafy.naeda.domain.store.dto.response.StoreResponse;
+import com.ssafy.naeda.domain.store.entity.StoreSourceType;
 import com.ssafy.naeda.domain.store.service.StoreService;
 import com.ssafy.naeda.global.exception.GlobalExceptionHandler;
 import com.ssafy.naeda.global.exception.NotFoundException;
 import com.ssafy.naeda.global.security.JwtAuthenticationFilter;
 import com.ssafy.naeda.global.security.JwtTokenProvider;
+import java.lang.reflect.Field;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,9 +21,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.lang.reflect.Field;
-import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -47,8 +48,6 @@ class StoreControllerTest {
 
     @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
-
-    // ── GET /api/stores ──────────────────────────────────────────────────
 
     @Test
     @DisplayName("매장 목록 조회 - 필터 없이 전체 조회 시 200을 반환한다")
@@ -137,8 +136,6 @@ class StoreControllerTest {
                 .andExpect(jsonPath("$[0].imageUrl").value("https://example.com/store.jpg"));
     }
 
-    // ── GET /api/stores/{storeId} ────────────────────────────────────────
-
     @Test
     @DisplayName("매장 단건 조회 - 200 OK와 매장 정보를 반환한다")
     void getStore_returns200() throws Exception {
@@ -174,8 +171,6 @@ class StoreControllerTest {
                 .andExpect(jsonPath("$.message").value("존재하지 않는 매장입니다."));
     }
 
-    // ── POST /api/stores ─────────────────────────────────────────────────
-
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = target.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);
@@ -201,12 +196,55 @@ class StoreControllerTest {
                         .build()
         );
 
-                mockMvc.perform(post("/api/stores")
+        mockMvc.perform(post("/api/stores")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.storeId").value(30))
                 .andExpect(jsonPath("$.ssafyMerchantId").value(3))
                 .andExpect(jsonPath("$.storeName").value("코스트코"));
+    }
+
+    @Test
+    @DisplayName("공공 매장 수동 등록 - 201 Created와 등록된 공공 매장 정보를 반환한다")
+    void createPublicStore_returns201() throws Exception {
+        PublicStoreCreateRequest request = new PublicStoreCreateRequest();
+        setField(request, "categoryId", "PUBLIC_RESTAURANT");
+        setField(request, "categoryName", "한식");
+        setField(request, "storeName", "TEST");
+        setField(request, "userNo", 14L);
+        setField(request, "accountId", 14L);
+        setField(request, "roadAddress", "경상북도 구미시 해평면 도리사로 403-1, C동 1,2층");
+        setField(request, "numberAddress", "경상북도 구미시 해평면 송곡리 398-6 1,2층 C동");
+        setField(request, "latitude", 36.110307);
+        setField(request, "longitude", 128.411495);
+        setField(request, "phone", "01051918793");
+        setField(request, "isLocalBusiness", true);
+        setField(request, "facePayEnabled", true);
+
+        given(storeService.createPublicStore(any(PublicStoreCreateRequest.class))).willReturn(
+                StoreResponse.builder()
+                        .storeId(999L)
+                        .userNo(14L)
+                        .storeName("TEST")
+                        .categoryId("PUBLIC_RESTAURANT")
+                        .categoryName("한식")
+                        .roadAddress("경상북도 구미시 해평면 도리사로 403-1, C동 1,2층")
+                        .latitude(36.110307)
+                        .longitude(128.411495)
+                        .facePayEnabled(true)
+                        .isLocalBusiness(true)
+                        .sourceType(StoreSourceType.PUBLIC_CSV)
+                        .isActive(true)
+                        .build()
+        );
+
+        mockMvc.perform(post("/api/stores/public")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.storeId").value(999))
+                .andExpect(jsonPath("$.categoryId").value("PUBLIC_RESTAURANT"))
+                .andExpect(jsonPath("$.sourceType").value("PUBLIC_CSV"));
     }
 }
