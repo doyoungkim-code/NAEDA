@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PublicStoreSeedService {
 
+    private static final Long SYSTEM_USER_NO = 0L;
     private static final String SEED_KEY = "public-gumi-store-csv-v4";
 
     private final PublicStoreCsvLoader csvLoader;

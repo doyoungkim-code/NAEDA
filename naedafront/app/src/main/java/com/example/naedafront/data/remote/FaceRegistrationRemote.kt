@@ -1,4 +1,4 @@
-package com.example.naedafront.data.remote
+﻿package com.example.naedafront.data.remote
 
 import com.google.gson.Gson
 import okhttp3.MediaType.Companion.toMediaType
@@ -12,6 +12,7 @@ import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Part
+import retrofit2.http.Query
 
 data class EnrollResponseDto(
     val success: Boolean,
@@ -72,6 +73,20 @@ data class FacePaySettingsResponseDto(
     val secondaryAuthEnabled: Boolean = false,
     val message: String? = null
 )
+
+data class PayLimitRequestBody(
+    val dailyLimit: Long,
+    val monthlyLimit: Long,
+    val singleTransactionLimit: Long
+)
+
+data class PayLimitResponseDto(
+    val userNo: Long,
+    val dailyLimit: Long,
+    val monthlyLimit: Long,
+    val singleTransactionLimit: Long
+)
+
 private interface FaceRegistrationApiService {
     @Multipart
     @POST("api/v1/face/enroll")
@@ -110,6 +125,17 @@ private interface FaceRegistrationApiService {
     suspend fun updateFacePaySettings(
         @Body request: FacePaySettingsRequestBody
     ): FacePaySettingsResponseDto
+
+    @GET("api/pay/limit")
+    suspend fun getPayLimit(
+        @Query("userNo") userNo: Long
+    ): PayLimitResponseDto
+
+    @PUT("api/pay/limit")
+    suspend fun updatePayLimit(
+        @Query("userNo") userNo: Long,
+        @Body request: PayLimitRequestBody
+    ): PayLimitResponseDto
 }
 
 object FaceRegistrationRepository {
@@ -204,6 +230,34 @@ object FaceRegistrationRepository {
         }
     }
 
+    suspend fun getPayLimit(userNo: Long): PayLimitResponseDto {
+        return runCatching {
+            service.getPayLimit(userNo)
+        }.getOrElse { throwable ->
+            throw toReadableException(throwable, "결제 한도 조회에 실패했습니다.")
+        }
+    }
+
+    suspend fun updatePayLimit(
+        userNo: Long,
+        dailyLimit: Long,
+        monthlyLimit: Long,
+        singleTransactionLimit: Long
+    ): PayLimitResponseDto {
+        return runCatching {
+            service.updatePayLimit(
+                userNo = userNo,
+                request = PayLimitRequestBody(
+                    dailyLimit = dailyLimit,
+                    monthlyLimit = monthlyLimit,
+                    singleTransactionLimit = singleTransactionLimit
+                )
+            )
+        }.getOrElse { throwable ->
+            throw toReadableException(throwable, "결제 한도 저장에 실패했습니다.")
+        }
+    }
+
     private fun imagePart(imageBytes: ByteArray, fileName: String): MultipartBody.Part {
         val body = imageBytes.toRequestBody("image/jpeg".toMediaType())
         return MultipartBody.Part.createFormData("image", fileName, body)
@@ -230,4 +284,3 @@ object FaceRegistrationRepository {
         )
     }
 }
-
