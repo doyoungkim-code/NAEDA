@@ -60,8 +60,8 @@ sealed class Screen(val route: String) {
         fun createRoute(tab: Int) = "register_asset/$tab"
     }
 
-    object AccountDetail : Screen("account_detail/{accountId}") {
-        fun createRoute(accountId: String) = "account_detail/$accountId"
+    object AccountDetail : Screen("account_detail/{accountId}/{accountNo}") {
+        fun createRoute(accountId: Long?, accountNo: String) = "account_detail/${accountId ?: 0}/$accountNo"
     }
 
     object CardDetail : Screen("card_detail/{cardId}") {

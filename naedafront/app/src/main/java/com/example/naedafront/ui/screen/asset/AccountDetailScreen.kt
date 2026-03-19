@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.naedafront.ui.theme.*
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 // ─────────────────────────────────────────────
 // 샘플 데이터
@@ -70,17 +72,29 @@ val periodList = listOf("1주일", "1개월", "3개월", "6개월", "직접 설�
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountDetailScreen(
-    accountId: String = "1",
+    account: AccountItem = sampleAccounts.first(),
+    balance: Long = account.accountBalance ?: 0L,
     transactions: List<TransactionItem> = sampleTransactions,
-    onBack: () -> Unit = {},
-    onTransferClick: () -> Unit = {}
+    onBack: () -> Unit = {}
 ) {
-    val account = sampleAccounts.find { it.id == accountId } ?: sampleAccounts.first()
     var selectedPeriod by remember { mutableStateOf("1개월") }
     var selectedCategory by remember { mutableStateOf("전체") }
     var showPeriodDialog by remember { mutableStateOf(false) }
+    val availableCategories = remember(transactions) {
+        listOf("전체") + transactions.map { it.category }.filter { it.isNotBlank() }.distinct()
+    }
 
-    val filtered = transactions.filter { tx ->
+    LaunchedEffect(availableCategories, selectedCategory) {
+        if (selectedCategory !in availableCategories) {
+            selectedCategory = "전체"
+        }
+    }
+
+    val periodFiltered = remember(transactions, selectedPeriod) {
+        filterTransactionsByPeriod(transactions, selectedPeriod)
+    }
+
+    val filtered = periodFiltered.filter { tx ->
         selectedCategory == "전체" || tx.category == selectedCategory
     }
 
@@ -97,9 +111,8 @@ fun AccountDetailScreen(
             item {
                 AccountDetailHeader(
                     account = account,
-                    balance = 1_250_000L,
-                    onBack = onBack,
-                    onTransferClick = onTransferClick
+                    balance = balance,
+                    onBack = onBack
                 )
             }
 
@@ -114,6 +127,7 @@ fun AccountDetailScreen(
             // ── 카테고리 필터 ────────────────────────
             item {
                 CategoryFilterRow(
+                    categories = availableCategories,
                     selected = selectedCategory,
                     onSelect = { selectedCategory = it }
                 )
@@ -172,8 +186,7 @@ fun AccountDetailScreen(
 private fun AccountDetailHeader(
     account: AccountItem,
     balance: Long,
-    onBack: () -> Unit,
-    onTransferClick: () -> Unit
+    onBack: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -242,23 +255,6 @@ private fun AccountDetailHeader(
                     color = Color.White
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // 이체 버튼
-                Button(
-                    onClick = onTransferClick,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White.copy(alpha = 0.2f),
-                        contentColor = Color.White
-                    ),
-                    modifier = Modifier.height(44.dp)
-                ) {
-                    Text(
-                        text = "이체하기",
-                        style = NaedaTypography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
-                    )
-                }
             }
         }
     }
@@ -316,6 +312,7 @@ private fun PeriodFilterRow(
 
 @Composable
 private fun CategoryFilterRow(
+    categories: List<String>,
     selected: String,
     onSelect: (String) -> Unit
 ) {
@@ -327,7 +324,7 @@ private fun CategoryFilterRow(
         contentPadding = PaddingValues(horizontal = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(categoryList) { category ->
+        items(categories) { category ->
             val isSelected = selected == category
             Box(
                 modifier = Modifier
@@ -519,4 +516,34 @@ private fun PeriodPickerDialog(
 private fun formatAmount(amount: Long): String {
     val abs = Math.abs(amount)
     return "%,d".format(abs)
+}
+
+private fun filterTransactionsByPeriod(
+    transactions: List<TransactionItem>,
+    selectedPeriod: String
+): List<TransactionItem> {
+    if (transactions.isEmpty()) {
+        return emptyList()
+    }
+
+    val now = LocalDateTime.now()
+    val formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm")
+    val threshold = when (selectedPeriod) {
+        "1주일" -> now.minusWeeks(1)
+        "1개월" -> now.minusMonths(1)
+        "3개월" -> now.minusMonths(3)
+        "6개월" -> now.minusMonths(6)
+        else -> null
+    }
+
+    if (threshold == null) {
+        return transactions
+    }
+
+    return transactions.filter { tx ->
+        runCatching { LocalDateTime.parse(tx.transacted, formatter) }
+            .getOrNull()
+            ?.let { !it.isBefore(threshold) }
+            ?: true
+    }
 }
