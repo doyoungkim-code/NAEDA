@@ -37,6 +37,10 @@ val NaedaFontFamily = FontFamily(
     Font(R.font.pretendard_bold, FontWeight.Bold),
 )
 
+val KronaOneFontFamily = FontFamily(
+    Font(R.font.krona_one_regular)
+)
+
 val NaedaTypography = Typography(
 
     // ── Display ── (큰 숫자 표시: 잔액, 포인트 등)

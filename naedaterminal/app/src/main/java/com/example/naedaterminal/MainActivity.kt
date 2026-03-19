@@ -3,6 +3,7 @@ package com.example.naedaterminal
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
 import com.example.naedaterminal.ui.screen.*
 import com.example.naedaterminal.ui.screen.payment.RbaAuthContainer
@@ -13,103 +14,92 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
         setContent {
             NaedaTheme {
-                var route by remember { mutableStateOf<Route>(Route.Start) }
+                var route by remember { mutableStateOf<Route>(Route.PosKey) }
 
-                // 결제 결과 데이터
-                var lastPaidMethod by remember { mutableStateOf("FACE PAY") }
-                var lastAmount by remember { mutableStateOf(4500L) }
-                var lastApprovalNo by remember { mutableStateOf("A-20260305-0001") }
-                var lastApprovedAt by remember { mutableStateOf("2026-03-05 14:30") }
+                // 결제 흐름 공유 상태
+                var currentAmount by remember { mutableStateOf(0L) }
+                var currentMerchant by remember { mutableStateOf("전자 기기 상점 GUMI") }
+                var currentMethod by remember { mutableStateOf("페이스페이") }
 
                 // RBA 관련 상태
                 var rbaUserId by remember { mutableStateOf("") }
-                var rbaAmount by remember { mutableStateOf(0L) }
                 var rbaAuthSteps by remember { mutableStateOf<List<RbaAuthType>>(emptyList()) }
 
                 when (route) {
-                    Route.Start -> NaedaStartScreen(
-                        onStart = { route = Route.PaymentSelect },
-                        onTerminalMode = { }
+
+                    // ── 1. POS Key 입력 ──────────────────────────
+                    Route.PosKey -> PosKeyScreen(
+                        onConnected = { route = Route.Waiting }
                     )
 
-                    Route.PaymentSelect -> PaymentMethodSelectScreen(
-                        onBack = { route = Route.Start },
-                        onSelect = { method: PaymentMethod ->
-                            when (method) {
-                                PaymentMethod.FACE_PAY -> {
-                                    lastPaidMethod = "FACE PAY"
-                                    route = Route.FacePay
-                                }
-                                PaymentMethod.SAMSUNG_PAY -> {
-                                    lastPaidMethod = "SAMSUNG PAY"
-                                    route = Route.PaymentDone
-                                }
-                                PaymentMethod.CARD -> {
-                                    lastPaidMethod = "CARD"
-                                    route = Route.PaymentDone
-                                }
-                            }
+                    // ── 2. 대기 화면 (금액 입력 포함) ────────────
+                    Route.Waiting -> NaedaStartScreen(
+                        onPaymentStart = { amount, merchant ->
+                            currentAmount = amount
+                            currentMerchant = merchant
+                            route = Route.PaymentSelect
                         }
                     )
 
+                    // ── 3. 결제 수단 선택 ─────────────────────────
+                    Route.PaymentSelect -> PaymentMethodSelectScreen(
+                        amount = currentAmount,
+                        merchant = currentMerchant,
+                        onBack = { route = Route.Waiting },
+                        onFacePay = {
+                            currentMethod = "페이스페이"
+                            route = Route.FacePay
+                        },
+                        onCard = {
+                            currentMethod = "카드결제"
+                            route = Route.PaymentDone
+                        }
+                    )
+
+                    // ── 4. 얼굴 인증 ──────────────────────────────
                     Route.FacePay -> FacePayAuthScreen(
+                        amount = currentAmount,
+                        merchant = currentMerchant,
                         apiBaseUrl = "http://10.0.2.2:8080",
                         topK = 3,
                         onBack = { route = Route.PaymentSelect },
                         onAuthed = { userId, similarity ->
-                            // RBA 필요 여부 판단
-                            // 유사도 0.55 미만 or 5만원 이상이면 RBA 트리거
                             val steps = buildList {
                                 if (similarity < 0.55) {
-                                    // TODO: 실제로는 서버(BE-012)에서 hasPinRegistered 받아야 함
-                                    // 임시로 전화번호 인증 사용
                                     add(RbaAuthType.PhoneLastFour)
                                 }
-                                if (lastAmount >= 50_000L) {
+                                if (currentAmount >= 50_000L) {
                                     add(RbaAuthType.Signature)
                                 }
                             }
 
                             rbaUserId = userId
-                            rbaAmount = lastAmount
                             rbaAuthSteps = steps
 
-                            if (steps.isEmpty()) {
-                                // RBA 불필요 → 바로 결제 완료
-                                route = Route.PaymentDone
-                            } else {
-                                route = Route.Rba
-                            }
+                            route = if (steps.isEmpty()) Route.PaymentDone else Route.Rba
                         },
-                        onNotMatched = {
-                            route = Route.PaymentSelect
-                        }
+                        onNotMatched = { route = Route.PaymentSelect }
                     )
 
+                    // ── 5. RBA 추가 인증 ──────────────────────────
                     Route.Rba -> RbaAuthContainer(
                         authSteps = rbaAuthSteps,
-                        paymentAmount = rbaAmount,
-                        merchantName = "SSAFY 편의점",
-                        onAuthComplete = {
-                            route = Route.PaymentDone
-                        },
-                        onAuthCancel = {
-                            route = Route.FacePay
-                        }
+                        paymentAmount = currentAmount,
+                        merchantName = currentMerchant,
+                        onAuthComplete = { route = Route.PaymentDone },
+                        onAuthCancel = { route = Route.FacePay }
                     )
 
+                    // ── 6. 결제 완료 ──────────────────────────────
                     Route.PaymentDone -> PaymentDoneScreen(
-                        onDone = { route = Route.Start },
-                        onReceipt = { },
-                        merchantName = "SSAFY 편의점",
-                        orderName = "아메리카노 1잔",
-                        amountWon = lastAmount,
-                        paidMethodLabel = lastPaidMethod,
-                        approvedAt = lastApprovedAt,
-                        approvalNo = lastApprovalNo
+                        amount = currentAmount,
+                        merchant = currentMerchant,
+                        method = currentMethod,
+                        onDone = { route = Route.Waiting }
                     )
                 }
             }
@@ -118,9 +108,10 @@ class MainActivity : ComponentActivity() {
 }
 
 private sealed interface Route {
-    data object Start : Route
+    data object PosKey : Route
+    data object Waiting : Route
     data object PaymentSelect : Route
     data object FacePay : Route
-    data object Rba : Route         // ← 추가
+    data object Rba : Route
     data object PaymentDone : Route
 }

@@ -1,114 +1,69 @@
 package com.example.naedaterminal.ui.screen
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.naedaterminal.R
-import com.example.naedaterminal.ui.theme.Mint50
+import com.example.naedaterminal.ui.theme.KronaOneFontFamily
 
+private val BgColor = Color(0xFFFCFFFF)
 
 @Composable
 fun NaedaStartScreen(
-    onStart: () -> Unit,
-    onTerminalMode: () -> Unit = {},
+    onPaymentStart: (amount: Long, merchant: String) -> Unit
 ) {
-    val cs = MaterialTheme.colorScheme
-    val bg = cs.background
-    val onBg = cs.onBackground
-    val primary = cs.primary
+    val primary = MaterialTheme.colorScheme.primary
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(bg)
-            .clickable(onClick = onStart)
-            .padding(horizontal = 24.dp, vertical = 24.dp)
+            .background(BgColor)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            // TODO: 실제로는 POS 웹에서 결제 요청 수신 시 자동 진입
+            // 임시로 탭하면 진입 (테스트용 금액 15,000원)
+            .clickable { onPaymentStart(15_000L, "전자 기기 상점 GUMI") }
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(64.dp))
+            Spacer(Modifier.height(220.dp))
 
-            // ✅ 기존 상단 배너 Surface 블럭 삭제하고 로고로 교체
+            Text(
+                text = "NAEDA",
+                fontSize = 64.sp,
+                fontWeight = FontWeight.Normal,
+                color = primary,
+                letterSpacing = 5.sp,
+                fontFamily = KronaOneFontFamily
+            )
+
+            Spacer(Modifier.weight(0.2f))
+
             Image(
-                painter = painterResource(id = R.drawable.naeda_logo),
-                contentDescription = "Naeda Logo",
-                contentScale = ContentScale.FillWidth, // 가로를 꽉 채움
+                painter = painterResource(R.drawable.naeda_logo),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    // "세로는 적당히" (원하면 max만 조절)
-                    .heightIn(min = 72.dp)
-                    .padding(horizontal = 8.dp,
-                        vertical = 70.dp)
+                    .fillMaxWidth(0.65f)
+                    .aspectRatio(1f)
             )
 
             Spacer(Modifier.weight(1f))
 
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    text = "내다",
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = onBg
-                )
-                Text(
-                    text = "(NAEDA)",
-                    modifier = Modifier.padding(start = 6.dp, bottom = 6.dp),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = onBg
-                )
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            Text(
-                text = "당신을 위한 가장 똑똑한 결제 시스템",
-                style = MaterialTheme.typography.titleMedium,
-                color = onBg.copy(alpha = 0.70f),
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(Modifier.height(18.dp))
-
-            // 기존 OutlinedButton 블럭 삭제하고 아래로 교체
-
-            Surface(
-                onClick = onTerminalMode,
-                shape = RoundedCornerShape(999.dp),
-                color = Mint50, // ✅ 블럭 배경
-                tonalElevation = 0.dp,
-                shadowElevation = 1.dp,
-                border = BorderStroke(1.dp, primary.copy(alpha = 0.35f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "STORE TERMINAL MODE",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = onBg // ✅ 텍스트 검은색 계열
-                    )
-                }
-            }
+            NaedaFooter(modifier = Modifier.padding(bottom = 36.dp))
         }
     }
 }

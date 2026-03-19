@@ -1,258 +1,163 @@
-// File: app/src/main/java/com/example/naedaterminal/ui/screen/PaymentMethodSelectScreen.kt
 package com.example.naedaterminal.ui.screen
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.naedaterminal.ui.theme.Mint50
+import androidx.compose.ui.unit.sp
+import com.example.naedaterminal.ui.theme.NaedaFontFamily
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 
-enum class PaymentMethod {
-    FACE_PAY,
-    SAMSUNG_PAY,
-    CARD
-}
+private val BgColor = Color(0xFFFCFFFF)
+private val TextPrimary = Color(0xFF0D3B35)
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PaymentMethodSelectScreen(
+    amount: Long,
+    merchant: String,
     onBack: () -> Unit,
-    onSelect: (PaymentMethod) -> Unit,
+    onFacePay: () -> Unit,
+    onCard: () -> Unit
 ) {
-    val cs = MaterialTheme.colorScheme
-    val container = cs.background
-    val onBg = cs.onBackground
+    val primary = MaterialTheme.colorScheme.primary
 
-    Scaffold(
-        containerColor = container,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = "결제 수단 선택",
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        fontWeight = FontWeight.Bold,
-                        color = onBg
-                    )
-                },
-                navigationIcon = {
-                    TextButton(onClick = onBack) {
-                        Text("←", style = MaterialTheme.typography.titleLarge, color = onBg)
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = container,
-                    titleContentColor = onBg,
-                    navigationIconContentColor = onBg
-                )
-            )
-        }
-    ) { inner ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(inner)
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                FacePayOptionCard(
-                    title = "페이스페이",
-                    subtitle = "얼굴 인증으로 빠르게 결제",
-                    badgeText = "🙂",
-                    onClick = { onSelect(PaymentMethod.FACE_PAY) }
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    SecondaryOptionCard(
-                        modifier = Modifier.weight(1f),
-                        title = "삼성페이",
-                        subtitle = "기기 등록 페이",
-                        badgeText = "📶",
-                        onClick = { onSelect(PaymentMethod.SAMSUNG_PAY) }
-                    )
-                    SecondaryOptionCard(
-                        modifier = Modifier.weight(1f),
-                        title = "카드결제",
-                        subtitle = "신용/체크카드",
-                        badgeText = "💳",
-                        onClick = { onSelect(PaymentMethod.CARD) }
-                    )
-                }
-
-                FooterTip(text = "Tip: 뒤로 가려면 좌측 상단을 누르세요.")
-            }
-        }
-    }
-}
-
-@Composable
-private fun FacePayOptionCard(
-    title: String,
-    subtitle: String,
-    badgeText: String,
-    onClick: () -> Unit
-) {
-    val cs = MaterialTheme.colorScheme
-    val onBg = cs.onBackground
-    val primary = cs.primary
-    val outlineSoft = cs.outline.copy(alpha = 0.35f)
-
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(20.dp),
-        color = Mint50,
-        tonalElevation = 0.dp,
-        shadowElevation = 1.dp,
-        border = BorderStroke(1.dp, outlineSoft),
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(132.dp) // 고정 높이 유지
+            .fillMaxSize()
+            .background(BgColor)
+            .statusBarsPadding()
+            .navigationBarsPadding()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.Center,
+                .padding(horizontal = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(
-                modifier = Modifier
-                    .size(52.dp) // ✅ Secondary와 동일하게 맞춰서 오버플로우 여지 감소
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(primary.copy(alpha = 0.10f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = badgeText,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = primary
-                )
-            }
-
-            Spacer(Modifier.height(6.dp)) // ✅ 10 -> 6으로 줄여 여유 확보
+            Spacer(Modifier.height(160.dp))
 
             Text(
-                text = title,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.titleMedium,
+                text = "결제 수단 선택",
+                color = TextPrimary,
+                fontSize = 32.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = onBg
+                fontFamily = NaedaFontFamily,
+                textAlign = TextAlign.Center
             )
 
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(40.dp))
 
             Text(
-                text = subtitle,
-                maxLines = 1, // ✅ 고정 높이에서 잘림 방지
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodySmall,
-                color = onBg.copy(alpha = 0.60f)
+                text = "결제 금액",
+                color = primary,
+                fontSize = 13.sp,
+                letterSpacing = 0.5.sp,
+                fontFamily = NaedaFontFamily,
+                textAlign = TextAlign.Center
             )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "%,d원".format(amount),
+                color = TextPrimary,
+                fontSize = 36.sp,
+                fontWeight = FontWeight.ExtraBold,
+                fontFamily = NaedaFontFamily,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(Modifier.height(48.dp))
+
+            PaymentOptionRow(
+                icon = Icons.Default.Face,
+                label = "페이스페이",
+                onClick = onFacePay
+            )
+            Spacer(Modifier.height(12.dp))
+            PaymentOptionRow(
+                icon = Icons.Default.CreditCard,
+                label = "카드결제",
+                onClick = onCard
+            )
+
+            Spacer(Modifier.weight(1f))
+
+            NaedaFooter(modifier = Modifier.padding(bottom = 36.dp))
         }
     }
 }
 
 @Composable
-private fun SecondaryOptionCard(
-    modifier: Modifier = Modifier,
-    title: String,
-    subtitle: String,
-    badgeText: String,
+private fun PaymentOptionRow(
+    icon: ImageVector,
+    label: String,
     onClick: () -> Unit
 ) {
-    val cs = MaterialTheme.colorScheme
-    val onBg = cs.onBackground
-    val primary = cs.primary
-    val outlineSoft = cs.outline.copy(alpha = 0.35f)
+    val primary = MaterialTheme.colorScheme.primary
 
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(20.dp),
-        color = Mint50,
-        tonalElevation = 0.dp,
-        shadowElevation = 1.dp,
-        border = BorderStroke(1.dp, outlineSoft),
-        modifier = modifier.height(132.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(primary.copy(alpha = 0.10f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = badgeText,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = primary
-                )
-            }
-            Spacer(Modifier.height(10.dp))
-            Text(
-                text = title,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = onBg
-            )
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodySmall,
-                color = onBg.copy(alpha = 0.60f)
-            )
-        }
-    }
-}
-
-@Composable
-private fun FooterTip(text: String) {
-    val onBg = MaterialTheme.colorScheme.onBackground
-
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp, bottom = 6.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
+            .height(68.dp)
+            .shadow(
+                elevation = 6.dp,
+                shape = RoundedCornerShape(16.dp),
+                ambientColor = primary.copy(alpha = 0.4f),
+                spotColor = primary.copy(alpha = 0.4f)
+            )
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        primary.copy(alpha = 0.85f),  // 위 — 밝게
+                        primary,                       // 중간
+                        primary.copy(red = 0f, green = 0.32f, blue = 0.29f) // 아래 — 어둡게
+                    )
+                )
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = "ℹ️",
-            color = onBg.copy(alpha = 0.40f)
-        )
-        Spacer(Modifier.width(6.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodySmall,
-            color = onBg.copy(alpha = 0.45f)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(Modifier.width(14.dp))
+            Text(
+                text = label,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = NaedaFontFamily,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.65f),
+                modifier = Modifier.size(22.dp)
+            )
+        }
     }
 }

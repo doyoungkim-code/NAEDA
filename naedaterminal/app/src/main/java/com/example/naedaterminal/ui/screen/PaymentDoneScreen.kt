@@ -1,170 +1,197 @@
-// File: app/src/main/java/com/example/naedaterminal/ui/screen/PaymentDoneScreen.kt
 package com.example.naedaterminal.ui.screen
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.naedaterminal.ui.theme.Mint50
+import androidx.compose.ui.unit.sp
+import com.example.naedaterminal.ui.theme.NaedaFontFamily
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val Primary = Color(0xFF009688)
+private val BgColor = Color(0xFFFCFFFF)
+private val TextPrimary = Color(0xFF0D3B35)
+
 @Composable
 fun PaymentDoneScreen(
-    onDone: () -> Unit,
-    onReceipt: () -> Unit = {},
-    merchantName: String = "SSAFY 편의점",
-    orderName: String = "결제 상품",
-    amountWon: Long = 4500,
-    paidMethodLabel: String = "FACE PAY",
-    approvedAt: String = "2026-03-05 14:30",
-    approvalNo: String = "A-20260305-0001",
+    amount: Long,
+    merchant: String,
+    method: String,
+    onDone: () -> Unit
 ) {
-    val cs = MaterialTheme.colorScheme
-    val container = cs.background
-    val onBg = cs.onBackground
-    val primary = cs.primary
-    val outlineSoft = cs.outline.copy(alpha = 0.35f)
-
-    Scaffold(
-        containerColor = container,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("결제 완료", fontWeight = FontWeight.Bold, color = onBg) },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = container,
-                    titleContentColor = onBg
-                )
-            )
-        }
-    ) { inner ->
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BgColor)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(inner)
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(horizontal = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(48.dp))
 
             Text(
-                text = "✅",
-                style = MaterialTheme.typography.displayMedium
+                text = "결제 완료 !",
+                color = TextPrimary,
+                fontSize = 30.sp,
+                fontWeight = FontWeight.ExtraBold,
+                fontFamily = NaedaFontFamily
             )
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(40.dp))
+
+            // ── 원형 체크마크 ──
+            val dashEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 9f), 0f)
+            Box(
+                modifier = Modifier
+                    .size(180.dp)
+                    .drawBehind {
+                        // 바깥 점선 링
+                        drawCircle(
+                            color = Primary.copy(alpha = 0.25f),
+                            radius = size.width * 0.54f,
+                            style = Stroke(width = 1.5.dp.toPx(), pathEffect = dashEffect)
+                        )
+                        // 글로우
+                        drawCircle(color = Primary.copy(alpha = 0.10f), radius = size.width * 0.5f)
+                    }
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            colorStops = arrayOf(
+                                0.0f to Color(0xFFB2EBE6),
+                                0.5f to Color(0xFF4DB6AC),
+                                1.0f to Color(0xFF00897B)
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(80.dp)
+                )
+            }
+
+            Spacer(Modifier.height(28.dp))
 
             Text(
                 text = "결제가 완료되었습니다",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.ExtraBold,
-                color = onBg,
+                color = Primary,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = NaedaFontFamily,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "정상적으로 승인되었습니다",
+                color = TextPrimary.copy(alpha = 0.45f),
+                fontSize = 14.sp,
+                fontFamily = NaedaFontFamily,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(28.dp))
 
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = Mint50,
-                border = BorderStroke(1.dp, outlineSoft),
-                tonalElevation = 0.dp,
-                shadowElevation = 1.dp,
-                modifier = Modifier.fillMaxWidth()
+            // ── 결제 상세 카드 ──
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFFECF8F7))
+                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("가맹점", color = onBg.copy(alpha = 0.65f))
-                        Text(merchantName, fontWeight = FontWeight.Bold, color = onBg)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("상품", color = onBg.copy(alpha = 0.65f))
-                        Text(orderName, fontWeight = FontWeight.Bold, color = onBg)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("결제수단", color = onBg.copy(alpha = 0.65f))
-                        Text(paidMethodLabel, fontWeight = FontWeight.Bold, color = onBg)
-                    }
-
-                    Divider(color = outlineSoft)
-
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("결제금액", color = onBg.copy(alpha = 0.65f))
+                    Text(
+                        text = "결제 수단",
+                        color = TextPrimary.copy(alpha = 0.55f),
+                        fontSize = 14.sp,
+                        fontFamily = NaedaFontFamily
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("🙂", fontSize = 14.sp)
+                        Spacer(Modifier.width(4.dp))
                         Text(
-                            text = "${amountWon}원",
-                            fontWeight = FontWeight.ExtraBold,
-                            color = primary
+                            text = method,
+                            color = TextPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = NaedaFontFamily
                         )
                     }
+                }
 
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("승인시각", color = onBg.copy(alpha = 0.65f))
-                        Text(approvedAt, fontWeight = FontWeight.SemiBold, color = onBg)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("승인번호", color = onBg.copy(alpha = 0.65f))
-                        Text(approvalNo, fontWeight = FontWeight.SemiBold, color = onBg)
-                    }
+                HorizontalDivider(color = Primary.copy(alpha = 0.12f))
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "결제 금액",
+                        color = TextPrimary.copy(alpha = 0.5f),
+                        fontSize = 13.sp,
+                        fontFamily = NaedaFontFamily
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "%,d원".format(amount),
+                        color = Primary,
+                        fontSize = 30.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = NaedaFontFamily
+                    )
                 }
             }
 
             Spacer(Modifier.weight(1f))
 
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            // 확인 버튼
+            Button(
+                onClick = onDone,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(bottom = 0.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Primary)
             ) {
-                // ✅ 버튼도 카드 스타일로 통일: Mint50 + outline + primary 텍스트
-                Surface(
-                    onClick = onReceipt,
-                    shape = RoundedCornerShape(999.dp),
-                    color = Mint50,
-                    tonalElevation = 0.dp,
-                    shadowElevation = 1.dp,
-                    border = BorderStroke(1.dp, outlineSoft),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                        Text(
-                            text = "영수증 보기",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = primary
-                        )
-                    }
-                }
-
-                Surface(
-                    onClick = onDone,
-                    shape = RoundedCornerShape(999.dp),
-                    color = Mint50,
-                    tonalElevation = 0.dp,
-                    shadowElevation = 1.dp,
-                    border = BorderStroke(1.dp, outlineSoft),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                        Text(
-                            text = "완료",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = primary
-                        )
-                    }
-                }
+                Text(
+                    text = "확인",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = NaedaFontFamily
+                )
             }
+
+            Spacer(Modifier.height(36.dp))
         }
     }
 }
