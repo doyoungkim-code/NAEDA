@@ -66,6 +66,26 @@ data class WalletAssetsResponse(
     val payMethods: List<AssetPayMethodResponse>
 )
 
+data class PaymentResponse(
+    val paymentId: Long?,
+    val userNo: Long?,
+    val storeId: Long?,
+    val paymentMethodId: Long?,
+    val amount: Long?,
+    val status: String?,
+    val authMethod: String?,
+    val authLevel: String?,
+    val faceDistance: Double?,
+    val livenessPass: Boolean?,
+    val pinVerified: Boolean?,
+    val fdsScore: Int?,
+    val fdsAction: String?,
+    val earnedPoints: Long?,
+    val ssafyTransactionId: String?,
+    val failureReason: String?,
+    val createdAt: String?
+)
+
 interface AssetApi {
     @GET("api/accounts")
     suspend fun getAccounts(
@@ -102,8 +122,18 @@ interface AssetApi {
     ): AssetPayMethodResponse
 }
 
+interface PayApi {
+    @GET("api/pay")
+    suspend fun getPayments(
+        @Header("X-User-No") userNo: Long,
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null
+    ): List<PaymentResponse>
+}
+
 object AssetRepository {
     private val api = ApiConfig.retrofit.create(AssetApi::class.java)
+    private val payApi = ApiConfig.retrofit.create(PayApi::class.java)
     private val gson = Gson()
 
     suspend fun getWalletAssets(userNo: Long): WalletAssetsResponse = coroutineScope {
@@ -164,10 +194,16 @@ object AssetRepository {
         }
     }
 
+    suspend fun getPayments(
+        userNo: Long,
+        from: String? = null,
+        to: String? = null
+    ): Result<List<PaymentResponse>> = runCatching {
+        payApi.getPayments(userNo = userNo, from = from, to = to)
+    }
+
     private fun toReadableException(throwable: Throwable, fallback: String): Throwable {
-        if (throwable !is HttpException) {
-            return throwable
-        }
+        if (throwable !is HttpException) return throwable
 
         val errorBody = throwable.response()?.errorBody()?.string().orEmpty()
         val parsed = runCatching { gson.fromJson(errorBody, ApiErrorResponse::class.java) }.getOrNull()
