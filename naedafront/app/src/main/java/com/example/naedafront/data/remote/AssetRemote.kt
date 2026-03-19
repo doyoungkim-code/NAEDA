@@ -5,7 +5,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import retrofit2.HttpException
 import retrofit2.http.GET
-import retrofit2.http.Header
+import retrofit2.http.PATCH
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 data class AssetAccountResponse(
@@ -33,9 +34,36 @@ data class AssetCardResponse(
     val billingDate: Int?
 )
 
+data class AssetTransactionResponse(
+    val logId: Long?,
+    val accountId: Long?,
+    val transactionType: String?,
+    val amount: Long?,
+    val balanceAfter: Long?,
+    val counterpart: String?,
+    val memo: String?,
+    val category: String?,
+    val aiCategory: String?,
+    val ssafyTransactionId: String?,
+    val transacted: String?
+)
+
+data class AssetPayMethodResponse(
+    val paymentMethodId: Long?,
+    val userNo: Long?,
+    val methodType: String?,
+    val accountId: Long?,
+    val debitCardId: Long?,
+    val creditCardId: Long?,
+    val isDefault: Boolean?,
+    val isFacePay: Boolean?,
+    val isActive: Boolean?
+)
+
 data class WalletAssetsResponse(
     val accounts: List<AssetAccountResponse>,
-    val cards: List<AssetCardResponse>
+    val cards: List<AssetCardResponse>,
+    val payMethods: List<AssetPayMethodResponse>
 )
 
 data class PaymentResponse(
@@ -64,10 +92,34 @@ interface AssetApi {
         @Query("userNo") userNo: Long
     ): List<AssetAccountResponse>
 
+    @GET("api/accounts/{accountNo}")
+    suspend fun getAccount(
+        @Path("accountNo") accountNo: String,
+        @Query("userNo") userNo: Long
+    ): AssetAccountResponse
+
     @GET("api/cards")
     suspend fun getCards(
         @Query("userNo") userNo: Long
     ): List<AssetCardResponse>
+
+    @GET("api/transactions")
+    suspend fun getTransactions(
+        @Query("userNo") userNo: Long,
+        @Query("accountId") accountId: Long,
+        @Query("size") size: Int = 500
+    ): List<AssetTransactionResponse>
+
+    @GET("api/pay-methods")
+    suspend fun getPayMethods(
+        @Query("userNo") userNo: Long
+    ): List<AssetPayMethodResponse>
+
+    @PATCH("api/pay-methods/{id}/default")
+    suspend fun setDefaultPayMethod(
+        @Path("id") paymentMethodId: Long,
+        @Query("userNo") userNo: Long
+    ): AssetPayMethodResponse
 }
 
 interface PayApi {
@@ -97,11 +149,49 @@ object AssetRepository {
                     throw toReadableException(throwable, "카드 정보를 불러오지 못했습니다.")
                 }
         }
+        val payMethodsDeferred = async {
+            runCatching { api.getPayMethods(userNo) }
+                .getOrElse { throwable ->
+                    throw toReadableException(throwable, "결제수단 정보를 불러오지 못했습니다.")
+                }
+        }
 
         WalletAssetsResponse(
             accounts = accountsDeferred.await(),
-            cards = cardsDeferred.await()
+            cards = cardsDeferred.await(),
+            payMethods = payMethodsDeferred.await()
         )
+    }
+
+    suspend fun getAccount(userNo: Long, accountNo: String): AssetAccountResponse {
+        return runCatching {
+            api.getAccount(accountNo = accountNo, userNo = userNo)
+        }.getOrElse { throwable ->
+            throw toReadableException(throwable, "계좌 상세 정보를 불러오지 못했습니다.")
+        }
+    }
+
+    suspend fun getTransactions(userNo: Long, accountId: Long, size: Int = 500): List<AssetTransactionResponse> {
+        return runCatching {
+            api.getTransactions(
+                userNo = userNo,
+                accountId = accountId,
+                size = size
+            )
+        }.getOrElse { throwable ->
+            throw toReadableException(throwable, "거래내역을 불러오지 못했습니다.")
+        }
+    }
+
+    suspend fun setDefaultPaymentMethod(userNo: Long, paymentMethodId: Long): AssetPayMethodResponse {
+        return runCatching {
+            api.setDefaultPayMethod(
+                paymentMethodId = paymentMethodId,
+                userNo = userNo
+            )
+        }.getOrElse { throwable ->
+            throw toReadableException(throwable, "대표 결제수단을 변경하지 못했습니다.")
+        }
     }
 
     suspend fun getPayments(

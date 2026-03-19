@@ -56,6 +56,14 @@ public class PayMethod {
         this.isFacePay = true;
     }
 
+    public void setAsDefault() {
+        this.isDefault = true;
+    }
+
+    public void clearDefault() {
+        this.isDefault = false;
+    }
+
     public void clearFacePay() {
         this.isFacePay = false;
     }

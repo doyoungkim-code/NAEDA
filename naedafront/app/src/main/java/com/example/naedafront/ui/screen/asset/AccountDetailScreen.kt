@@ -69,6 +69,8 @@ data class PaymentUiItem(
 )
 
 val periodList = listOf("1주일", "1개월", "3개월", "직접 설정")
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 // ─────────────────────────────────────────────
 // ViewModel
@@ -172,19 +174,29 @@ private fun String.parseDateTime(): Pair<String, String>? {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountDetailScreen(
-    accountId: String = "",
-    onBack: () -> Unit = {},
-    onTransferClick: () -> Unit = {}
+    account: AccountItem = sampleAccounts.first(),
+    balance: Long = account.accountBalance ?: 0L,
+    transactions: List<TransactionItem> = sampleTransactions,
+    onBack: () -> Unit = {}
 ) {
-    val context = LocalContext.current
-    val viewModel: AccountDetailViewModel = viewModel()
-    val uiState by viewModel.uiState.collectAsState()
-
     var selectedPeriod by remember { mutableStateOf("1개월") }
     var showPeriodDialog by remember { mutableStateOf(false) }
+    val availableCategories = remember(transactions) {
+        listOf("전체") + transactions.map { it.category }.filter { it.isNotBlank() }.distinct()
+    }
 
-    LaunchedEffect(accountId) {
-        viewModel.loadData(context, accountId)
+    LaunchedEffect(availableCategories, selectedCategory) {
+        if (selectedCategory !in availableCategories) {
+            selectedCategory = "전체"
+        }
+    }
+
+    val periodFiltered = remember(transactions, selectedPeriod) {
+        filterTransactionsByPeriod(transactions, selectedPeriod)
+    }
+
+    val filtered = periodFiltered.filter { tx ->
+        selectedCategory == "전체" || tx.category == selectedCategory
     }
 
     // 날짜별 그룹핑
@@ -201,12 +213,9 @@ fun AccountDetailScreen(
             // 헤더
             item {
                 AccountDetailHeader(
-                    bankName = uiState.bankName,
-                    accountName = uiState.accountName,
-                    accountNumber = uiState.accountNumber,
-                    balance = uiState.balance,
-                    onBack = onBack,
-                    onTransferClick = onTransferClick
+                    account = account,
+                    balance = balance,
+                    onBack = onBack
                 )
             }
 
@@ -218,36 +227,13 @@ fun AccountDetailScreen(
                 )
             }
 
-            // 로딩
-            if (uiState.isLoading) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 64.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = Mint900)
-                    }
-                }
-            }
-
-            // 에러
-            if (uiState.error != null) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 64.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "데이터를 불러오지 못했습니다.",
-                            style = NaedaTypography.bodyMedium,
-                            color = OnSurfaceVariant
-                        )
-                    }
-                }
+            // ── 카테고리 필터 ────────────────────────
+            item {
+                CategoryFilterRow(
+                    categories = availableCategories,
+                    selected = selectedCategory,
+                    onSelect = { selectedCategory = it }
+                )
             }
 
             // 거래 없음
@@ -304,8 +290,7 @@ private fun AccountDetailHeader(
     accountName: String,
     accountNumber: String,
     balance: Long,
-    onBack: () -> Unit,
-    onTransferClick: () -> Unit
+    onBack: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -372,21 +357,7 @@ private fun AccountDetailHeader(
                     style = NaedaTypography.displayMedium.copy(fontWeight = FontWeight.Bold),
                     color = Color.White
                 )
-                Spacer(modifier = Modifier.height(24.dp))
-                Button(
-                    onClick = onTransferClick,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White.copy(alpha = 0.2f),
-                        contentColor = Color.White
-                    ),
-                    modifier = Modifier.height(44.dp)
-                ) {
-                    Text(
-                        text = "이체하기",
-                        style = NaedaTypography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
-                    )
-                }
+
             }
         }
     }
@@ -436,6 +407,45 @@ private fun PeriodFilterRow(
             )
         }
     }
+}
+
+// ─────────────────────────────────────────────
+// 카테고리 필터 칩 행
+// ─────────────────────────────────────────────
+
+@Composable
+private fun CategoryFilterRow(
+    categories: List<String>,
+    selected: String,
+    onSelect: (String) -> Unit
+) {
+    LazyRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Surface)
+            .padding(bottom = 12.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(categories) { category ->
+            val isSelected = selected == category
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(if (isSelected) Mint900 else SurfaceVariant)
+                    .clickable { onSelect(category) }
+                    .padding(horizontal = 14.dp, vertical = 7.dp)
+            ) {
+                Text(
+                    text = category,
+                    style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = if (isSelected) Color.White else OnSurfaceVariant
+                )
+            }
+        }
+    }
+
+    HorizontalDivider(color = OutlineVariant, thickness = 1.dp)
 }
 
 // ─────────────────────────────────────────────
@@ -596,5 +606,44 @@ private fun PeriodPickerDialog(
                 }
             }
         }
+    }
+}
+
+// ─────────────────────────────────────────────
+// 포맷 유틸
+// ─────────────────────────────────────────────
+
+private fun formatAmount(amount: Long): String {
+    val abs = Math.abs(amount)
+    return "%,d".format(abs)
+}
+
+private fun filterTransactionsByPeriod(
+    transactions: List<TransactionItem>,
+    selectedPeriod: String
+): List<TransactionItem> {
+    if (transactions.isEmpty()) {
+        return emptyList()
+    }
+
+    val now = LocalDateTime.now()
+    val formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm")
+    val threshold = when (selectedPeriod) {
+        "1주일" -> now.minusWeeks(1)
+        "1개월" -> now.minusMonths(1)
+        "3개월" -> now.minusMonths(3)
+        "6개월" -> now.minusMonths(6)
+        else -> null
+    }
+
+    if (threshold == null) {
+        return transactions
+    }
+
+    return transactions.filter { tx ->
+        runCatching { LocalDateTime.parse(tx.transacted, formatter) }
+            .getOrNull()
+            ?.let { !it.isBefore(threshold) }
+            ?: true
     }
 }

@@ -1,5 +1,6 @@
 ﻿package com.example.naedafront.ui.screen.asset
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,9 +26,11 @@ import androidx.compose.ui.unit.dp
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.AssetAccountResponse
 import com.example.naedafront.data.remote.AssetCardResponse
+import com.example.naedafront.data.remote.AssetPayMethodResponse
 import com.example.naedafront.data.remote.AssetRepository
 import com.example.naedafront.ui.common.LoadingIndicator
 import com.example.naedafront.ui.theme.Background
+import kotlinx.coroutines.launch
 
 private sealed interface AssetListUiState {
     data object Loading : AssetListUiState
@@ -51,9 +55,32 @@ fun AccountListRoute(
     onDeleteCard: (CardItem) -> Unit = {}
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val userNo = remember(context) { AuthPrefs.getUserNo(context) }
     var reloadTick by remember { mutableIntStateOf(0) }
     var uiState by remember { mutableStateOf<AssetListUiState>(AssetListUiState.Loading) }
+
+    fun setDefaultPaymentMethod(paymentMethodId: Long?, onSuccess: () -> Unit = {}) {
+        if (userNo == null || paymentMethodId == null) {
+            Toast.makeText(context, "대표 결제수단으로 설정할 수 없는 자산입니다.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        coroutineScope.launch {
+            runCatching {
+                AssetRepository.setDefaultPaymentMethod(userNo, paymentMethodId)
+            }.onSuccess {
+                onSuccess()
+                reloadTick++
+            }.onFailure { throwable ->
+                Toast.makeText(
+                    context,
+                    throwable.message ?: "대표 결제수단을 변경하지 못했습니다.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
 
     LaunchedEffect(userNo, reloadTick) {
         if (userNo == null) {
@@ -65,10 +92,14 @@ fun AccountListRoute(
         uiState = runCatching {
             val assets = AssetRepository.getWalletAssets(userNo)
             AssetListUiState.Success(
-                accounts = assets.accounts.mapIndexed { index, account -> account.toUi(index) },
+                accounts = assets.accounts.mapIndexed { index, account ->
+                    account.toUi(assets.payMethods, index)
+                },
                 cards = assets.cards
                     .filter { it.isActive != false }
-                    .mapIndexed { index, card -> card.toUi(index) }
+                    .mapIndexed { index, card ->
+                        card.toUi(assets.payMethods, index)
+                    }
             )
         }.getOrElse { throwable ->
             AssetListUiState.Error(throwable.message ?: "계좌와 카드 정보를 불러오지 못했습니다.")
@@ -116,41 +147,73 @@ fun AccountListRoute(
                 onAccountClick = onAccountClick,
                 onCardClick = onCardClick,
                 onDeleteAccount = onDeleteAccount,
-                onSetPrimary = onSetPrimary,
-                onSetPrimaryCard = onSetPrimaryCard,
+                onSetPrimary = { account ->
+                    setDefaultPaymentMethod(account.paymentMethodId) {
+                        onSetPrimary(account)
+                    }
+                },
+                onSetPrimaryCard = { card ->
+                    setDefaultPaymentMethod(card.paymentMethodId) {
+                        onSetPrimaryCard(card)
+                    }
+                },
                 onDeleteCard = onDeleteCard
             )
         }
     }
 }
 
-private fun AssetAccountResponse.toUi(index: Int): AccountItem {
+private fun AssetAccountResponse.toUi(
+    payMethods: List<AssetPayMethodResponse>,
+    index: Int
+): AccountItem {
     val style = resolveBankStyle(bankCode, bankName)
     val resolvedAccountNumber = accountNo.orEmpty().ifBlank { "계좌번호 없음" }
     val resolvedAccountName = accountName.orEmpty().ifBlank { bankName.orEmpty().ifBlank { "내 계좌" } }
+    val payMethod = payMethods.firstOrNull { method ->
+        method.isActive != false &&
+            method.methodType == "ACCOUNT" &&
+            method.accountId != null &&
+            method.accountId == accountId
+    }
 
     return AccountItem(
         id = accountId?.toString() ?: resolvedAccountNumber.ifBlank { "account-$index" },
+        accountId = accountId,
+        paymentMethodId = payMethod?.paymentMethodId,
         bankCode = bankCode.orEmpty(),
         bankName = bankName.orEmpty().ifBlank { style.displayName },
         accountName = resolvedAccountName,
         accountNumber = resolvedAccountNumber,
-        isPrimary = index == 0,
+        accountBalance = accountBalance,
+        isPrimary = payMethod?.isDefault == true,
         bankColor = style.color,
         bankInitials = style.initials
     )
 }
 
-private fun AssetCardResponse.toUi(index: Int): CardItem {
+private fun AssetCardResponse.toUi(
+    payMethods: List<AssetPayMethodResponse>,
+    index: Int
+): CardItem {
     val style = resolveCardStyle(cardIssuerCode, cardIssuerName)
+    val resolvedCardType = cardType.orEmpty().uppercase().ifBlank { "DEBIT" }
+    val payMethod = payMethods.firstOrNull { method ->
+        method.isActive != false && when (resolvedCardType) {
+            "CREDIT" -> method.methodType == "CREDIT_CARD" && method.creditCardId == cardId
+            else -> method.methodType == "DEBIT_CARD" && method.debitCardId == cardId
+        }
+    }
+
     return CardItem(
         id = cardId?.toString() ?: cardUniqueNo.orEmpty().ifBlank { "card-$index" },
-        cardType = cardType.orEmpty().uppercase().ifBlank { "DEBIT" },
+        paymentMethodId = payMethod?.paymentMethodId,
+        cardType = resolvedCardType,
         cardIssuerName = cardIssuerName.orEmpty().ifBlank { style.displayName },
         cardName = cardName.orEmpty().ifBlank { "등록 카드" },
         cardNumber = formatCardNumber(cardNo),
         cardExpiryDate = formatExpiryDate(cardExpiryDate),
-        isPrimary = index == 0,
+        isPrimary = payMethod?.isDefault == true,
         isActive = isActive != false,
         cardGradientStart = style.start,
         cardGradientEnd = style.end

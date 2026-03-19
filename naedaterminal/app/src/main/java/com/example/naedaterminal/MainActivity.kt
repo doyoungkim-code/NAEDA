@@ -1,126 +1,272 @@
 package com.example.naedaterminal
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import com.example.naedaterminal.ui.screen.*
 import com.example.naedaterminal.ui.screen.payment.RbaAuthContainer
 import com.example.naedaterminal.ui.screen.payment.RbaAuthType
 import com.example.naedaterminal.ui.theme.NaedaTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+
+        // 상태바 색상을 검은색으로
+        window.statusBarColor = android.graphics.Color.BLACK
 
         setContent {
             NaedaTheme {
-                var route by remember { mutableStateOf<Route>(Route.Start) }
+                val context = this
 
-                // 결제 결과 데이터
-                var lastPaidMethod by remember { mutableStateOf("FACE PAY") }
-                var lastAmount by remember { mutableStateOf(4500L) }
-                var lastApprovalNo by remember { mutableStateOf("A-20260305-0001") }
-                var lastApprovedAt by remember { mutableStateOf("2026-03-05 14:30") }
+                var route by remember {
+                    val hasPosKey = getPosKey(context) != null
+                    mutableStateOf<Route>(if (hasPosKey) Route.Waiting else Route.PosKey)
+                }
 
-                // RBA 관련 상태
-                var rbaUserId by remember { mutableStateOf("") }
-                var rbaAmount by remember { mutableStateOf(0L) }
+                val apiBaseUrl = "https://j14d103.p.ssafy.io"
+                val pollClient = remember { OkHttpClient() }
+
+                var currentRequestId by remember { mutableStateOf(0L) }
+                var currentAmount by remember { mutableStateOf(0L) }
+                var currentMerchant by remember { mutableStateOf("전자 기기 상점 GUMI") }
+                var currentMethod by remember { mutableStateOf("페이스페이") }
+                var matchedUserInfo by remember { mutableStateOf<MatchedUserInfo?>(null) }
                 var rbaAuthSteps by remember { mutableStateOf<List<RbaAuthType>>(emptyList()) }
+                var enteredPin by remember { mutableStateOf<String?>(null) }
+                var enteredPhoneDigits by remember { mutableStateOf<String?>(null) }
+
+                // 결제 진행 중 POS 취소 감지 폴링
+                val isInPaymentFlow = route in listOf(
+                    Route.PaymentSelect, Route.FacePay,
+                    Route.FaceMatchUser, Route.Rba
+                )
+                LaunchedEffect(isInPaymentFlow, currentRequestId) {
+                    if (!isInPaymentFlow || currentRequestId == 0L) return@LaunchedEffect
+                    while (true) {
+                        delay(2000)
+                        val cancelled = withContext(Dispatchers.IO) {
+                            runCatching {
+                                val req = Request.Builder()
+                                    .url("$apiBaseUrl/api/pay-requests/$currentRequestId")
+                                    .get().build()
+                                pollClient.newCall(req).execute().use { res ->
+                                    if (!res.isSuccessful || res.code == 404) return@use true
+                                    val raw = res.body?.string().orEmpty()
+                                    val status = org.json.JSONObject(raw).optString("status")
+                                    // PENDING이 아니고 SUCCESS도 아니면 취소/만료/실패
+                                    status != "PENDING" && status != "PROCESSING" && status != "SUCCESS"
+                                }
+                            }.getOrDefault(true) // 네트워크 에러 시에도 취소 처리
+                        }
+                        if (cancelled) {
+                            route = Route.Cancelled
+                            break
+                        }
+                    }
+                }
+
+                // 상단 검은색 바 (카메라 영역 가림) + 앱 콘텐츠
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // 상태바 아래 추가 검은색 영역 (카메라 가림용)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .background(Color.Black)
+                    )
 
                 when (route) {
-                    Route.Start -> NaedaStartScreen(
-                        onStart = { route = Route.PaymentSelect },
-                        onTerminalMode = { }
+
+                    Route.PosKey -> PosKeyScreen(
+                        onConnected = { posKey ->
+                            savePosKey(context, posKey)
+                            route = Route.Waiting
+                        }
+                    )
+
+                    Route.Waiting -> NaedaStartScreen(
+                        storeId = getPosKey(context) ?: "",
+                        apiBaseUrl = apiBaseUrl,
+                        onPaymentStart = { requestId, amount, merchant ->
+                            currentRequestId = requestId
+                            currentAmount = amount
+                            currentMerchant = merchant
+                            route = Route.PaymentSelect
+                        },
+                        onLogout = {
+                            clearPosKey(context)
+                            route = Route.PosKey
+                        }
                     )
 
                     Route.PaymentSelect -> PaymentMethodSelectScreen(
-                        onBack = { route = Route.Start },
-                        onSelect = { method: PaymentMethod ->
-                            when (method) {
-                                PaymentMethod.FACE_PAY -> {
-                                    lastPaidMethod = "FACE PAY"
-                                    route = Route.FacePay
-                                }
-                                PaymentMethod.SAMSUNG_PAY -> {
-                                    lastPaidMethod = "SAMSUNG PAY"
-                                    route = Route.PaymentDone
-                                }
-                                PaymentMethod.CARD -> {
-                                    lastPaidMethod = "CARD"
-                                    route = Route.PaymentDone
-                                }
-                            }
+                        amount = currentAmount,
+                        merchant = currentMerchant,
+                        onBack = { route = Route.Waiting },
+                        onFacePay = {
+                            currentMethod = "페이스페이"
+                            route = Route.FacePay
+                        },
+                        onCard = {
+                            currentMethod = "카드결제"
+                            route = Route.PaymentDone
                         }
                     )
 
                     Route.FacePay -> FacePayAuthScreen(
-                        apiBaseUrl = "http://10.0.2.2:8080",
+                        amount = currentAmount,
+                        merchant = currentMerchant,
+                        apiBaseUrl = apiBaseUrl,
                         topK = 3,
                         onBack = { route = Route.PaymentSelect },
-                        onAuthed = { userId, similarity ->
-                            // RBA 필요 여부 판단
-                            // 유사도 0.55 미만 or 5만원 이상이면 RBA 트리거
+                        onAuthed = { faceResult ->
+                            val methods = faceResult.requiredMethods
+                            // RBA 인증 단계 결정
                             val steps = buildList {
-                                if (similarity < 0.55) {
-                                    // TODO: 실제로는 서버(BE-012)에서 hasPinRegistered 받아야 함
-                                    // 임시로 전화번호 인증 사용
-                                    add(RbaAuthType.PhoneLastFour)
-                                }
-                                if (lastAmount >= 50_000L) {
-                                    add(RbaAuthType.Signature)
-                                }
+                                if ("PIN" in methods) add(RbaAuthType.Pin)
+                                if ("PHONE" in methods) add(RbaAuthType.PhoneMiddleFour)
                             }
+                            // 유사도 애매한 경우 (ambiguous) 랜덤으로 PIN or 전화번호 요청
+                            val isAmbiguous = faceResult.nextAction == "REQUIRE_SECOND_FACTOR"
+                                    || faceResult.status == "AMBIGUOUS"
+                            val ambiguousSteps = if (isAmbiguous && steps.isEmpty()) {
+                                listOf(
+                                    if ((0..1).random() == 0) RbaAuthType.Pin
+                                    else RbaAuthType.PhoneMiddleFour
+                                )
+                            } else steps
 
-                            rbaUserId = userId
-                            rbaAmount = lastAmount
-                            rbaAuthSteps = steps
+                            matchedUserInfo = MatchedUserInfo(
+                                userId = faceResult.bestUserId ?: "",
+                                userName = faceResult.username ?: faceResult.bestUserId ?: "알 수 없음",
+                                userNo = faceResult.matchedUserNo,
+                                requiresAdditionalAuth = ambiguousSteps.isNotEmpty(),
+                                authReason = when {
+                                    isAmbiguous -> "AMBIGUOUS"
+                                    methods.isNotEmpty() -> "USER_SETTING"
+                                    else -> null
+                                }
+                            )
 
-                            if (steps.isEmpty()) {
-                                // RBA 불필요 → 바로 결제 완료
-                                route = Route.PaymentDone
-                            } else {
-                                route = Route.Rba
-                            }
+                            rbaAuthSteps = ambiguousSteps
+                            enteredPin = null
+                            enteredPhoneDigits = null
+                            route = Route.FaceMatchUser
                         },
-                        onNotMatched = {
-                            route = Route.PaymentSelect
-                        }
+                        onNotMatched = { route = Route.PaymentSelect }
                     )
+
+                    Route.FaceMatchUser -> {
+                        val userInfo = matchedUserInfo
+                        if (userInfo != null) {
+                            FaceMatchUserScreen(
+                                userInfo = userInfo,
+                                amount = currentAmount,
+                                merchant = currentMerchant,
+                                onConfirm = {
+                                    route = if (rbaAuthSteps.isEmpty()) Route.Processing
+                                    else Route.Rba
+                                },
+                                onCancel = { route = Route.Waiting }
+                            )
+                        }
+                    }
 
                     Route.Rba -> RbaAuthContainer(
                         authSteps = rbaAuthSteps,
-                        paymentAmount = rbaAmount,
-                        merchantName = "SSAFY 편의점",
-                        onAuthComplete = {
+                        paymentAmount = currentAmount,
+                        merchantName = currentMerchant,
+                        onAuthComplete = { route = Route.Processing },
+                        onAuthCancel = { route = Route.FaceMatchUser },
+                        onPinEntered = { pin -> enteredPin = pin },
+                        onPhoneEntered = { digits -> enteredPhoneDigits = digits }
+                    )
+
+                    Route.Processing -> PaymentProcessingScreen(
+                        apiBaseUrl = apiBaseUrl,
+                        requestId = currentRequestId,
+                        userNo = matchedUserInfo?.userNo,
+                        pin = enteredPin,
+                        amount = currentAmount,
+                        merchant = currentMerchant,
+                        onSuccess = { result ->
                             route = Route.PaymentDone
                         },
-                        onAuthCancel = {
-                            route = Route.FacePay
+                        onFailure = { reason ->
+                            currentRequestId = 0L
+                            route = Route.PaymentFailed
                         }
                     )
 
+                    Route.Cancelled -> PaymentCancelledScreen(
+                        onDone = { route = Route.Waiting }
+                    )
+
+                    Route.PaymentFailed -> PaymentFailedScreen(
+                        onDone = { route = Route.Waiting }
+                    )
+
                     Route.PaymentDone -> PaymentDoneScreen(
-                        onDone = { route = Route.Start },
-                        onReceipt = { },
-                        merchantName = "SSAFY 편의점",
-                        orderName = "아메리카노 1잔",
-                        amountWon = lastAmount,
-                        paidMethodLabel = lastPaidMethod,
-                        approvedAt = lastApprovedAt,
-                        approvalNo = lastApprovalNo
+                        amount = currentAmount,
+                        merchant = currentMerchant,
+                        method = currentMethod,
+                        onDone = { route = Route.Waiting }
                     )
                 }
+                } // Column 끝
             }
         }
     }
 }
 
+private fun savePosKey(context: Context, key: String) {
+    context.getSharedPreferences("naeda_prefs", Context.MODE_PRIVATE)
+        .edit().putString("pos_key", key).apply()
+}
+
+private fun getPosKey(context: Context): String? {
+    return context.getSharedPreferences("naeda_prefs", Context.MODE_PRIVATE)
+        .getString("pos_key", null)
+}
+
+private fun clearPosKey(context: Context) {
+    context.getSharedPreferences("naeda_prefs", Context.MODE_PRIVATE)
+        .edit().remove("pos_key").apply()
+}
+
 private sealed interface Route {
-    data object Start : Route
+    data object PosKey : Route
+    data object Waiting : Route
     data object PaymentSelect : Route
     data object FacePay : Route
-    data object Rba : Route         // ← 추가
+    data object FaceMatchUser : Route
+    data object Rba : Route
+    data object Processing : Route
     data object PaymentDone : Route
+    data object Cancelled : Route
+    data object PaymentFailed : Route
 }
