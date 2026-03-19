@@ -24,7 +24,7 @@ import com.example.naedafront.data.remote.FaceRegistrationRepository
 import com.example.naedafront.ui.screen.LoginScreen
 import com.example.naedafront.ui.screen.WelcomeScreen
 import com.example.naedafront.ui.screen.asset.AccountDetailScreen
-import com.example.naedafront.ui.screen.asset.AccountListScreen
+import com.example.naedafront.ui.screen.asset.AccountListRoute
 import com.example.naedafront.ui.screen.asset.CardDetailScreen
 import com.example.naedafront.ui.screen.asset.RegisterAssetScreen
 import com.example.naedafront.ui.screen.asset.TradeReportScreen
@@ -271,7 +271,7 @@ fun NaedaNavGraph(
         }
 
         composable(Screen.Asset.route) {
-            AccountListScreen(
+            AccountListRoute(
                 initialTab = 0,
                 onBack = { navController.popBackStack() },
                 onRegisterNewAccount = {
@@ -409,7 +409,7 @@ fun NaedaNavGraph(
         ) { backStackEntry ->
             val tab = backStackEntry.arguments?.getInt("tab") ?: 0
 
-            AccountListScreen(
+            AccountListRoute(
                 initialTab = tab,
                 onBack = { navController.popBackStack() },
                 onRegisterNewAccount = {

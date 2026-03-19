@@ -183,10 +183,14 @@ fun AccountListScreen(
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(initialTab) }
     val tabs = listOf("계좌", "카드")
-
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var targetAccount by remember { mutableStateOf<AccountItem?>(null) }
     var expandedMenuId by remember { mutableStateOf<String?>(null) }
+    val accountIdsKey = remember(accounts) { accounts.joinToString("|") { it.id } }
+    var selectedPrimaryAccountId by rememberSaveable(accountIdsKey) { mutableStateOf<String?>(null) }
+    val displayedAccounts = remember(accounts, selectedPrimaryAccountId) {
+        accounts.map { account ->
+            account.copy(isPrimary = selectedPrimaryAccountId == account.id)
+        }
+    }
 
     Scaffold(
         containerColor = Background,
@@ -226,7 +230,7 @@ fun AccountListScreen(
 
             if (selectedTab == 0) {
                 AccountListContent(
-                    accounts = accounts,
+                    accounts = displayedAccounts,
                     expandedMenuId = expandedMenuId,
                     onMenuToggle = { id ->
                         expandedMenuId = if (expandedMenuId == id) null else id
@@ -234,12 +238,8 @@ fun AccountListScreen(
                     onAccountClick = onAccountClick,
                     onSetPrimary = { account ->
                         expandedMenuId = null
+                        selectedPrimaryAccountId = account.id
                         onSetPrimary(account)
-                    },
-                    onDeleteRequest = { account ->
-                        expandedMenuId = null
-                        targetAccount = account
-                        showDeleteDialog = true
                     },
                     onRegisterNew = onRegisterNewAccount
                 )
@@ -253,20 +253,6 @@ fun AccountListScreen(
                 )
             }
         }
-    }
-
-    if (showDeleteDialog && targetAccount != null) {
-        AccountDeleteDialog(
-            onDismiss = {
-                showDeleteDialog = false
-                targetAccount = null
-            },
-            onConfirm = {
-                targetAccount?.let { onDeleteAccount(it) }
-                showDeleteDialog = false
-                targetAccount = null
-            }
-        )
     }
 }
 
@@ -327,7 +313,6 @@ private fun AccountListContent(
     onMenuToggle: (String) -> Unit,
     onAccountClick: (AccountItem) -> Unit,
     onSetPrimary: (AccountItem) -> Unit,
-    onDeleteRequest: (AccountItem) -> Unit,
     onRegisterNew: () -> Unit
 ) {
     LazyColumn(
@@ -342,8 +327,7 @@ private fun AccountListContent(
                 isMenuExpanded = expandedMenuId == account.id,
                 onMenuToggle = { onMenuToggle(account.id) },
                 onAccountClick = { onAccountClick(account) },
-                onSetPrimary = { onSetPrimary(account) },
-                onDeleteRequest = { onDeleteRequest(account) }
+                onSetPrimary = { onSetPrimary(account) }
             )
         }
 
@@ -406,8 +390,7 @@ private fun AccountListItem(
     isMenuExpanded: Boolean,
     onMenuToggle: () -> Unit,
     onAccountClick: () -> Unit,
-    onSetPrimary: () -> Unit,
-    onDeleteRequest: () -> Unit
+    onSetPrimary: () -> Unit
 ) {
     Surface(
         modifier = Modifier
@@ -457,28 +440,28 @@ private fun AccountListItem(
                 )
             }
 
-            Box {
-                IconButton(
-                    onClick = onMenuToggle,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "더보기",
-                        tint = OnSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                DropdownMenu(
-                    expanded = isMenuExpanded,
-                    onDismissRequest = onMenuToggle,
-                    modifier = Modifier.background(Surface)
-                ) {
-                    if (!account.isPrimary) {
+            if (!account.isPrimary) {
+                Box {
+                    IconButton(
+                        onClick = onMenuToggle,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "더보기",
+                            tint = OnSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = isMenuExpanded,
+                        onDismissRequest = onMenuToggle,
+                        modifier = Modifier.background(Surface)
+                    ) {
                         DropdownMenuItem(
                             text = {
                                 Text(
-                                    "대표 계좌로 설정",
+                                    "대표계좌 변경",
                                     style = NaedaTypography.bodyMedium,
                                     color = OnBackground
                                 )
@@ -486,16 +469,6 @@ private fun AccountListItem(
                             onClick = onSetPrimary
                         )
                     }
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                "삭제",
-                                style = NaedaTypography.bodyMedium,
-                                color = Error
-                            )
-                        },
-                        onClick = onDeleteRequest
-                    )
                 }
             }
         }

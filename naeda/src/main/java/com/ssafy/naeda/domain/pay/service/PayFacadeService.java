@@ -79,7 +79,7 @@ public class PayFacadeService {
 
     @SuppressWarnings("unchecked")
     public PayTransaction processFacePayment(Long requestId,
-                                             String userId, String idempotencyKey, String pin) {
+                                             Long userNo, String idempotencyKey, String pin) {
 
         // 1. 멱등성 체크
         if (payDbService.existsByIdempotencyKey(idempotencyKey)) {
@@ -114,7 +114,7 @@ public class PayFacadeService {
                     .orElseThrow(() -> new NotFoundException("존재하지 않는 매장입니다."));
 
             // 6. User 조회 (얼굴 인식은 별도 API에서 이미 완료됨)
-            User user = userRepository.findByUserId(userId)
+            User user = userRepository.findById(userNo)
                     .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
 
             // Rate Limit

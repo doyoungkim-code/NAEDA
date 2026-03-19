@@ -22,6 +22,10 @@ public class SearchResponse {
     private String nextAction;
     @Schema(description = "가장 유사한 사용자 ID", example = "user-1001")
     private String bestUserId;
+    @Schema(description = "가장 유사한 사용자 이름", example = "홍길동")
+    private String username;
+    @Schema(description = "가장 유사한 사용자 번호", example = "1")
+    private Long userNo;
     @Schema(description = "가장 유사한 사용자 번호", example = "1")
     private Long matchedUserNo;
     @Schema(description = "최고 유사도", example = "0.92")
