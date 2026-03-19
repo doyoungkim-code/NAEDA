@@ -10,8 +10,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class PublicStoreCoordinateConverter {
 
-    private static final double LATITUDE_OFFSET = 0.013271073238785;
-    private static final double LONGITUDE_OFFSET = -0.00462756244125;
+    private static final double LATITUDE_OFFSET = 0.002920073238785;
+    private static final double LONGITUDE_OFFSET = -0.00214056244125;
 
     private final CoordinateTransform transform;
 

@@ -15,7 +15,7 @@ class PublicStoreCoordinateConverterTest {
         PublicStoreCoordinateConverter.LatLng latLng = converter.convert(327649.227535413, 290716.785210593);
 
         assertThat(latLng).isNotNull();
-        assertThat(latLng.latitude()).isEqualTo(36.118885);
-        assertThat(latLng.longitude()).isEqualTo(128.41603);
+        assertThat(latLng.latitude()).isEqualTo(36.108534);
+        assertThat(latLng.longitude()).isEqualTo(128.418517);
     }
 }
