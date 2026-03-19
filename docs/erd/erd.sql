@@ -36,6 +36,7 @@ CREATE TABLE "user" (
     user_key          VARCHAR(255),                         -- SSAFY API 유저 키
     face_registered   BOOLEAN       NOT NULL DEFAULT FALSE, -- 얼굴 등록 여부
     pin_password      VARCHAR(255),                         -- 6자리 Pin 비밀번호 (BCrypt)
+    secondary_auth_enabled BOOLEAN NOT NULL DEFAULT FALSE,  -- 2차 인증 활성화 여부
     fcm_token         VARCHAR(255),                         -- FCM 디바이스 토큰
     created           TIMESTAMP     NOT NULL DEFAULT NOW(),
     modified          TIMESTAMP
@@ -190,7 +191,7 @@ CREATE TABLE point_wallet (
     user_no      BIGINT    NOT NULL UNIQUE,              -- FK → user (1인 1지갑)
     balance      BIGINT    NOT NULL DEFAULT 0,            -- 포인트 잔액
     total_earned BIGINT    NOT NULL DEFAULT 0,            -- 총 적립
-    total_used   BIGINT    NOT NULL DEFAULT 0,            -- 총 사용
+    total_used   BIGINT    NOT NULL DEFAULT 0,            -- 총 사용     
     updated      TIMESTAMP DEFAULT NOW()
 );
 
@@ -225,9 +226,8 @@ CREATE TABLE point_order (
     order_id    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_no     BIGINT        NOT NULL,                -- FK → user
     product_id  BIGINT        NOT NULL,                -- FK → point_product
-    order_at    TIMESTAMP     NOT NULL DEFAULT NOW(),   -- 주문 시각
-    road_address      VARCHAR(255),                    -- 도로명 주소
-    number_address    VARCHAR(255)                     -- 지번 주소
+    address_id  BIGINT,                                  -- FK → address (배송 주소)
+    order_at    TIMESTAMP     NOT NULL DEFAULT NOW()    -- 주문 시각
 );
 
 -- 15) Consumption_Report (AI 소비 분석 리포트)
@@ -287,6 +287,33 @@ CREATE TABLE notification (
     reference_type  reference_type_enum,                           -- PAYMENT / FESTIVAL
     is_read         BOOLEAN                 NOT NULL DEFAULT FALSE,-- 읽음 여부
     sent            TIMESTAMP               NOT NULL DEFAULT NOW()
+);
+
+-- 20) Address (배송 주소)
+CREATE TABLE address (
+    address_id      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_no         BIGINT        NOT NULL,                           -- FK → user
+    address_name    VARCHAR(50),                                      -- 별칭 (집, 회사 등)
+    recipient       VARCHAR(50)   NOT NULL,                           -- 수령인 이름
+    phone           VARCHAR(20)   NOT NULL,                           -- 수령인 연락처
+    road_address    VARCHAR(255)  NOT NULL,                           -- 도로명 주소
+    number_address  VARCHAR(255),                                     -- 지번 주소
+    detail_address  VARCHAR(255),                                     -- 상세주소 (동/호)
+    zip_code        VARCHAR(10),                                      -- 우편번호
+    is_default      BOOLEAN       NOT NULL DEFAULT FALSE,             -- 기본 배송지 여부
+    created         TIMESTAMP     NOT NULL DEFAULT NOW()
+);
+
+-- 21) Notification_Setting (알림 설정)
+CREATE TABLE notification_setting (
+    setting_id       BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_no          BIGINT   NOT NULL UNIQUE,                         -- FK → user (1인 1설정)
+    payment_enabled  BOOLEAN  NOT NULL DEFAULT TRUE,                   -- 결제 알림 수신 여부
+    fds_enabled      BOOLEAN  NOT NULL DEFAULT TRUE,                   -- FDS 경고 알림 수신 여부
+    festival_enabled BOOLEAN  NOT NULL DEFAULT TRUE,                   -- 축제/이벤트 알림 수신 여부
+    point_enabled    BOOLEAN  NOT NULL DEFAULT TRUE,                   -- 포인트 알림 수신 여부
+    system_enabled   BOOLEAN  NOT NULL DEFAULT TRUE,                   -- 시스템 알림 수신 여부
+    created          TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 -- 19) Payment_Limit (결제 한도)
@@ -435,3 +462,18 @@ ALTER TABLE notification
 ALTER TABLE payment_limit
     ADD CONSTRAINT fk_payment_limit_user
     FOREIGN KEY (user_no) REFERENCES "user" (user_no) ON DELETE CASCADE;
+
+-- Address → User
+ALTER TABLE address
+    ADD CONSTRAINT fk_address_user
+    FOREIGN KEY (user_no) REFERENCES "user" (user_no) ON DELETE CASCADE;
+
+-- Notification_Setting → User
+ALTER TABLE notification_setting
+    ADD CONSTRAINT fk_notification_setting_user
+    FOREIGN KEY (user_no) REFERENCES "user" (user_no) ON DELETE CASCADE;
+
+-- Point_Order → Address
+ALTER TABLE point_order
+    ADD CONSTRAINT fk_point_order_address
+    FOREIGN KEY (address_id) REFERENCES address (address_id) ON DELETE SET NULL;
