@@ -25,13 +25,10 @@ public class PointOrder {
     @Column(name = "product_id", nullable = false)
     private Long productId;
 
+    @Column(name = "address_id")
+    private Long addressId;
+
     @CreationTimestamp
     @Column(name = "order_at", nullable = false, updatable = false)
     private LocalDateTime orderAt;
-
-    @Column(name = "road_address")
-    private String roadAddress;
-
-    @Column(name = "number_address")
-    private String numberAddress;
 }

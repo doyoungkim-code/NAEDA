@@ -16,9 +16,5 @@ public class PointOrderCreateRequest {
     @NotNull
     private Long productId;
 
-    @Size(max = 200, message = "도로명 주소는 200자 이하이어야 합니다.")
-    private String roadAddress;
-
-    @Size(max = 200, message = "지번 주소는 200자 이하이어야 합니다.")
-    private String numberAddress;
+    private Long addressId;
 }

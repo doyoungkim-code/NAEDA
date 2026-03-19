@@ -16,8 +16,7 @@ public class PointOrderResponse {
     private Long productId;
     private String productName;
     private Long pointPrice;
-    private String roadAddress;
-    private String numberAddress;
+    private Long addressId;
     private LocalDateTime orderAt;
 
     public static PointOrderResponse from (PointProduct product, PointOrder order) {
@@ -27,8 +26,7 @@ public class PointOrderResponse {
                 .productId(product.getProductId())
                 .productName(product.getProductName())
                 .pointPrice(product.getPointPrice())
-                .roadAddress(order.getRoadAddress())
-                .numberAddress(order.getNumberAddress())
+                .addressId(order.getAddressId())
                 .orderAt(order.getOrderAt())
                 .build();
     }
