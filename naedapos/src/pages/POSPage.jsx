@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { createPaymentRequest, getPaymentRequest, setToken, getToken } from '../api'
+import { createPayRequest, getPayRequest, setToken, getToken } from '../api'
 import PaymentStatus from '../components/PaymentStatus'
 
 const SAMPLE_MENU = {
@@ -142,7 +142,7 @@ export default function POSPage({ onGoAdmin }) {
   const startPolling = useCallback((requestId) => {
     pollingRef.current = setInterval(async () => {
       try {
-        const data = await getPaymentRequest(requestId)
+        const data = await getPayRequest(requestId)
         setPaymentState(data)
         if (['SUCCESS', 'FAILED', 'BLOCKED'].includes(data.status)) {
           clearInterval(pollingRef.current)
@@ -160,7 +160,7 @@ export default function POSPage({ onGoAdmin }) {
     if (totalAmount <= 0) return
     setLoading(true)
     try {
-      const data = await createPaymentRequest(Number(storeId), totalAmount)
+      const data = await createPayRequest({ storeId: Number(storeId), amount: totalAmount })
       setPaymentState(data)
       startPolling(data.requestId)
     } catch (err) { alert(err.message) }

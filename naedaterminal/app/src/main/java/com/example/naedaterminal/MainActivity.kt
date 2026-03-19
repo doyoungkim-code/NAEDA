@@ -54,6 +54,10 @@ class MainActivity : ComponentActivity() {
                             currentAmount = amount
                             currentMerchant = merchant
                             route = Route.PaymentSelect
+                        },
+                        onLogout = {
+                            clearPosKey(context)
+                            route = Route.PosKey
                         }
                     )
 
@@ -161,6 +165,11 @@ private fun savePosKey(context: Context, key: String) {
 private fun getPosKey(context: Context): String? {
     return context.getSharedPreferences("naeda_prefs", Context.MODE_PRIVATE)
         .getString("pos_key", null)
+}
+
+private fun clearPosKey(context: Context) {
+    context.getSharedPreferences("naeda_prefs", Context.MODE_PRIVATE)
+        .edit().remove("pos_key").apply()
 }
 
 private sealed interface Route {

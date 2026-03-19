@@ -1,7 +1,9 @@
 package com.example.naedaterminal.ui.screen
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,11 +35,13 @@ data class PayRequestInfo(
     val status: String
 )
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NaedaStartScreen(
     storeId: String,
     apiBaseUrl: String,
-    onPaymentStart: (requestId: Long, amount: Long, merchant: String) -> Unit
+    onPaymentStart: (requestId: Long, amount: Long, merchant: String) -> Unit,
+    onLogout: () -> Unit = {}
 ) {
     val primary = MaterialTheme.colorScheme.primary
     val client = remember { OkHttpClient() }
@@ -64,6 +68,10 @@ fun NaedaStartScreen(
             .background(BgColor)
             .statusBarsPadding()
             .navigationBarsPadding()
+            .combinedClickable(
+                onClick = {},
+                onLongClick = { onLogout() }
+            )
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
