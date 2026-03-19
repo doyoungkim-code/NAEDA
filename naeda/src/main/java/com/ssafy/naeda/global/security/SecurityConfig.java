@@ -40,6 +40,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/stores/map",
+                                "/api/stores/public",
                                 "/api/v1/face/search",
                                 "/api/pay-requests/**",
                                 "/swagger-ui/**",
