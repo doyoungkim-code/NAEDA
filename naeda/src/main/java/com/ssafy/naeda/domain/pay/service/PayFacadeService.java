@@ -458,19 +458,23 @@ public class PayFacadeService {
     }
 
     private void publishEvent(PayTransaction tx) {
-        PayEvent event = PayEvent.builder()
-                .transactionId(tx.getId())
-                .userNo(tx.getUserNo())
-                .storeId(tx.getStoreId())
-                .amount(tx.getAmount())
-                .status(tx.getStatus().name())
-                .authMethod(tx.getAuthMethod())
-                .fdsScore(tx.getFdsScore())
-                .fdsAction(tx.getFdsAction())
-                .earnedPoints(tx.getEarnedPoints())
-                .ssafyTransactionId(tx.getSsafyTransactionId())
-                .build();
+        try {
+            PayEvent event = PayEvent.builder()
+                    .transactionId(tx.getId())
+                    .userNo(tx.getUserNo())
+                    .storeId(tx.getStoreId())
+                    .amount(tx.getAmount())
+                    .status(tx.getStatus().name())
+                    .authMethod(tx.getAuthMethod())
+                    .fdsScore(tx.getFdsScore())
+                    .fdsAction(tx.getFdsAction())
+                    .earnedPoints(tx.getEarnedPoints())
+                    .ssafyTransactionId(tx.getSsafyTransactionId())
+                    .build();
 
-        eventPublisher.publish(event);
+            eventPublisher.publish(event);
+        } catch (Exception e) {
+            log.error("[Pay] Kafka 이벤트 발행 실패 (결제는 정상 처리됨): transactionId={}", tx.getId(), e);
+        }
     }
 }
