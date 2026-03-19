@@ -53,7 +53,7 @@ class AuthServiceTest {
     private ValueOperations<String, String> valueOperations;
 
     @Mock
-    private com.ssafy.naeda.domain.payment.service.PaymentLimitService paymentLimitService;
+    private com.ssafy.naeda.domain.pay.service.PayLimitService paymentLimitService;
 
     @Test
     @DisplayName("회원가입 시 PIN을 해시하여 저장한다")

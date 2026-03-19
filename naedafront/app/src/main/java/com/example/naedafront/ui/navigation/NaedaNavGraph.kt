@@ -27,6 +27,7 @@ import com.example.naedafront.ui.screen.asset.AccountDetailScreen
 import com.example.naedafront.ui.screen.asset.AccountListScreen
 import com.example.naedafront.ui.screen.asset.CardDetailScreen
 import com.example.naedafront.ui.screen.asset.RegisterAssetScreen
+import com.example.naedafront.ui.screen.asset.TradeReportScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchRecognizeScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchResultScreen
 import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
@@ -36,6 +37,7 @@ import com.example.naedafront.ui.screen.map.MapRegion
 import com.example.naedafront.ui.screen.map.MapSelectScreen
 import com.example.naedafront.ui.screen.mypage.MyPageScreen
 import com.example.naedafront.ui.screen.mypage.MyPageViewModel
+import com.example.naedafront.ui.screen.setting.SettingsScreen
 import com.example.naedafront.ui.screen.signup.SignUpEmailScreen
 import com.example.naedafront.ui.screen.signup.SignUpNameScreen
 import com.example.naedafront.ui.screen.signup.SignUpPasswordScreen
@@ -45,9 +47,9 @@ import com.example.naedafront.ui.screen.signup.SignUpRrnScreen
 import com.example.naedafront.ui.screen.signup.SignUpVerifyScreen
 import com.example.naedafront.ui.screen.signup.SignUpViewModel
 import com.example.naedafront.ui.screen.store.DeliveryAddressScreen
+import com.example.naedafront.ui.screen.store.OrderCompleteScreen
 import com.example.naedafront.ui.screen.store.PointHistoryScreen
 import com.example.naedafront.ui.screen.store.PointStoreScreen
-import com.example.naedafront.ui.screen.store.OrderCompleteScreen
 
 @Composable
 fun NaedaNavGraph(
@@ -189,7 +191,6 @@ fun NaedaNavGraph(
                     userName = displayName,
                     isFaceRegistered = isFaceRegistered
                 ),
-                onTransferClick = { navController.navigate(Screen.Transfer.route) },
                 onTransactionClick = { navController.navigate(Screen.Transaction.route) },
                 onFacePaySettingClick = { navController.navigate(Screen.FaceRegister.route) },
                 onLinkAccountClick = { navController.navigate(Screen.AccountList.createRoute(0)) },
@@ -293,7 +294,25 @@ fun NaedaNavGraph(
         }
 
         composable(Screen.More.route) {
-            PlaceholderScreen("⋯ 더보기")
+            SettingsScreen(
+                onNotificationClick = {
+                    navController.navigate(Screen.Notification.route)
+                },
+                onPinChangeClick = {
+                    navController.navigate(Screen.Security.route)
+                },
+                onTermsClick = { },
+                onPrivacyClick = { },
+                onSupportClick = { },
+                onLogoutClick = {
+                    AuthPrefs.clearSession(context)
+                    navController.navigate(Screen.Welcome.route) {
+                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onWithdrawClick = { }
+            )
         }
 
         composable(Screen.FaceRegister.route) {
@@ -469,7 +488,9 @@ fun NaedaNavGraph(
         }
 
         composable(Screen.Transaction.route) {
-            PlaceholderScreen("거래내역")
+            TradeReportScreen(
+                onBackClick = { navController.popBackStack() }
+            )
         }
 
         composable(Screen.Report.route) {
@@ -517,7 +538,25 @@ fun NaedaNavGraph(
         }
 
         composable(Screen.Settings.route) {
-            PlaceholderScreen("⚙️ 설정")
+            SettingsScreen(
+                onNotificationClick = {
+                    navController.navigate(Screen.Notification.route)
+                },
+                onPinChangeClick = {
+                    navController.navigate(Screen.Security.route)
+                },
+                onTermsClick = { },
+                onPrivacyClick = { },
+                onSupportClick = { },
+                onLogoutClick = {
+                    AuthPrefs.clearSession(context)
+                    navController.navigate(Screen.Welcome.route) {
+                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onWithdrawClick = { }
+            )
         }
 
         composable(Screen.Notification.route) {

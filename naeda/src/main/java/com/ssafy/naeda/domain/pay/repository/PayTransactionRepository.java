@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -22,6 +23,11 @@ public interface PayTransactionRepository extends JpaRepository<PayTransaction, 
     Optional<PayTransaction> findByIdempotencyKey(String idempotencyKey);
 
     boolean existsByIdempotencyKey(String idempotencyKey);
+
+    // ── 추천 API 용: 가게별 결제(방문) 횟수 ──
+
+    @Query("select p.storeId, count(p) from PayTransaction p where p.status = 'SUCCESS' group by p.storeId")
+    List<Object[]> countVisitsByStore();
 
     boolean existsBySsafyTransactionId(String ssafyTransactionId);
 
