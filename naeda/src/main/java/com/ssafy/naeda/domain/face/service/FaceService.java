@@ -116,13 +116,18 @@ public class FaceService {
             case BLOCKED -> "BLOCK";
             default -> "REQUIRE_SECOND_FACTOR";
         };
+        ResolvedUser bestUser = status == FaceMatchStatus.NO_MATCH || best == null
+                ? null
+                : resolveUser(best.getUserId());
 
         return SearchResponse.builder()
                 .matched(matched)
                 .status(status)
                 .nextAction(nextAction)
                 .bestUserId(status == FaceMatchStatus.NO_MATCH || best == null ? null : best.getUserId())
-                .matchedUserNo(status == FaceMatchStatus.NO_MATCH || best == null ? null : best.getUserNo())
+                .username(bestUser == null ? null : bestUser.username())
+                .userNo(bestUser == null ? null : bestUser.userNo())
+                .matchedUserNo(bestUser == null ? null : bestUser.userNo())
                 .similarity(bestSimilarity)
                 .matchThreshold(matchThreshold)
                 .ambiguousThreshold(ambiguousThreshold)
@@ -142,6 +147,12 @@ public class FaceService {
     private Long resolveUserNo(String userId) {
         return userRepository.findByUserId(userId)
                 .map(user -> user.getUserNo())
+                .orElse(null);
+    }
+
+    private ResolvedUser resolveUser(String userId) {
+        return userRepository.findByUserId(userId)
+                .map(user -> new ResolvedUser(user.getUserNo(), user.getUsername()))
                 .orElse(null);
     }
 
@@ -185,5 +196,8 @@ public class FaceService {
         }
         if (normA == 0f || normB == 0f) return 0f;
         return dot / (float) (Math.sqrt(normA) * Math.sqrt(normB));
+    }
+
+    private record ResolvedUser(Long userNo, String username) {
     }
 }
