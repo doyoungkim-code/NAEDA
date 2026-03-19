@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -43,6 +44,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -59,6 +62,7 @@ import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.outlined.FaceRetouchingNatural
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Button
@@ -66,6 +70,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -89,6 +94,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -107,8 +113,13 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.ApiRequestException
+import com.example.naedafront.data.remote.AssetAccountResponse
+import com.example.naedafront.data.remote.AssetCardResponse
+import com.example.naedafront.data.remote.AssetPayMethodResponse
+import com.example.naedafront.data.remote.AssetRepository
 import com.example.naedafront.data.remote.FaceRegistrationRepository
 import com.example.naedafront.data.remote.HeadPoseCheckResponseDto
+import com.example.naedafront.data.remote.PayLimitResponseDto
 import com.example.naedafront.data.remote.ResidentIdExtractResponseDto
 import com.example.naedafront.data.remote.ResidentIdVerifyResponseDto
 import com.example.naedafront.ui.screen.signup.NumberKeypad
@@ -174,6 +185,8 @@ private sealed class RegisterStage {
     object IdGuide : RegisterStage()
     object IdScanning : RegisterStage()
     data class IdConfirm(val extracted: ResidentIdExtractResponseDto) : RegisterStage()
+    object PaymentMethodSelect : RegisterStage()
+    object PaymentLimitSetup : RegisterStage()
     object PinChoice : RegisterStage()
     data class CurrentPin(val resetKey: Int = 0) : RegisterStage()
     object Saving : RegisterStage()   // 등록 중 로딩 화면
@@ -199,6 +212,7 @@ fun FaceRegisterFlowScreen(
     val context = LocalContext.current
     val activity = context as? ComponentActivity
     val token = remember(context) { AuthPrefs.getAccessToken(context).orEmpty() }
+    val userNo = remember(context) { AuthPrefs.getUserNo(context) }
     val scope = rememberCoroutineScope()
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -306,7 +320,7 @@ fun FaceRegisterFlowScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            if (token.isBlank()) {
+            if (token.isBlank() || userNo == null) {
                 RegistrationMessageScreen(
                     title = "로그인이 필요합니다",
                     description = "현재 로그인된 사용자 컨텍스트가 없어 페이스페이 등록을 시작할 수 없습니다.",
@@ -369,8 +383,20 @@ fun FaceRegisterFlowScreen(
 
                     is RegisterStage.IdConfirm -> IdConfirmStageContent(
                         extracted = currentStage.extracted,
-                        onConfirmComplete = { stage = RegisterStage.PinChoice },
+                        onConfirmComplete = { stage = RegisterStage.PaymentMethodSelect },
                         onConfirmError = { globalError = it }
+                    )
+
+                    is RegisterStage.PaymentMethodSelect -> PaymentMethodSelectStageContent(
+                        userNo = userNo!!,
+                        onSelectionComplete = { stage = RegisterStage.PaymentLimitSetup },
+                        onError = { globalError = it }
+                    )
+
+                    is RegisterStage.PaymentLimitSetup -> PaymentLimitSetupStageContent(
+                        userNo = userNo!!,
+                        onSaveComplete = { stage = RegisterStage.PinChoice },
+                        onError = { globalError = it }
                     )
 
                     is RegisterStage.PinChoice -> PinChoiceStageContent(
@@ -421,6 +447,8 @@ private fun titleForStage(stage: RegisterStage): String {
         is RegisterStage.IdGuide -> "신분증 준비"
         is RegisterStage.IdScanning -> "신분증 촬영"
         is RegisterStage.IdConfirm -> "신분증 정보 확인"
+        is RegisterStage.PaymentMethodSelect -> "대표 결제수단"
+        is RegisterStage.PaymentLimitSetup -> "결제 한도"
         is RegisterStage.PinChoice -> "PIN 설정"
         is RegisterStage.CurrentPin -> "현재 PIN 입력"
         is RegisterStage.Saving -> "페이스페이"
@@ -2174,6 +2202,665 @@ private fun LabeledField(
     }
 }
 
+private enum class FacePaySelectableType {
+    ACCOUNT,
+    CARD
+}
+
+private data class FacePaySelectableMethod(
+    val paymentMethodId: Long?,
+    val title: String,
+    val subtitle: String,
+    val typeLabel: String,
+    val isDefault: Boolean,
+    val selectable: Boolean,
+    val type: FacePaySelectableType
+)
+
+@Composable
+private fun PaymentMethodSelectStageContent(
+    userNo: Long,
+    onSelectionComplete: () -> Unit,
+    onError: (String) -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    var isLoading by remember { mutableStateOf(true) }
+    var isSubmitting by remember { mutableStateOf(false) }
+    var selectedTab by rememberSaveable { mutableStateOf(0) }
+    var accountItems by remember { mutableStateOf<List<FacePaySelectableMethod>>(emptyList()) }
+    var cardItems by remember { mutableStateOf<List<FacePaySelectableMethod>>(emptyList()) }
+    var pendingSelection by remember { mutableStateOf<FacePaySelectableMethod?>(null) }
+
+    fun loadAssets() {
+        scope.launch {
+            isLoading = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    AssetRepository.getWalletAssets(userNo)
+                }
+            }.onSuccess { assets ->
+                accountItems = assets.accounts.mapIndexed { index, account ->
+                    account.toFacePaySelectableMethod(assets.payMethods, index)
+                }
+                cardItems = assets.cards
+                    .filter { it.isActive != false }
+                    .mapIndexed { index, card ->
+                        card.toFacePaySelectableMethod(assets.payMethods, index)
+                    }
+                isLoading = false
+            }.onFailure { throwable ->
+                isLoading = false
+                onError(throwable.message ?: "결제수단 목록을 불러오지 못했습니다.")
+            }
+        }
+    }
+
+    LaunchedEffect(userNo) {
+        loadAssets()
+    }
+
+    val currentItems = if (selectedTab == 0) accountItems else cardItems
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+    ) {
+        Spacer(modifier = Modifier.height(32.dp))
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(Mint50)
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = "결제수단 설정",
+                fontFamily = NaedaFontFamily,
+                fontWeight = FontWeight.Medium,
+                fontSize = 13.sp,
+                color = Mint500
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "대표 결제수단을\n선택해 주세요",
+            fontFamily = NaedaFontFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = 26.sp,
+            color = OnBackground,
+            lineHeight = 34.sp
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "계좌 또는 카드 중 하나를 대표 결제수단으로 등록합니다. 나중에 지갑 탭에서 다시 변경할 수 있어요.",
+            fontFamily = NaedaFontFamily,
+            fontSize = 14.sp,
+            color = OnSurfaceVariant,
+            lineHeight = 22.sp
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(SurfaceVariant)
+                .padding(4.dp)
+        ) {
+            listOf("계좌", "카드").forEachIndexed { index, label ->
+                val selected = selectedTab == index
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (selected) Color.White else Color.Transparent)
+                        .clickable(enabled = !isLoading && !isSubmitting) { selectedTab = index }
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = label,
+                        fontFamily = NaedaFontFamily,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = 14.sp,
+                        color = if (selected) Mint900 else OnSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Mint500)
+            }
+        } else if (currentItems.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(SurfaceVariant)
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "선택할 수 있는 ${if (selectedTab == 0) "계좌" else "카드"}가 없어요.",
+                    fontFamily = NaedaFontFamily,
+                    fontSize = 15.sp,
+                    color = OnSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 22.sp
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 12.dp)
+            ) {
+                items(currentItems, key = { "${it.type}-${it.paymentMethodId ?: it.subtitle}" }) { item ->
+                    PaymentMethodSelectCard(
+                        item = item,
+                        enabled = !isSubmitting,
+                        onClick = {
+                            if (!item.selectable || item.paymentMethodId == null) {
+                                onError("선택할 수 없는 결제수단입니다.")
+                            } else {
+                                pendingSelection = item
+                            }
+                        }
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "선택 후에는 결제 한도와 PIN 2차 인증 설정이 이어집니다.",
+            fontFamily = NaedaFontFamily,
+            fontSize = 13.sp,
+            color = OnSurfaceVariant,
+            lineHeight = 20.sp
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+    }
+
+    pendingSelection?.let { item ->
+        AlertDialog(
+            onDismissRequest = {
+                if (!isSubmitting) pendingSelection = null
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val paymentMethodId = item.paymentMethodId ?: return@Button
+                        scope.launch {
+                            isSubmitting = true
+                            runCatching {
+                                withContext(Dispatchers.IO) {
+                                    AssetRepository.setDefaultPaymentMethod(userNo, paymentMethodId)
+                                }
+                            }.onSuccess {
+                                isSubmitting = false
+                                pendingSelection = null
+                                onSelectionComplete()
+                            }.onFailure { throwable ->
+                                isSubmitting = false
+                                pendingSelection = null
+                                onError(throwable.message ?: "대표 결제수단 설정에 실패했습니다.")
+                            }
+                        }
+                    },
+                    enabled = !isSubmitting,
+                    colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+                ) {
+                    Text(
+                        text = if (isSubmitting) "저장 중..." else "확인",
+                        fontFamily = NaedaFontFamily,
+                        color = Color.White
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { pendingSelection = null },
+                    enabled = !isSubmitting
+                ) {
+                    Text("취소", fontFamily = NaedaFontFamily, color = OnSurfaceVariant)
+                }
+            },
+            title = {
+                Text(
+                    text = "대표 결제수단으로 설정할까요?",
+                    fontFamily = NaedaFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    color = OnBackground
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = item.title,
+                        fontFamily = NaedaFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        color = OnBackground
+                    )
+                    Text(
+                        text = item.subtitle,
+                        fontFamily = NaedaFontFamily,
+                        color = OnSurfaceVariant,
+                        lineHeight = 20.sp
+                    )
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
+}
+
+@Composable
+private fun PaymentMethodSelectCard(
+    item: FacePaySelectableMethod,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val alpha = if (item.selectable) 1f else 0.55f
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer(alpha = alpha)
+            .clip(RoundedCornerShape(18.dp))
+            .clickable(enabled = enabled && item.selectable, onClick = onClick),
+        shape = RoundedCornerShape(18.dp),
+        color = if (item.isDefault) Mint50 else Color.White,
+        shadowElevation = 1.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(if (item.type == FacePaySelectableType.ACCOUNT) Mint100 else Color(0xFFFFF3D8)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (item.type == FacePaySelectableType.ACCOUNT) Icons.Default.SwapVert else Icons.Default.CreditCard,
+                    contentDescription = null,
+                    tint = if (item.type == FacePaySelectableType.ACCOUNT) Mint900 else Color(0xFFCC8B00),
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = item.title,
+                        fontFamily = NaedaFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp,
+                        color = OnBackground
+                    )
+                    if (item.isDefault) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(Mint500)
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "현재 대표",
+                                fontFamily = NaedaFontFamily,
+                                fontSize = 11.sp,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = item.subtitle,
+                    fontFamily = NaedaFontFamily,
+                    fontSize = 13.sp,
+                    color = OnSurfaceVariant,
+                    lineHeight = 20.sp
+                )
+            }
+
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = item.typeLabel,
+                    fontFamily = NaedaFontFamily,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 12.sp,
+                    color = Mint500
+                )
+                if (!item.selectable) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "선택 불가",
+                        fontFamily = NaedaFontFamily,
+                        fontSize = 11.sp,
+                        color = Error
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PaymentLimitSetupStageContent(
+    userNo: Long,
+    onSaveComplete: () -> Unit,
+    onError: (String) -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    var isLoading by remember { mutableStateOf(true) }
+    var isSaving by remember { mutableStateOf(false) }
+    var dailyLimitInput by remember { mutableStateOf("") }
+    var singleLimitInput by remember { mutableStateOf("") }
+    var monthlyLimit by remember { mutableStateOf(0L) }
+
+    LaunchedEffect(userNo) {
+        isLoading = true
+        runCatching {
+            withContext(Dispatchers.IO) {
+                FaceRegistrationRepository.getPayLimit(userNo)
+            }
+        }.onSuccess { response ->
+            dailyLimitInput = response.dailyLimit.toString()
+            singleLimitInput = response.singleTransactionLimit.toString()
+            monthlyLimit = response.monthlyLimit
+            isLoading = false
+        }.onFailure { throwable ->
+            isLoading = false
+            onError(throwable.message ?: "결제 한도를 불러오지 못했습니다.")
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Spacer(modifier = Modifier.height(32.dp))
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(Mint50)
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = "한도 설정",
+                fontFamily = NaedaFontFamily,
+                fontWeight = FontWeight.Medium,
+                fontSize = 13.sp,
+                color = Mint500
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "결제 한도를\n설정해 주세요",
+            fontFamily = NaedaFontFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = 26.sp,
+            color = OnBackground,
+            lineHeight = 34.sp
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "대표 결제수단으로 사용할 때 적용될 1일 한도와 1회 한도를 설정합니다.",
+            fontFamily = NaedaFontFamily,
+            fontSize = 14.sp,
+            color = OnSurfaceVariant,
+            lineHeight = 22.sp
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(260.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Mint500)
+            }
+        } else {
+            LimitInputField(
+                label = "1일 한도",
+                value = dailyLimitInput,
+                placeholder = "예: 300000",
+                onValueChange = { dailyLimitInput = it.filter(Char::isDigit).take(11) }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            LimitInputField(
+                label = "1회 한도",
+                value = singleLimitInput,
+                placeholder = "예: 100000",
+                onValueChange = { singleLimitInput = it.filter(Char::isDigit).take(11) }
+            )
+            Spacer(modifier = Modifier.height(18.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(SurfaceVariant)
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = Mint500,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = "월 한도는 현재 설정값 ${formatWon(monthlyLimit)}을 유지합니다.",
+                    fontFamily = NaedaFontFamily,
+                    fontSize = 13.sp,
+                    color = OnSurfaceVariant,
+                    lineHeight = 20.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = {
+                    val dailyLimit = dailyLimitInput.toLongOrNull()
+                    val singleLimit = singleLimitInput.toLongOrNull()
+
+                    if (dailyLimit == null || singleLimit == null || dailyLimit <= 0L || singleLimit <= 0L) {
+                        onError("1일 한도와 1회 한도를 모두 올바르게 입력해 주세요.")
+                        return@Button
+                    }
+                    if (singleLimit > dailyLimit) {
+                        onError("1회 한도는 1일 한도보다 클 수 없습니다.")
+                        return@Button
+                    }
+                    if (isSaving) {
+                        return@Button
+                    }
+
+                    isSaving = true
+                    scope.launch {
+                        runCatching {
+                            withContext(Dispatchers.IO) {
+                                FaceRegistrationRepository.updatePayLimit(
+                                    userNo = userNo,
+                                    dailyLimit = dailyLimit,
+                                    monthlyLimit = max(monthlyLimit, dailyLimit),
+                                    singleTransactionLimit = singleLimit
+                                )
+                            }
+                        }.onSuccess {
+                            isSaving = false
+                            onSaveComplete()
+                        }.onFailure { throwable ->
+                            isSaving = false
+                            onError(throwable.message ?: "결제 한도 저장에 실패했습니다.")
+                        }
+                    }
+                },
+                enabled = !isSaving,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+            ) {
+                Text(
+                    text = if (isSaving) "한도 저장 중..." else "한도 저장하고 다음",
+                    fontFamily = NaedaFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    color = Color.White
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun LimitInputField(
+    label: String,
+    value: String,
+    placeholder: String,
+    onValueChange: (String) -> Unit
+) {
+    Text(
+        text = label,
+        fontFamily = NaedaFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 14.sp,
+        color = OnSurfaceVariant
+    )
+    Spacer(modifier = Modifier.height(8.dp))
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        placeholder = {
+            Text(
+                text = placeholder,
+                color = OnSurfaceVariant,
+                fontFamily = NaedaFontFamily,
+                fontSize = 14.sp
+            )
+        },
+        trailingIcon = {
+            Text(
+                text = "원",
+                fontFamily = NaedaFontFamily,
+                fontSize = 13.sp,
+                color = OnSurfaceVariant
+            )
+        },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        shape = RoundedCornerShape(14.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Mint500,
+            unfocusedBorderColor = Outline,
+            focusedTextColor = OnBackground,
+            unfocusedTextColor = OnBackground
+        )
+    )
+}
+
+private fun AssetAccountResponse.toFacePaySelectableMethod(
+    payMethods: List<AssetPayMethodResponse>,
+    index: Int
+): FacePaySelectableMethod {
+    val payMethod = payMethods.firstOrNull { method ->
+        method.isActive != false &&
+            method.methodType == "ACCOUNT" &&
+            method.accountId != null &&
+            method.accountId == accountId
+    }
+    val resolvedBankName = bankName.orEmpty().ifBlank { "내 계좌" }
+    val resolvedAccountName = accountName.orEmpty().ifBlank { resolvedBankName }
+    val resolvedAccountNo = accountNo.orEmpty().ifBlank { "계좌번호 없음" }
+
+    return FacePaySelectableMethod(
+        paymentMethodId = payMethod?.paymentMethodId,
+        title = resolvedBankName,
+        subtitle = "$resolvedAccountName · $resolvedAccountNo",
+        typeLabel = "계좌",
+        isDefault = payMethod?.isDefault == true,
+        selectable = payMethod?.paymentMethodId != null,
+        type = FacePaySelectableType.ACCOUNT
+    )
+}
+
+private fun AssetCardResponse.toFacePaySelectableMethod(
+    payMethods: List<AssetPayMethodResponse>,
+    index: Int
+): FacePaySelectableMethod {
+    val resolvedType = cardType.orEmpty().uppercase().ifBlank { "DEBIT" }
+    val payMethod = payMethods.firstOrNull { method ->
+        method.isActive != false && when (resolvedType) {
+            "CREDIT" -> method.methodType == "CREDIT_CARD" && method.creditCardId == cardId
+            else -> method.methodType == "DEBIT_CARD" && method.debitCardId == cardId
+        }
+    }
+    val resolvedIssuer = cardIssuerName.orEmpty().ifBlank { "등록 카드" }
+    val resolvedCardName = cardName.orEmpty().ifBlank { resolvedIssuer }
+
+    return FacePaySelectableMethod(
+        paymentMethodId = payMethod?.paymentMethodId,
+        title = resolvedIssuer,
+        subtitle = "$resolvedCardName · ${maskFacePayCardNumber(cardNo)}",
+        typeLabel = if (resolvedType == "CREDIT") "신용" else "체크",
+        isDefault = payMethod?.isDefault == true,
+        selectable = payMethod?.paymentMethodId != null,
+        type = FacePaySelectableType.CARD
+    )
+}
+
+private fun maskFacePayCardNumber(raw: String?): String {
+    val value = raw.orEmpty().trim()
+    if (value.isBlank()) return "카드번호 없음"
+
+    val normalized = value.replace("-", "")
+    return if (normalized.length == 12 && normalized.contains("****")) {
+        val first = normalized.take(4)
+        val last = normalized.takeLast(4)
+        "$first-****-****-$last"
+    } else if (normalized.length >= 16 && normalized.all { it.isDigit() || it == '*' }) {
+        normalized.chunked(4).joinToString("-")
+    } else {
+        value
+    }
+}
+
+private fun formatWon(amount: Long): String {
+    return "%,d원".format(amount)
+}
 @Composable
 private fun PinChoiceStageContent(
     isSaving: Boolean,
