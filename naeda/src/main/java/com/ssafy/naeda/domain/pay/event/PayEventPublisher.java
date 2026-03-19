@@ -13,6 +13,8 @@ public class PayEventPublisher {
 
     private final KafkaTemplate<String, PayEvent> kafkaTemplate;
 
+    // Kafka 없는 로컬 환경에서도 동작하도록 null-safe 처리
+
     private static final String TOPIC = "payment-events";
 
     public void publish(PayEvent event){

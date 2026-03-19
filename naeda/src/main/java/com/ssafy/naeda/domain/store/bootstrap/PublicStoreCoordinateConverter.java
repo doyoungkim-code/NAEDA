@@ -10,6 +10,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class PublicStoreCoordinateConverter {
 
+    private static final double LATITUDE_OFFSET = 0.013271073238785;
+    private static final double LONGITUDE_OFFSET = -0.00462756244125;
+
     private final CoordinateTransform transform;
 
     public PublicStoreCoordinateConverter() {
@@ -28,8 +31,8 @@ public class PublicStoreCoordinateConverter {
         ProjCoordinate target = new ProjCoordinate();
         transform.transform(source, target);
 
-        double latitude = round(target.y);
-        double longitude = round(target.x);
+        double latitude = round(target.y + LATITUDE_OFFSET);
+        double longitude = round(target.x + LONGITUDE_OFFSET);
         if (latitude < 30.0 || latitude > 40.0 || longitude < 120.0 || longitude > 135.0) {
             return null;
         }
