@@ -6,9 +6,11 @@ import com.ssafy.naeda.domain.store.entity.Store;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
@@ -59,7 +61,7 @@ public class NaverStoreEnrichmentClient {
 
             String description = firstNonBlank(
                     mapData.description(),
-                    extractDescription(bestLocalItem, store),
+                    extractDescription(bestLocalItem),
                     fallbackDescription(store)
             );
             String imageUrl = firstNonBlank(
@@ -91,29 +93,40 @@ public class NaverStoreEnrichmentClient {
                 return Optional.empty();
             }
 
-            String html = fetchPlacePage(place.get().placeId());
-            if (!hasText(html)) {
-                return Optional.empty();
-            }
+            NaverMapPlaceCandidate candidate = place.get();
+            String imageUrl = sanitizeImageUrl(candidate.imageUrl());
+            String description = cleanDescription(candidate.description());
+            Double rating = candidate.rating();
 
-            Document document = Jsoup.parse(html);
-            String imageUrl = sanitizeUrl(firstNonBlank(
-                    metaContent(document, "property", "og:image"),
-                    metaContent(document, "name", "twitter:image"),
-                    extractByRegex(html, "\\\"imageUrl\\\"\\s*:\\s*\\\"([^\\\"]+)\\\""),
-                    extractByRegex(html, "\\\"thumbnail\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"")
-            ));
-            String description = cleanDescription(firstNonBlank(
-                    metaContent(document, "property", "og:description"),
-                    extractByRegex(html, "\\\"introduction\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\""),
-                    extractByRegex(html, "\\\"description\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\""),
-                    extractByRegex(html, "\\\"desc\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\"")
-            ));
-            Double rating = firstNonNull(
-                    extractDouble(html, "\\\"totalRating\\\"\\s*:\\s*([0-9.]+)"),
-                    extractDouble(html, "\\\"visitorReviewScore\\\"\\s*:\\s*([0-9.]+)"),
-                    extractDouble(html, "\\\"rating\\\"\\s*:\\s*([0-9.]+)")
-            );
+            String html = fetchPlacePage(candidate.placeId());
+            if (hasText(html)) {
+                Document document = Jsoup.parse(html);
+                imageUrl = firstNonBlank(
+                        sanitizeImageUrl(metaContent(document, "property", "og:image")),
+                        sanitizeImageUrl(metaContent(document, "name", "twitter:image")),
+                        sanitizeImageUrl(extractByRegex(html, "\\\"imageUrl\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"")),
+                        sanitizeImageUrl(extractByRegex(html, "\\\"thumbnail\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"")),
+                        sanitizeImageUrl(extractByRegex(html, "\\\"photoUrl\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"")),
+                        imageUrl
+                );
+                description = firstNonBlank(
+                        cleanDescription(metaContent(document, "property", "og:description")),
+                        cleanDescription(extractByRegex(html, "\\\"introduction\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\"")),
+                        cleanDescription(extractByRegex(html, "\\\"description\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\"")),
+                        cleanDescription(extractByRegex(html, "\\\"desc\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\"")),
+                        cleanDescription(extractByRegex(html, "\\\"microReview\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\"")),
+                        cleanDescription(extractByRegex(html, "\\\"summary\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\"")),
+                        cleanDescription(extractByRegex(html, "\\\"briefDesc\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\"")),
+                        description
+                );
+                rating = firstNonNull(
+                        extractDouble(html, "\\\"totalRating\\\"\\s*:\\s*([0-9.]+)"),
+                        extractDouble(html, "\\\"visitorReviewScore\\\"\\s*:\\s*([0-9.]+)"),
+                        extractDouble(html, "\\\"starScore\\\"\\s*:\\s*([0-9.]+)"),
+                        extractDouble(html, "\\\"rating\\\"\\s*:\\s*([0-9.]+)"),
+                        rating
+                );
+            }
 
             if (!hasText(imageUrl) && !hasText(description) && rating == null) {
                 return Optional.empty();
@@ -135,104 +148,135 @@ public class NaverStoreEnrichmentClient {
     }
 
     private Optional<NaverMapPlaceCandidate> findMapPlaceCandidateByApi(Store store) {
-        try {
-            URI uri = UriComponentsBuilder
-                    .fromUriString("https://map.naver.com/p/api/search/allSearch")
-                    .queryParam("query", buildQuery(store))
-                    .queryParam("type", "all")
-                    .build(true)
-                    .toUri();
+        NaverMapPlaceCandidate bestCandidate = null;
+        double bestScore = Double.NEGATIVE_INFINITY;
 
-            String response = crawlClient().get()
-                    .uri(uri)
-                    .retrieve()
-                    .body(String.class);
+        for (String query : buildQueries(store)) {
+            try {
+                URI uri = UriComponentsBuilder
+                        .fromUriString("https://map.naver.com/p/api/search/allSearch")
+                        .queryParam("query", query)
+                        .queryParam("type", "all")
+                        .build(true)
+                        .toUri();
 
-            JsonNode root = objectMapper.readTree(response);
-            JsonNode items = firstArray(
-                    root.path("result").path("place").path("list"),
-                    root.path("result").path("place").path("items"),
-                    root.path("place").path("list"),
-                    root.path("items")
-            );
-            if (items == null || !items.isArray() || items.isEmpty()) {
-                return Optional.empty();
-            }
+                String response = crawlClient().get()
+                        .uri(uri)
+                        .retrieve()
+                        .body(String.class);
 
-            NaverMapPlaceCandidate bestCandidate = null;
-            double bestScore = Double.NEGATIVE_INFINITY;
-            for (JsonNode item : items) {
-                NaverMapPlaceCandidate candidate = new NaverMapPlaceCandidate(
-                        firstNonBlank(
-                                trimToNull(item.path("id").asText(null)),
-                                trimToNull(item.path("placeId").asText(null)),
-                                trimToNull(item.path("seq").asText(null))
-                        ),
-                        firstNonBlank(
-                                trimToNull(text(item.path("name").asText(null))),
-                                trimToNull(text(item.path("title").asText(null)))
-                        ),
-                        firstNonBlank(
-                                trimToNull(item.path("roadAddress").asText(null)),
-                                trimToNull(item.path("roadAddr").asText(null))
-                        ),
-                        firstNonBlank(
-                                trimToNull(item.path("address").asText(null)),
-                                trimToNull(item.path("jibunAddress").asText(null))
-                        ),
-                        firstNonBlank(
-                                trimToNull(text(item.path("category").asText(null))),
-                                trimToNull(text(item.path("categoryName").asText(null)))
-                        ),
-                        trimToNull(item.path("telephone").asText(null))
+                JsonNode root = objectMapper.readTree(response);
+                JsonNode items = firstArray(
+                        root.path("result").path("place").path("list"),
+                        root.path("result").path("place").path("items"),
+                        root.path("place").path("list"),
+                        root.path("items")
                 );
-                if (!hasText(candidate.placeId())) {
+                if (items == null || !items.isArray() || items.isEmpty()) {
                     continue;
                 }
-                double candidateScore = score(candidate, store);
-                if (candidateScore > bestScore) {
-                    bestScore = candidateScore;
-                    bestCandidate = candidate;
-                }
-            }
 
-            if (bestCandidate == null) {
-                return Optional.empty();
+                for (JsonNode item : items) {
+                    NaverMapPlaceCandidate candidate = new NaverMapPlaceCandidate(
+                            firstNonBlank(
+                                    trimToNull(item.path("id").asText(null)),
+                                    trimToNull(item.path("placeId").asText(null)),
+                                    trimToNull(item.path("seq").asText(null))
+                            ),
+                            firstNonBlank(
+                                    trimToNull(text(item.path("name").asText(null))),
+                                    trimToNull(text(item.path("title").asText(null)))
+                            ),
+                            firstNonBlank(
+                                    trimToNull(item.path("roadAddress").asText(null)),
+                                    trimToNull(item.path("roadAddr").asText(null))
+                            ),
+                            firstNonBlank(
+                                    trimToNull(item.path("address").asText(null)),
+                                    trimToNull(item.path("jibunAddress").asText(null))
+                            ),
+                            firstNonBlank(
+                                    trimToNull(text(item.path("category").asText(null))),
+                                    trimToNull(text(item.path("categoryName").asText(null)))
+                            ),
+                            trimToNull(item.path("telephone").asText(null)),
+                            firstNonBlank(
+                                    sanitizeImageUrl(item.path("thumbnail").asText(null)),
+                                    sanitizeImageUrl(item.path("thumbnailUrl").asText(null)),
+                                    sanitizeImageUrl(item.path("thumUrl").asText(null)),
+                                    sanitizeImageUrl(item.path("imageUrl").asText(null))
+                            ),
+                            firstNonBlank(
+                                    cleanDescription(item.path("microReview").asText(null)),
+                                    cleanDescription(item.path("description").asText(null)),
+                                    cleanDescription(item.path("introduction").asText(null))
+                            ),
+                            firstNonNull(
+                                    nullableDouble(item.path("totalRating")),
+                                    nullableDouble(item.path("visitorReviewScore")),
+                                    nullableDouble(item.path("starScore")),
+                                    nullableDouble(item.path("rating"))
+                            )
+                    );
+                    if (!hasText(candidate.placeId())) {
+                        continue;
+                    }
+                    double candidateScore = score(candidate, store);
+                    if (candidateScore > bestScore) {
+                        bestScore = candidateScore;
+                        bestCandidate = candidate;
+                    }
+                }
+            } catch (Exception ignored) {
             }
-            return Optional.of(bestCandidate);
-        } catch (Exception e) {
-            return Optional.empty();
         }
+
+        return Optional.ofNullable(bestCandidate);
     }
 
     private Optional<NaverMapPlaceCandidate> findMapPlaceCandidateByHtml(Store store) {
-        try {
-            String encodedQuery = URLEncoder.encode(buildQuery(store), StandardCharsets.UTF_8).replace("+", "%20");
-            URI uri = URI.create("https://map.naver.com/p/search/" + encodedQuery);
-            String html = crawlClient().get()
-                    .uri(uri)
-                    .retrieve()
-                    .body(String.class);
+        for (String query : buildQueries(store)) {
+            try {
+                String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8).replace("+", "%20");
+                URI uri = URI.create("https://map.naver.com/p/search/" + encodedQuery);
+                String html = crawlClient().get()
+                        .uri(uri)
+                        .retrieve()
+                        .body(String.class);
 
-            String placeId = firstNonBlank(
-                    extractByRegex(html, "/place/([0-9]+)"),
-                    extractByRegex(html, "\\\"placeId\\\"\\s*:\\s*\\\"?([0-9]+)\\\"?")
-            );
-            if (!hasText(placeId)) {
-                return Optional.empty();
+                String placeId = firstNonBlank(
+                        extractByRegex(html, "/place/([0-9]+)"),
+                        extractByRegex(html, "\\\"placeId\\\"\\s*:\\s*\\\"?([0-9]+)\\\"?")
+                );
+                if (!hasText(placeId)) {
+                    continue;
+                }
+
+                return Optional.of(new NaverMapPlaceCandidate(
+                        placeId,
+                        store.getStoreName(),
+                        store.getRoadAddress(),
+                        store.getNumberAddress(),
+                        store.getCategoryName(),
+                        store.getPhone(),
+                        sanitizeImageUrl(firstNonBlank(
+                                extractByRegex(html, "\\\"imageUrl\\\"\\s*:\\s*\\\"([^\\\"]+)\\\""),
+                                extractByRegex(html, "\\\"thumbnail\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"")
+                        )),
+                        firstNonBlank(
+                                cleanDescription(extractByRegex(html, "\\\"introduction\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\"")),
+                                cleanDescription(extractByRegex(html, "\\\"description\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\""))
+                        ),
+                        firstNonNull(
+                                extractDouble(html, "\\\"totalRating\\\"\\s*:\\s*([0-9.]+)"),
+                                extractDouble(html, "\\\"visitorReviewScore\\\"\\s*:\\s*([0-9.]+)"),
+                                extractDouble(html, "\\\"rating\\\"\\s*:\\s*([0-9.]+)")
+                        )
+                ));
+            } catch (Exception ignored) {
             }
-
-            return Optional.of(new NaverMapPlaceCandidate(
-                    placeId,
-                    store.getStoreName(),
-                    store.getRoadAddress(),
-                    store.getNumberAddress(),
-                    store.getCategoryName(),
-                    store.getPhone()
-            ));
-        } catch (Exception e) {
-            return Optional.empty();
         }
+        return Optional.empty();
     }
 
     private String fetchPlacePage(String placeId) {
@@ -260,34 +304,37 @@ public class NaverStoreEnrichmentClient {
     }
 
     private Optional<JsonNode> findBestLocalItem(Store store) throws Exception {
-        URI uri = UriComponentsBuilder
-                .fromUriString("https://openapi.naver.com/v1/search/local.json")
-                .queryParam("query", buildQuery(store))
-                .queryParam("display", 5)
-                .queryParam("start", 1)
-                .build(true)
-                .toUri();
-
-        String response = apiClient().get()
-                .uri(uri)
-                .retrieve()
-                .body(String.class);
-
-        JsonNode root = objectMapper.readTree(response);
-        JsonNode items = root.path("items");
-        if (!items.isArray() || items.isEmpty()) {
-            return Optional.empty();
-        }
-
         JsonNode bestItem = null;
         double bestScore = Double.NEGATIVE_INFINITY;
-        Iterator<JsonNode> iterator = items.elements();
-        while (iterator.hasNext()) {
-            JsonNode item = iterator.next();
-            double itemScore = score(item, store);
-            if (itemScore > bestScore) {
-                bestScore = itemScore;
-                bestItem = item;
+
+        for (String query : buildQueries(store)) {
+            URI uri = UriComponentsBuilder
+                    .fromUriString("https://openapi.naver.com/v1/search/local.json")
+                    .queryParam("query", query)
+                    .queryParam("display", 5)
+                    .queryParam("start", 1)
+                    .build(true)
+                    .toUri();
+
+            String response = apiClient().get()
+                    .uri(uri)
+                    .retrieve()
+                    .body(String.class);
+
+            JsonNode root = objectMapper.readTree(response);
+            JsonNode items = root.path("items");
+            if (!items.isArray() || items.isEmpty()) {
+                continue;
+            }
+
+            Iterator<JsonNode> iterator = items.elements();
+            while (iterator.hasNext()) {
+                JsonNode item = iterator.next();
+                double itemScore = score(item, store);
+                if (itemScore > bestScore) {
+                    bestScore = itemScore;
+                    bestItem = item;
+                }
             }
         }
 
@@ -298,48 +345,48 @@ public class NaverStoreEnrichmentClient {
     }
 
     private Optional<String> findImageUrl(Store store) throws Exception {
-        URI uri = UriComponentsBuilder
-                .fromUriString("https://openapi.naver.com/v1/search/image")
-                .queryParam("query", buildQuery(store))
-                .queryParam("display", 1)
-                .queryParam("start", 1)
-                .queryParam("sort", "sim")
-                .build(true)
-                .toUri();
+        for (String query : buildQueries(store)) {
+            URI uri = UriComponentsBuilder
+                    .fromUriString("https://openapi.naver.com/v1/search/image")
+                    .queryParam("query", query)
+                    .queryParam("display", 5)
+                    .queryParam("start", 1)
+                    .queryParam("sort", "sim")
+                    .build(true)
+                    .toUri();
 
-        String response = apiClient().get()
-                .uri(uri)
-                .retrieve()
-                .body(String.class);
+            String response = apiClient().get()
+                    .uri(uri)
+                    .retrieve()
+                    .body(String.class);
 
-        JsonNode root = objectMapper.readTree(response);
-        JsonNode items = root.path("items");
-        if (!items.isArray() || items.isEmpty()) {
-            return Optional.empty();
+            JsonNode root = objectMapper.readTree(response);
+            JsonNode items = root.path("items");
+            if (!items.isArray() || items.isEmpty()) {
+                continue;
+            }
+
+            for (JsonNode item : items) {
+                String imageUrl = firstNonBlank(
+                        sanitizeImageUrl(item.path("thumbnail").asText(null)),
+                        sanitizeImageUrl(item.path("link").asText(null))
+                );
+                if (hasText(imageUrl)) {
+                    return Optional.of(imageUrl);
+                }
+            }
         }
-
-        JsonNode first = items.get(0);
-        String thumbnail = trimToNull(first.path("thumbnail").asText(null));
-        if (thumbnail != null) {
-            return Optional.of(thumbnail);
-        }
-        return Optional.ofNullable(trimToNull(first.path("link").asText(null)));
+        return Optional.empty();
     }
 
-    private String extractDescription(JsonNode item, Store store) {
+    private String extractDescription(JsonNode item) {
         if (item != null) {
-            String description = trimToNull(text(item.path("description").asText(null)));
+            String description = cleanDescription(item.path("description").asText(null));
             if (description != null) {
                 return description;
             }
-
-            String category = trimToNull(text(item.path("category").asText(null)));
-            if (category != null) {
-                return category + " 매장입니다.";
-            }
         }
-
-        return fallbackDescription(store);
+        return null;
     }
 
     private double score(JsonNode item, Store store) {
@@ -415,14 +462,46 @@ public class NaverStoreEnrichmentClient {
                 .build();
     }
 
-    private String buildQuery(Store store) {
-        StringBuilder query = new StringBuilder(store.getStoreName());
-        if (hasText(store.getRoadAddress())) {
-            query.append(' ').append(store.getRoadAddress());
-        } else if (hasText(store.getNumberAddress())) {
-            query.append(' ').append(store.getNumberAddress());
+    private List<String> buildQueries(Store store) {
+        Set<String> queries = new LinkedHashSet<>();
+        addQuery(queries, store.getStoreName());
+        addQuery(queries, joinQuery(store.getStoreName(), "구미"));
+        addQuery(queries, joinQuery(store.getStoreName(), shortenAddress(store.getRoadAddress())));
+        addQuery(queries, joinQuery(store.getStoreName(), shortenAddress(store.getNumberAddress())));
+        addQuery(queries, joinQuery(store.getStoreName(), store.getRoadAddress()));
+        addQuery(queries, joinQuery(store.getStoreName(), store.getNumberAddress()));
+        return List.copyOf(queries);
+    }
+
+    private void addQuery(Set<String> queries, String query) {
+        String normalized = trimToNull(query);
+        if (normalized != null) {
+            queries.add(normalized);
         }
-        return query.toString();
+    }
+
+    private String joinQuery(String left, String right) {
+        String first = trimToNull(left);
+        String second = trimToNull(right);
+        if (first == null) {
+            return second;
+        }
+        if (second == null) {
+            return first;
+        }
+        return first + " " + second;
+    }
+
+    private String shortenAddress(String address) {
+        String trimmed = trimToNull(address);
+        if (trimmed == null) {
+            return null;
+        }
+        String[] parts = trimmed.split("\\s+");
+        if (parts.length <= 4) {
+            return trimmed;
+        }
+        return String.join(" ", parts[0], parts[1], parts[2], parts[3]);
     }
 
     private String defaultImageUrl(Store store) {
@@ -511,12 +590,33 @@ public class NaverStoreEnrichmentClient {
         return null;
     }
 
-    private String sanitizeUrl(String value) {
+    private String sanitizeImageUrl(String value) {
         String cleaned = trimToNull(value);
         if (!hasText(cleaned)) {
             return null;
         }
-        return cleaned.startsWith("http") ? cleaned : null;
+        String normalized = cleanEscapedText(cleaned);
+        if (!hasText(normalized) || !normalized.startsWith("http")) {
+            return null;
+        }
+
+        String lower = normalized.toLowerCase();
+        if (lower.contains("pcmap.place.naver.com")
+                || lower.contains("map.naver.com/p/")
+                || lower.contains("m.place.naver.com")) {
+            return null;
+        }
+        if (lower.matches(".*\\.(jpg|jpeg|png|gif|webp|bmp|svg)(\\?.*)?$")) {
+            return normalized;
+        }
+        if (lower.contains("phinf.pstatic.net")
+                || lower.contains("ldb-phinf.pstatic.net")
+                || lower.contains("search.pstatic.net")
+                || lower.contains("blogfiles.pstatic.net")
+                || lower.contains("postfiles.pstatic.net")) {
+            return normalized;
+        }
+        return null;
     }
 
     private String cleanDescription(String value) {
@@ -534,16 +634,45 @@ public class NaverStoreEnrichmentClient {
         if (value == null) {
             return null;
         }
-        return value
+        return decodeUnicodeEscapes(value)
                 .replace("\\u003C", "<")
                 .replace("\\u003E", ">")
                 .replace("\\u002F", "/")
+                .replace("\\u0026", "&")
                 .replace("\\/", "/")
                 .replace("\\n", " ")
                 .replace("\\t", " ")
                 .replace("\\\"", "\"")
                 .replace("&quot;", "\"")
                 .trim();
+    }
+
+    private String decodeUnicodeEscapes(String value) {
+        Matcher matcher = Pattern.compile("\\\\u([0-9a-fA-F]{4})").matcher(value);
+        StringBuffer buffer = new StringBuffer();
+        while (matcher.find()) {
+            char decoded = (char) Integer.parseInt(matcher.group(1), 16);
+            matcher.appendReplacement(buffer, Matcher.quoteReplacement(String.valueOf(decoded)));
+        }
+        matcher.appendTail(buffer);
+        return buffer.toString();
+    }
+
+    private Double nullableDouble(JsonNode node) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return null;
+        }
+        if (node.isNumber()) {
+            return node.asDouble();
+        }
+        if (node.isTextual()) {
+            try {
+                return Double.parseDouble(node.asText());
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     private String text(String value) {
@@ -576,7 +705,10 @@ public class NaverStoreEnrichmentClient {
             String roadAddress,
             String address,
             String category,
-            String phone
+            String phone,
+            String imageUrl,
+            String description,
+            Double rating
     ) {
     }
 }
