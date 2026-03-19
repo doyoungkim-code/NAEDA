@@ -70,8 +70,7 @@ class PointOrderServiceTest {
     private PointOrderCreateRequest buildRequest(Long productId) {
         return PointOrderCreateRequest.builder()
                 .productId(productId)
-                .roadAddress("구미시 인동중앙로 100")
-                .numberAddress("인동동 123-4")
+                .addressId(1L)
                 .build();
     }
 
@@ -93,7 +92,7 @@ class PointOrderServiceTest {
         // then
         assertThat(response.getProductName()).isEqualTo("아메리카노 쿠폰");
         assertThat(response.getPointPrice()).isEqualTo(3000L);
-        assertThat(response.getRoadAddress()).isEqualTo("구미시 인동중앙로 100");
+        assertThat(response.getAddressId()).isEqualTo(1L);
 
         assertThat(wallet.getBalance()).isEqualTo(7000L);
         assertThat(wallet.getTotalUsed()).isEqualTo(3000L);
@@ -234,8 +233,7 @@ class PointOrderServiceTest {
         PointOrderResponse response = pointOrderService.purchaseProduct(1L, request);
 
         // then
-        assertThat(response.getRoadAddress()).isNull();
-        assertThat(response.getNumberAddress()).isNull();
+        assertThat(response.getAddressId()).isNull();
     }
 
     // === getMyOrders 테스트 ===
@@ -247,11 +245,11 @@ class PointOrderServiceTest {
         PointOrder order1 = PointOrder.builder()
                 .userNo(1L).productId(1L)
                 .orderAt(LocalDateTime.now().minusHours(2))
-                .roadAddress("주소1").build();
+                .addressId(1L).build();
         PointOrder order2 = PointOrder.builder()
                 .userNo(1L).productId(2L)
                 .orderAt(LocalDateTime.now().minusHours(1))
-                .roadAddress("주소2").build();
+                .addressId(2L).build();
 
         PointProduct product1 = PointProduct.builder()
                 .productId(1L)

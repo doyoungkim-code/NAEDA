@@ -58,8 +58,7 @@ public class PointOrderService {
         PointOrder order = PointOrder.builder()
                 .userNo(userNo)
                 .productId(product.getProductId())
-                .roadAddress(request.getRoadAddress())
-                .numberAddress(request.getNumberAddress())
+                .addressId(request.getAddressId())
                 .build();
         pointOrderRepository.save(order);
 

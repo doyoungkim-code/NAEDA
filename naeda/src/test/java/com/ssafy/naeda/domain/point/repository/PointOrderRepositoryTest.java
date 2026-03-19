@@ -67,8 +67,7 @@ class PointOrderRepositoryTest {
         return PointOrder.builder()
                 .userNo(userNo)
                 .productId(productId)
-                .roadAddress("구미시 인동중앙로 100")
-                .numberAddress("인동동 123-4")
+                .addressId(1L)
                 .build();
     }
 
@@ -81,8 +80,7 @@ class PointOrderRepositoryTest {
         PointOrder found = pointOrderRepository.findById(saved.getOrderId()).orElseThrow();
         assertThat(found.getUserNo()).isEqualTo(testUser.getUserNo());
         assertThat(found.getProductId()).isEqualTo(testProduct.getProductId());
-        assertThat(found.getRoadAddress()).isEqualTo("구미시 인동중앙로 100");
-        assertThat(found.getNumberAddress()).isEqualTo("인동동 123-4");
+        assertThat(found.getAddressId()).isEqualTo(1L);
         assertThat(found.getOrderAt()).isNotNull();
     }
 
@@ -147,8 +145,7 @@ class PointOrderRepositoryTest {
                 .build());
 
         PointOrder found = pointOrderRepository.findById(saved.getOrderId()).orElseThrow();
-        assertThat(found.getRoadAddress()).isNull();
-        assertThat(found.getNumberAddress()).isNull();
+        assertThat(found.getAddressId()).isNull();
         assertThat(found.getOrderAt()).isNotNull();
     }
 }
