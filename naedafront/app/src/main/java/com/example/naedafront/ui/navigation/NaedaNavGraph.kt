@@ -204,8 +204,6 @@ fun NaedaNavGraph(
 
         composable(Screen.Store.route) {
             PointStoreScreen(
-                onCartClick = { },
-                onGiftClick = { },
                 onHistoryClick = {
                     navController.navigate(Screen.PointHistory.route)
                 },
