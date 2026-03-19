@@ -12,9 +12,7 @@ public class PayRequestResponse {
     private Long requestId;
     private String status;
     private Long storeId;
-    private Long userNo;
     private Long amount;
-    private Long paymentMethodId;
     private String transactionId;
 
     public static PayRequestResponse from(Long requestId, Map<Object, Object> data) {
@@ -23,11 +21,18 @@ public class PayRequestResponse {
         return PayRequestResponse.builder()
                 .requestId(requestId)
                 .status((String) data.get("status"))
-                .storeId(Long.parseLong((String) data.get("storeId")))
-                .userNo(Long.parseLong((String) data.get("userNo")))
-                .amount(Long.parseLong((String) data.get("amount")))
-                .paymentMethodId(Long.parseLong((String) data.get("paymentMethodId")))
+                .storeId(parseLong(data.get("storeId")))
+                .amount(parseLong(data.get("amount")))
                 .transactionId((String) data.get("transactionId"))
                 .build();
+    }
+
+    private static Long parseLong(Object value) {
+        if (value == null) return null;
+        try {
+            return Long.parseLong((String) value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

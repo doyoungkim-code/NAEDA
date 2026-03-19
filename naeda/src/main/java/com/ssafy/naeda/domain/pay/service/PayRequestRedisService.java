@@ -81,7 +81,7 @@ public class PayRequestRedisService {
      */
 
     public Set<String> getStoreRequests(Long storeId){
-        String storeKey = STORE_INDEX_PREFIX + storeId + ":reqeusts";
+        String storeKey = STORE_INDEX_PREFIX + storeId + ":request";
         return redisTemplate.opsForSet().members(storeKey);
     }
 
@@ -136,7 +136,7 @@ public class PayRequestRedisService {
      * 매장 인덱스에서 요청 제거
      */
     public void removeFromStoreIndex(Long storeId, Long requestId) {
-        String storeKey = STORE_INDEX_PREFIX + storeId + ":requests";
+        String storeKey = STORE_INDEX_PREFIX + storeId + ":request";
         redisTemplate.opsForSet().remove(storeKey, String.valueOf(requestId));
     }
 

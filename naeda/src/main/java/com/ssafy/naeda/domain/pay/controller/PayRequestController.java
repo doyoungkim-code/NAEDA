@@ -1,6 +1,5 @@
 package com.ssafy.naeda.domain.pay.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.naeda.domain.pay.dto.request.PayProcessRequest;
 import com.ssafy.naeda.domain.pay.dto.request.PayRequestCreateRequest;
 import com.ssafy.naeda.domain.pay.dto.PayRequestResponse;
@@ -11,10 +10,10 @@ import com.ssafy.naeda.domain.pay.service.PayRequestRedisService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -22,18 +21,17 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/pay-requests")
 @RequiredArgsConstructor
-@Tag(name = "[Pay] 결제 요청", description = "매장 단말기 -> 결제 요청 생성/조회/처리 API (Redis 상태머신)")
+@Tag(name = "[Pay] 결제 요청", description = "POS 단말기 결제 요청 생성/조회/처리 API (Redis 상태머신 + FacePay)")
 public class PayRequestController {
 
     private final PayFacadeService payFacadeService;
     private final PayRequestRedisService payRequestRedisService;
-    private final ObjectMapper objectMapper;
 
     @PostMapping
     @Operation(summary = "결제 요청 생성",
-            description = "매장 단말기가 결제 요청을 생성합니다. Redis에 PENDING 상태로 저장됩니다.")
+            description = "POS 단말기가 결제 요청을 생성합니다. Redis에 PENDING 상태로 저장됩니다.")
     public ResponseEntity<PayRequestResponse> createRequest(
-            @RequestBody PayRequestCreateRequest request) {
+            @Valid @RequestBody PayRequestCreateRequest request) {
 
         Long requestId = System.currentTimeMillis();
 
@@ -62,23 +60,18 @@ public class PayRequestController {
         return ResponseEntity.ok(PayRequestResponse.from(id, data));
     }
 
-    @PostMapping(value = "/{id}/process", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping("/{id}/process")
     @Operation(summary = "페이스페이 결제 처리",
-            description = "POS 단말기 결제 요청을 처리합니다. 얼굴 인증 -> 사용자 자동 식별 -> 등록된 FacePay 결제수단 자동 조회 -> "
-                    + "결제수단 타입에 따라 자동 분기 (신용카드/체크카드 → 카드결제, 계좌 → 계좌이체) -> "
+            description = "얼굴 인식으로 사용자가 확정된 후 호출합니다. "
+                    + "userId로 사용자 조회 → 등록된 FacePay 결제수단 자동 조회 → "
+                    + "결제수단 타입에 따라 자동 분기 (신용카드/체크카드 → 카드결제, 계좌 → 계좌이체) → "
                     + "분산락으로 동시 처리 차단.")
     public ResponseEntity<PayTransactionResponse> processRequest(
             @Parameter(description = "결제 요청 ID") @PathVariable Long id,
-            @Parameter(description = "처리 요청 JSON (idempotencyKey, pin)")
-            @RequestPart("request") String requestJson,
-            @Parameter(description = "얼굴 이미지 파일")
-            @RequestPart("faceImage") MultipartFile faceImage) throws Exception {
-
-        PayProcessRequest request = objectMapper.readValue(requestJson, PayProcessRequest.class);
+            @Valid @RequestBody PayProcessRequest request) {
 
         PayTransaction tx = payFacadeService.processFacePayment(
-                id, request.getIdempotencyKey(), faceImage,
-                request.getPin()
+                id, request.getUserId(), request.getIdempotencyKey(), request.getPin()
         );
 
         return ResponseEntity.ok(PayTransactionResponse.from(tx));
@@ -86,7 +79,7 @@ public class PayRequestController {
 
     @GetMapping
     @Operation(summary = "매장별 결제 요청 목록",
-            description = "특정 매장의 활성 결제 요청 목록을 조회합니다. 매장 단말기에서 대기 중인 요청 확인용.")
+            description = "특정 매장의 활성 결제 요청 목록을 조회합니다. POS 단말기에서 대기 중인 요청 확인용.")
     public ResponseEntity<List<PayRequestResponse>> getStoreRequests(
             @Parameter(description = "매장 ID", required = true)
             @RequestParam Long storeId) {

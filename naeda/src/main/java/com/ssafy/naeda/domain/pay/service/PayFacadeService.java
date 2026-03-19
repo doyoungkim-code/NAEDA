@@ -4,7 +4,6 @@ import com.ssafy.naeda.domain.account.entity.Account;
 import com.ssafy.naeda.domain.account.repository.AccountRepository;
 import com.ssafy.naeda.domain.card.repository.CreditCardRepository;
 import com.ssafy.naeda.domain.card.repository.DebitCardRepository;
-import com.ssafy.naeda.domain.face.service.FaceService;
 import com.ssafy.naeda.domain.fds.dto.request.FdsEvaluationRequest;
 import com.ssafy.naeda.domain.fds.dto.response.FdsEvaluationResult;
 import com.ssafy.naeda.domain.fds.entity.FdsAction;
@@ -37,8 +36,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import org.springframework.web.multipart.MultipartFile;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -54,7 +51,6 @@ public class PayFacadeService {
     private final PayRateLimiter rateLimiter;
     private final PayEventPublisher eventPublisher;
 
-    private final FaceService faceService;
     private final FdsRuleService fdsRuleService;
     private final PayMethodRepository payMethodRepository;
     private final AccountRepository accountRepository;
@@ -83,7 +79,7 @@ public class PayFacadeService {
 
     @SuppressWarnings("unchecked")
     public PayTransaction processFacePayment(Long requestId,
-                                             String idempotencyKey, MultipartFile faceImage, String pin) {
+                                             String userId, String idempotencyKey, String pin) {
 
         // 1. 멱등성 체크
         if (payDbService.existsByIdempotencyKey(idempotencyKey)) {
@@ -117,16 +113,8 @@ public class PayFacadeService {
             Store store = storeRepository.findById(storeId)
                     .orElseThrow(() -> new NotFoundException("존재하지 않는 매장입니다."));
 
-            // 6. 얼굴 인증
-            var faceResult = faceService.search(faceImage, 1, amount);
-
-            if (faceResult.isBlocked()) {
-                payRequestRedisService.transition(requestId, PayRequestStatus.BLOCKED);
-                throw new BadRequestException("얼굴 인증이 차단되었습니다.");
-            }
-
-            // 7. User 조회
-            User user = userRepository.findByUserId(faceResult.getBestUserId())
+            // 6. User 조회 (얼굴 인식은 별도 API에서 이미 완료됨)
+            User user = userRepository.findByUserId(userId)
                     .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
 
             // Rate Limit
@@ -139,28 +127,9 @@ public class PayFacadeService {
                     .findByUserNoAndIsFacePayTrueAndIsActiveTrue(user.getUserNo())
                     .orElseThrow(() -> new NotFoundException("페이스페이 결제 수단이 등록되지 않았습니다."));
 
-            // 9. 2차 인증 (PIN) — RBA 판정에 따라
+            // 9. PIN 2차 인증 (pin이 전달된 경우 검증)
             boolean pinVerified = false;
-            if (!"PASS".equals(faceResult.getNextAction())) {
-                if (pin == null || pin.isBlank()) {
-                    payRequestRedisService.transition(requestId, PayRequestStatus.FAILED);
-                    PayTransaction failTx = PayTransaction.builder()
-                            .userNo(user.getUserNo())
-                            .storeId(storeId)
-                            .paymentMethodId(paymentMethod.getPaymentMethodId())
-                            .amount(amount)
-                            .idempotencyKey(idempotencyKey)
-                            .status(PayStatus.FAILED)
-                            .authMethod(paymentMethod.getMethodType().name())
-                            .authLevel(faceResult.getAuthLevel().name())
-                            .faceDistance((double) (1.0f - faceResult.getSimilarity()))
-                            .livenessPass(true)
-                            .pinVerified(false)
-                            .failureReason("REQUIRE_SECOND_FACTOR:" + faceResult.getNextAction())
-                            .build();
-                    return payDbService.save(failTx);
-                }
-
+            if (pin != null && !pin.isBlank()) {
                 if (user.getPinPassword() == null) {
                     throw new BadRequestException("PIN이 설정되지 않았습니다.");
                 }
@@ -188,8 +157,7 @@ public class PayFacadeService {
                     .idempotencyKey(idempotencyKey)
                     .status(PayStatus.FAILED)
                     .authMethod(paymentMethod.getMethodType().name())
-                    .authLevel(faceResult.getAuthLevel().name())
-                    .faceDistance((double) (1.0f - faceResult.getSimilarity()))
+                    .authLevel("FACE_PAY")
                     .livenessPass(true)
                     .pinVerified(pinVerified)
                     .fdsScore(fdsResult.getAnomalyScore())
