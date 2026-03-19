@@ -44,9 +44,9 @@ class PublicStoreSeedServiceTest {
     @DisplayName("CSV 해시가 같으면 시드를 건너뛴다")
     void syncIfNeeded_skipWhenHashMatches() {
         given(csvLoader.calculateContentHash()).willReturn("same-hash");
-        given(storeSeedMetadataRepository.findById("public-gumi-store-csv-v3"))
+        given(storeSeedMetadataRepository.findById("public-gumi-store-csv-v4"))
                 .willReturn(Optional.of(StoreSeedMetadata.builder()
-                        .seedKey("public-gumi-store-csv-v3")
+                        .seedKey("public-gumi-store-csv-v4")
                         .contentHash("same-hash")
                         .updated(LocalDateTime.now())
                         .build()));
@@ -72,7 +72,7 @@ class PublicStoreSeedServiceTest {
                 289446.312403302
         );
         given(csvLoader.calculateContentHash()).willReturn("new-hash");
-        given(storeSeedMetadataRepository.findById("public-gumi-store-csv-v3")).willReturn(Optional.empty());
+        given(storeSeedMetadataRepository.findById("public-gumi-store-csv-v4")).willReturn(Optional.empty());
         given(csvLoader.loadActiveStores()).willReturn(List.of(record));
         given(storeRepository.findBySourceType(StoreSourceType.PUBLIC_CSV)).willReturn(List.of());
         given(coordinateConverter.convert(record.x(), record.y()))

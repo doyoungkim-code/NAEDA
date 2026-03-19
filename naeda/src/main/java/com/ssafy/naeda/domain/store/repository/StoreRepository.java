@@ -2,8 +2,8 @@ package com.ssafy.naeda.domain.store.repository;
 
 import com.ssafy.naeda.domain.store.entity.Store;
 import com.ssafy.naeda.domain.store.entity.StoreSourceType;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -36,6 +36,11 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
             StoreSourceType sourceType
     );
 
+    List<Store> findBySourceTypeAndIsActiveTrueOrderByStoreIdAsc(
+            StoreSourceType sourceType,
+            Pageable pageable
+    );
+
     @Query("""
             select s
             from Store s
@@ -52,9 +57,6 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
             Pageable pageable
     );
 
-    // ── 추천 API 용 쿼리 ──
-
-    /** 활성 가게가 존재하는 동 목록 (roadAddress에서 추출) */
     @Query("""
             select distinct substring(s.roadAddress, 1,
                    locate(' ', s.roadAddress,
@@ -67,7 +69,6 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
             """)
     List<String> findDistinctDongs();
 
-    /** 동 + 카테고리 필터 조합 (null이면 무시) */
     @Query("""
             select s
             from Store s
