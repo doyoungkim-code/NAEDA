@@ -1,5 +1,6 @@
 package com.ssafy.naeda.domain.pay.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.naeda.domain.pay.dto.request.PayProcessRequest;
 import com.ssafy.naeda.domain.pay.dto.request.PayRequestCreateRequest;
 import com.ssafy.naeda.domain.pay.dto.PayRequestResponse;
@@ -26,6 +27,7 @@ public class PayRequestController {
 
     private final PayFacadeService payFacadeService;
     private final PayRequestRedisService payRequestRedisService;
+    private final ObjectMapper objectMapper;
 
     @PostMapping
     @Operation(summary = "결제 요청 생성",
@@ -69,9 +71,11 @@ public class PayRequestController {
     public ResponseEntity<PayTransactionResponse> processRequest(
             @Parameter(description = "결제 요청 ID") @PathVariable Long id,
             @Parameter(description = "처리 요청 JSON (idempotencyKey, pin)")
-            @RequestPart("request") PayProcessRequest request,
+            @RequestPart("request") String requestJson,
             @Parameter(description = "얼굴 이미지 파일")
-            @RequestPart("faceImage") MultipartFile faceImage) {
+            @RequestPart("faceImage") MultipartFile faceImage) throws Exception {
+
+        PayProcessRequest request = objectMapper.readValue(requestJson, PayProcessRequest.class);
 
         PayTransaction tx = payFacadeService.processAccountPayment(
                 id, request.getIdempotencyKey(), faceImage,
