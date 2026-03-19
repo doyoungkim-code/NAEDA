@@ -125,7 +125,7 @@ public class AuthService {
             // 1. SSAFY 계좌 생성 API 호출
             Map<String, Object> header = ssafyHeaderFactory.create("createDemandDepositAccount", userKey);
             Map<String, Object> body = ssafyApiClient.buildBody(header,
-                    "accountTypeUniqueNo", "001-1-d6e9d88be46a43"  // SSAFY 수시입출금 상품 고유번호
+                    "accountTypeUniqueNo", "001-1-4e9b6cd7a26a45"  // SSAFY 수시입출금 상품 고유번호
             );
 
             Map<String, Object> response = ssafyApiClient.post(
