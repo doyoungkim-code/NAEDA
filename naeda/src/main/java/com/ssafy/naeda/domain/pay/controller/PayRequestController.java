@@ -40,9 +40,7 @@ public class PayRequestController {
         payRequestRedisService.createRequest(
                 requestId,
                 request.getStoreId(),
-                request.getUserNo(),
-                request.getAmount(),
-                request.getPaymentMethodId()
+                request.getAmount()
         );
 
         Map<Object, Object> data = payRequestRedisService.getRequest(requestId);

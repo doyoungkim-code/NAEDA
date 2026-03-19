@@ -28,15 +28,13 @@ public class PayRequestRedisService {
      * 결제 요청을 Redis에 생성 (상태: PENDING, TTL: 60초)
      */
 
-    public void createRequest(Long requestId, Long storeId, Long userNo, Long amount, Long paymentMethodId){
+    public void createRequest(Long requestId, Long storeId, Long amount){
         String key = REQUEST_KEY_PREFIX + requestId;
 
         Map<String, String> data = new HashMap<>();
         data.put("status", PayRequestStatus.PENDING.name());
         data.put("storeId", String.valueOf(storeId));
-        data.put("userNo", String.valueOf(userNo));
         data.put("amount", String.valueOf(amount));
-        data.put("paymentMethodId", String.valueOf(paymentMethodId));
         data.put("createdAt", String.valueOf(System.currentTimeMillis()));
 
         redisTemplate.opsForHash().putAll(key,data);
