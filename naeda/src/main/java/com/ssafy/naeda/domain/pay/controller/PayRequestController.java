@@ -64,7 +64,7 @@ public class PayRequestController {
         return ResponseEntity.ok(PayRequestResponse.from(id, data));
     }
 
-    @PostMapping("/{id}/process")
+    @PostMapping(value = "/{id}/process", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "결제 처리 (얼굴인증 + 계좌이체)",
             description = "결제 요청을 실제로 처리합니다. 얼굴 인증 -> RBA -> PIN 2차인증(필요시) -> "
                     + "SSAFY 계좌이체 API -> 분산락으로 동시 처리 차단.")
