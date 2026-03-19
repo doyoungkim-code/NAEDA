@@ -161,8 +161,32 @@ public class AuthService {
 
             log.info("[AuthService] 기본 계좌 + 결제수단 생성 완료: userNo={}, accountNo={}", userNo, accountNo);
 
+            // 4. 초기 잔액 입금 (1,000,000원)
+            depositInitialBalance(accountNo, userKey);
+
         } catch (Exception e) {
             log.error("[AuthService] 기본 계좌 생성 실패 (회원가입은 정상 처리됨): userNo={}", userNo, e);
+        }
+    }
+
+    /**
+     * SSAFY 계좌에 초기 잔액을 입금한다.
+     */
+    @SuppressWarnings("unchecked")
+    private void depositInitialBalance(String accountNo, String userKey) {
+        try {
+            Map<String, Object> header = ssafyHeaderFactory.create("updateDemandDepositAccountDeposit", userKey);
+            Map<String, Object> body = ssafyApiClient.buildBody(header,
+                    "accountNo", accountNo,
+                    "transactionBalance", "1000000",
+                    "transactionSummary", "회원가입 초기 입금"
+            );
+
+            ssafyApiClient.post("/edu/demandDeposit/updateDemandDepositAccountDeposit", body);
+            log.info("[AuthService] 초기 잔액 입금 완료: accountNo={}, amount=1,000,000", accountNo);
+
+        } catch (Exception e) {
+            log.error("[AuthService] 초기 잔액 입금 실패 (계좌는 정상 생성됨): accountNo={}", accountNo, e);
         }
     }
 

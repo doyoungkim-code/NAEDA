@@ -23,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PublicStoreSeedService {
 
-    private static final String SEED_KEY = "public-gumi-store-csv-v1";
+    private static final String SEED_KEY = "public-gumi-store-csv-v3";
 
     private final PublicStoreCsvLoader csvLoader;
     private final PublicStoreCoordinateConverter coordinateConverter;
@@ -121,3 +121,4 @@ public class PublicStoreSeedService {
     public record SeedSummary(int created, int updated, int deactivated, boolean skipped) {
     }
 }
+

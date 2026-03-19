@@ -47,7 +47,7 @@ import java.util.stream.Collectors;
 public class CardService {
 
     // 명세서 API 25: URL 경로는 createCreditCardProduct, Header apiName은 createCreditCard
-    private static final String API_PATH = "/edu/creditCard/createCreditCardProduct";
+    private static final String API_PATH = "/edu/creditCard/createCreditCard";
     private static final String API_NAME = "createCreditCard";
 
     private static final String CARD_TX_PATH = "/edu/creditCard/inquireCreditCardTransactionList";

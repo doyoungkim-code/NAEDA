@@ -1,6 +1,11 @@
 package com.example.naedafront.ui.screen.map
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Paint
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -32,14 +37,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.GpsFixed
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +58,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -64,7 +75,23 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.naedafront.R
+import com.example.naedafront.data.remote.MapStoreResponseDto
+import com.example.naedafront.data.remote.StoreMapRepository
+import com.example.naedafront.ui.common.NaedaButton
+import com.example.naedafront.ui.common.NaedaButtonType
+import com.example.naedafront.ui.theme.Background
+import com.example.naedafront.ui.theme.Mint50
+import com.example.naedafront.ui.theme.Mint500
+import com.example.naedafront.ui.theme.Navy900
+import com.example.naedafront.ui.theme.OnBackground
+import com.example.naedafront.ui.theme.OnSurfaceVariant
+import com.example.naedafront.ui.theme.OutlineVariant
 import kotlin.math.roundToInt
 
 data class Restaurant(
@@ -207,28 +234,170 @@ fun MapSelectScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val bitmap = ImageBitmap.imageResource(context.resources, R.drawable.gumi_map_select)
-
+    val lifecycleOwner = LocalLifecycleOwner.current
     var selectedRegion by remember { mutableStateOf<MapRegion?>(null) }
-    var canvasSize by remember { mutableStateOf(Size.Zero) }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     var isSheetExpanded by remember { mutableStateOf(true) }
+    var selectedStoreCluster by remember { mutableStateOf<List<MapStoreResponseDto>>(emptyList()) }
+    var selectedStoreDetail by remember { mutableStateOf<MapStoreResponseDto?>(null) }
+    var isStoreSheetExpanded by remember { mutableStateOf(true) }
+    var mapStores by remember { mutableStateOf<List<MapStoreResponseDto>>(emptyList()) }
+    var mapStoresReloadKey by remember { mutableIntStateOf(0) }
+    var isMapStoresLoading by remember { mutableStateOf(true) }
+    var mapStoresError by remember { mutableStateOf<String?>(null) }
+    var currentLocationRequestKey by remember { mutableIntStateOf(0) }
+    var hasLocationPermission by remember {
+        mutableStateOf(hasLocationPermission(context))
+    }
+    var showLocationPermissionDialog by remember { mutableStateOf(false) }
 
-    fun scalePoint(point: Offset): Offset {
-        if (canvasSize == Size.Zero) return point
-        return Offset(
-            point.x * canvasSize.width / 600f,
-            point.y * canvasSize.height / 600f
-        )
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+
+        hasLocationPermission = granted
+        if (granted) {
+            currentLocationRequestKey += 1
+        }
     }
 
-    fun scaledPolygon(region: MapRegion): List<Offset> = region.points.map(::scalePoint)
+    LaunchedEffect(mapStoresReloadKey) {
+        isMapStoresLoading = true
+        mapStoresError = null
+        runCatching {
+            StoreMapRepository.getMapStores()
+        }.onSuccess { stores ->
+            mapStores = stores
+        }.onFailure { throwable ->
+            mapStoresError = throwable.message ?: "식당 정보를 불러오지 못했습니다."
+        }
+        isMapStoresLoading = false
+    }
+
+    DisposableEffect(lifecycleOwner, context) {
+        val observer = object : DefaultLifecycleObserver {
+            override fun onResume(owner: LifecycleOwner) {
+                hasLocationPermission = hasLocationPermission(context)
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(selectedTabIndex, hasLocationPermission) {
+        if (selectedTabIndex == 0) {
+            if (!hasLocationPermission) {
+                showLocationPermissionDialog = true
+            } else {
+                currentLocationRequestKey += 1
+            }
+        } else {
+            showLocationPermissionDialog = false
+            selectedStoreCluster = emptyList()
+            selectedStoreDetail = null
+        }
+    }
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFFF3F4F6))
     ) {
+        NaverRestaurantMapScreen(
+            stores = mapStores,
+            hasLocationPermission = hasLocationPermission,
+            currentLocationRequestKey = currentLocationRequestKey,
+            onStoreClusterSelected = { stores ->
+                selectedStoreCluster = stores
+                selectedStoreDetail = null
+                isStoreSheetExpanded = true
+            },
+            onMapTap = {
+                selectedStoreCluster = emptyList()
+                selectedStoreDetail = null
+            },
+            modifier = Modifier
+                .fillMaxSize()
+                .alpha(if (selectedTabIndex == 0) 1f else 0f)
+        )
+
+        if (selectedTabIndex == 0 && !hasLocationPermission) {
+            LocationPermissionHintCard(
+                onActionClick = { showLocationPermissionDialog = true },
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 24.dp)
+            )
+        }
+
+        if (selectedTabIndex == 0 && isMapStoresLoading) {
+            StoreMapStatusOverlay(
+                title = "식당 지도를 불러오는 중이에요",
+                message = "구미 매장 정보를 지도에 배치하고 있습니다.",
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 24.dp)
+            )
+        }
+
+        if (selectedTabIndex == 0 && !isMapStoresLoading && !mapStoresError.isNullOrBlank()) {
+            StoreMapStatusOverlay(
+                title = "식당 정보를 불러오지 못했어요",
+                message = mapStoresError.orEmpty(),
+                actionText = "다시 시도",
+                onActionClick = { mapStoresReloadKey += 1 },
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 24.dp)
+            )
+        }
+
+        if (selectedTabIndex == 0) {
+            CurrentLocationFab(
+                onClick = {
+                    if (hasLocationPermission) {
+                        currentLocationRequestKey += 1
+                    } else {
+                        showLocationPermissionDialog = true
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 20.dp, bottom = 28.dp)
+            )
+        }
+
+        if (selectedTabIndex == 0 && selectedStoreCluster.isNotEmpty()) {
+            StoreClusterBottomSheet(
+                stores = selectedStoreCluster,
+                expanded = isStoreSheetExpanded,
+                onToggleExpanded = { isStoreSheetExpanded = !isStoreSheetExpanded },
+                onStoreClick = { selectedStoreDetail = it },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+            )
+        }
+
+        if (selectedTabIndex == 1) {
+            PopularRestaurantMapTab(
+                selectedRegion = selectedRegion,
+                isSheetExpanded = isSheetExpanded,
+                onRegionSelected = {
+                    selectedRegion = it
+                    isSheetExpanded = true
+                },
+                onRegionCleared = { selectedRegion = null },
+                onToggleExpanded = { isSheetExpanded = !isSheetExpanded },
+                onRestaurantClick = { region, restaurantName ->
+                    onRestaurantClick(region, restaurantName)
+                }
+            )
+        }
+
         TopMapHeader(
             selectedTabIndex = selectedTabIndex,
             onBack = onBack,
@@ -238,81 +407,25 @@ fun MapSelectScreen(
                 .fillMaxWidth()
         )
 
-        Box(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp)
-        ) {
-            Canvas(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(0.92f)
-                    .onSizeChanged {
-                        canvasSize = Size(it.width.toFloat(), it.height.toFloat())
-                    }
-                    .pointerInput(canvasSize) {
-                        detectTapGestures { tapOffset ->
-                            val tappedRegion = REGIONS.firstOrNull { region ->
-                                pointInPolygon(tapOffset, scaledPolygon(region))
-                            }
-
-                            if (tappedRegion != null) {
-                                selectedRegion = tappedRegion
-                                isSheetExpanded = true
-                            } else {
-                                selectedRegion = null
-                            }
-                        }
-                    }
-            ) {
-                drawImage(
-                    image = bitmap,
-                    dstSize = IntSize(
-                        width = size.width.roundToInt(),
-                        height = size.height.roundToInt()
-                    )
-                )
-
-                REGIONS.forEach { region ->
-                    val scaled = scaledPolygon(region)
-                    if (scaled.isEmpty()) return@forEach
-
-                    val isSelected = selectedRegion?.label == region.label
-                    val cx = scaled.map { it.x }.average().toFloat()
-                    val cy = scaled.map { it.y }.average().toFloat()
-
-                    drawContext.canvas.nativeCanvas.drawText(
-                        region.label,
-                        cx,
-                        cy + 4f,
-                        Paint().apply {
-                            color = if (isSelected) {
-                                android.graphics.Color.parseColor("#5B5CEB")
-                            } else {
-                                android.graphics.Color.WHITE
-                            }
-                            textSize = if (isSelected) 30f else 28f
-                            textAlign = Paint.Align.CENTER
-                            isFakeBoldText = true
-                            setShadowLayer(4f, 1f, 1f, android.graphics.Color.BLACK)
-                        }
+        if (showLocationPermissionDialog) {
+            LocationPermissionDialog(
+                onDismiss = { showLocationPermissionDialog = false },
+                onConfirm = {
+                    showLocationPermissionDialog = false
+                    locationPermissionLauncher.launch(
+                        arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        )
                     )
                 }
-            }
+            )
         }
 
-        if (selectedRegion != null) {
-            BottomStoreSheet(
-                region = selectedRegion!!,
-                expanded = isSheetExpanded,
-                onToggleExpanded = { isSheetExpanded = !isSheetExpanded },
-                onRestaurantClick = { restaurantName ->
-                    onRestaurantClick(selectedRegion!!, restaurantName)
-                },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
+        selectedStoreDetail?.let { store ->
+            StoreDetailDialog(
+                store = store,
+                onDismiss = { selectedStoreDetail = null }
             )
         }
     }
@@ -340,7 +453,7 @@ private fun TopMapHeader(
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    imageVector = Icons.Filled.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "뒤로가기",
                     tint = Color(0xFF30384A)
                 )
@@ -351,12 +464,221 @@ private fun TopMapHeader(
 
         SegmentedTabs(
             selectedTabIndex = selectedTabIndex,
-            items = listOf("매장", "혜택"),
+            items = listOf("식당", "맛집"),
             onSelected = onTabSelected
         )
 
         Spacer(modifier = Modifier.weight(1f))
         Spacer(modifier = Modifier.size(40.dp))
+    }
+}
+
+@Composable
+private fun LocationPermissionDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = Background,
+            shadowElevation = 16.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(Mint50),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.MyLocation,
+                        contentDescription = null,
+                        tint = Mint500,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Text(
+                    text = "내 주변 식당을 바로 찾을게요",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Navy900
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = "현재 위치를 기준으로 식당 지도를 보여주려면 위치 권한이 필요합니다. 허용하면 내 주변 식당으로 지도가 바로 이동합니다.",
+                    color = OnSurfaceVariant,
+                    fontSize = 15.sp,
+                    lineHeight = 22.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    NaedaButton(
+                        text = "나중에",
+                        onClick = onDismiss,
+                        type = NaedaButtonType.OUTLINED,
+                        modifier = Modifier.weight(1f)
+                    )
+                    NaedaButton(
+                        text = "권한 허용",
+                        onClick = onConfirm,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LocationPermissionHintCard(
+    onActionClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(28.dp),
+        color = Background.copy(alpha = 0.96f),
+        shadowElevation = 12.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 22.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(Mint50),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.MyLocation,
+                    contentDescription = null,
+                    tint = Mint500
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text(
+                text = "위치 권한이 필요합니다",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = OnBackground
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "권한을 허용하면 지금 위치를 기준으로 식당 지도를 바로 보여드립니다.",
+                color = OnSurfaceVariant,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            NaedaButton(
+                text = "위치 권한 허용하기",
+                onClick = onActionClick
+            )
+        }
+    }
+}
+
+
+@Composable
+private fun StoreMapStatusOverlay(
+    title: String,
+    message: String,
+    actionText: String? = null,
+    onActionClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(28.dp),
+        color = Background.copy(alpha = 0.96f),
+        shadowElevation = 12.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 22.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            CircularProgressIndicator(
+                color = Mint500,
+                strokeWidth = 3.dp,
+                modifier = Modifier.size(32.dp)
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text(
+                text = title,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = OnBackground
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = message,
+                color = OnSurfaceVariant,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+
+            if (!actionText.isNullOrBlank() && onActionClick != null) {
+                Spacer(modifier = Modifier.height(18.dp))
+                NaedaButton(
+                    text = actionText,
+                    onClick = onActionClick
+                )
+            }
+        }
+    }
+}
+@Composable
+private fun CurrentLocationFab(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.size(56.dp),
+        shape = CircleShape,
+        color = Background.copy(alpha = 0.96f),
+        shadowElevation = 12.dp
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.Filled.GpsFixed,
+                contentDescription = "현재 위치로 이동",
+                tint = Mint500,
+                modifier = Modifier.size(24.dp)
+            )
+        }
     }
 }
 
@@ -626,3 +948,124 @@ private fun FacePayChip() {
         )
     }
 }
+
+@Composable
+private fun PopularRestaurantMapTab(
+    selectedRegion: MapRegion?,
+    isSheetExpanded: Boolean,
+    onRegionSelected: (MapRegion) -> Unit,
+    onRegionCleared: () -> Unit,
+    onToggleExpanded: () -> Unit,
+    onRestaurantClick: (MapRegion, String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val bitmap = ImageBitmap.imageResource(context.resources, R.drawable.gumi_map_select)
+    var canvasSize by remember { mutableStateOf(Size.Zero) }
+
+    fun scalePoint(point: Offset): Offset {
+        if (canvasSize == Size.Zero) return point
+        return Offset(
+            point.x * canvasSize.width / 600f,
+            point.y * canvasSize.height / 600f
+        )
+    }
+
+    fun scaledPolygon(region: MapRegion): List<Offset> = region.points.map(::scalePoint)
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFFF3F4F6))
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp)
+        ) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(0.92f)
+                    .onSizeChanged {
+                        canvasSize = Size(it.width.toFloat(), it.height.toFloat())
+                    }
+                    .pointerInput(canvasSize) {
+                        detectTapGestures { tapOffset ->
+                            val tappedRegion = REGIONS.firstOrNull { region ->
+                                pointInPolygon(tapOffset, scaledPolygon(region))
+                            }
+
+                            if (tappedRegion != null) {
+                                onRegionSelected(tappedRegion)
+                            } else {
+                                onRegionCleared()
+                            }
+                        }
+                    }
+            ) {
+                drawImage(
+                    image = bitmap,
+                    dstSize = IntSize(
+                        width = size.width.roundToInt(),
+                        height = size.height.roundToInt()
+                    )
+                )
+
+                REGIONS.forEach { region ->
+                    val scaled = scaledPolygon(region)
+                    if (scaled.isEmpty()) return@forEach
+
+                    val isSelected = selectedRegion?.label == region.label
+                    val cx = scaled.map { it.x }.average().toFloat()
+                    val cy = scaled.map { it.y }.average().toFloat()
+
+                    drawContext.canvas.nativeCanvas.drawText(
+                        region.label,
+                        cx,
+                        cy + 4f,
+                        Paint().apply {
+                            color = if (isSelected) {
+                                android.graphics.Color.parseColor("#5B5CEB")
+                            } else {
+                                android.graphics.Color.WHITE
+                            }
+                            textSize = if (isSelected) 30f else 28f
+                            textAlign = Paint.Align.CENTER
+                            isFakeBoldText = true
+                            setShadowLayer(4f, 1f, 1f, android.graphics.Color.BLACK)
+                        }
+                    )
+                }
+            }
+        }
+
+        if (selectedRegion != null) {
+            BottomStoreSheet(
+                region = selectedRegion,
+                expanded = isSheetExpanded,
+                onToggleExpanded = onToggleExpanded,
+                onRestaurantClick = { restaurantName ->
+                    onRestaurantClick(selectedRegion, restaurantName)
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+            )
+        }
+    }
+}
+
+private fun hasLocationPermission(context: Context): Boolean =
+    ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.ACCESS_FINE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+
+
