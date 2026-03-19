@@ -20,6 +20,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+        name = "spring.kafka.bootstrap-servers",
+        matchIfMissing = false
+)
 public class PayKafkaConfig {
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;

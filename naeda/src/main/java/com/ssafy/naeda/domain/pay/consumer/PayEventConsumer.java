@@ -10,7 +10,10 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+        name = "spring.kafka.bootstrap-servers",
+        matchIfMissing = false
+)
 public class PayEventConsumer {
     // TODO: PointService, NotificationService 주입
 
