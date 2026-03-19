@@ -1,5 +1,7 @@
 package com.example.naedafront.ui.navigation
 
+import androidx.compose.runtime.collectAsState
+import com.example.naedafront.ui.screen.home.HomeViewModel
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
@@ -174,6 +176,9 @@ fun NaedaNavGraph(
                 mutableStateOf(AuthPrefs.isFaceRegistered(context))
             }
 
+            val homeViewModel: HomeViewModel = viewModel()
+            val homeUiState by homeViewModel.uiState.collectAsState()
+
             LaunchedEffect(Unit) {
                 runCatching { FaceRegistrationRepository.getFacePaySettings() }
                     .onSuccess { settings ->
@@ -183,14 +188,23 @@ fun NaedaNavGraph(
                             secondaryAuthEnabled = settings.secondaryAuthEnabled
                         )
                         isFaceRegistered = settings.faceRegistered
+                        homeViewModel.loadHomeData(
+                            context = context,
+                            userName = displayName,
+                            isFaceRegistered = settings.faceRegistered
+                        )
+                    }
+                    .onFailure {
+                        homeViewModel.loadHomeData(
+                            context = context,
+                            userName = displayName,
+                            isFaceRegistered = isFaceRegistered
+                        )
                     }
             }
 
             HomeScreen(
-                uiState = HomeUiState(
-                    userName = displayName,
-                    isFaceRegistered = isFaceRegistered
-                ),
+                uiState = homeUiState,
                 onTransactionClick = { navController.navigate(Screen.Transaction.route) },
                 onFacePaySettingClick = { navController.navigate(Screen.FaceRegister.route) },
                 onLinkAccountClick = { navController.navigate(Screen.AccountList.createRoute(0)) },
@@ -204,8 +218,6 @@ fun NaedaNavGraph(
 
         composable(Screen.Store.route) {
             PointStoreScreen(
-                onCartClick = { },
-                onGiftClick = { },
                 onHistoryClick = {
                     navController.navigate(Screen.PointHistory.route)
                 },

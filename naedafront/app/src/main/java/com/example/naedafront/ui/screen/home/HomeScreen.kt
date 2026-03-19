@@ -2,7 +2,6 @@ package com.example.naedafront.ui.screen.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -11,11 +10,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -36,6 +36,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,11 +46,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -103,8 +103,8 @@ data class HomeUiState(
     val totalBalance: Long = 18_240_500L,
     val recentTransactions: List<TransactionItem> = emptyList(),
     val spendingCategories: List<SpendingCategory> = emptyList(),
-    val topSpendingCategory: String = "식비",
-    val topSpendingAmount: Long = 842_500L,
+    val topSpendingCategory: String? = null,
+    val topSpendingAmount: Long = 0L,
     val notices: List<NoticeItem> = emptyList()
 )
 
@@ -691,19 +691,10 @@ private fun NoticeRow(notice: NoticeItem) {
 
 @Composable
 private fun SpendingAnalysisCard(
-    topCategory: String,
+    topCategory: String?,
     topAmount: Long,
     categories: List<SpendingCategory>
 ) {
-    val displayCategories = if (categories.isEmpty()) {
-        listOf(
-            SpendingCategory("식비 45%", 0.45f, Color(0xFFFF6B35)),
-            SpendingCategory("쇼핑 25%", 0.25f, Color(0xFF4A90D9)),
-            SpendingCategory("교통 20%", 0.20f, Color(0xFF44E3D3)),
-            SpendingCategory("기타", 0.10f, Color(0xFFBDBDBD))
-        )
-    } else categories
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -723,62 +714,79 @@ private fun SpendingAnalysisCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            if (categories.isEmpty() || topCategory.isNullOrBlank() || topAmount <= 0L) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFFF6B35).copy(alpha = 0.15f)),
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("🍽️", fontSize = 18.sp)
-                }
-                Spacer(modifier = Modifier.width(10.dp))
-                Column {
                     Text(
-                        text = "${topCategory}에 가장 많이 썼어요",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = OnBackground.copy(alpha = 0.55f)
-                    )
-                    Text(
-                        text = "₩${"%,d".format(topAmount)}원",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold
+                        text = "소비 기록이 없습니다.",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium
                         ),
-                        color = OnBackground
+                        color = OnBackground.copy(alpha = 0.5f)
                     )
                 }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            SpendingProgressBar(categories = displayCategories)
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                displayCategories.forEach { cat ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f, fill = false)
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFFFF6B35).copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(cat.color)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("🍽️", fontSize = 18.sp)
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
                         Text(
-                            text = cat.label,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = OnBackground.copy(alpha = 0.6f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            text = "${topCategory}에 가장 많이 썼어요",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = OnBackground.copy(alpha = 0.55f)
                         )
+                        Text(
+                            text = "₩${"%,d".format(topAmount)}원",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = OnBackground
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                SpendingProgressBar(categories = categories)
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    categories.forEach { cat ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f, fill = false)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(cat.color)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = cat.label,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = OnBackground.copy(alpha = 0.6f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }

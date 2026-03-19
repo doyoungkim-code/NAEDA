@@ -1,10 +1,10 @@
 package com.example.naedafront.ui.screen.store
 
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -34,6 +35,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -42,6 +45,8 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,97 +57,53 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 private val StoreGreen = Color(0xFF005E54)
 
-private data class MonthTab(
-    val label: String,
-    val selected: Boolean
-)
-
-private data class PointHistoryItem(
-    val id: Int,
-    val title: String,
-    val dateText: String,
-    val detailText: String,
-    val pointText: String,
-    val positive: Boolean,
-    val iconText: String
-)
-
 private enum class HistoryFilterType(val label: String) {
-    ALL("전체 내역"),
-    EARN("적립 내역"),
-    CONVERT("사용 내역")
+    ALL("전체"),
+    EARN("적립"),
+    USE("사용")
 }
 
 @Composable
 fun PointHistoryScreen(
     onBackClick: () -> Unit = {},
-    onGiftClick: () -> Unit = {}
+    onGiftClick: () -> Unit = {},
+    viewModel: PointHistoryViewModel = viewModel()
 ) {
-    val months = remember {
-        listOf(
-            MonthTab("12월", true),
-            MonthTab("11월", false),
-            MonthTab("10월", false),
-            MonthTab("9월", false)
-        )
-    }
+    val context = LocalContext.current
+    val uiState by viewModel.uiState.collectAsState()
 
-    val historyItems = remember {
-        listOf(
-            PointHistoryItem(
-                id = 1,
-                title = "전자 기기 상점",
-                dateText = "12월 24일 14:45",
-                detailText = "결제 249,000원",
-                pointText = "+12,450 P",
-                positive = true,
-                iconText = "가"
-            ),
-            PointHistoryItem(
-                id = 2,
-                title = "구미 로컬 카페",
-                dateText = "12월 23일 09:12",
-                detailText = "결제 6,500원",
-                pointText = "+325 P",
-                positive = true,
-                iconText = "카"
-            ),
-            PointHistoryItem(
-                id = 3,
-                title = "상품권 전환",
-                dateText = "12월 20일 18:30",
-                detailText = "",
-                pointText = "-10,000 P",
-                positive = false,
-                iconText = "전"
-            ),
-            PointHistoryItem(
-                id = 4,
-                title = "금오산 맛집",
-                dateText = "12월 18일",
-                detailText = "결제 32,000원",
-                pointText = "+1,600 P",
-                positive = true,
-                iconText = "맛"
-            )
-        )
+    LaunchedEffect(Unit) {
+        viewModel.load(context)
     }
 
     var showFilterSheet by remember { mutableStateOf(false) }
+    var showPeriodSheet by remember { mutableStateOf(false) }
     var selectedFilter by remember { mutableStateOf(HistoryFilterType.ALL) }
 
-    val filteredHistoryItems = remember(historyItems, selectedFilter) {
-        when (selectedFilter) {
-            HistoryFilterType.ALL -> historyItems
-            HistoryFilterType.EARN -> historyItems.filter { it.positive }
-            HistoryFilterType.CONVERT -> historyItems.filter { !it.positive }
-        }
+    val filteredHistoryItems = remember(
+        uiState.items,
+        uiState.selectedYear,
+        uiState.selectedMonth,
+        selectedFilter
+    ) {
+        uiState.items
+            .filter { it.year == uiState.selectedYear }
+            .filter { uiState.selectedMonth == null || it.month == uiState.selectedMonth }
+            .filter {
+                when (selectedFilter) {
+                    HistoryFilterType.ALL -> true
+                    HistoryFilterType.EARN -> it.positive
+                    HistoryFilterType.USE -> !it.positive
+                }
+            }
     }
 
     Box(
@@ -150,55 +111,69 @@ fun PointHistoryScreen(
             .fillMaxSize()
             .background(Color(0xFFF4F5F7))
     ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 110.dp)
-        ) {
-            item {
-                PointHistoryHeader(
-                    point = 8500,
-                    onBackClick = onBackClick
-                )
+        if (uiState.isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = StoreGreen)
             }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 110.dp)
+            ) {
+                item {
+                    PointHistoryHeader(
+                        point = uiState.pointBalance,
+                        onBackClick = onBackClick
+                    )
+                }
 
-            item {
-                ProgressSection()
+                item {
+                    ProgressSection(
+                        point = uiState.pointBalance
+                    )
+                }
+
+                item {
+                    PeriodSection(
+                        selectedYear = uiState.selectedYear,
+                        selectedMonth = uiState.selectedMonth,
+                        onPeriodClick = { showPeriodSheet = true },
+                        onFilterClick = { showFilterSheet = true }
+                    )
+                }
+
+                item {
+                    SummaryCard(
+                        totalEarned = uiState.totalEarned,
+                        totalUsed = uiState.totalUsed,
+                        selectedYear = uiState.selectedYear,
+                        selectedMonth = uiState.selectedMonth
+                    )
+                }
+
+                item {
+                    HistoryTitleRow()
+                }
+
+                if (filteredHistoryItems.isEmpty()) {
+                    item {
+                        EmptyHistorySection(
+                            message = if (uiState.errorMessage != null) {
+                                uiState.errorMessage ?: "기록이 없습니다."
+                            } else {
+                                "기록이 없습니다."
+                            }
+                        )
+                    }
+                } else {
+                    items(filteredHistoryItems) { item ->
+                        HistoryRow(item = item)
+                    }
+                }
             }
-
-            item {
-                MonthSection(
-                    months = months,
-                    onFilterClick = { showFilterSheet = true }
-                )
-            }
-
-            item {
-                SummaryCard()
-            }
-
-            item {
-                HistoryTitleRow()
-            }
-
-            items(filteredHistoryItems) { item ->
-                HistoryRow(item = item)
-            }
-        }
-
-        FloatingActionButton(
-            onClick = onGiftClick,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .navigationBarsPadding()
-                .padding(end = 18.dp, bottom = 92.dp),
-            containerColor = Color(0xFF08A37A),
-            contentColor = Color.White,
-            shape = CircleShape
-        ) {
-            Icon(
-                imageVector = Icons.Default.CardGiftcard,
-                contentDescription = "gift"
-            )
         }
     }
 
@@ -210,11 +185,22 @@ fun PointHistoryScreen(
             onApply = { showFilterSheet = false }
         )
     }
+
+    if (showPeriodSheet) {
+        PeriodBottomSheet(
+            selectedYear = uiState.selectedYear,
+            selectedMonth = uiState.selectedMonth,
+            onSelectYear = { viewModel.setYear(it) },
+            onSelectMonth = { viewModel.setMonth(it) },
+            onDismiss = { showPeriodSheet = false },
+            onApply = { showPeriodSheet = false }
+        )
+    }
 }
 
 @Composable
 private fun PointHistoryHeader(
-    point: Int,
+    point: Long,
     onBackClick: () -> Unit
 ) {
     Box(
@@ -417,14 +403,19 @@ private fun PointHistoryHeader(
 }
 
 @Composable
-private fun ProgressSection() {
+private fun ProgressSection(
+    point: Long
+) {
+    val progress = (point.coerceAtMost(10_000L).toFloat() / 10_000f)
+    val progressPercent = (progress * 100).toInt()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 22.dp, vertical = 18.dp)
     ) {
         Text(
-            text = "85% 완료",
+            text = "${progressPercent}% 완료",
             modifier = Modifier.align(Alignment.End),
             color = StoreGreen,
             fontSize = 15.sp,
@@ -453,7 +444,7 @@ private fun ProgressSection() {
 
             ProgressNode(
                 labelTop = "○",
-                labelBottom = "8.5K",
+                labelBottom = "%,d".format(point),
                 selected = true,
                 faded = false
             )
@@ -462,14 +453,14 @@ private fun ProgressSection() {
                 modifier = Modifier
                     .weight(1f)
                     .height(3.dp)
-                    .background(Color(0xFFD8DEE6))
+                    .background(if (point >= 10_000L) StoreGreen else Color(0xFFD8DEE6))
             )
 
             ProgressNode(
                 labelTop = "권",
                 labelBottom = "10,000 P",
-                selected = false,
-                faded = true
+                selected = point >= 10_000L,
+                faded = point < 10_000L
             )
         }
     }
@@ -531,8 +522,10 @@ private fun ProgressNode(
 }
 
 @Composable
-private fun MonthSection(
-    months: List<MonthTab>,
+private fun PeriodSection(
+    selectedYear: Int,
+    selectedMonth: Int?,
+    onPeriodClick: () -> Unit,
     onFilterClick: () -> Unit
 ) {
     Row(
@@ -542,26 +535,37 @@ private fun MonthSection(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
+            modifier = Modifier
+                .horizontalScroll(rememberScrollState())
+                .clickable(onClick = onPeriodClick),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            months.forEach { month ->
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(
-                            if (month.selected) StoreGreen else Color.Transparent
-                        )
-                        .clickable { }
-                        .padding(horizontal = 18.dp, vertical = 11.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = month.label,
-                        color = if (month.selected) Color.White else Color(0xFF64748B),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(StoreGreen)
+                    .padding(horizontal = 18.dp, vertical = 11.dp)
+            ) {
+                Text(
+                    text = selectedYear.toString(),
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(StoreGreen)
+                    .padding(horizontal = 18.dp, vertical = 11.dp)
+            ) {
+                Text(
+                    text = selectedMonth?.let { "${it}월" } ?: "전체",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
 
@@ -586,7 +590,18 @@ private fun MonthSection(
 }
 
 @Composable
-private fun SummaryCard() {
+private fun SummaryCard(
+    totalEarned: Long,
+    totalUsed: Long,
+    selectedYear: Int,
+    selectedMonth: Int?
+) {
+    val periodLabel = if (selectedMonth != null) {
+        "${selectedYear}년 ${selectedMonth}월"
+    } else {
+        "${selectedYear}년 전체"
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -595,56 +610,67 @@ private fun SummaryCard() {
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 18.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp)
         ) {
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = "적립한 포인트",
-                    color = Color(0xFF94A3B8),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "+12,450 P",
-                    color = StoreGreen,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .height(42.dp)
-                    .background(Color(0xFFEAECEF))
+            Text(
+                text = periodLabel,
+                color = Color(0xFF98A2B3),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium
             )
 
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 18.dp),
-                horizontalAlignment = Alignment.End
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "12월 총 전환",
-                    color = Color(0xFF94A3B8),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "총 적립",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "+%,d P".format(totalEarned),
+                        color = StoreGreen,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(42.dp)
+                        .background(Color(0xFFEAECEF))
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "-10,000 P",
-                    color = Color(0xFF344054),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 18.dp),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Text(
+                        text = "총 사용",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "-%,d P".format(totalUsed),
+                        color = Color(0xFF344054),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
             }
         }
     }
@@ -678,7 +704,7 @@ private fun HistoryTitleRow() {
 
 @Composable
 private fun HistoryRow(
-    item: PointHistoryItem
+    item: PointHistoryItemUi
 ) {
     Column(
         modifier = Modifier
@@ -754,6 +780,24 @@ private fun HistoryRow(
     }
 }
 
+@Composable
+private fun EmptyHistorySection(
+    message: String
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 22.dp, vertical = 40.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = message,
+            color = Color(0xFF98A2B3),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -797,7 +841,7 @@ private fun FilterBottomSheet(
             Spacer(modifier = Modifier.height(22.dp))
 
             FilterOptionRow(
-                title = "전체 내역",
+                title = "전체",
                 selected = selectedFilter == HistoryFilterType.ALL,
                 onClick = { onSelectFilter(HistoryFilterType.ALL) }
             )
@@ -805,7 +849,7 @@ private fun FilterBottomSheet(
             HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp)
 
             FilterOptionRow(
-                title = "적립 내역",
+                title = "적립",
                 selected = selectedFilter == HistoryFilterType.EARN,
                 onClick = { onSelectFilter(HistoryFilterType.EARN) }
             )
@@ -813,9 +857,9 @@ private fun FilterBottomSheet(
             HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp)
 
             FilterOptionRow(
-                title = "전환 내역",
-                selected = selectedFilter == HistoryFilterType.CONVERT,
-                onClick = { onSelectFilter(HistoryFilterType.CONVERT) }
+                title = "사용",
+                selected = selectedFilter == HistoryFilterType.USE,
+                onClick = { onSelectFilter(HistoryFilterType.USE) }
             )
 
             Spacer(modifier = Modifier.height(28.dp))
@@ -838,6 +882,147 @@ private fun FilterBottomSheet(
                 )
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PeriodBottomSheet(
+    selectedYear: Int,
+    selectedMonth: Int?,
+    onSelectYear: (Int) -> Unit,
+    onSelectMonth: (Int?) -> Unit,
+    onDismiss: () -> Unit,
+    onApply: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val years = listOf(2024, 2025, 2026)
+    val months = (1..12).toList()
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color(0xFFF7F7F7),
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(top = 10.dp, bottom = 8.dp)
+                    .width(52.dp)
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(Color(0xFFD1D5DB))
+            )
+        },
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 28.dp)
+        ) {
+            Text(
+                text = "기간 설정",
+                color = Color(0xFF111827),
+                fontSize = 30.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Spacer(modifier = Modifier.height(22.dp))
+
+            Text(
+                text = "연도",
+                color = Color(0xFF6B7280),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                years.forEach { year ->
+                    SelectChip(
+                        text = year.toString(),
+                        selected = selectedYear == year,
+                        onClick = { onSelectYear(year) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "월",
+                color = Color(0xFF6B7280),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                SelectChip(
+                    text = "전체",
+                    selected = selectedMonth == null,
+                    onClick = { onSelectMonth(null) }
+                )
+
+                months.forEach { month ->
+                    SelectChip(
+                        text = "${month}월",
+                        selected = selectedMonth == month,
+                        onClick = { onSelectMonth(month) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            Button(
+                onClick = onApply,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF00695C),
+                    contentColor = Color.White
+                )
+            ) {
+                Text(
+                    text = "적용하기",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SelectChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(if (selected) StoreGreen else Color(0xFFEFF2F6))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 11.dp)
+    ) {
+        Text(
+            text = text,
+            color = if (selected) Color.White else Color(0xFF64748B),
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
