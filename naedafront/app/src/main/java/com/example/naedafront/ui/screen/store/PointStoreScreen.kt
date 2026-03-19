@@ -1,5 +1,6 @@
 package com.example.naedafront.ui.screen.store
 
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,19 +27,17 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,6 +45,8 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -58,12 +59,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-import androidx.compose.foundation.verticalScroll
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 private data class StoreCategory(
     val id: String,
@@ -71,21 +72,32 @@ private data class StoreCategory(
 )
 
 data class StoreItem(
-    val id: Int,
+    val id: Long,
     val brand: String,
     val title: String,
-    val pricePoint: Int,
+    val description: String,
+    val category: String,
+    val pricePoint: Long,
+    val stockQuantity: Int,
+    val status: String,
+    val imageUrl: String,
     val badge: String? = null,
     val thumbnailLabel: String
 )
 
 @Composable
 fun PointStoreScreen(
-    onCartClick: () -> Unit = {},
-    onGiftClick: () -> Unit = {},
     onHistoryClick: () -> Unit = {},
-    onPurchaseClick: (StoreItem, Int) -> Unit = { _, _ -> }
+    onPurchaseClick: (StoreItem, Int) -> Unit = { _, _ -> },
+    viewModel: StoreViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.loadStoreData(context)
+    }
+
     val categories = remember {
         listOf(
             StoreCategory("all", "전체"),
@@ -96,63 +108,38 @@ fun PointStoreScreen(
         )
     }
 
-    val allItems = remember {
-        listOf(
-            StoreItem(
-                id = 1,
-                brand = "구미시청",
-                title = "구미사랑상품권 10,000원권",
-                pricePoint = 10000,
-                badge = "인기",
-                thumbnailLabel = "상품권"
-            ),
-            StoreItem(
-                id = 2,
-                brand = "에이바우트 인동점",
-                title = "아메리카노 (Tall)",
-                pricePoint = 3500,
-                thumbnailLabel = "커피"
-            ),
-            StoreItem(
-                id = 3,
-                brand = "구미시",
-                title = "방토모디 인형",
-                pricePoint = 20000,
-                thumbnailLabel = "인형"
-            ),
-            StoreItem(
-                id = 4,
-                brand = "GS25",
-                title = "모바일 금액권 3,000원",
-                pricePoint = 3000,
-                thumbnailLabel = "금액권"
-            ),
-            StoreItem(
-                id = 5,
-                brand = "메가커피 인동점",
-                title = "아메리카노 (HOT)",
-                pricePoint = 1000,
-                thumbnailLabel = "커피"
-            ),
-            StoreItem(
-                id = 6,
-                brand = "티니핑 랜드",
-                title = "관람차 티켓",
-                pricePoint = 7000,
-                thumbnailLabel = "티켓"
-            )
-        )
-    }
-
     var selectedCategory by remember { mutableStateOf("all") }
     var selectedItem by remember { mutableStateOf<StoreItem?>(null) }
 
+    val saleItems = uiState.items.filter { it.status == "ON_SALE" }
+
     val filteredItems = when (selectedCategory) {
-        "voucher" -> allItems.filter { it.id == 1 }
-        "food" -> allItems.filter { it.id == 2 || it.id == 5 }
-        "digital" -> allItems.filter { it.id == 4 }
-        "ticket" -> allItems.filter { it.id == 6 }
-        else -> allItems
+        "voucher" -> saleItems.filter {
+            it.category.contains("바우처") ||
+                    it.category.contains("상품권") ||
+                    it.title.contains("상품권")
+        }
+
+        "food" -> saleItems.filter {
+            it.category.contains("식음료") ||
+                    it.category.contains("음료") ||
+                    it.category.contains("커피") ||
+                    it.title.contains("커피") ||
+                    it.title.contains("음료")
+        }
+
+        "digital" -> saleItems.filter {
+            it.category.contains("디지털") ||
+                    it.category.contains("금액권") ||
+                    it.title.contains("금액권")
+        }
+
+        "ticket" -> saleItems.filter {
+            it.category.contains("티켓") ||
+                    it.title.contains("티켓")
+        }
+
+        else -> saleItems
     }
 
     Box(
@@ -164,9 +151,13 @@ fun PointStoreScreen(
             modifier = Modifier.fillMaxSize()
         ) {
             PointStoreHeader(
-                point = 8500,
-                onCartClick = onCartClick,
-                onHistoryClick = onHistoryClick
+                walletStatus = uiState.walletStatus,
+                point = uiState.pointBalance,
+                errorMessage = uiState.errorMessage,
+                onHistoryClick = onHistoryClick,
+                onCreateWalletClick = {
+                    viewModel.createWallet(context)
+                }
             )
 
             Row(
@@ -185,41 +176,74 @@ fun PointStoreScreen(
                 }
             }
 
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
-                    top = 0.dp,
-                    bottom = 120.dp
-                ),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(filteredItems) { item ->
-                    ProductCard(
-                        item = item,
-                        onClick = { selectedItem = item }
-                    )
+            when {
+                uiState.isLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = Color(0xFF006B60)
+                        )
+                    }
+                }
+
+                uiState.errorMessage != null &&
+                        filteredItems.isEmpty() &&
+                        uiState.walletStatus == PointWalletStatus.ERROR -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = uiState.errorMessage ?: "데이터를 불러오지 못했습니다.",
+                            color = Color(0xFF667085),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                filteredItems.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "등록된 상품이 없습니다.",
+                            color = Color(0xFF98A2B3),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                else -> {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = 0.dp,
+                            bottom = 120.dp
+                        ),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(filteredItems) { item ->
+                            ProductCard(
+                                item = item,
+                                onClick = { selectedItem = item }
+                            )
+                        }
+                    }
                 }
             }
-        }
-
-        FloatingActionButton(
-            onClick = onGiftClick,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .navigationBarsPadding()
-                .padding(end = 18.dp, bottom = 92.dp),
-            containerColor = Color(0xFF08A37A),
-            contentColor = Color.White,
-            shape = CircleShape
-        ) {
-            Icon(
-                imageVector = Icons.Default.CardGiftcard,
-                contentDescription = "gift"
-            )
         }
     }
 
@@ -237,14 +261,16 @@ fun PointStoreScreen(
 
 @Composable
 private fun PointStoreHeader(
-    point: Int,
-    onCartClick: () -> Unit,
-    onHistoryClick: () -> Unit
+    walletStatus: PointWalletStatus,
+    point: Long,
+    errorMessage: String?,
+    onHistoryClick: () -> Unit,
+    onCreateWalletClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(270.dp)
+            .height(300.dp)
             .background(Color(0xFF005E54))
             .statusBarsPadding()
     ) {
@@ -302,22 +328,6 @@ private fun PointStoreHeader(
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                IconButton(
-                    onClick = onCartClick,
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.20f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ShoppingCart,
-                        contentDescription = "cart",
-                        tint = Color.White
-                    )
-                }
             }
 
             Spacer(modifier = Modifier.height(22.dp))
@@ -328,58 +338,163 @@ private fun PointStoreHeader(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F2F4)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 22.dp, vertical = 22.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "사용 가능한 포인트",
-                            color = Color(0xFF98A2B3),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text(
-                                text = "%,d".format(point),
-                                color = Color(0xFF006B60),
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "P",
-                                color = Color(0xFF006B60),
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold
+                when (walletStatus) {
+                    PointWalletStatus.LOADING -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 36.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                color = Color(0xFF006B60)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.weight(1f))
+                    PointWalletStatus.CREATING -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 22.dp, vertical = 22.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator(
+                                color = Color(0xFF006B60)
+                            )
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Text(
+                                text = "포인트 지갑을 생성하는 중입니다.",
+                                color = Color(0xFF344054),
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
 
-                    Row(
-                        modifier = Modifier.clickable(onClick = onHistoryClick),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "history",
-                            tint = Color(0xFF667085),
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "내역보기",
-                            color = Color(0xFF667085),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                    PointWalletStatus.EXISTS -> {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 22.dp, vertical = 22.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "사용 가능한 포인트",
+                                    color = Color(0xFF98A2B3),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Row(verticalAlignment = Alignment.Bottom) {
+                                    Text(
+                                        text = "%,d".format(point),
+                                        color = Color(0xFF006B60),
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "P",
+                                        color = Color(0xFF006B60),
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.weight(1f))
+
+                            Row(
+                                modifier = Modifier.clickable(onClick = onHistoryClick),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "history",
+                                    tint = Color(0xFF667085),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "내역보기",
+                                    color = Color(0xFF667085),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+
+                    PointWalletStatus.NOT_CREATED -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 22.dp, vertical = 22.dp)
+                        ) {
+                            Text(
+                                text = "포인트 지갑이 아직 없습니다.",
+                                color = Color(0xFF101828),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text(
+                                text = "포인트를 적립하고 사용하려면 먼저 포인트 지갑을 생성해야 합니다.",
+                                color = Color(0xFF667085),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                lineHeight = 22.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(18.dp))
+
+                            Button(
+                                onClick = onCreateWalletClick,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF006B60),
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Text(
+                                    text = "포인트 지갑 생성하기",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    PointWalletStatus.ERROR -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 22.dp, vertical = 22.dp)
+                        ) {
+                            Text(
+                                text = "포인트 정보를 불러오지 못했습니다.",
+                                color = Color(0xFF101828),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text(
+                                text = errorMessage ?: "잠시 후 다시 시도해 주세요.",
+                                color = Color(0xFF667085),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                lineHeight = 22.sp
+                            )
+                        }
                     }
                 }
             }
@@ -590,7 +705,11 @@ private fun PurchaseBottomSheet(
 
                             InfoRow(
                                 label = "사용처",
-                                value = if (item.id == 1) "구미시 내 가맹점" else "해당 제휴처 사용 가능"
+                                value = if (item.title.contains("상품권")) {
+                                    "구미시 내 가맹점"
+                                } else {
+                                    "해당 제휴처 사용 가능"
+                                }
                             )
 
                             Spacer(modifier = Modifier.height(14.dp))
@@ -630,8 +749,8 @@ private fun PurchaseBottomSheet(
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            if (item.id == 1) {
-                                NoticeText("본 상품권은 실물 상품권으로 전달됩니다.")
+                            if (item.title.contains("상품권")) {
+                                NoticeText("본 상품권은 실물 상품권 또는 모바일 상품권 형태로 제공될 수 있습니다.")
                                 NoticeText("포인트 구매 후 변심에 의한 환불은 불가합니다.")
                                 NoticeText("일부 매장에서는 사용이 제한될 수 있으니 미리 확인해 주세요.")
                                 NoticeText("해당 지자체 정책에 따라 사용 범위가 변경될 수 있습니다.")
