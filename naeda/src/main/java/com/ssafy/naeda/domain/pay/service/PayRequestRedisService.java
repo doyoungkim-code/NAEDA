@@ -19,7 +19,7 @@ public class PayRequestRedisService {
 
     private static final String REQUEST_KEY_PREFIX = "pay:request:";
     private static final String STORE_INDEX_PREFIX = "pay:store:";
-    private static final Duration REQUEST_TTL = Duration.ofSeconds(60);
+    private static final Duration REQUEST_TTL = Duration.ofMinutes(5);
 
     // ========================
     // 결제 요청 생성 (PENDING)
