@@ -1,8 +1,10 @@
 package com.ssafy.naeda.domain.store.bootstrap;
 
 import com.ssafy.naeda.domain.store.entity.Store;
+import com.ssafy.naeda.domain.store.entity.StoreSeedMetadata;
 import com.ssafy.naeda.domain.store.entity.StoreSourceType;
 import com.ssafy.naeda.domain.store.repository.StoreRepository;
+import com.ssafy.naeda.domain.store.repository.StoreSeedMetadataRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -17,11 +19,52 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class StoreEnrichmentService {
 
+    private static final String ENRICHMENT_KEY_PREFIX = "public-gumi-store-enrichment-";
+
     private final StoreRepository storeRepository;
+    private final StoreSeedMetadataRepository storeSeedMetadataRepository;
     private final NaverStoreEnrichmentClient naverStoreEnrichmentClient;
 
     @Value("${store.enrichment.enabled:true}")
     private boolean enrichmentEnabled;
+
+    @Value("${store.enrichment.version:map-v1}")
+    private String enrichmentVersion;
+
+    public int refreshActiveStoresIfNeeded() {
+        if (!canEnrich()) {
+            return 0;
+        }
+
+        String seedKey = ENRICHMENT_KEY_PREFIX + enrichmentVersion;
+        if (storeSeedMetadataRepository.findById(seedKey).isPresent()) {
+            log.info("[StoreEnrichment] 활성 매장 전체 재보강은 이미 완료되어 건너뜁니다. key={}", seedKey);
+            return 0;
+        }
+
+        int refreshed = 0;
+        int page = 0;
+        while (true) {
+            List<Store> batch = storeRepository.findBySourceTypeAndIsActiveTrueOrderByStoreIdAsc(
+                    StoreSourceType.PUBLIC_CSV,
+                    PageRequest.of(page, 100)
+            );
+            if (batch.isEmpty()) {
+                break;
+            }
+            refreshed += enrichBatch(batch);
+            page++;
+        }
+
+        storeSeedMetadataRepository.save(StoreSeedMetadata.builder()
+                .seedKey(seedKey)
+                .contentHash(enrichmentVersion)
+                .updated(LocalDateTime.now())
+                .build());
+
+        log.info("[StoreEnrichment] 활성 공공 매장 전체 재보강 완료 count={}, key={}", refreshed, seedKey);
+        return refreshed;
+    }
 
     public int enrichPendingStores() {
         if (!canEnrich()) {

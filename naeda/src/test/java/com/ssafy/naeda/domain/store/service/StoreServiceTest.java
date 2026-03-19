@@ -1,14 +1,20 @@
 package com.ssafy.naeda.domain.store.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ssafy.naeda.domain.store.bootstrap.NaverStoreEnrichmentClient;
+import com.ssafy.naeda.domain.store.bootstrap.StoreEnrichmentData;
+import com.ssafy.naeda.domain.store.dto.request.PublicStoreCreateRequest;
 import com.ssafy.naeda.domain.store.dto.request.StoreCreateRequest;
 import com.ssafy.naeda.domain.store.dto.response.StoreResponse;
 import com.ssafy.naeda.domain.store.entity.Store;
 import com.ssafy.naeda.domain.store.entity.StoreSourceType;
 import com.ssafy.naeda.domain.store.repository.StoreRepository;
 import com.ssafy.naeda.global.exception.NotFoundException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.naeda.global.ssafy.SsafyApiClient;
 import com.ssafy.naeda.global.ssafy.SsafyHeaderFactory;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,17 +23,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class StoreServiceTest {
@@ -43,6 +45,9 @@ class StoreServiceTest {
 
     @Mock
     private SsafyHeaderFactory ssafyHeaderFactory;
+
+    @Mock
+    private NaverStoreEnrichmentClient naverStoreEnrichmentClient;
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -68,8 +73,6 @@ class StoreServiceTest {
                 .willReturn(Map.of("REC", ssafyRec));
     }
 
-    // ── getStores ────────────────────────────────────────────────────────
-
     @Test
     @DisplayName("매장 목록 조회 - SSAFY 가맹점과 DB 데이터 병합")
     void getStores_mergesSsafyAndDb() {
@@ -86,13 +89,11 @@ class StoreServiceTest {
         List<StoreResponse> result = storeService.getStores(null, null);
 
         assertThat(result).hasSize(3);
-        // ssafyMerchantId=1: DB 데이터 우선 (내부 PK + 상세 정보 포함)
         StoreResponse store1 = result.stream().filter(s -> s.getSsafyMerchantId().equals(1L)).findFirst().orElseThrow();
         assertThat(store1.getStoreId()).isEqualTo(101L);
         assertThat(store1.getRoadAddress()).isEqualTo("경북 구미시 대학로 1");
         assertThat(store1.getCategoryId()).isEqualTo("CG-9ca85f66311a23d");
         assertThat(store1.getCategoryName()).isEqualTo("생활");
-        // ssafyMerchantId=2: SSAFY-only (내부 storeId 없음)
         StoreResponse store2 = result.stream().filter(s -> s.getSsafyMerchantId().equals(2L)).findFirst().orElseThrow();
         assertThat(store2.getStoreId()).isNull();
         assertThat(store2.getStoreName()).isEqualTo("코스트코");
@@ -136,7 +137,7 @@ class StoreServiceTest {
     @DisplayName("지도용 매장 목록 조회 - 공공 CSV 매장만 반환")
     void getMapStores_publicOnly() {
         Store publicStore = Store.builder()
-                .storeId(-10L)
+                .storeId(10L)
                 .storeName("백운한정식")
                 .categoryId("PUBLIC_RESTAURANT")
                 .categoryName("한식")
@@ -153,11 +154,9 @@ class StoreServiceTest {
         List<StoreResponse> result = storeService.getMapStores();
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getStoreId()).isEqualTo(-10L);
+        assertThat(result.get(0).getStoreId()).isEqualTo(10L);
         assertThat(result.get(0).getSourceType()).isEqualTo(StoreSourceType.PUBLIC_CSV);
     }
-
-    // ── getStore ─────────────────────────────────────────────────────────
 
     @Test
     @DisplayName("매장 단건 조회 - 정상 조회")
@@ -184,8 +183,6 @@ class StoreServiceTest {
         assertThatThrownBy(() -> storeService.getStore(999L))
                 .isInstanceOf(NotFoundException.class);
     }
-
-    // ── createStore ──────────────────────────────────────────────────────
 
     @Test
     @DisplayName("매장 등록 - 내부 storeId와 별도 ssafyMerchantId를 저장한다")
@@ -218,5 +215,51 @@ class StoreServiceTest {
         assertThat(result.getStoreId()).isEqualTo(30L);
         assertThat(result.getSsafyMerchantId()).isEqualTo(3L);
         assertThat(result.getStoreName()).isEqualTo("코스트코");
+    }
+
+    @Test
+    @DisplayName("공공 매장 수동 등록 - PUBLIC_RESTAURANT 요청을 저장한다")
+    void createPublicStore_success() {
+        PublicStoreCreateRequest request = new PublicStoreCreateRequest();
+        ReflectionTestUtils.setField(request, "categoryId", "PUBLIC_RESTAURANT");
+        ReflectionTestUtils.setField(request, "categoryName", "한식");
+        ReflectionTestUtils.setField(request, "storeName", "TEST");
+        ReflectionTestUtils.setField(request, "userNo", 14L);
+        ReflectionTestUtils.setField(request, "accountId", 14L);
+        ReflectionTestUtils.setField(request, "roadAddress", "경상북도 구미시 해평면 도리사로 403-1, C동 1,2층");
+        ReflectionTestUtils.setField(request, "numberAddress", "경상북도 구미시 해평면 송곡리 398-6 1,2층 C동");
+        ReflectionTestUtils.setField(request, "latitude", 36.110307);
+        ReflectionTestUtils.setField(request, "longitude", 128.411495);
+        ReflectionTestUtils.setField(request, "phone", "01051918793");
+        ReflectionTestUtils.setField(request, "isLocalBusiness", true);
+        ReflectionTestUtils.setField(request, "facePayEnabled", true);
+
+        given(naverStoreEnrichmentClient.enrich(any(Store.class)))
+                .willReturn(Optional.of(new StoreEnrichmentData(
+                        "https://example.com/store.jpg",
+                        "테스트 소개",
+                        4.2
+                )));
+
+        Store savedStore = Store.builder()
+                .storeId(999L).userNo(14L).accountId(14L).storeName("TEST")
+                .categoryId("PUBLIC_RESTAURANT").categoryName("한식")
+                .roadAddress("경상북도 구미시 해평면 도리사로 403-1, C동 1,2층")
+                .numberAddress("경상북도 구미시 해평면 송곡리 398-6 1,2층 C동")
+                .latitude(36.110307).longitude(128.411495)
+                .phone("01051918793")
+                .isLocalBusiness(true).facePayEnabled(true)
+                .sourceType(StoreSourceType.PUBLIC_CSV).isActive(true)
+                .imageUrl("https://example.com/store.jpg").description("테스트 소개")
+                .rating(4.2)
+                .build();
+        given(storeRepository.save(any(Store.class))).willReturn(savedStore);
+
+        StoreResponse result = storeService.createPublicStore(request);
+
+        assertThat(result.getStoreId()).isEqualTo(999L);
+        assertThat(result.getCategoryId()).isEqualTo("PUBLIC_RESTAURANT");
+        assertThat(result.getSourceType()).isEqualTo(StoreSourceType.PUBLIC_CSV);
+        assertThat(result.getImageUrl()).isEqualTo("https://example.com/store.jpg");
     }
 }
