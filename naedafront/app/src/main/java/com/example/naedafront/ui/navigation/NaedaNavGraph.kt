@@ -23,7 +23,7 @@ import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.FaceRegistrationRepository
 import com.example.naedafront.ui.screen.LoginScreen
 import com.example.naedafront.ui.screen.WelcomeScreen
-import com.example.naedafront.ui.screen.asset.AccountDetailScreen
+import com.example.naedafront.ui.screen.asset.AccountDetailRoute
 import com.example.naedafront.ui.screen.asset.AccountListRoute
 import com.example.naedafront.ui.screen.asset.CardDetailScreen
 import com.example.naedafront.ui.screen.asset.RegisterAssetScreen
@@ -281,7 +281,7 @@ fun NaedaNavGraph(
                     navController.navigate(Screen.RegisterAsset.createRoute(1))
                 },
                 onAccountClick = { account ->
-                    navController.navigate(Screen.AccountDetail.createRoute(account.id))
+                    navController.navigate(Screen.AccountDetail.createRoute(account.accountId, account.accountNumber))
                 },
                 onCardClick = { card ->
                     navController.navigate(Screen.CardDetail.createRoute(card.id))
@@ -419,7 +419,7 @@ fun NaedaNavGraph(
                     navController.navigate(Screen.RegisterAsset.createRoute(1))
                 },
                 onAccountClick = { account ->
-                    navController.navigate(Screen.AccountDetail.createRoute(account.id))
+                    navController.navigate(Screen.AccountDetail.createRoute(account.accountId, account.accountNumber))
                 },
                 onCardClick = { card ->
                     navController.navigate(Screen.CardDetail.createRoute(card.id))
@@ -457,15 +457,17 @@ fun NaedaNavGraph(
         composable(
             route = Screen.AccountDetail.route,
             arguments = listOf(
-                navArgument("accountId") { type = NavType.StringType }
+                navArgument("accountId") { type = NavType.StringType },
+                navArgument("accountNo") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val accountId = backStackEntry.arguments?.getString("accountId") ?: ""
+            val accountNo = backStackEntry.arguments?.getString("accountNo") ?: ""
 
-            AccountDetailScreen(
+            AccountDetailRoute(
                 accountId = accountId,
-                onBack = { navController.popBackStack() },
-                onTransferClick = { navController.navigate(Screen.Transfer.route) }
+                accountNo = accountNo,
+                onBack = { navController.popBackStack() }
             )
         }
 

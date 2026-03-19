@@ -40,10 +40,13 @@ import com.example.naedafront.ui.theme.Surface
 
 data class AccountItem(
     val id: String,           // account_id
+    val accountId: Long? = null,
+    val paymentMethodId: Long? = null,
     val bankCode: String,     // bank_code (SSAFY 은행코드)
     val bankName: String,     // bank_name
     val accountName: String,  // account_name (SSAFY 계좌명 = 자산 별칭)
     val accountNumber: String,// account_no
+    val accountBalance: Long? = null,
     val isPrimary: Boolean = false,
     // UI 전용 (서버에서 bankCode 기반으로 결정)
     val bankColor: Color,
@@ -56,6 +59,7 @@ data class AccountItem(
 
 data class CardItem(
     val id: String,               // debit/credit card id
+    val paymentMethodId: Long? = null,
     val cardType: String,         // "CREDIT" or "DEBIT"
     val cardIssuerName: String,   // card_issuer_name
     val cardName: String,         // card_name (상품명)
@@ -124,38 +128,46 @@ val sampleCards = listOf(
 val sampleAccounts = listOf(
     AccountItem(
         id = "1",
+        accountId = 1L,
         bankCode = "004",
         bankName = "KB국민은행",
         accountName = "생활비 통장",
         accountNumber = "123-45-67890",
+        accountBalance = 1_250_000L,
         isPrimary = true,
         bankColor = Color(0xFFFFB800),
         bankInitials = "KB"
     ),
     AccountItem(
         id = "2",
+        accountId = 2L,
         bankCode = "088",
         bankName = "신한은행",
         accountName = "신한 카드",
         accountNumber = "987-65-43210",
+        accountBalance = 850_000L,
         bankColor = Color(0xFF0046FF),
         bankInitials = "SH"
     ),
     AccountItem(
         id = "3",
+        accountId = 3L,
         bankCode = "090",
         bankName = "카카오뱅크",
         accountName = "입출금통장",
         accountNumber = "3333-01-23456",
+        accountBalance = 420_000L,
         bankColor = Color(0xFFFFE400),
         bankInitials = "KA"
     ),
     AccountItem(
         id = "4",
+        accountId = 4L,
         bankCode = "092",
         bankName = "토스뱅크",
         accountName = "토스뱅크 통장",
         accountNumber = "1000-432-1234",
+        accountBalance = 2_150_000L,
         bankColor = Color(0xFF0064FF),
         bankInitials = "TO"
     )
@@ -184,13 +196,6 @@ fun AccountListScreen(
     var selectedTab by rememberSaveable { mutableStateOf(initialTab) }
     val tabs = listOf("계좌", "카드")
     var expandedMenuId by remember { mutableStateOf<String?>(null) }
-    val accountIdsKey = remember(accounts) { accounts.joinToString("|") { it.id } }
-    var selectedPrimaryAccountId by rememberSaveable(accountIdsKey) { mutableStateOf<String?>(null) }
-    val displayedAccounts = remember(accounts, selectedPrimaryAccountId) {
-        accounts.map { account ->
-            account.copy(isPrimary = selectedPrimaryAccountId == account.id)
-        }
-    }
 
     Scaffold(
         containerColor = Background,
@@ -230,7 +235,7 @@ fun AccountListScreen(
 
             if (selectedTab == 0) {
                 AccountListContent(
-                    accounts = displayedAccounts,
+                    accounts = accounts,
                     expandedMenuId = expandedMenuId,
                     onMenuToggle = { id ->
                         expandedMenuId = if (expandedMenuId == id) null else id
@@ -238,7 +243,6 @@ fun AccountListScreen(
                     onAccountClick = onAccountClick,
                     onSetPrimary = { account ->
                         expandedMenuId = null
-                        selectedPrimaryAccountId = account.id
                         onSetPrimary(account)
                     },
                     onRegisterNew = onRegisterNewAccount
@@ -440,7 +444,7 @@ private fun AccountListItem(
                 )
             }
 
-            if (!account.isPrimary) {
+            if (!account.isPrimary && account.paymentMethodId != null) {
                 Box {
                     IconButton(
                         onClick = onMenuToggle,
@@ -739,7 +743,7 @@ private fun CardListItem(
                             onDismissRequest = onMenuToggle,
                             modifier = Modifier.background(Surface)
                         ) {
-                            if (!card.isPrimary) {
+                            if (!card.isPrimary && card.paymentMethodId != null) {
                                 DropdownMenuItem(
                                     text = {
                                         Text(
