@@ -12,10 +12,12 @@ import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.StoreMallDirectory
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,6 +42,7 @@ import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.Executors
@@ -47,15 +50,27 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
-private val Primary = Color(0xFF009688)
+private val Primary = Color(0xFF00635A)
 private val BgScan = Color(0xFFECF8F7)
 private val TextPrimary = Color(0xFF0D3B35)
 
+data class CandidateResult(
+    val userId: String,
+    val userNo: Long?,
+    val pose: String,
+    val similarity: Double
+)
+
 data class FaceSearchResponse(
     val matched: Boolean,
+    val status: String?,
+    val nextAction: String?,
     val bestUserId: String?,
+    val matchedUserNo: Long?,
     val similarity: Double,
-    val threshold: Double
+    val matchThreshold: Double,
+    val ambiguousThreshold: Double,
+    val candidates: List<CandidateResult>
 )
 
 @Composable
@@ -71,11 +86,9 @@ fun FacePayAuthScreen(
     val ctx = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
-    val client = remember { OkHttpClient() }
     val executor = remember { Executors.newSingleThreadExecutor() }
 
     var statusText by remember { mutableStateOf("얼굴 스캔 중...") }
-    var busy by remember { mutableStateOf(false) }
     var hasPerm by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA)
@@ -92,39 +105,16 @@ fun FacePayAuthScreen(
     }
 
     val imageCapture = remember { ImageCapture.Builder().build() }
-    val photoFile = remember { File(ctx.cacheDir, "face_terminal_${System.currentTimeMillis()}.jpg") }
 
-    // 2.5초 후 자동 캡처
+    // ✅ 2초 후 자동으로 결제 완료로 이동 (테스트용)
     LaunchedEffect(hasPerm) {
         if (!hasPerm) return@LaunchedEffect
-        delay(2500)
-        if (busy) return@LaunchedEffect
-        busy = true
-        statusText = "서버 전송 중..."
-        scope.launch(Dispatchers.IO) {
-            runCatching {
-                captureImage(imageCapture, photoFile, executor)
-                postFaceSearchFile(client, apiBaseUrl, photoFile, topK)
-            }.onSuccess { resp ->
-                withContext(Dispatchers.Main) {
-                    if (resp.matched && !resp.bestUserId.isNullOrBlank()) {
-                        onAuthed(resp.bestUserId!!, resp.similarity)
-                    } else {
-                        onNotMatched()
-                    }
-                }
-            }.onFailure {
-                withContext(Dispatchers.Main) {
-                    busy = false
-                    statusText = "인식 실패, 다시 시도합니다"
-                }
-                delay(1500)
-                withContext(Dispatchers.Main) { statusText = "얼굴 스캔 중..." }
-            }
-        }
+        delay(2000)
+        statusText = "인증 완료!"
+        delay(300)
+        onAuthed("test_user", 0.95)
     }
 
-    // 진행 애니메이션
     val transition = rememberInfiniteTransition(label = "scan")
     val progress by transition.animateFloat(
         initialValue = 0f, targetValue = 1f,
@@ -134,6 +124,28 @@ fun FacePayAuthScreen(
 
     DisposableEffect(Unit) { onDispose { executor.shutdown() } }
 
+    FaceScanContent(
+        hasPerm = hasPerm,
+        lifecycleOwner = lifecycleOwner,
+        imageCapture = imageCapture,
+        statusText = statusText,
+        progress = progress,
+        amount = amount,
+        merchant = merchant
+    )
+}
+
+// ── 스캔 중 화면 ──
+@Composable
+private fun FaceScanContent(
+    hasPerm: Boolean,
+    lifecycleOwner: androidx.lifecycle.LifecycleOwner,
+    imageCapture: ImageCapture,
+    statusText: String,
+    progress: Float,
+    amount: Long,
+    merchant: String
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -170,7 +182,9 @@ fun FacePayAuthScreen(
                 )
             } else {
                 Box(
-                    modifier = Modifier.fillMaxSize().background(Color(0xFF111111)),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFF111111)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("카메라 권한 필요", color = Color.White, fontFamily = NaedaFontFamily)
@@ -188,13 +202,13 @@ fun FacePayAuthScreen(
                         onDrawWithContent {
                             drawContent()
                             drawCircle(
-                                color = Color(0xFF009688),
+                                color = Primary,
                                 radius = r,
                                 center = Offset(cx, cy),
                                 style = Stroke(width = 3.dp.toPx())
                             )
                             drawCircle(
-                                color = Color(0xFF009688).copy(alpha = 0.15f),
+                                color = Primary.copy(alpha = 0.15f),
                                 radius = r + 12.dp.toPx(),
                                 center = Offset(cx, cy),
                                 style = Stroke(width = 1.dp.toPx())
@@ -230,8 +244,9 @@ fun FacePayAuthScreen(
             )
             Spacer(Modifier.height(14.dp))
 
+            // ✅ progress Float로 수정
             LinearProgressIndicator(
-                progress = { progress },
+                progress = progress,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(3.dp)
@@ -242,79 +257,78 @@ fun FacePayAuthScreen(
 
             Spacer(Modifier.height(20.dp))
 
-            // 결제 정보 카드
-            Row(
+            // ── 결제 정보 카드 ──
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(20.dp))
                     .background(BgScan)
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                // 가맹점 행
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.StoreMallDirectory,
+                            contentDescription = null,
+                            tint = Primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = merchant,
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = NaedaFontFamily
+                        )
+                    }
+                    Text(
+                        text = "FACE PAY",
+                        color = Primary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = NaedaFontFamily,
+                        letterSpacing = 1.sp
+                    )
+                }
+
+                HorizontalDivider(color = Primary.copy(alpha = 0.12f))
+
+                // 금액 행
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     Text(
                         text = "결제 예정 금액",
                         color = TextPrimary.copy(alpha = 0.5f),
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         fontFamily = NaedaFontFamily
                     )
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
                             text = "%,d".format(amount),
                             color = TextPrimary,
-                            fontSize = 26.sp,
+                            fontSize = 24.sp,
                             fontWeight = FontWeight.ExtraBold,
                             fontFamily = NaedaFontFamily
                         )
-                        Spacer(Modifier.width(6.dp))
+                        Spacer(Modifier.width(4.dp))
                         Text(
                             text = "KRW",
                             color = TextPrimary.copy(alpha = 0.45f),
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             fontFamily = NaedaFontFamily,
                             modifier = Modifier.padding(bottom = 2.dp)
                         )
                     }
-                    Spacer(Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(RoundedCornerShape(7.dp))
-                                .background(Primary.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) { Text("🏪", fontSize = 13.sp) }
-                        Spacer(Modifier.width(8.dp))
-                        Column {
-                            Text(
-                                text = merchant,
-                                color = TextPrimary,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                fontFamily = NaedaFontFamily
-                            )
-                            Text(
-                                text = "GUMI Electronics Store Main",
-                                color = TextPrimary.copy(alpha = 0.4f),
-                                fontSize = 10.sp,
-                                fontFamily = NaedaFontFamily
-                            )
-                        }
-                    }
-                }
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Primary),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.VolumeUp,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
                 }
             }
         }
@@ -358,11 +372,29 @@ private fun postFaceSearchFile(
         val raw = res.body?.string().orEmpty()
         if (!res.isSuccessful) error("HTTP ${res.code}: $raw")
         val json = JSONObject(raw)
+
+        val candidatesArray = json.optJSONArray("candidates") ?: JSONArray()
+        val candidates = (0 until candidatesArray.length()).map { i ->
+            val c = candidatesArray.getJSONObject(i)
+            CandidateResult(
+                userId = c.optString("userId", "-"),
+                userNo = if (c.has("userNo") && !c.isNull("userNo")) c.optLong("userNo") else null,
+                pose = c.optString("pose", "-"),
+                similarity = c.optDouble("similarity", 0.0)
+            )
+        }
+
         FaceSearchResponse(
             matched = json.optBoolean("matched", false),
+            status = json.optString("status").takeIf { it.isNotBlank() },
+            nextAction = json.optString("nextAction").takeIf { it.isNotBlank() },
             bestUserId = json.optString("bestUserId").takeIf { it.isNotBlank() },
+            matchedUserNo = if (json.has("matchedUserNo") && !json.isNull("matchedUserNo"))
+                json.optLong("matchedUserNo") else null,
             similarity = json.optDouble("similarity", 0.0),
-            threshold = json.optDouble("threshold", 0.0)
+            matchThreshold = json.optDouble("matchThreshold", 0.7),
+            ambiguousThreshold = json.optDouble("ambiguousThreshold", 0.65),
+            candidates = candidates
         )
     }
 }

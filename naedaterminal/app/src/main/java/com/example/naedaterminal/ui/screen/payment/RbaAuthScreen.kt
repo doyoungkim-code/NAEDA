@@ -3,52 +3,36 @@ package com.example.naedaterminal.ui.screen.payment
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.naedaterminal.ui.theme.*
 
-// 라이트 테마용 색상 상수
-private val BgColor = Background        // Mint50 배경
-private val TextPrimary = Color(0xFF0D3B35)      // 진한 민트 텍스트
+private val BgColor = Background
+private val TextPrimary = Color(0xFF0D3B35)
 private val TextSecondary = Color(0xFF0D3B35).copy(alpha = 0.5f)
-private val AccentColor = Color(0xFF009688)      // Primary Mint
-private val AccentLight = Color(0xFF44E3D3)      // Light Mint
-private val KeypadBg = Color(0xFF009688).copy(alpha = 0.08f)
-private val KeypadDeleteBg = Color(0xFF009688).copy(alpha = 0.05f)
+private val AccentColor = Color(0xFF00635A)
+private val KeypadBg = Color(0xFF00635A).copy(alpha = 0.08f)
+private val KeypadDeleteBg = Color(0xFF00635A).copy(alpha = 0.05f)
 private val ErrorColor = Color(0xFFD32F2F)
 
-// ─────────────────────────────────────────────
-// RBA 인증 타입 정의
-// ─────────────────────────────────────────────
 sealed class RbaAuthType {
     object Pin : RbaAuthType()
-    object PhoneLastFour : RbaAuthType()
-    object Signature : RbaAuthType()
+    object PhoneMiddleFour : RbaAuthType()
 }
 
-// ─────────────────────────────────────────────
-// RBA 추가 인증 진입 컨테이너
-// ─────────────────────────────────────────────
 @Composable
 fun RbaAuthContainer(
     authSteps: List<RbaAuthType>,
@@ -82,17 +66,12 @@ fun RbaAuthContainer(
                 onSuccess = { currentStepIndex++ },
                 onCancel = onAuthCancel
             )
-            is RbaAuthType.PhoneLastFour -> RbaPhoneLastFourScreen(
+            is RbaAuthType.PhoneMiddleFour -> RbaPhoneScreen(
                 paymentAmount = paymentAmount,
                 merchantName = merchantName,
                 stepInfo = "${currentStepIndex + 1}/${authSteps.size}",
-                onSuccess = { currentStepIndex++ },
-                onCancel = onAuthCancel
-            )
-            is RbaAuthType.Signature -> RbaSignatureScreen(
-                paymentAmount = paymentAmount,
-                merchantName = merchantName,
-                stepInfo = "${currentStepIndex + 1}/${authSteps.size}",
+                title = "전화번호 가운데\n4자리를 입력해주세요",
+                subtitle = "본인 확인을 위해 휴대폰 번호 가운데 4자리를 입력하세요",
                 onSuccess = { currentStepIndex++ },
                 onCancel = onAuthCancel
             )
@@ -100,9 +79,6 @@ fun RbaAuthContainer(
     }
 }
 
-// ─────────────────────────────────────────────
-// 공통 RBA 화면 레이아웃
-// ─────────────────────────────────────────────
 @Composable
 private fun RbaAuthScaffold(
     title: String,
@@ -118,7 +94,7 @@ private fun RbaAuthScaffold(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BgColor)   // ← Mint50
+            .background(BgColor)
     ) {
         Column(
             modifier = Modifier
@@ -126,7 +102,6 @@ private fun RbaAuthScaffold(
                 .statusBarsPadding()
                 .navigationBarsPadding()
         ) {
-            // 상단 바
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -134,23 +109,13 @@ private fun RbaAuthScaffold(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onCancel) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "취소",
-                        tint = AccentColor
-                    )
+                    Icon(Icons.Default.ArrowBack, contentDescription = "취소", tint = AccentColor)
                 }
                 Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    text = stepInfo,
-                    color = TextSecondary,
-                    fontSize = 13.sp,
-                    fontFamily = NaedaFontFamily
-                )
+                Text(text = stepInfo, color = TextSecondary, fontSize = 13.sp, fontFamily = NaedaFontFamily)
                 Spacer(modifier = Modifier.width(16.dp))
             }
 
-            // 결제 정보 카드
             PaymentInfoCard(
                 merchantName = merchantName,
                 amountText = amountText,
@@ -159,7 +124,6 @@ private fun RbaAuthScaffold(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 인증 타이틀
             Column(
                 modifier = Modifier.padding(horizontal = 28.dp),
                 horizontalAlignment = Alignment.Start
@@ -173,12 +137,7 @@ private fun RbaAuthScaffold(
                     lineHeight = 30.sp
                 )
                 Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = subtitle,
-                    color = TextSecondary,
-                    fontSize = 14.sp,
-                    fontFamily = NaedaFontFamily
-                )
+                Text(text = subtitle, color = TextSecondary, fontSize = 14.sp, fontFamily = NaedaFontFamily)
             }
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -188,9 +147,6 @@ private fun RbaAuthScaffold(
     }
 }
 
-// ─────────────────────────────────────────────
-// 결제 정보 카드
-// ─────────────────────────────────────────────
 @Composable
 private fun PaymentInfoCard(
     merchantName: String,
@@ -203,10 +159,7 @@ private fun PaymentInfoCard(
             .clip(RoundedCornerShape(16.dp))
             .background(
                 Brush.horizontalGradient(
-                    listOf(
-                        AccentColor.copy(alpha = 0.15f),
-                        AccentColor.copy(alpha = 0.08f)
-                    )
+                    listOf(AccentColor.copy(alpha = 0.15f), AccentColor.copy(alpha = 0.08f))
                 )
             )
             .border(1.dp, AccentColor.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
@@ -218,35 +171,15 @@ private fun PaymentInfoCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text(
-                    text = "추가 인증 필요",
-                    color = AccentColor,
-                    fontSize = 11.sp,
-                    fontFamily = NaedaFontFamily,
-                    letterSpacing = 1.sp
-                )
+                Text(text = "추가 인증 필요", color = AccentColor, fontSize = 11.sp, fontFamily = NaedaFontFamily, letterSpacing = 1.sp)
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = merchantName,
-                    color = TextPrimary.copy(alpha = 0.8f),
-                    fontSize = 14.sp,
-                    fontFamily = NaedaFontFamily
-                )
+                Text(text = merchantName, color = TextPrimary.copy(alpha = 0.8f), fontSize = 14.sp, fontFamily = NaedaFontFamily)
             }
-            Text(
-                text = amountText,
-                color = TextPrimary,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = NaedaFontFamily
-            )
+            Text(text = amountText, color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = NaedaFontFamily)
         }
     }
 }
 
-// ─────────────────────────────────────────────
-// 1. PIN 인증 화면
-// ─────────────────────────────────────────────
 @Composable
 fun RbaPinScreen(
     paymentAmount: Long,
@@ -275,7 +208,7 @@ fun RbaPinScreen(
 
     LaunchedEffect(enteredPin) {
         if (enteredPin.length == maxLength) {
-            // TODO: ViewModel.verifyPin(enteredPin) 호출
+            // TODO: 백엔드 PIN 검증 후 onSuccess() 호출
             onSuccess()
         }
     }
@@ -332,28 +265,21 @@ fun RbaPinScreen(
         }
 
         Spacer(modifier = Modifier.weight(1f))
-
         NaedaNumericKeypad(
-            onNumberClick = { num ->
-                if (enteredPin.length < maxLength) enteredPin += num
-            },
-            onDelete = {
-                if (enteredPin.isNotEmpty()) enteredPin = enteredPin.dropLast(1)
-            }
+            onNumberClick = { num -> if (enteredPin.length < maxLength) enteredPin += num },
+            onDelete = { if (enteredPin.isNotEmpty()) enteredPin = enteredPin.dropLast(1) }
         )
-
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
-// ─────────────────────────────────────────────
-// 2. 전화번호 뒷자리 4자리 인증 화면
-// ─────────────────────────────────────────────
 @Composable
-fun RbaPhoneLastFourScreen(
+fun RbaPhoneScreen(
     paymentAmount: Long,
     merchantName: String,
     stepInfo: String,
+    title: String,
+    subtitle: String,
     onSuccess: () -> Unit,
     onCancel: () -> Unit
 ) {
@@ -371,14 +297,14 @@ fun RbaPhoneLastFourScreen(
 
     LaunchedEffect(enteredDigits) {
         if (enteredDigits.length == maxLength) {
-            // TODO: ViewModel.verifyPhoneLastFour(enteredDigits) 호출
+            // TODO: 백엔드 전화번호 검증 후 onSuccess() 호출
             onSuccess()
         }
     }
 
     RbaAuthScaffold(
-        title = "전화번호 뒷자리\n4자리를 입력해주세요",
-        subtitle = "본인 확인을 위해 휴대폰 번호 마지막 4자리를 입력하세요",
+        title = title,
+        subtitle = subtitle,
         stepInfo = stepInfo,
         paymentAmount = paymentAmount,
         merchantName = merchantName,
@@ -423,22 +349,13 @@ fun RbaPhoneLastFourScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     if (char != null) {
-                        Text(
-                            text = "•",
-                            color = TextPrimary,
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text(text = "•", color = TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                     }
                     if (isActive) {
                         val infiniteTransition = rememberInfiniteTransition(label = "cursor")
                         val alpha by infiniteTransition.animateFloat(
-                            initialValue = 0f,
-                            targetValue = 1f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(500),
-                                repeatMode = RepeatMode.Reverse
-                            ),
+                            initialValue = 0f, targetValue = 1f,
+                            animationSpec = infiniteRepeatable(tween(500), RepeatMode.Reverse),
                             label = "cursor_alpha"
                         )
                         Box(
@@ -454,7 +371,7 @@ fun RbaPhoneLastFourScreen(
         if (isError) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "전화번호가 일치하지 않습니다",
+                text = "번호가 일치하지 않습니다",
                 color = ErrorColor,
                 fontSize = 13.sp,
                 fontFamily = NaedaFontFamily,
@@ -464,222 +381,28 @@ fun RbaPhoneLastFourScreen(
         }
 
         Spacer(modifier = Modifier.weight(1f))
-
         NaedaNumericKeypad(
-            onNumberClick = { num ->
-                if (enteredDigits.length < maxLength) enteredDigits += num
-            },
-            onDelete = {
-                if (enteredDigits.isNotEmpty()) enteredDigits = enteredDigits.dropLast(1)
-            }
+            onNumberClick = { num -> if (enteredDigits.length < maxLength) enteredDigits += num },
+            onDelete = { if (enteredDigits.isNotEmpty()) enteredDigits = enteredDigits.dropLast(1) }
         )
-
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
-// ─────────────────────────────────────────────
-// 3. 전자서명 화면
-// ─────────────────────────────────────────────
 @Composable
-fun RbaSignatureScreen(
-    paymentAmount: Long,
-    merchantName: String,
-    stepInfo: String,
-    onSuccess: () -> Unit,
-    onCancel: () -> Unit
-) {
-    val paths = remember { mutableStateListOf<List<Offset>>() }
-    val currentPath = remember { mutableStateListOf<Offset>() }
-    var isSigned by remember { mutableStateOf(false) }
-    var isSubmitting by remember { mutableStateOf(false) }
-
-    RbaAuthScaffold(
-        title = "서명으로\n본인을 확인합니다",
-        subtitle = "아래 서명란에 평소 서명을 해주세요",
-        stepInfo = stepInfo,
-        paymentAmount = paymentAmount,
-        merchantName = merchantName,
-        onCancel = onCancel
-    ) {
-        Box(
-            modifier = Modifier
-                .padding(horizontal = 24.dp)
-                .fillMaxWidth()
-                .height(200.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color.White)
-                .border(
-                    width = 1.5.dp,
-                    brush = if (isSigned)
-                        Brush.horizontalGradient(listOf(AccentColor, AccentLight))
-                    else
-                        Brush.horizontalGradient(
-                            listOf(AccentColor.copy(alpha = 0.3f), AccentColor.copy(alpha = 0.15f))
-                        ),
-                    shape = RoundedCornerShape(20.dp)
-                )
-                .pointerInput(Unit) {
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            currentPath.clear()
-                            currentPath.add(offset)
-                        },
-                        onDrag = { change, _ ->
-                            currentPath.add(change.position)
-                            isSigned = true
-                        },
-                        onDragEnd = {
-                            paths.add(currentPath.toList())
-                            currentPath.clear()
-                        }
-                    )
-                }
-                .drawWithContent {
-                    drawContent()
-                    paths.forEach { path ->
-                        if (path.size >= 2) {
-                            val androidPath = Path()
-                            androidPath.moveTo(path[0].x, path[0].y)
-                            for (i in 1 until path.size) androidPath.lineTo(path[i].x, path[i].y)
-                            drawPath(
-                                path = androidPath,
-                                color = AccentColor,
-                                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-                            )
-                        }
-                    }
-                    if (currentPath.size >= 2) {
-                        val androidPath = Path()
-                        androidPath.moveTo(currentPath[0].x, currentPath[0].y)
-                        for (i in 1 until currentPath.size) androidPath.lineTo(currentPath[i].x, currentPath[i].y)
-                        drawPath(
-                            path = androidPath,
-                            color = AccentColor,
-                            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-                        )
-                    }
-                    if (!isSigned) {
-                        drawLine(
-                            color = AccentColor.copy(alpha = 0.2f),
-                            start = Offset(40.dp.toPx(), size.height * 0.72f),
-                            end = Offset(size.width - 40.dp.toPx(), size.height * 0.72f),
-                            strokeWidth = 1.dp.toPx()
-                        )
-                    }
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            if (!isSigned) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "✍", fontSize = 28.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "여기에 서명하세요",
-                        color = TextSecondary,
-                        fontSize = 14.sp,
-                        fontFamily = NaedaFontFamily
-                    )
-                }
-            }
-        }
-
-        if (isSigned) {
-            Spacer(modifier = Modifier.height(12.dp))
-            TextButton(
-                onClick = {
-                    paths.clear()
-                    currentPath.clear()
-                    isSigned = false
-                },
-                modifier = Modifier.align(Alignment.End).padding(end = 24.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = null,
-                    tint = TextSecondary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "다시 서명",
-                    color = TextSecondary,
-                    fontSize = 13.sp,
-                    fontFamily = NaedaFontFamily
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        Button(
-            onClick = {
-                if (isSigned && !isSubmitting) {
-                    isSubmitting = true
-                    // TODO: ViewModel.submitSignature(paths) 호출
-                    onSuccess()
-                }
-            },
-            enabled = isSigned && !isSubmitting,
-            modifier = Modifier
-                .padding(horizontal = 24.dp)
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = AccentColor,
-                disabledContainerColor = AccentColor.copy(alpha = 0.3f)
-            )
-        ) {
-            if (isSubmitting) {
-                CircularProgressIndicator(modifier = Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
-            } else {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    tint = Color.White
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "서명 완료",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    fontFamily = NaedaFontFamily,
-                    color = Color.White
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-    }
-}
-
-// ─────────────────────────────────────────────
-// 공통 숫자 키패드
-// ─────────────────────────────────────────────
-@Composable
-private fun NaedaNumericKeypad(
-    onNumberClick: (String) -> Unit,
-    onDelete: () -> Unit
-) {
+private fun NaedaNumericKeypad(onNumberClick: (String) -> Unit, onDelete: () -> Unit) {
     val keys = listOf(
         listOf("1", "2", "3"),
         listOf("4", "5", "6"),
         listOf("7", "8", "9"),
         listOf("", "0", "⌫")
     )
-
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 32.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         keys.forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { key ->
                     Box(modifier = Modifier.weight(1f)) {
                         when {
@@ -695,11 +418,7 @@ private fun NaedaNumericKeypad(
 }
 
 @Composable
-private fun KeypadButton(
-    label: String,
-    isDelete: Boolean = false,
-    onClick: () -> Unit
-) {
+private fun KeypadButton(label: String, isDelete: Boolean = false, onClick: () -> Unit) {
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.92f else 1f,
@@ -714,10 +433,7 @@ private fun KeypadButton(
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(RoundedCornerShape(14.dp))
             .background(if (isDelete) KeypadDeleteBg else KeypadBg)
-            .clickable {
-                isPressed = true
-                onClick()
-            },
+            .clickable { isPressed = true; onClick() },
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -730,9 +446,6 @@ private fun KeypadButton(
     }
 
     LaunchedEffect(isPressed) {
-        if (isPressed) {
-            kotlinx.coroutines.delay(100)
-            isPressed = false
-        }
+        if (isPressed) { kotlinx.coroutines.delay(100); isPressed = false }
     }
 }

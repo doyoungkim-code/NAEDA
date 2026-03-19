@@ -24,7 +24,7 @@ private val BgColor = Color(0xFFFCFFFF)
 private val TextPrimary = Color(0xFF0D3B35)
 
 @Composable
-fun PosKeyScreen(onConnected: () -> Unit) {
+fun PosKeyScreen(onConnected: (posKey: String) -> Unit) {
     var posKey by remember { mutableStateOf("") }
     val primary = MaterialTheme.colorScheme.primary
 
@@ -69,7 +69,7 @@ fun PosKeyScreen(onConnected: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = {
                         Text(
-                            text = "Enter your POS Key",
+                            text = "POS Key를 입력하세요.",
                             color = TextPrimary.copy(alpha = 0.35f),
                             fontFamily = NaedaFontFamily
                         )
@@ -96,7 +96,7 @@ fun PosKeyScreen(onConnected: () -> Unit) {
                 )
                 Spacer(Modifier.height(16.dp))
                 Button(
-                    onClick = onConnected,
+                    onClick = {onConnected(posKey)},
                     enabled = posKey.isNotBlank(),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -154,7 +154,7 @@ fun NaedaFooter(modifier: Modifier = Modifier) {
         Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "NADA PAY",
+                text = "NAEDA PAY",
                 color = primary,
                 fontSize = 11.sp,
                 letterSpacing = 1.sp,

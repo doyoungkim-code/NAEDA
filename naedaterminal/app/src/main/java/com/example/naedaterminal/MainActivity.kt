@@ -1,5 +1,6 @@
 package com.example.naedaterminal
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -18,25 +19,28 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             NaedaTheme {
-                var route by remember { mutableStateOf<Route>(Route.PosKey) }
+                val context = this
 
-                // 결제 흐름 공유 상태
+                var route by remember {
+                    val hasPosKey = getPosKey(context) != null
+                    mutableStateOf<Route>(if (hasPosKey) Route.Waiting else Route.PosKey)
+                }
+
                 var currentAmount by remember { mutableStateOf(0L) }
                 var currentMerchant by remember { mutableStateOf("전자 기기 상점 GUMI") }
                 var currentMethod by remember { mutableStateOf("페이스페이") }
-
-                // RBA 관련 상태
-                var rbaUserId by remember { mutableStateOf("") }
+                var matchedUserInfo by remember { mutableStateOf<MatchedUserInfo?>(null) }
                 var rbaAuthSteps by remember { mutableStateOf<List<RbaAuthType>>(emptyList()) }
 
                 when (route) {
 
-                    // ── 1. POS Key 입력 ──────────────────────────
                     Route.PosKey -> PosKeyScreen(
-                        onConnected = { route = Route.Waiting }
+                        onConnected = { posKey ->
+                            savePosKey(context, posKey)
+                            route = Route.Waiting
+                        }
                     )
 
-                    // ── 2. 대기 화면 (금액 입력 포함) ────────────
                     Route.Waiting -> NaedaStartScreen(
                         onPaymentStart = { amount, merchant ->
                             currentAmount = amount
@@ -45,7 +49,6 @@ class MainActivity : ComponentActivity() {
                         }
                     )
 
-                    // ── 3. 결제 수단 선택 ─────────────────────────
                     Route.PaymentSelect -> PaymentMethodSelectScreen(
                         amount = currentAmount,
                         merchant = currentMerchant,
@@ -60,7 +63,6 @@ class MainActivity : ComponentActivity() {
                         }
                     )
 
-                    // ── 4. 얼굴 인증 ──────────────────────────────
                     Route.FacePay -> FacePayAuthScreen(
                         amount = currentAmount,
                         merchant = currentMerchant,
@@ -68,33 +70,61 @@ class MainActivity : ComponentActivity() {
                         topK = 3,
                         onBack = { route = Route.PaymentSelect },
                         onAuthed = { userId, similarity ->
+                            // TODO: 실제 사용자 정보 백엔드에서 받아오기
+                            val mockUser = MatchedUserInfo(
+                                userId = userId,
+                                userName = "홍길동",
+                                requiresPin = false, // TODO: 백엔드 응답값으로 교체
+                                linkedAccounts = listOf(
+                                    LinkedAccount("acc1", "국민은행", "123-456-789012", 1_250_000L, true),
+                                    LinkedAccount("acc2", "신한은행", "987-654-321098", 350_000L, false),
+                                    LinkedAccount("acc3", "카카오뱅크", "333-444-555666", 80_000L, false)
+                                )
+                            )
+
                             val steps = buildList {
-                                if (similarity < 0.55) {
-                                    add(RbaAuthType.PhoneLastFour)
-                                }
-                                if (currentAmount >= 50_000L) {
-                                    add(RbaAuthType.Signature)
+                                when {
+                                    // PIN 2차 인증 설정한 사용자 → 무조건 PIN
+                                    mockUser.requiresPin -> add(RbaAuthType.Pin)
+                                    // 유사도 낮음 → PIN or 전화번호 가운데 4자리 랜덤
+                                    similarity < 0.55 -> {
+                                        if ((0..1).random() == 0) add(RbaAuthType.Pin)
+                                        else add(RbaAuthType.PhoneMiddleFour)
+                                    }
                                 }
                             }
 
-                            rbaUserId = userId
+                            matchedUserInfo = mockUser
                             rbaAuthSteps = steps
-
-                            route = if (steps.isEmpty()) Route.PaymentDone else Route.Rba
+                            route = Route.FaceMatchUser
                         },
                         onNotMatched = { route = Route.PaymentSelect }
                     )
 
-                    // ── 5. RBA 추가 인증 ──────────────────────────
+                    Route.FaceMatchUser -> {
+                        val userInfo = matchedUserInfo
+                        if (userInfo != null) {
+                            FaceMatchUserScreen(
+                                userInfo = userInfo,
+                                amount = currentAmount,
+                                merchant = currentMerchant,
+                                onConfirm = {
+                                    route = if (rbaAuthSteps.isEmpty()) Route.PaymentDone
+                                    else Route.Rba
+                                },
+                                onCancel = { route = Route.Waiting }
+                            )
+                        }
+                    }
+
                     Route.Rba -> RbaAuthContainer(
                         authSteps = rbaAuthSteps,
                         paymentAmount = currentAmount,
                         merchantName = currentMerchant,
                         onAuthComplete = { route = Route.PaymentDone },
-                        onAuthCancel = { route = Route.FacePay }
+                        onAuthCancel = { route = Route.FaceMatchUser }
                     )
 
-                    // ── 6. 결제 완료 ──────────────────────────────
                     Route.PaymentDone -> PaymentDoneScreen(
                         amount = currentAmount,
                         merchant = currentMerchant,
@@ -107,11 +137,22 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private fun savePosKey(context: Context, key: String) {
+    context.getSharedPreferences("naeda_prefs", Context.MODE_PRIVATE)
+        .edit().putString("pos_key", key).apply()
+}
+
+private fun getPosKey(context: Context): String? {
+    return context.getSharedPreferences("naeda_prefs", Context.MODE_PRIVATE)
+        .getString("pos_key", null)
+}
+
 private sealed interface Route {
     data object PosKey : Route
     data object Waiting : Route
     data object PaymentSelect : Route
     data object FacePay : Route
+    data object FaceMatchUser : Route
     data object Rba : Route
     data object PaymentDone : Route
 }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.naedaterminal.ui.theme.NaedaFontFamily
 
-private val Primary = Color(0xFF009688)
+private val Primary = Color(0xFF00635A)
 private val BgColor = Color(0xFFFCFFFF)
 private val TextPrimary = Color(0xFF0D3B35)
 
@@ -66,20 +67,22 @@ fun PaymentDoneScreen(
                     .drawBehind {
                         // 바깥 점선 링
                         drawCircle(
-                            color = Primary.copy(alpha = 0.25f),
+                            color = Primary.copy(alpha = 0.2f),
                             radius = size.width * 0.54f,
-                            style = Stroke(width = 1.5.dp.toPx(), pathEffect = dashEffect)
+                            style = Stroke(
+                                width = 1.5.dp.toPx(),
+                                pathEffect = dashEffect
+                            )
                         )
-                        // 글로우
-                        drawCircle(color = Primary.copy(alpha = 0.10f), radius = size.width * 0.5f)
                     }
                     .clip(CircleShape)
                     .background(
-                        Brush.radialGradient(
+                        // ✅ 좌상단 어둡고 → 우하단 밝아지는 그라디언트
+                        Brush.linearGradient(
                             colorStops = arrayOf(
-                                0.0f to Color(0xFFB2EBE6),
-                                0.5f to Color(0xFF4DB6AC),
-                                1.0f to Color(0xFF00897B)
+                                0.0f to Color(0xFF00635A),  // 좌상단 — 딥그린
+                                0.5f to Color(0xFF009688),  // 중간 — 미디엄 민트
+                                1.0f to Color(0xFF4DB6AC)   // 우하단 — 밝은 민트
                             )
                         )
                     ),
@@ -134,8 +137,14 @@ fun PaymentDoneScreen(
                         fontSize = 14.sp,
                         fontFamily = NaedaFontFamily
                     )
+                    // ✅ 🙂 → Icons.Default.Face
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("🙂", fontSize = 14.sp)
+                        Icon(
+                            imageVector = Icons.Default.Face,
+                            contentDescription = null,
+                            tint = Primary,
+                            modifier = Modifier.size(18.dp)
+                        )
                         Spacer(Modifier.width(4.dp))
                         Text(
                             text = method,
@@ -172,13 +181,11 @@ fun PaymentDoneScreen(
 
             Spacer(Modifier.weight(1f))
 
-            // 확인 버튼
             Button(
                 onClick = onDone,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(bottom = 0.dp),
+                    .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Primary)
             ) {
