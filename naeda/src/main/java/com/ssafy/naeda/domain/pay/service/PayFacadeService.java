@@ -13,8 +13,6 @@ import com.ssafy.naeda.domain.pay.entity.PayMethod;
 import com.ssafy.naeda.domain.pay.entity.PayRequestStatus;
 import com.ssafy.naeda.domain.pay.entity.PayStatus;
 import com.ssafy.naeda.domain.pay.entity.PayTransaction;
-import com.ssafy.naeda.domain.pay.event.PayEvent;
-import com.ssafy.naeda.domain.pay.event.PayEventPublisher;
 import com.ssafy.naeda.domain.pay.lock.PayDistributedLock;
 import com.ssafy.naeda.domain.pay.lock.PayRateLimiter;
 import com.ssafy.naeda.domain.pay.repository.PayMethodRepository;
@@ -49,8 +47,6 @@ public class PayFacadeService {
     private final PayRequestRedisService payRequestRedisService;
     private final PayDistributedLock distributedLock;
     private final PayRateLimiter rateLimiter;
-    private final PayEventPublisher eventPublisher;
-
     private final FdsRuleService fdsRuleService;
     private final PayMethodRepository payMethodRepository;
     private final AccountRepository accountRepository;
@@ -171,7 +167,6 @@ public class PayFacadeService {
                 payDbService.save(transaction);
                 fdsRuleService.saveLog(transaction.getId(), user.getUserNo(), fdsResult);
                 payRequestRedisService.transition(requestId, PayRequestStatus.BLOCKED);
-                publishEvent(transaction);
                 return transaction;
             }
             if (fdsAction == FdsAction.PAUSE) {
@@ -179,7 +174,6 @@ public class PayFacadeService {
                 payDbService.save(transaction);
                 fdsRuleService.saveLog(transaction.getId(), user.getUserNo(), fdsResult);
                 payRequestRedisService.transition(requestId, PayRequestStatus.PAUSED);
-                publishEvent(transaction);
                 return transaction;
             }
 
@@ -220,9 +214,6 @@ public class PayFacadeService {
             } else {
                 updateRedisSuccess(requestId, finalTransaction.getId(), ssafyTransactionId);
             }
-
-            // 17. Kafka 이벤트 발행
-            publishEvent(transaction);
 
             log.info("[Pay] 페이스페이 결제 성공: requestId={}, transactionId={}, method={}, amount={}",
                     requestId, transaction.getId(), methodType, amount);
@@ -457,24 +448,4 @@ public class PayFacadeService {
         }
     }
 
-    private void publishEvent(PayTransaction tx) {
-        try {
-            PayEvent event = PayEvent.builder()
-                    .transactionId(tx.getId())
-                    .userNo(tx.getUserNo())
-                    .storeId(tx.getStoreId())
-                    .amount(tx.getAmount())
-                    .status(tx.getStatus().name())
-                    .authMethod(tx.getAuthMethod())
-                    .fdsScore(tx.getFdsScore())
-                    .fdsAction(tx.getFdsAction())
-                    .earnedPoints(tx.getEarnedPoints())
-                    .ssafyTransactionId(tx.getSsafyTransactionId())
-                    .build();
-
-            eventPublisher.publish(event);
-        } catch (Exception e) {
-            log.error("[Pay] Kafka 이벤트 발행 실패 (결제는 정상 처리됨): transactionId={}", tx.getId(), e);
-        }
-    }
 }
