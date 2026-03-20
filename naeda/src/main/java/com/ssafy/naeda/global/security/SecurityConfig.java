@@ -42,6 +42,7 @@ public class SecurityConfig {
                                 "/api/stores/map",
                                 "/api/stores/public",
                                 "/api/v1/face/search",
+                                "/api/rba/phone/verify",
                                 "/api/pay-requests/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
