@@ -58,11 +58,12 @@ class MainActivity : ComponentActivity() {
                 var rbaAuthSteps by remember { mutableStateOf<List<RbaAuthType>>(emptyList()) }
                 var enteredPin by remember { mutableStateOf<String?>(null) }
                 var enteredPhoneDigits by remember { mutableStateOf<String?>(null) }
+                var paymentFailureReason by remember { mutableStateOf<String?>(null) }
 
                 // 결제 진행 중 POS 취소 감지 폴링
                 val isInPaymentFlow = route in listOf(
                     Route.PaymentSelect, Route.FacePay,
-                    Route.FaceMatchUser, Route.Rba
+                    Route.Rba, Route.Processing
                 )
                 LaunchedEffect(isInPaymentFlow, currentRequestId) {
                     if (!isInPaymentFlow || currentRequestId == 0L) return@LaunchedEffect
@@ -115,6 +116,11 @@ class MainActivity : ComponentActivity() {
                             currentRequestId = requestId
                             currentAmount = amount
                             currentMerchant = merchant
+                            paymentFailureReason = null
+                            matchedUserInfo = null
+                            rbaAuthSteps = emptyList()
+                            enteredPin = null
+                            enteredPhoneDigits = null
                             route = Route.PaymentSelect
                         },
                         onLogout = {
@@ -143,7 +149,7 @@ class MainActivity : ComponentActivity() {
                         apiBaseUrl = apiBaseUrl,
                         topK = 3,
                         onBack = { route = Route.PaymentSelect },
-                        onAuthed = { faceResult ->
+                        onResolved = { faceResult ->
                             val methods = faceResult.requiredMethods
                             // RBA 인증 단계 결정
                             val steps = buildList {
@@ -163,7 +169,7 @@ class MainActivity : ComponentActivity() {
                             matchedUserInfo = MatchedUserInfo(
                                 userId = faceResult.bestUserId ?: "",
                                 userName = faceResult.username ?: faceResult.bestUserId ?: "알 수 없음",
-                                userNo = faceResult.matchedUserNo,
+                                userNo = faceResult.userNo ?: faceResult.matchedUserNo,
                                 requiresAdditionalAuth = ambiguousSteps.isNotEmpty(),
                                 authReason = when {
                                     isAmbiguous -> "AMBIGUOUS"
@@ -175,33 +181,22 @@ class MainActivity : ComponentActivity() {
                             rbaAuthSteps = ambiguousSteps
                             enteredPin = null
                             enteredPhoneDigits = null
-                            route = Route.FaceMatchUser
+                            route = if (ambiguousSteps.isEmpty()) Route.Processing else Route.Rba
                         },
-                        onNotMatched = { route = Route.PaymentSelect }
-                    )
-
-                    Route.FaceMatchUser -> {
-                        val userInfo = matchedUserInfo
-                        if (userInfo != null) {
-                            FaceMatchUserScreen(
-                                userInfo = userInfo,
-                                amount = currentAmount,
-                                merchant = currentMerchant,
-                                onConfirm = {
-                                    route = if (rbaAuthSteps.isEmpty()) Route.Processing
-                                    else Route.Rba
-                                },
-                                onCancel = { route = Route.Waiting }
-                            )
+                        onNotMatched = { reason ->
+                            paymentFailureReason = reason ?: "얼굴을 인식하지 못했습니다."
+                            route = Route.PaymentFailed
                         }
-                    }
+                    )
 
                     Route.Rba -> RbaAuthContainer(
                         authSteps = rbaAuthSteps,
                         paymentAmount = currentAmount,
                         merchantName = currentMerchant,
+                        apiBaseUrl = apiBaseUrl,
+                        userNo = matchedUserInfo?.userNo,
                         onAuthComplete = { route = Route.Processing },
-                        onAuthCancel = { route = Route.FaceMatchUser },
+                        onAuthCancel = { route = Route.FacePay },
                         onPinEntered = { pin -> enteredPin = pin },
                         onPhoneEntered = { digits -> enteredPhoneDigits = digits }
                     )
@@ -218,6 +213,7 @@ class MainActivity : ComponentActivity() {
                         },
                         onFailure = { reason ->
                             currentRequestId = 0L
+                            paymentFailureReason = reason
                             route = Route.PaymentFailed
                         }
                     )
@@ -227,6 +223,7 @@ class MainActivity : ComponentActivity() {
                     )
 
                     Route.PaymentFailed -> PaymentFailedScreen(
+                        reason = paymentFailureReason,
                         onDone = { route = Route.Waiting }
                     )
 
@@ -263,7 +260,6 @@ private sealed interface Route {
     data object Waiting : Route
     data object PaymentSelect : Route
     data object FacePay : Route
-    data object FaceMatchUser : Route
     data object Rba : Route
     data object Processing : Route
     data object PaymentDone : Route
