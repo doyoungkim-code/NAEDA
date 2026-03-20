@@ -12,4 +12,6 @@ public interface PointOrderRepository extends JpaRepository<PointOrder, Long> {
 
     // 상품별 주문 수 조회
     Long countByProductId(Long productId);
+
+    void deleteByUserNo(Long userNo);
 }

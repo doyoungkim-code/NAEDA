@@ -20,4 +20,6 @@ public interface ConsumptionReportRepository extends JpaRepository<ConsumptionRe
             LocalDate periodStart,
             LocalDate periodEnd
     );
+
+    void deleteByUserNo(Long userNo);
 }

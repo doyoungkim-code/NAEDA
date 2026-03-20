@@ -69,6 +69,24 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @DeleteMapping("/withdraw")
+    @Operation(summary = "회원탈퇴", description = "사용자의 모든 데이터를 삭제하고 계정을 탈퇴합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "회원탈퇴 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<Void> withdraw(HttpServletRequest httpRequest) {
+        String authHeader = httpRequest.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new AuthenticationFailedException("AccessToken이 필요합니다.");
+        }
+        String accessToken = authHeader.substring(7);
+        String userId = authService.getUserIdFromToken(accessToken);
+        authService.withdraw(userId, accessToken);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/logout")
     @Operation(summary = "로그아웃", description = "RefreshToken을 무효화하여 로그아웃합니다.")
     @ApiResponses({

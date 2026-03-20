@@ -13,8 +13,6 @@ import com.ssafy.naeda.domain.pay.entity.PayMethod;
 import com.ssafy.naeda.domain.pay.entity.PayRequestStatus;
 import com.ssafy.naeda.domain.pay.entity.PayStatus;
 import com.ssafy.naeda.domain.pay.entity.PayTransaction;
-import com.ssafy.naeda.domain.pay.event.PayEvent;
-import com.ssafy.naeda.domain.pay.event.PayEventPublisher;
 import com.ssafy.naeda.domain.pay.lock.PayDistributedLock;
 import com.ssafy.naeda.domain.pay.lock.PayRateLimiter;
 import com.ssafy.naeda.domain.pay.repository.PayMethodRepository;
@@ -34,8 +32,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -49,8 +45,6 @@ public class PayFacadeService {
     private final PayRequestRedisService payRequestRedisService;
     private final PayDistributedLock distributedLock;
     private final PayRateLimiter rateLimiter;
-    private final PayEventPublisher eventPublisher;
-
     private final FdsRuleService fdsRuleService;
     private final PayMethodRepository payMethodRepository;
     private final AccountRepository accountRepository;
@@ -123,9 +117,12 @@ public class PayFacadeService {
             }
 
             // 8. FacePay 등록된 결제수단 자동 조회
-            PayMethod paymentMethod = payMethodRepository
-                    .findByUserNoAndIsFacePayTrueAndIsActiveTrue(user.getUserNo())
-                    .orElseThrow(() -> new NotFoundException("페이스페이 결제 수단이 등록되지 않았습니다."));
+            List<PayMethod> facePayMethods = payMethodRepository
+                    .findByUserNoAndIsFacePayTrueAndIsActiveTrue(user.getUserNo());
+            if (facePayMethods.isEmpty()) {
+                throw new NotFoundException("페이스페이 결제 수단이 등록되지 않았습니다.");
+            }
+            PayMethod paymentMethod = facePayMethods.get(0);
 
             // 9. PIN 2차 인증 (pin이 전달된 경우 검증)
             boolean pinVerified = false;
@@ -171,7 +168,6 @@ public class PayFacadeService {
                 payDbService.save(transaction);
                 fdsRuleService.saveLog(transaction.getId(), user.getUserNo(), fdsResult);
                 payRequestRedisService.transition(requestId, PayRequestStatus.BLOCKED);
-                publishEvent(transaction);
                 return transaction;
             }
             if (fdsAction == FdsAction.PAUSE) {
@@ -179,7 +175,6 @@ public class PayFacadeService {
                 payDbService.save(transaction);
                 fdsRuleService.saveLog(transaction.getId(), user.getUserNo(), fdsResult);
                 payRequestRedisService.transition(requestId, PayRequestStatus.PAUSED);
-                publishEvent(transaction);
                 return transaction;
             }
 
@@ -208,21 +203,8 @@ public class PayFacadeService {
             transaction = payDbService.save(transaction);
             fdsRuleService.saveLog(transaction.getId(), user.getUserNo(), fdsResult);
 
-            // 16. Redis 상태 갱신 (DB 커밋 후)
-            final PayTransaction finalTransaction = transaction;
-            if (TransactionSynchronizationManager.isSynchronizationActive()) {
-                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        updateRedisSuccess(requestId, finalTransaction.getId(), ssafyTransactionId);
-                    }
-                });
-            } else {
-                updateRedisSuccess(requestId, finalTransaction.getId(), ssafyTransactionId);
-            }
-
-            // 17. Kafka 이벤트 발행
-            publishEvent(transaction);
+            // 16. Redis 상태 갱신
+            updateRedisSuccess(requestId, transaction.getId(), ssafyTransactionId);
 
             log.info("[Pay] 페이스페이 결제 성공: requestId={}, transactionId={}, method={}, amount={}",
                     requestId, transaction.getId(), methodType, amount);
@@ -457,24 +439,4 @@ public class PayFacadeService {
         }
     }
 
-    private void publishEvent(PayTransaction tx) {
-        try {
-            PayEvent event = PayEvent.builder()
-                    .transactionId(tx.getId())
-                    .userNo(tx.getUserNo())
-                    .storeId(tx.getStoreId())
-                    .amount(tx.getAmount())
-                    .status(tx.getStatus().name())
-                    .authMethod(tx.getAuthMethod())
-                    .fdsScore(tx.getFdsScore())
-                    .fdsAction(tx.getFdsAction())
-                    .earnedPoints(tx.getEarnedPoints())
-                    .ssafyTransactionId(tx.getSsafyTransactionId())
-                    .build();
-
-            eventPublisher.publish(event);
-        } catch (Exception e) {
-            log.error("[Pay] Kafka 이벤트 발행 실패 (결제는 정상 처리됨): transactionId={}", tx.getId(), e);
-        }
-    }
 }
