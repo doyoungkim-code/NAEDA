@@ -2,6 +2,7 @@ package com.ssafy.naeda.domain.face.service;
 
 import com.ssafy.naeda.domain.face.client.AiClient;
 import com.ssafy.naeda.domain.face.client.dto.AiEmbeddingResult;
+import com.ssafy.naeda.domain.face.dto.response.EnrollResponse;
 import com.ssafy.naeda.domain.face.dto.response.FaceMatchStatus;
 import com.ssafy.naeda.domain.face.dto.response.SearchResponse;
 import com.ssafy.naeda.domain.face.entity.FaceEmbedding;
@@ -13,6 +14,9 @@ import com.ssafy.naeda.domain.rba.dto.RbaResult;
 import com.ssafy.naeda.domain.rba.service.RbaEngine;
 import com.ssafy.naeda.domain.user.entity.User;
 import com.ssafy.naeda.domain.user.repository.UserRepository;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,10 +26,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -54,6 +54,9 @@ class FaceServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private FaceRegistrationSessionService faceRegistrationSessionService;
 
     @BeforeEach
     void setUp() {
@@ -133,7 +136,7 @@ class FaceServiceTest {
     }
 
     @Test
-    @DisplayName("search: similarity가 0.65 미만이면 NO_MATCH와 RETRY_CAPTURE를 반환한다")
+    @DisplayName("search: similarity가 0.65 미만이면 NO_MATCH와 BLOCK을 반환한다")
     void search_noMatch() {
         given(aiClient.extractEmbedding(any())).willReturn(aiResult(unit(1f, 0f)));
         given(userRepository.findByUserId("user-low")).willReturn(Optional.of(User.builder().userNo(44L).username("낮은유저").build()));
@@ -165,11 +168,33 @@ class FaceServiceTest {
     }
 
     @Test
-    @DisplayName("enroll: 유효하지 않은 pose이면 INVALID_POSE 예외를 던진다")
-    void enroll_invalidPose() {
-        assertThatThrownBy(() -> faceService.enroll("user-1", "invalid-pose", mockImage()))
+    @DisplayName("enroll: 등록 세션 서비스에 pose 저장을 위임한다")
+    void enroll_delegatesToSessionService() {
+        EnrollResponse expected = EnrollResponse.builder()
+                .success(true)
+                .userId("user-1")
+                .pose("front1")
+                .build();
+        AiEmbeddingResult result = aiResult(unit(1f, 0f));
+        given(aiClient.extractEmbedding(any())).willReturn(result);
+        given(faceRegistrationSessionService.registerPose("user-1", "front1", result)).willReturn(expected);
+
+        EnrollResponse response = faceService.enroll("user-1", "front1", mockImage());
+
+        assertThat(response).isSameAs(expected);
+    }
+
+    @Test
+    @DisplayName("enroll: 등록 세션 서비스에서 발생한 예외를 그대로 전달한다")
+    void enroll_propagatesFaceException() {
+        AiEmbeddingResult result = aiResult(unit(1f, 0f));
+        given(aiClient.extractEmbedding(any())).willReturn(result);
+        given(faceRegistrationSessionService.registerPose("user-1", "front2", result))
+                .willThrow(new FaceException(com.ssafy.naeda.domain.face.exception.FaceErrorCode.REGISTRATION_MISMATCH));
+
+        assertThatThrownBy(() -> faceService.enroll("user-1", "front2", mockImage()))
                 .isInstanceOf(FaceException.class)
-                .hasMessage("올바르지 않은 포즈입니다. (front|left|right|up|down)");
+                .hasMessage("기준 얼굴과 일치하지 않습니다. 같은 사람이 다시 촬영해주세요.");
     }
 
     private static AiEmbeddingResult aiResult(float[] embedding) {

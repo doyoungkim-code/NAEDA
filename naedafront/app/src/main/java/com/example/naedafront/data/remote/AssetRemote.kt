@@ -121,6 +121,13 @@ interface AssetApi {
         @Path("id") paymentMethodId: Long,
         @Query("userNo") userNo: Long
     ): AssetPayMethodResponse
+
+    @PATCH("api/pay-methods/{id}/face-pay")
+    suspend fun setFacePayMethod(
+        @Path("id") paymentMethodId: Long,
+        @Query("userNo") userNo: Long,
+        @Query("enabled") enabled: Boolean = true
+    ): AssetPayMethodResponse
 }
 
 interface PayApi {
@@ -192,6 +199,22 @@ object AssetRepository {
             )
         }.getOrElse { throwable ->
             throw toReadableException(throwable, "대표 결제수단을 변경하지 못했습니다.")
+        }
+    }
+
+    suspend fun setFacePayPaymentMethod(
+        userNo: Long,
+        paymentMethodId: Long,
+        enabled: Boolean = true
+    ): AssetPayMethodResponse {
+        return runCatching {
+            api.setFacePayMethod(
+                paymentMethodId = paymentMethodId,
+                userNo = userNo,
+                enabled = enabled
+            )
+        }.getOrElse { throwable ->
+            throw toReadableException(throwable, if (enabled) "페이스페이 사용 설정에 실패했습니다." else "페이스페이 사용 해제에 실패했습니다.")
         }
     }
 

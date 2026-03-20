@@ -37,6 +37,14 @@ class Settings(BaseSettings):
 
     internal_service_token: str = "dev-internal-token"
 
+    # Chat (AI-019)
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/naeda"
+    chat_max_history_turns: int = 10
+    chat_max_store_results: int = 10
+    chat_max_festival_results: int = 10
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 

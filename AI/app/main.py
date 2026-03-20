@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 
+from app.api.chat import router as chat_router
 from app.api.internal_consumption_categories import router as internal_consumption_categories_router
 from app.api.internal_consumption_monthly_insights import router as internal_consumption_monthly_insights_router
 from app.api.internal_embeddings import router as internal_embeddings_router
@@ -17,6 +18,7 @@ from app.core.request_context import ensure_request_id, get_request_id
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name)
+app.include_router(chat_router)
 app.include_router(internal_consumption_categories_router)
 app.include_router(internal_consumption_monthly_insights_router)
 app.include_router(internal_embeddings_router)

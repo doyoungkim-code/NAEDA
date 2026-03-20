@@ -76,6 +76,9 @@ sealed class Screen(val route: String) {
     object Coupon : Screen("coupon")
     object Donation : Screen("donation")
 
+    // ── 챗봇 ──
+    object Chat : Screen("chat")
+
     // ── 더보기/마이페이지 하위 ──
     object MyPage : Screen("mypage")
     object Settings : Screen("settings")

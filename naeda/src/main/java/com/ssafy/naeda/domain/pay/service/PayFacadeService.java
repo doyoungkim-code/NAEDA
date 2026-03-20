@@ -27,13 +27,19 @@ import com.ssafy.naeda.global.exception.BadRequestException;
 import com.ssafy.naeda.global.exception.NotFoundException;
 import com.ssafy.naeda.global.ssafy.SsafyApiClient;
 import com.ssafy.naeda.global.ssafy.SsafyHeaderFactory;
+import com.ssafy.naeda.domain.notification.entity.NotificationType;
+import com.ssafy.naeda.domain.notification.entity.ReferenceType;
+import com.ssafy.naeda.global.fcm.FcmService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import java.text.NumberFormat;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Slf4j
@@ -56,6 +62,7 @@ public class PayFacadeService {
     private final CreditCardRepository creditCardRepository;
     private final DebitCardRepository debitCardRepository;
     private final PasswordEncoder passwordEncoder;
+    private final FcmService fcmService;
 
     private static final String CREDIT_CARD_API = "/edu/creditCard/createCreditCardTransaction";
     private static final String TRANSFER_API = "/edu/demandDeposit/updateDemandDepositAccountTransfer";
@@ -206,6 +213,13 @@ public class PayFacadeService {
             // 16. Redis 상태 갱신
             updateRedisSuccess(requestId, transaction.getId(), ssafyTransactionId);
 
+            // 17. FCM 결제 완료 알림 (비동기, 실패해도 결제 결과에 영향 없음)
+            try {
+                sendPaymentNotification(user.getUserNo(), transaction.getId(), store.getStoreId(), amount, earnedPoints);
+            } catch (Exception fcmEx) {
+                log.warn("[Pay] FCM 알림 발송 실패 (결제는 성공): requestId={}, error={}", requestId, fcmEx.getMessage());
+            }
+
             log.info("[Pay] 페이스페이 결제 성공: requestId={}, transactionId={}, method={}, amount={}",
                     requestId, transaction.getId(), methodType, amount);
             return transaction;
@@ -217,6 +231,27 @@ public class PayFacadeService {
             // ★ 반드시 락 해제
             distributedLock.release("request:" + requestId, lockOwner);
         }
+    }
+
+    // ============================================================
+    // FCM 결제 완료 알림 (Kafka 미사용, 직접 호출)
+    // ============================================================
+
+    private void sendPaymentNotification(Long userNo, Long transactionId, Long storeId, Long amount, Long earnedPoints) {
+        String formattedAmount = NumberFormat.getNumberInstance(Locale.KOREA).format(amount);
+        String title = "결제 완료";
+        String body = formattedAmount + "원 결제가 완료되었습니다.";
+
+        Map<String, String> data = new HashMap<>();
+        data.put("paymentId", String.valueOf(transactionId));
+        data.put("amount", String.valueOf(amount));
+        data.put("storeId", String.valueOf(storeId));
+        if (earnedPoints != null) {
+            data.put("earnedPoints", String.valueOf(earnedPoints));
+        }
+
+        fcmService.sendToUser(userNo, title, body, NotificationType.PAYMENT, transactionId, ReferenceType.PAYMENT, data);
+        log.info("[Pay] FCM 결제 알림 발송: userNo={}, amount={}", userNo, amount);
     }
 
     // ============================================================
