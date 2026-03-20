@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.example.naedafront.ui.screen.store
 
 import androidx.compose.foundation.background
@@ -32,6 +34,8 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -49,6 +53,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,12 +63,15 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.response.AddressResponse
 import com.example.naedafront.data.remote.response.NaverGeocodeAddress
+import com.example.naedafront.data.repository.OrderRepository
+import kotlinx.coroutines.launch
 
 private val StorePrimary = Color(0xFF00695C)
 private val StoreMint = Color(0xFF20D5BE)
@@ -74,7 +82,6 @@ private val ValueColor = Color(0xFF6B7280)
 private val TitleColor = Color(0xFF111827)
 private val ErrorColor = Color(0xFFD92D20)
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeliveryAddressScreen(
     onBackClick: () -> Unit = {},
@@ -92,6 +99,8 @@ fun DeliveryAddressScreen(
     val userNo = AuthPrefs.getUserNo(context)
     val uiState by viewModel.uiState.collectAsState()
     val searchUiState by addressSearchViewModel.uiState.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+    val orderRepository = remember { OrderRepository() }
 
     var recipientName by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
@@ -99,11 +108,18 @@ fun DeliveryAddressScreen(
     var address by remember { mutableStateOf("") }
     var detailAddress by remember { mutableStateOf("") }
     var deliveryRequest by remember { mutableStateOf("") }
+    var isCustomRequest by remember { mutableStateOf(false) }
     var saveAsDefault by remember { mutableStateOf(true) }
     var showAddressSearchSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(userNo) {
         if (userNo != null) {
+            if (recipientName.isBlank()) {
+                recipientName = AuthPrefs.getUsername(context).orEmpty()
+            }
+            if (phone.isBlank()) {
+                phone = AuthPrefs.getPhone(context).orEmpty()
+            }
             viewModel.loadAddresses(userNo)
         }
     }
@@ -141,25 +157,9 @@ fun DeliveryAddressScreen(
                 }
             }
 
-            uiState.addresses.isNotEmpty() -> {
-                AddressListContent(
-                    addresses = uiState.addresses,
-                    errorMessage = uiState.errorMessage,
-                    onAddressClick = { addressId: Long ->
-                        viewModel.getAddressDetail(
-                            userNo = userNo,
-                            addressId = addressId,
-                            onSuccess = onAddressSelected
-                        )
-                    },
-                    onDeleteClick = { addressId: Long ->
-                        viewModel.deleteAddress(userNo, addressId)
-                    }
-                )
-            }
-
             else -> {
                 DeliveryAddressFormContent(
+                    addresses = uiState.addresses,
                     recipientName = recipientName,
                     onRecipientNameChange = { recipientName = it },
                     phone = phone,
@@ -171,7 +171,9 @@ fun DeliveryAddressScreen(
                     detailAddress = detailAddress,
                     onDetailAddressChange = { detailAddress = it },
                     deliveryRequest = deliveryRequest,
-                    onRequestClick = onRequestClick,
+                    isCustomRequest = isCustomRequest,
+                    onDeliveryRequestChange = { deliveryRequest = it },
+                    onCustomRequestChange = { isCustomRequest = it },
                     saveAsDefault = saveAsDefault,
                     onSaveAsDefaultChange = { saveAsDefault = it },
                     errorMessage = uiState.errorMessage,
@@ -180,7 +182,23 @@ fun DeliveryAddressScreen(
                         onSearchPostCodeClick()
                         showAddressSearchSheet = true
                     },
+                    onSelectSavedAddress = { selected ->
+                        postCode = selected.zipCode
+                        address = selected.roadAddress
+                        detailAddress = selected.detailAddress
+                        saveAsDefault = selected.isDefault
+                    },
+                    onDeleteSavedAddress = { addressId ->
+                        viewModel.deleteAddress(userNo, addressId)
+                    },
                     onCompleteClick = {
+                        val selectedItem = StoreOrderDraftStore.selectedItem
+                        if (selectedItem == null || userNo == null) {
+                            return@DeliveryAddressFormContent
+                        }
+
+                        StoreOrderDraftStore.setDeliveryRequest(deliveryRequest)
+
                         viewModel.createAddress(
                             userNo = userNo,
                             recipientName = recipientName,
@@ -189,7 +207,26 @@ fun DeliveryAddressScreen(
                             address = address,
                             detailAddress = detailAddress,
                             saveAsDefault = saveAsDefault,
-                            onSuccess = onAddressSelected
+                            onSuccess = { savedAddress ->
+                                coroutineScope.launch {
+                                    orderRepository.createOrder(
+                                        userNo = userNo,
+                                        productId = selectedItem.id, // StoreItem 필드명이 productId면 이 줄만 교체
+                                        addressId = savedAddress.addressId
+                                    ).onSuccess { orderResponse ->
+                                        StoreOrderDraftStore.buildCompletedOrder(
+                                            order = orderResponse,
+                                            address = savedAddress,
+                                            recipientName = recipientName,
+                                            phone = phone
+                                        )
+                                        onAddressSelected(savedAddress)
+                                    }.onFailure { throwable ->
+                                        // 필요하면 ViewModel의 error 상태로 연결
+                                        throwable.printStackTrace()
+                                    }
+                                }
+                            }
                         )
                     }
                 )
@@ -262,158 +299,8 @@ private fun DeliveryAddressTopBar(
 }
 
 @Composable
-private fun AddressListContent(
-    addresses: List<AddressResponse>,
-    errorMessage: String?,
-    onAddressClick: (Long) -> Unit,
-    onDeleteClick: (Long) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .navigationBarsPadding()
-            .padding(horizontal = 22.dp)
-    ) {
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "등록된 배송지",
-            color = TitleColor,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        errorMessage?.let { message ->
-            Text(
-                text = message,
-                color = ErrorColor,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-
-        addresses.forEach { item ->
-            AddressListItem(
-                item = item,
-                onClick = { onAddressClick(item.addressId) },
-                onDeleteClick = { onDeleteClick(item.addressId) }
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-
-        Spacer(modifier = Modifier.height(18.dp))
-    }
-}
-
-@Composable
-private fun AddressListItem(
-    item: AddressResponse,
-    onClick: () -> Unit,
-    onDeleteClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(
-                width = 1.dp,
-                color = if (item.isDefault) StoreMint else DividerColor,
-                shape = RoundedCornerShape(16.dp)
-            )
-            .background(Color.White, RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
-            .padding(18.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = if (item.addressName.isBlank()) "배송지" else item.addressName,
-                    color = TitleColor,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                if (item.isDefault) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                color = StoreMint.copy(alpha = 0.16f),
-                                shape = RoundedCornerShape(999.dp)
-                            )
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = "기본",
-                            color = StorePrimary,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clickable(onClick = onDeleteClick),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "delete",
-                        tint = ValueColor,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text(
-                text = item.recipient,
-                color = TitleColor,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = item.phone,
-                color = ValueColor,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = buildString {
-                    append("(${item.zipCode}) ")
-                    append(item.roadAddress)
-                    if (item.detailAddress.isNotBlank()) {
-                        append(" ")
-                        append(item.detailAddress)
-                    }
-                },
-                color = ValueColor,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                lineHeight = 22.sp
-            )
-        }
-    }
-}
-
-@Composable
 private fun DeliveryAddressFormContent(
+    addresses: List<AddressResponse>,
     recipientName: String,
     onRecipientNameChange: (String) -> Unit,
     phone: String,
@@ -425,12 +312,16 @@ private fun DeliveryAddressFormContent(
     detailAddress: String,
     onDetailAddressChange: (String) -> Unit,
     deliveryRequest: String,
-    onRequestClick: () -> Unit,
+    isCustomRequest: Boolean,
+    onDeliveryRequestChange: (String) -> Unit,
+    onCustomRequestChange: (Boolean) -> Unit,
     saveAsDefault: Boolean,
     onSaveAsDefaultChange: (Boolean) -> Unit,
     errorMessage: String?,
     isSubmitting: Boolean,
     onSearchPostCodeClick: () -> Unit,
+    onSelectSavedAddress: (AddressResponse) -> Unit,
+    onDeleteSavedAddress: (Long) -> Unit,
     onCompleteClick: () -> Unit
 ) {
     Column(
@@ -444,7 +335,7 @@ private fun DeliveryAddressFormContent(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "등록된 주소가 없습니다.",
+            text = if (addresses.isEmpty()) "등록된 주소가 없습니다." else "배송지 정보를 입력하거나 기존 배송지를 선택하세요.",
             color = TitleColor,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold
@@ -458,6 +349,16 @@ private fun DeliveryAddressFormContent(
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium
         )
+
+        if (addresses.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(24.dp))
+
+            SavedAddressDropdown(
+                addresses = addresses,
+                onSelect = onSelectSavedAddress,
+                onDelete = onDeleteSavedAddress
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -509,7 +410,9 @@ private fun DeliveryAddressFormContent(
 
         DeliveryRequestSection(
             value = deliveryRequest,
-            onClick = onRequestClick
+            isCustomRequest = isCustomRequest,
+            onValueChange = onDeliveryRequestChange,
+            onCustomRequestChange = onCustomRequestChange
         )
 
         Spacer(modifier = Modifier.height(26.dp))
@@ -581,6 +484,150 @@ private fun DeliveryAddressFormContent(
         }
 
         Spacer(modifier = Modifier.height(18.dp))
+    }
+}
+
+@Composable
+private fun SavedAddressDropdown(
+    addresses: List<AddressResponse>,
+    onSelect: (AddressResponse) -> Unit,
+    onDelete: (Long) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var selectedLabel by remember { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = "등록된 배송지 선택",
+            color = LabelColor,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Box(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = true }
+            ) {
+                OutlinedTextField(
+                    value = selectedLabel,
+                    onValueChange = {},
+                    readOnly = true,
+                    enabled = false,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = {
+                        Text(
+                            text = "배송지를 선택해주세요",
+                            color = ValueColor,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    },
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        color = TitleColor,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    trailingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "expand",
+                            tint = ValueColor
+                        )
+                    },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = ScreenBg,
+                        unfocusedContainerColor = ScreenBg,
+                        disabledContainerColor = ScreenBg,
+                        errorContainerColor = ScreenBg,
+                        focusedIndicatorColor = DividerColor,
+                        unfocusedIndicatorColor = DividerColor,
+                        disabledIndicatorColor = DividerColor,
+                        focusedTextColor = TitleColor,
+                        unfocusedTextColor = TitleColor,
+                        disabledTextColor = TitleColor,
+                        disabledPlaceholderColor = ValueColor,
+                        disabledTrailingIconColor = ValueColor,
+                        cursorColor = StorePrimary
+                    )
+                )
+            }
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                addresses.forEach { item ->
+                    DropdownMenuItem(
+                        text = {
+                            Column(
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = buildString {
+                                        if (item.isDefault) append("[기본] ")
+                                        append(
+                                            if (item.addressName.isBlank()) item.recipient
+                                            else item.addressName
+                                        )
+                                    },
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = TitleColor,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+
+                                Spacer(modifier = Modifier.height(2.dp))
+
+                                Text(
+                                    text = "${item.zipCode} ${item.roadAddress}",
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = ValueColor,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        },
+                        onClick = {
+                            selectedLabel = buildString {
+                                if (item.isDefault) append("[기본] ")
+                                append(
+                                    if (item.addressName.isBlank()) item.recipient
+                                    else item.addressName
+                                )
+                            }
+                            expanded = false
+                            onSelect(item)
+                        },
+                        trailingIcon = {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clickable { onDelete(item.addressId) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "delete",
+                                    tint = ValueColor,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -729,8 +776,18 @@ private fun PostCodeSection(
 @Composable
 private fun DeliveryRequestSection(
     value: String,
-    onClick: () -> Unit
+    isCustomRequest: Boolean,
+    onValueChange: (String) -> Unit,
+    onCustomRequestChange: (Boolean) -> Unit
 ) {
+    var expanded by remember { mutableStateOf(false) }
+
+    val presetRequests = listOf(
+        "문 앞에 놔주세요",
+        "경비실에 맡겨주세요",
+        "직접 입력"
+    )
+
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -743,40 +800,129 @@ private fun DeliveryRequestSection(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = if (value.isBlank()) "배송 요청사항을 선택해주세요" else value,
-                color = if (value.isBlank()) TitleColor else ValueColor,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Medium
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = true }
+            ) {
+                OutlinedTextField(
+                    value = if (value.isBlank()) "" else value,
+                    onValueChange = {},
+                    readOnly = true,
+                    enabled = false,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = {
+                        Text(
+                            text = "배송 요청사항을 선택해주세요",
+                            color = ValueColor,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    },
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        color = TitleColor,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    trailingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "open",
+                            tint = ValueColor
+                        )
+                    },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = ScreenBg,
+                        unfocusedContainerColor = ScreenBg,
+                        disabledContainerColor = ScreenBg,
+                        errorContainerColor = ScreenBg,
+                        focusedIndicatorColor = DividerColor,
+                        unfocusedIndicatorColor = DividerColor,
+                        disabledIndicatorColor = DividerColor,
+                        focusedTextColor = TitleColor,
+                        unfocusedTextColor = TitleColor,
+                        disabledTextColor = TitleColor,
+                        disabledPlaceholderColor = ValueColor,
+                        disabledTrailingIconColor = ValueColor,
+                        cursorColor = StorePrimary
+                    )
+                )
+            }
 
-            Spacer(modifier = Modifier.weight(1f))
-
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowDown,
-                contentDescription = "open",
-                tint = Color(0xFF7A869A),
-                modifier = Modifier.size(22.dp)
-            )
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                presetRequests.forEach { item ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = item,
+                                color = TitleColor,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        },
+                        onClick = {
+                            expanded = false
+                            if (item == "직접 입력") {
+                                onCustomRequestChange(true)
+                                onValueChange("")
+                            } else {
+                                onCustomRequestChange(false)
+                                onValueChange(item)
+                            }
+                        }
+                    )
+                }
+            }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        if (isCustomRequest) {
+            Spacer(modifier = Modifier.height(14.dp))
 
-        HorizontalDivider(
-            thickness = 1.dp,
-            color = DividerColor
-        )
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = {
+                    Text(
+                        text = "배송 요청사항을 직접 입력해주세요",
+                        color = ValueColor,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                },
+                singleLine = false,
+                minLines = 3,
+                textStyle = TextStyle(
+                    color = TitleColor,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                ),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = ScreenBg,
+                    unfocusedContainerColor = ScreenBg,
+                    disabledContainerColor = ScreenBg,
+                    errorContainerColor = ScreenBg,
+                    focusedIndicatorColor = DividerColor,
+                    unfocusedIndicatorColor = DividerColor,
+                    disabledIndicatorColor = DividerColor,
+                    focusedTextColor = TitleColor,
+                    unfocusedTextColor = TitleColor,
+                    focusedPlaceholderColor = ValueColor,
+                    unfocusedPlaceholderColor = ValueColor,
+                    cursorColor = StorePrimary
+                )
+            )
+        }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddressSearchBottomSheet(
     uiState: AddressSearchUiState,
@@ -901,7 +1047,7 @@ private fun AddressSearchBottomSheet(
                             .height(320.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        items(uiState.results) { item: NaverGeocodeAddress ->
+                        items(uiState.results) { item ->
                             AddressSearchResultItem(
                                 item = item,
                                 onClick = { onSelect(item) }

@@ -25,8 +25,8 @@ android {
         buildConfigField("String", "BACKEND_BASE_URL", "\"https://j14d103.p.ssafy.io/\"")
         buildConfigField("String", "AI_BASE_URL", "\"http://j14d103.p.ssafy.io:8000/\"")
 
-        buildConfigField("String", "NAVER_MAPS_KEY_ID", "\"qg3aff0aq3\"")
-        buildConfigField("String", "NAVER_MAPS_KEY", "\"jxIha2aGGKv3QmsdfDydjBO2vrUsrel6oBiuiR97\"")
+        buildConfigField("String", "NAVER_MAPS_KEY_ID", "\"qbrw0rcppkd\"")
+        buildConfigField("String", "NAVER_MAPS_KEY", "\"AezRoYofhTJUqPEx5IVqlFCmt3ivhcifkczZmvZh\"")
     }
 
     buildTypes {

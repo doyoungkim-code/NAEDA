@@ -13,8 +13,8 @@ object NaverMapApiConfig {
     private const val BASE_URL = "https://maps.apigw.ntruss.com/"
 
 
-    private const val CLIENT_ID = "qg3aff0aq3"
-    private const val CLIENT_SECRET = "nvgN3KpY3aCV5uGsehXsemxrMx6PPT5oce0Iu9kt"
+    private const val CLIENT_ID = "brw0rcppkd"
+    private const val CLIENT_SECRET = "AezRoYofhTJUqPEx5IVqlFCmt3ivhcifkczZmvZh"
 
     private val authInterceptor = Interceptor { chain ->
         val request = chain.request()

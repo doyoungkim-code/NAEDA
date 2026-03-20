@@ -1,9 +1,7 @@
 package com.example.naedafront.ui.screen.store
 
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -15,7 +13,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -25,30 +22,19 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -58,13 +44,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.material3.Icon
 
 private data class StoreCategory(
     val id: String,
@@ -88,7 +74,7 @@ data class StoreItem(
 @Composable
 fun PointStoreScreen(
     onHistoryClick: () -> Unit = {},
-    onPurchaseClick: (StoreItem, Int) -> Unit = { _, _ -> },
+    onPurchaseClick: (StoreItem) -> Unit = {},
     viewModel: StoreViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -109,7 +95,6 @@ fun PointStoreScreen(
     }
 
     var selectedCategory by remember { mutableStateOf("all") }
-    var selectedItem by remember { mutableStateOf<StoreItem?>(null) }
 
     val saleItems = uiState.items.filter { it.status == "ON_SALE" }
 
@@ -238,24 +223,16 @@ fun PointStoreScreen(
                         items(filteredItems) { item ->
                             ProductCard(
                                 item = item,
-                                onClick = { selectedItem = item }
+                                onClick = {
+                                    StoreOrderDraftStore.updateSelectedItem(item)
+                                    onPurchaseClick(item)
+                                }
                             )
                         }
                     }
                 }
             }
         }
-    }
-
-    selectedItem?.let { item ->
-        PurchaseBottomSheet(
-            item = item,
-            onDismiss = { selectedItem = null },
-            onPurchaseClick = { quantity ->
-                onPurchaseClick(item, quantity)
-                selectedItem = null
-            }
-        )
     }
 }
 
@@ -613,378 +590,4 @@ private fun ProductCard(
             }
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PurchaseBottomSheet(
-    item: StoreItem,
-    onDismiss: () -> Unit,
-    onPurchaseClick: (Int) -> Unit
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var quantity by remember(item.id) { mutableIntStateOf(1) }
-    val scrollState = rememberScrollState()
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = Color(0xFFF7F7F8),
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(top = 10.dp, bottom = 8.dp)
-                    .width(52.dp)
-                    .height(5.dp)
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(Color(0xFFD1D5DB))
-            )
-        },
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-        ) {
-            Column(
-                modifier = Modifier
-                    .weight(1f, fill = false)
-                    .verticalScroll(scrollState)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp)
-                ) {
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "close",
-                            tint = Color(0xFF98A2B3)
-                        )
-                    }
-                }
-
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp),
-                    shape = RoundedCornerShape(0.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Column {
-                        ProductPreviewSection(item = item)
-
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 22.dp)
-                        ) {
-                            Text(
-                                text = "상품 정보",
-                                color = Color(0xFF111827),
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.ExtraBold
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            InfoRow(
-                                label = "유효기간",
-                                value = "발행일로부터 5년"
-                            )
-
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            InfoRow(
-                                label = "사용처",
-                                value = if (item.title.contains("상품권")) {
-                                    "구미시 내 가맹점"
-                                } else {
-                                    "해당 제휴처 사용 가능"
-                                }
-                            )
-
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "수량",
-                                    color = Color(0xFF98A2B3),
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-
-                                Spacer(modifier = Modifier.weight(1f))
-
-                                QuantitySelector(
-                                    quantity = quantity,
-                                    onDecrease = {
-                                        if (quantity > 1) quantity--
-                                    },
-                                    onIncrease = {
-                                        quantity++
-                                    }
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(22.dp))
-
-                            Text(
-                                text = "유의사항",
-                                color = Color(0xFF111827),
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.ExtraBold
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            if (item.title.contains("상품권")) {
-                                NoticeText("본 상품권은 실물 상품권 또는 모바일 상품권 형태로 제공될 수 있습니다.")
-                                NoticeText("포인트 구매 후 변심에 의한 환불은 불가합니다.")
-                                NoticeText("일부 매장에서는 사용이 제한될 수 있으니 미리 확인해 주세요.")
-                                NoticeText("해당 지자체 정책에 따라 사용 범위가 변경될 수 있습니다.")
-                            } else {
-                                NoticeText("구매 후 변심에 의한 환불은 불가합니다.")
-                                NoticeText("사용 가능 매장 및 조건은 제휴처 정책에 따릅니다.")
-                                NoticeText("유효기간 경과 시 사용이 제한될 수 있습니다.")
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFFF7F7F8))
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
-            ) {
-                Button(
-                    onClick = { onPurchaseClick(quantity) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(58.dp),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF00695C),
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text(
-                        text = "포인트로 구매하기",
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ProductPreviewSection(
-    item: StoreItem
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFFF7F7F8))
-                .padding(horizontal = 20.dp, vertical = 12.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFFF5EFE7))
-                    .padding(horizontal = 18.dp, vertical = 16.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(146.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFFF3F4F6)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = item.thumbnailLabel,
-                        color = Color(0xFF9CA3AF),
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                item.badge?.let { badge ->
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFE8F7F2))
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            text = badge,
-                            color = Color(0xFF0C8C72),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 18.dp)
-        ) {
-            Text(
-                text = item.brand,
-                color = Color(0xFF00695C),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = item.title,
-                color = Color(0xFF111827),
-                fontSize = 20.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "%,d P".format(item.pricePoint),
-                color = Color(0xFF111827),
-                fontSize = 22.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
-        }
-
-        HorizontalDivider(
-            thickness = 1.dp,
-            color = Color(0xFFEAECEF)
-        )
-    }
-}
-
-@Composable
-private fun InfoRow(
-    label: String,
-    value: String
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            color = Color(0xFF98A2B3),
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium
-        )
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        Text(
-            text = value,
-            color = Color(0xFF344054),
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold
-        )
-    }
-}
-
-@Composable
-private fun QuantitySelector(
-    quantity: Int,
-    onDecrease: () -> Unit,
-    onIncrease: () -> Unit
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        CircleActionButton(
-            icon = Icons.Default.Remove,
-            enabled = quantity > 1,
-            onClick = onDecrease
-        )
-
-        Text(
-            text = quantity.toString(),
-            color = Color(0xFF111827),
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        CircleActionButton(
-            icon = Icons.Default.Add,
-            enabled = true,
-            onClick = onIncrease
-        )
-    }
-}
-
-@Composable
-private fun CircleActionButton(
-    icon: ImageVector,
-    enabled: Boolean,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .size(30.dp)
-            .clip(CircleShape)
-            .background(if (enabled) Color(0xFFF3F4F6) else Color(0xFFF7F7F8))
-            .border(
-                width = 1.dp,
-                color = if (enabled) Color(0xFFD0D5DD) else Color(0xFFE5E7EB),
-                shape = CircleShape
-            )
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = if (enabled) Color(0xFF667085) else Color(0xFFC7CDD4),
-            modifier = Modifier.size(16.dp)
-        )
-    }
-}
-
-@Composable
-private fun NoticeText(
-    text: String
-) {
-    Text(
-        text = text,
-        color = Color(0xFF667085),
-        fontSize = 15.sp,
-        fontWeight = FontWeight.Medium,
-        lineHeight = 24.sp,
-        modifier = Modifier.padding(bottom = 10.dp)
-    )
 }
