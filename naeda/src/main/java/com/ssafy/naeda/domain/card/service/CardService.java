@@ -2,6 +2,7 @@ package com.ssafy.naeda.domain.card.service;
 
 import com.ssafy.naeda.domain.card.dto.request.CardRegisterRequest;
 import com.ssafy.naeda.domain.card.dto.request.CardTransactionRequest;
+import com.ssafy.naeda.domain.card.dto.response.CardProductResponse;
 import com.ssafy.naeda.domain.card.dto.response.CardRegisterResponse;
 import com.ssafy.naeda.domain.card.dto.response.CardResponse;
 import com.ssafy.naeda.domain.card.dto.response.CardTransactionResponse;
@@ -50,6 +51,10 @@ public class CardService {
     private static final String API_PATH = "/edu/creditCard/createCreditCard";
     private static final String API_NAME = "createCreditCard";
 
+    // SSAFY API 24: 카드 상품 조회
+    private static final String CARD_LIST_PATH = "/edu/creditCard/inquireCreditCardList";
+    private static final String CARD_LIST_API  = "inquireCreditCardList";
+
     private static final String CARD_TX_PATH = "/edu/creditCard/inquireCreditCardTransactionList";
     private static final String CARD_TX_API  = "inquireCreditCardTransactionList";
 
@@ -65,6 +70,38 @@ public class CardService {
     private final PayMethodRepository paymentMethodRepository;
     private final TransactionLogRepository transactionLogRepository;
     private final ConsumptionCategoryAiClient consumptionCategoryAiClient;
+
+    /**
+     * 발급 가능한 카드 상품 목록 조회 (SSAFY API 24).
+     */
+    @Transactional(readOnly = true)
+    public List<CardProductResponse> getCardProducts(Long userNo) {
+        User user = userRepository.findById(userNo)
+                .orElseThrow(() -> new NotFoundException("존재하지 않는 사용자입니다."));
+
+        Map<String, Object> header = ssafyHeaderFactory.create(CARD_LIST_API, user.getUserKey());
+        Map<String, Object> body = ssafyApiClient.buildBody(header);
+
+        Map<String, Object> response = ssafyApiClient.post(CARD_LIST_PATH, body);
+
+        Object recRaw = response.get("REC");
+        if (recRaw == null) {
+            return List.of();
+        }
+
+        if (recRaw instanceof List<?> list) {
+            return list.stream()
+                    .filter(item -> item instanceof Map)
+                    .map(item -> {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> rec = (Map<String, Object>) item;
+                        return CardProductResponse.fromSsafyRec(rec);
+                    })
+                    .toList();
+        }
+
+        return List.of();
+    }
 
     /**
      * 카드 등록.
