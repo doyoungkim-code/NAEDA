@@ -51,6 +51,18 @@ class PayMethodControllerTest {
         then(payMethodService).should().setDefault(10L, 2L);
     }
 
+    @Test
+    @DisplayName("페이스페이 사용 토글은 enabled 값을 포함해 서비스를 호출한다")
+    void setFacePay_delegatesToService() throws Exception {
+        PayMethod method = buildMethod(3L, 10L);
+        given(payMethodService.updateFacePay(10L, 3L, false)).willReturn(method);
+
+        ResponseEntity<PayMethod> response = payMethodController.setFacePay(3L, 10L, false);
+
+        assertThat(response.getBody()).isEqualTo(method);
+        then(payMethodService).should().updateFacePay(10L, 3L, false);
+    }
+
     private PayMethod buildMethod(Long paymentMethodId, Long userNo) throws Exception {
         PayMethod method = PayMethod.builder()
                 .userNo(userNo)
