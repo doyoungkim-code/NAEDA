@@ -30,23 +30,43 @@ STORE_KEYWORDS: dict[str | None, list[str]] = {
 
 FESTIVAL_KEYWORDS: list[str] = ["축제", "이벤트", "행사", "페스티벌", "공연", "전시"]
 
+# 구미 지역명 키워드 (동 단위)
+LOCATION_KEYWORDS: list[str] = [
+    "진평동", "인동", "구평동", "봉곡동", "도량동", "원평동", "형곡동",
+    "송정동", "지산동", "신평동", "비산동", "수점동", "광평동", "상모동",
+    "임수동", "남통동", "옥계동", "선산", "해평", "고아",
+    "진평", "구평", "봉곡", "도량", "원평", "형곡", "송정", "지산",
+    "신평", "비산", "수점", "광평", "상모", "임수", "남통", "옥계",
+]
 
-def detect_intent(message: str) -> tuple[str, str | None]:
-    """메시지에서 의도(store/festival/general)와 카테고리 키워드를 파악한다."""
+
+def detect_intent(message: str) -> tuple[str, str | None, str | None]:
+    """메시지에서 의도(store/festival/general), 카테고리, 지역 키워드를 파악한다."""
     msg = message.lower()
+
+    # 지역 키워드 추출
+    location: str | None = None
+    for loc in LOCATION_KEYWORDS:
+        if loc in msg:
+            location = loc
+            break
 
     # 축제 키워드 먼저 확인
     for kw in FESTIVAL_KEYWORDS:
         if kw in msg:
-            return "festival", None
+            return "festival", None, location
 
     # 매장 카테고리별 키워드 확인
     for category, keywords in STORE_KEYWORDS.items():
         for kw in keywords:
             if kw in msg:
-                return "store", category
+                return "store", category, location
 
-    return "general", None
+    # 지역명만 있으면 매장 검색으로 처리
+    if location:
+        return "store", None, location
+
+    return "general", None, None
 
 
 def _extract_referenced_ids(reply: str) -> tuple[list[int], list[int], str]:
@@ -73,16 +93,19 @@ def _extract_referenced_ids(reply: str) -> tuple[list[int], list[int], str]:
 
 async def chat(request: ChatRequest, db: AsyncSession) -> ChatResponse:
     """챗봇 메시지를 처리하고 응답을 생성한다."""
-    intent, category = detect_intent(request.message)
+    intent, category, location = detect_intent(request.message)
 
     # DB 조회
     stores: list[dict] = []
     festivals: list[dict] = []
 
     if intent == "store" or intent == "general":
-        stores = await search_stores(db, category_keyword=category)
+        stores = await search_stores(db, category_keyword=category, location_keyword=location)
     if intent == "festival" or intent == "general":
         festivals = await search_festivals(db)
+
+    logger.info("[ChatService] intent=%s, category=%s, location=%s, stores=%d, festivals=%d",
+                intent, category, location, len(stores), len(festivals))
 
     # 시스템 프롬프트 구성
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(

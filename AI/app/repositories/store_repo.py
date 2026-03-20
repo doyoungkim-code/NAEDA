@@ -9,9 +9,10 @@ settings = get_settings()
 async def search_stores(
     db: AsyncSession,
     category_keyword: str | None = None,
+    location_keyword: str | None = None,
     limit: int | None = None,
 ) -> list[dict]:
-    """카테고리 키워드로 매장을 검색한다. 평점순 정렬, 활성 매장만."""
+    """카테고리/지역 키워드로 매장을 검색한다. 평점순 + 랜덤 섞기, 활성 매장만."""
     if limit is None:
         limit = settings.chat_max_store_results
 
@@ -20,16 +21,22 @@ async def search_stores(
 
     if category_keyword:
         conditions.append(
-            "(category_name ILIKE :kw OR store_name ILIKE :kw)"
+            "(category_name ILIKE :cat_kw OR store_name ILIKE :cat_kw)"
         )
-        params["kw"] = f"%{category_keyword}%"
+        params["cat_kw"] = f"%{category_keyword}%"
+
+    if location_keyword:
+        conditions.append(
+            "(road_address ILIKE :loc_kw OR number_address ILIKE :loc_kw OR store_name ILIKE :loc_kw)"
+        )
+        params["loc_kw"] = f"%{location_keyword}%"
 
     where = " AND ".join(conditions)
     query = text(
-        f"SELECT store_id, store_name, category_name, road_address, "
+        f"SELECT store_id, store_name, category_name, road_address, number_address, "
         f"phone, is_local_business, face_pay_enabled, rating, description "
         f"FROM store WHERE {where} "
-        f"ORDER BY rating DESC LIMIT :limit"
+        f"ORDER BY rating DESC, RANDOM() LIMIT :limit"
     )
 
     result = await db.execute(query, params)
