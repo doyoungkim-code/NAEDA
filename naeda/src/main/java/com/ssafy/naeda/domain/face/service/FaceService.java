@@ -15,16 +15,15 @@ import com.ssafy.naeda.domain.face.repository.FaceEmbeddingRepository;
 import com.ssafy.naeda.domain.rba.dto.RbaResult;
 import com.ssafy.naeda.domain.rba.service.RbaEngine;
 import com.ssafy.naeda.domain.user.repository.UserRepository;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.util.Comparator;
-import java.util.List;
-import java.util.Set;
 
 @Slf4j
 @Service
@@ -37,6 +36,7 @@ public class FaceService {
     private final RbaEngine rbaEngine;
     private final FaceInputValidator faceInputValidator;
     private final UserRepository userRepository;
+    private final FaceRegistrationSessionService faceRegistrationSessionService;
 
     @Value("${face.threshold.match:0.7}")
     private float matchThreshold;
@@ -44,49 +44,28 @@ public class FaceService {
     @Value("${face.threshold.ambiguous:0.65}")
     private float ambiguousThreshold;
 
-    private static final Set<String> VALID_POSES = Set.of("front1", "front2", "front3", "left", "right", "up", "down");
     private static final Set<String> VALID_HEADPOSE_DIRECTIONS = Set.of("front", "left", "right", "up", "down");
 
     /**
      * 얼굴 등록
      * 1. pose 유효성 검사
      * 2. AI 서버에서 임베딩 추출
-     * 3. DB에 upsert (같은 userId+pose면 덮어씀)
+     * 3. 등록 세션에 임시 저장 및 동일인 검증
      */
     @Transactional
     public EnrollResponse enroll(String userId, String pose, MultipartFile image) {
         faceInputValidator.validateImage(image);
-        String normalizedPose = pose == null ? "" : pose.toLowerCase();
-        if (!VALID_POSES.contains(normalizedPose)) {
-            throw new FaceException(FaceErrorCode.INVALID_POSE);
-        }
-
         AiEmbeddingResult embeddingResult = aiClient.extractEmbedding(image);
-        float[] embedding = embeddingResult.getEmbedding();
-
-        // 이미 등록된 (userId, pose) 조합이면 업데이트, 없으면 새로 저장
-        FaceEmbedding entity = faceEmbeddingRepository.findByUserIdAndPose(userId, normalizedPose)
-                .map(existing -> {
-                    existing.updateEmbedding(embedding);
-                    return existing;
-                })
-                .orElseGet(() -> FaceEmbedding.builder()
-                        .userId(userId)
-                        .pose(normalizedPose)
-                        .embedding(embedding)
-                        .build());
-
-        faceEmbeddingRepository.save(entity);
-
-        log.info("얼굴 등록 완료: userId={}, pose={}", userId, normalizedPose);
-        return EnrollResponse.from(entity, AiProcessingInfo.from(embeddingResult));
+        EnrollResponse response = faceRegistrationSessionService.registerPose(userId, pose, embeddingResult);
+        log.info("얼굴 등록 세션 업데이트 완료: userId={}, pose={}", userId, pose);
+        return response;
     }
 
     /**
      * 얼굴 검색
      * 1. AI 서버에서 임베딩 추출
      * 2. DB의 모든 임베딩과 코사인 유사도 계산
-     * 3. 유사도 높은 순으로 topK 반환, threshold(0.7) 이상이면 matched
+     * 3. 유사도 높은 순으로 topK 반환, threshold 이상이면 matched
      */
     public SearchResponse search(MultipartFile image, int topK, long amount) {
         faceInputValidator.validateImage(image);
@@ -166,12 +145,6 @@ public class FaceService {
         return FaceMatchStatus.NO_MATCH;
     }
 
-    /**
-     * 얼굴 방향 검증
-     * 1. 기대 방향 유효성 검사
-     * 2. AI headpose API 호출
-     * 3. 방향 일치 여부 및 점수 반환
-     */
     public HeadPoseCheckResponse checkHeadPoseDirection(String expectedDirection, MultipartFile image) {
         faceInputValidator.validateImage(image);
         String normalized = expectedDirection == null ? "" : expectedDirection.toLowerCase();
@@ -182,19 +155,19 @@ public class FaceService {
         return HeadPoseCheckResponse.from(aiClient.checkHeadPose(normalized, image));
     }
 
-    /**
-     * 코사인 유사도 계산
-     * 두 벡터가 얼마나 비슷한지를 -1 ~ 1 사이 값으로 반환 (1에 가까울수록 동일인)
-     */
     private float cosineSimilarity(float[] a, float[] b) {
-        float dot = 0f, normA = 0f, normB = 0f;
+        float dot = 0f;
+        float normA = 0f;
+        float normB = 0f;
         int len = Math.min(a.length, b.length);
         for (int i = 0; i < len; i++) {
-            dot  += a[i] * b[i];
+            dot += a[i] * b[i];
             normA += a[i] * a[i];
             normB += b[i] * b[i];
         }
-        if (normA == 0f || normB == 0f) return 0f;
+        if (normA == 0f || normB == 0f) {
+            return 0f;
+        }
         return dot / (float) (Math.sqrt(normA) * Math.sqrt(normB));
     }
 

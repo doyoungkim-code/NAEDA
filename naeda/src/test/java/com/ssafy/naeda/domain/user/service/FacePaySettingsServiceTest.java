@@ -1,5 +1,8 @@
 package com.ssafy.naeda.domain.user.service;
 
+import com.ssafy.naeda.domain.face.service.FaceRegistrationSessionService;
+import com.ssafy.naeda.domain.pay.service.PayLimitService;
+import com.ssafy.naeda.domain.pay.service.PayMethodService;
 import com.ssafy.naeda.domain.user.dto.request.UpdateFacePaySettingsRequest;
 import com.ssafy.naeda.domain.user.dto.response.FacePaySettingsResponse;
 import com.ssafy.naeda.domain.user.entity.User;
@@ -17,7 +20,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class FacePaySettingsServiceTest {
@@ -31,35 +37,53 @@ class FacePaySettingsServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private FaceRegistrationSessionService faceRegistrationSessionService;
+
+    @Mock
+    private PayMethodService payMethodService;
+
+    @Mock
+    private PayLimitService payLimitService;
+
     @Test
-    @DisplayName("PIN 2차 인증을 사용하지 않으면 얼굴 등록만 완료 상태로 저장한다")
+    @DisplayName("PIN 2차 인증을 사용하지 않으면 얼굴 등록과 대표 결제수단, 한도를 함께 저장한다")
     void updateSettings_registersFaceWithoutSecondaryAuth() {
-        User user = baseUser().build();
+        User user = baseUser().userNo(1L).build();
         given(userRepository.findByUserId("user-1")).willReturn(Optional.of(user));
+        given(faceRegistrationSessionService.hasActiveSession("user-1")).willReturn(true);
+        given(faceRegistrationSessionService.isRegistrationReady("user-1")).willReturn(true);
 
         FacePaySettingsResponse response = facePaySettingsService.updateSettings(
                 "user-1",
-                request(false, null)
+                request(false, null, 7L, 300_000L, 3_000_000L, 100_000L)
         );
 
         assertThat(response.isFaceRegistered()).isTrue();
         assertThat(response.isSecondaryAuthEnabled()).isFalse();
         assertThat(user.getFaceRegistered()).isTrue();
         assertThat(user.getSecondaryAuthEnabled()).isFalse();
+        verify(faceRegistrationSessionService).persistPendingEmbeddings("user-1");
+        verify(payMethodService).setFacePay(1L, 7L);
+        verify(payLimitService).setLimit(eq(1L), any());
+        verify(faceRegistrationSessionService).clearSession("user-1");
     }
 
     @Test
     @DisplayName("현재 PIN이 일치하면 PIN 2차 인증 사용을 저장한다")
     void updateSettings_enablesSecondaryAuthWhenCurrentPinMatches() {
         User user = baseUser()
+                .userNo(1L)
                 .pinPassword("encoded-pin")
                 .build();
         given(userRepository.findByUserId("user-1")).willReturn(Optional.of(user));
         given(passwordEncoder.matches("123456", "encoded-pin")).willReturn(true);
+        given(faceRegistrationSessionService.hasActiveSession("user-1")).willReturn(true);
+        given(faceRegistrationSessionService.isRegistrationReady("user-1")).willReturn(true);
 
         FacePaySettingsResponse response = facePaySettingsService.updateSettings(
                 "user-1",
-                request(true, "123456")
+                request(true, "123456", 7L, 300_000L, 3_000_000L, 100_000L)
         );
 
         assertThat(response.isFaceRegistered()).isTrue();
@@ -72,11 +96,12 @@ class FacePaySettingsServiceTest {
     @DisplayName("PIN 2차 인증을 켜려면 현재 PIN 입력이 필요하다")
     void updateSettings_requiresCurrentPinWhenSecondaryAuthEnabled() {
         User user = baseUser()
+                .userNo(1L)
                 .pinPassword("encoded-pin")
                 .build();
         given(userRepository.findByUserId("user-1")).willReturn(Optional.of(user));
 
-        assertThatThrownBy(() -> facePaySettingsService.updateSettings("user-1", request(true, null)))
+        assertThatThrownBy(() -> facePaySettingsService.updateSettings("user-1", request(true, null, 7L, 300_000L, 3_000_000L, 100_000L)))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("현재 PIN을 입력해주세요.");
     }
@@ -85,20 +110,44 @@ class FacePaySettingsServiceTest {
     @DisplayName("현재 PIN이 다르면 PIN 2차 인증 사용을 저장할 수 없다")
     void updateSettings_rejectsInvalidCurrentPin() {
         User user = baseUser()
+                .userNo(1L)
                 .pinPassword("encoded-pin")
                 .build();
         given(userRepository.findByUserId("user-1")).willReturn(Optional.of(user));
         given(passwordEncoder.matches("654321", "encoded-pin")).willReturn(false);
 
-        assertThatThrownBy(() -> facePaySettingsService.updateSettings("user-1", request(true, "654321")))
+        assertThatThrownBy(() -> facePaySettingsService.updateSettings("user-1", request(true, "654321", 7L, 300_000L, 3_000_000L, 100_000L)))
                 .isInstanceOf(AuthenticationFailedException.class)
                 .hasMessage("현재 PIN이 일치하지 않습니다.");
     }
 
-    private static UpdateFacePaySettingsRequest request(boolean enableSecondaryAuth, String currentPin) {
+    @Test
+    @DisplayName("등록 세션이 있을 때 대표 결제수단이나 한도가 없으면 저장할 수 없다")
+    void updateSettings_requiresPaymentMethodAndLimitWhenRegistrationPending() {
+        User user = baseUser().userNo(1L).build();
+        given(userRepository.findByUserId("user-1")).willReturn(Optional.of(user));
+        given(faceRegistrationSessionService.hasActiveSession("user-1")).willReturn(true);
+
+        assertThatThrownBy(() -> facePaySettingsService.updateSettings("user-1", request(false, null, null, null, null, null)))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("대표 결제수단을 선택해주세요.");
+    }
+
+    private static UpdateFacePaySettingsRequest request(
+            boolean enableSecondaryAuth,
+            String currentPin,
+            Long paymentMethodId,
+            Long dailyLimit,
+            Long monthlyLimit,
+            Long singleTransactionLimit
+    ) {
         return UpdateFacePaySettingsRequest.builder()
                 .enableSecondaryAuth(enableSecondaryAuth)
                 .currentPin(currentPin)
+                .paymentMethodId(paymentMethodId)
+                .dailyLimit(dailyLimit)
+                .monthlyLimit(monthlyLimit)
+                .singleTransactionLimit(singleTransactionLimit)
                 .build();
     }
 
