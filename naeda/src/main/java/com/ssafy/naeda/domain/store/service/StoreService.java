@@ -174,11 +174,12 @@ public class StoreService {
      * 핵심: createMerchant 호출 전후 목록을 비교해서 새로 생긴 merchantId를 찾는다.
      */
     @Transactional
-    public Map<String, Object> registerAllUnregisteredMerchants() {
-        // ssafy_merchant_id가 null인 활성 매장 조회
+    public Map<String, Object> registerAllUnregisteredMerchants(int limit) {
+        // ssafy_merchant_id가 null인 활성 매장 조회 (limit 개수만)
         List<Store> unregistered = storeRepository.findAll().stream()
                 .filter(s -> Boolean.TRUE.equals(s.getIsActive()))
                 .filter(s -> s.getSsafyMerchantId() == null)
+                .limit(limit)
                 .toList();
 
         if (unregistered.isEmpty()) {
@@ -251,12 +252,19 @@ public class StoreService {
             }
         }
 
-        return Map.of(
-                "total", unregistered.size(),
-                "success", successCount,
-                "fail", failCount,
-                "details", results
-        );
+        // 남은 미등록 매장 수 계산
+        long remaining = storeRepository.findAll().stream()
+                .filter(s -> Boolean.TRUE.equals(s.getIsActive()))
+                .filter(s -> s.getSsafyMerchantId() == null)
+                .count();
+
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("total", unregistered.size());
+        result.put("success", successCount);
+        result.put("fail", failCount);
+        result.put("remaining", remaining);
+        result.put("details", results);
+        return result;
     }
 
     /**

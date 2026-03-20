@@ -50,11 +50,13 @@ public class StoreController {
     }
 
     /**
-     * SSAFY 가맹점 미등록 매장 일괄 등록
-     * POST /api/stores/register-merchants
+     * SSAFY 가맹점 미등록 매장 일괄 등록 (limit 단위로 처리)
+     * POST /api/stores/register-merchants?limit=50
      */
     @PostMapping("/register-merchants")
-    public ResponseEntity<Map<String, Object>> registerAllMerchants() {
-        return ResponseEntity.ok(storeService.registerAllUnregisteredMerchants());
+    public ResponseEntity<Map<String, Object>> registerAllMerchants(
+            @RequestParam(defaultValue = "50") int limit
+    ) {
+        return ResponseEntity.ok(storeService.registerAllUnregisteredMerchants(limit));
     }
 }
