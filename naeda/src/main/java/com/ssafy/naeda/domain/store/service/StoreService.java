@@ -167,6 +167,111 @@ public class StoreService {
         return "PUBLIC_BAKERY".equals(request.getCategoryId()) ? "제과점영업" : "한식";
     }
 
+    /**
+     * DB에 존재하지만 SSAFY 가맹점 등록이 안 된 매장들을 일괄 등록하고
+     * 발급받은 merchantId를 매핑한다.
+     */
+    @Transactional
+    public Map<String, Object> registerAllUnregisteredMerchants() {
+        // ssafy_merchant_id가 null인 활성 매장 조회
+        List<Store> unregistered = storeRepository.findAll().stream()
+                .filter(s -> Boolean.TRUE.equals(s.getIsActive()))
+                .filter(s -> s.getSsafyMerchantId() == null)
+                .toList();
+
+        if (unregistered.isEmpty()) {
+            return Map.of("message", "등록할 매장이 없습니다.", "registered", 0);
+        }
+
+        int successCount = 0;
+        int failCount = 0;
+        List<Map<String, Object>> results = new java.util.ArrayList<>();
+
+        for (Store store : unregistered) {
+            try {
+                // 공공 CSV 카테고리를 SSAFY 카테고리로 매핑
+                String ssafyCategoryId = mapToSsafyCategoryId(store.getCategoryId());
+
+                Map<String, Object> header = ssafyHeaderFactory.create("createMerchant");
+                Map<String, Object> body = ssafyApiClient.buildBody(header,
+                        "categoryId", ssafyCategoryId,
+                        "merchantName", store.getStoreName()
+                );
+                Map<String, Object> response = ssafyApiClient.post(CREATE_MERCHANT_API, body);
+
+                List<SsafyMerchantRec> merchants = parseMerchantList(response);
+
+                // 방금 등록한 가맹점 찾기 (이름 일치하는 마지막 항목)
+                SsafyMerchantRec registered = merchants.stream()
+                        .filter(rec -> Objects.equals(store.getStoreName(), rec.getMerchantName()))
+                        .reduce((first, second) -> second)
+                        .orElse(null);
+
+                if (registered != null) {
+                    Long merchantId = parseLong(registered.getMerchantId());
+                    store.assignSsafyIdentity(merchantId);
+                    storeRepository.save(store);
+                    successCount++;
+                    results.add(Map.of(
+                            "storeId", store.getStoreId(),
+                            "storeName", store.getStoreName(),
+                            "merchantId", merchantId != null ? merchantId : "null",
+                            "status", "SUCCESS"
+                    ));
+                    log.info("[StoreService] SSAFY 가맹점 등록 성공: storeId={}, storeName={}, merchantId={}",
+                            store.getStoreId(), store.getStoreName(), merchantId);
+                } else {
+                    failCount++;
+                    results.add(Map.of(
+                            "storeId", store.getStoreId(),
+                            "storeName", store.getStoreName(),
+                            "status", "FAIL",
+                            "reason", "응답에서 매장을 찾을 수 없음"
+                    ));
+                    log.warn("[StoreService] SSAFY 가맹점 등록 실패 (응답 매칭 불가): storeId={}, storeName={}",
+                            store.getStoreId(), store.getStoreName());
+                }
+            } catch (Exception e) {
+                failCount++;
+                results.add(Map.of(
+                        "storeId", store.getStoreId(),
+                        "storeName", store.getStoreName(),
+                        "status", "FAIL",
+                        "reason", e.getMessage() != null ? e.getMessage() : "알 수 없는 오류"
+                ));
+                log.error("[StoreService] SSAFY 가맹점 등록 중 오류: storeId={}, storeName={}, error={}",
+                        store.getStoreId(), store.getStoreName(), e.getMessage());
+            }
+        }
+
+        return Map.of(
+                "total", unregistered.size(),
+                "success", successCount,
+                "fail", failCount,
+                "details", results
+        );
+    }
+
+    /**
+     * 공공 CSV 카테고리 → SSAFY 카테고리 매핑.
+     * PUBLIC_RESTAURANT, PUBLIC_BAKERY 등은 SSAFY의 "생활" 카테고리로 매핑.
+     * 이미 SSAFY 카테고리 ID(CG- 접두사)이면 그대로 사용.
+     */
+    private String mapToSsafyCategoryId(String categoryId) {
+        if (categoryId == null) {
+            return "CG-9ca85f66311a23d"; // 기본: 생활
+        }
+        if (categoryId.startsWith("CG-")) {
+            return categoryId; // 이미 SSAFY 카테고리
+        }
+        // 공공 CSV 카테고리 → SSAFY "생활" 카테고리로 매핑
+        return switch (categoryId) {
+            case "PUBLIC_RESTAURANT" -> "CG-9ca85f66311a23d"; // 생활 (음식점, 커피전문점, 편의점, 약국..)
+            case "PUBLIC_BAKERY"     -> "CG-9ca85f66311a23d"; // 생활
+            default                  -> "CG-9ca85f66311a23d"; // 기본: 생활
+        };
+    }
+
     private List<SsafyMerchantRec> parseMerchantList(Map<String, Object> response) {
         Object rec = response.get("REC");
         if (rec == null) return List.of();

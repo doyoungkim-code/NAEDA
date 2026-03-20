@@ -6,6 +6,7 @@ import com.ssafy.naeda.domain.store.dto.response.StoreResponse;
 import com.ssafy.naeda.domain.store.service.StoreService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -46,5 +47,14 @@ public class StoreController {
     @PostMapping("/public")
     public ResponseEntity<StoreResponse> createPublicStore(@Valid @RequestBody PublicStoreCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(storeService.createPublicStore(request));
+    }
+
+    /**
+     * SSAFY 가맹점 미등록 매장 일괄 등록
+     * POST /api/stores/register-merchants
+     */
+    @PostMapping("/register-merchants")
+    public ResponseEntity<Map<String, Object>> registerAllMerchants() {
+        return ResponseEntity.ok(storeService.registerAllUnregisteredMerchants());
     }
 }

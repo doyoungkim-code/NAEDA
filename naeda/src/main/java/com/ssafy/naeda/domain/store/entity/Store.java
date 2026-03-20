@@ -120,6 +120,7 @@ public class Store {
         this.sourceType = StoreSourceType.SSAFY;
         this.ssafyMerchantId = ssafyMerchantId;
         this.sourceKey = ssafyMerchantId == null ? null : "ssafy:" + ssafyMerchantId;
+        this.facePayEnabled = true;
     }
 
     public void updateEnrichment(String imageUrl, String description, Double rating, LocalDateTime enrichedAt) {
