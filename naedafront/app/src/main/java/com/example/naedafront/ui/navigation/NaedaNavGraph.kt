@@ -1,5 +1,6 @@
 package com.example.naedafront.ui.navigation
 
+
 import androidx.compose.runtime.collectAsState
 import com.example.naedafront.ui.screen.home.HomeViewModel
 import androidx.compose.foundation.layout.Box
@@ -26,6 +27,7 @@ import com.example.naedafront.data.remote.FaceRegistrationRepository
 import com.example.naedafront.ui.screen.LoginScreen
 import com.example.naedafront.ui.screen.NotificationScreen
 import com.example.naedafront.ui.screen.WelcomeScreen
+
 import com.example.naedafront.ui.screen.asset.AccountDetailRoute
 import com.example.naedafront.ui.screen.asset.AccountListRoute
 import com.example.naedafront.ui.screen.asset.CardDetailScreen
@@ -230,7 +232,7 @@ fun NaedaNavGraph(
                 onBackClick = { navController.popBackStack() },
                 onSearchPostCodeClick = { },
                 onRequestClick = { },
-                onSaveAndPayClick = { _, _, _, _, _, _, _ ->
+                onAddressSelected = { _: com.example.naedafront.data.remote.response.AddressResponse ->
                     navController.navigate(Screen.OrderComplete.route)
                 }
             )
