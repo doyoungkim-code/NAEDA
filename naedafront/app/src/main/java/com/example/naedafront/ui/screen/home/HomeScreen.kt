@@ -64,6 +64,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.naedafront.data.remote.AssetAccountResponse
 import com.example.naedafront.ui.theme.Background
 import com.example.naedafront.ui.theme.KronaOneFontFamily
 import com.example.naedafront.ui.theme.Mint100
@@ -98,15 +99,20 @@ data class NoticeItem(
 
 data class HomeUiState(
     val userName: String = "사용자",
-    val isAccountLinked: Boolean = true,
     val isFaceRegistered: Boolean = false,
-    val totalBalance: Long = 18_240_500L,
     val recentTransactions: List<TransactionItem> = emptyList(),
     val spendingCategories: List<SpendingCategory> = emptyList(),
     val topSpendingCategory: String? = null,
     val topSpendingAmount: Long = 0L,
-    val notices: List<NoticeItem> = emptyList()
-)
+    val notices: List<NoticeItem> = emptyList(),
+
+    val account: AssetAccountResponse? = null,
+    val isLoadingAccount: Boolean = true,  // ← false → true 로 변경
+    val accountError: String? = null
+) {
+    val isAccountLinked: Boolean get() = account != null
+
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -144,13 +150,13 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (uiState.isAccountLinked) {
-                BalanceCard(
-                    totalBalance = uiState.totalBalance,
+            when {
+                uiState.isLoadingAccount -> BalanceCardSkeleton()
+                uiState.isAccountLinked -> BalanceCard(
+                    account = uiState.account!!,
                     onTransactionClick = onTransactionClick
                 )
-            } else {
-                LinkAccountCard(onLinkAccountClick = onLinkAccountClick)
+                else -> LinkAccountCard(onLinkAccountClick = onLinkAccountClick)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -279,17 +285,15 @@ private fun GreetingSection(
 
 @Composable
 private fun BalanceCard(
-    totalBalance: Long,
+    account: AssetAccountResponse,
     onTransactionClick: () -> Unit
 ) {
-    val balanceCardColor = Color(0xFF00635A)
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = balanceCardColor),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF00635A)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -298,11 +302,18 @@ private fun BalanceCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "총 잔액",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.78f)
-                )
+                Column {
+                    Text(
+                        text = account.bankName ?: "",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White.copy(alpha = 0.65f)
+                    )
+                    Text(
+                        text = account.accountNo?.maskAccountNo() ?: "",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.45f)
+                    )
+                }
                 Icon(
                     Icons.Default.AccountBalanceWallet,
                     contentDescription = null,
@@ -311,10 +322,18 @@ private fun BalanceCard(
                 )
             }
 
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = account.accountName ?: "",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.7f)
+            )
+
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "₩${"%,d".format(totalBalance)}",
+                text = "₩${"%,d".format(account.accountBalance ?: 0L)}",
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 30.sp
@@ -334,10 +353,7 @@ private fun BalanceCard(
                     containerColor = Color.White.copy(alpha = 0.08f),
                     contentColor = Color.White
                 ),
-                border = BorderStroke(
-                    1.dp,
-                    Color.White.copy(alpha = 0.28f)
-                )
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.28f))
             ) {
                 Text(
                     "거래내역",
@@ -349,6 +365,21 @@ private fun BalanceCard(
             }
         }
     }
+}
+
+@Composable
+private fun BalanceCardSkeleton() {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .height(160.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF00635A).copy(alpha = 0.4f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {}
 }
 
 @Composable
@@ -824,65 +855,59 @@ private fun RecentTransactionsSection(
     transactions: List<TransactionItem>,
     onViewAllClick: () -> Unit
 ) {
-    val displayItems = if (transactions.isEmpty()) {
-        listOf(
-            TransactionItem(
-                title = "전자 기기 상점",
-                subTitle = "오늘 오후 2:45",
-                amount = "-₩249,000",
-                isIncome = false,
-                iconBg = Color(0xFF5C6BC0).copy(alpha = 0.15f),
-                icon = Icons.Default.ShoppingBag
-            ),
-            TransactionItem(
-                title = "급여 입금",
-                subTitle = "어제",
-                amount = "+₩4,250,000",
-                isIncome = true,
-                iconBg = Success.copy(alpha = 0.12f),
-                icon = Icons.Default.AccountBalance
-            ),
-            TransactionItem(
-                title = "스타벅스",
-                subTitle = "10월 24일 오전 9:12",
-                amount = "-₩6,500",
-                isIncome = false,
-                iconBg = Color(0xFF00704A).copy(alpha = 0.12f),
-                icon = Icons.Default.LocalCafe
-            )
-        )
-    } else transactions
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "최근 거래 내역",
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = OnBackground
+                )
+                Text(
+                    text = "전체보기",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Mint900,
+                    modifier = Modifier.clickable { onViewAllClick() }
+                )
+            }
 
-    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "최근 거래 내역",
-                style = MaterialTheme.typography.titleSmall.copy(
-                    fontWeight = FontWeight.Bold
-                ),
-                color = OnBackground
-            )
-            Text(
-                text = "전체보기",
-                style = MaterialTheme.typography.labelMedium,
-                color = Mint900,
-                modifier = Modifier.clickable { onViewAllClick() }
-            )
-        }
+            Spacer(modifier = Modifier.height(12.dp))
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        displayItems.forEach { item ->
-            TransactionRow(item = item)
-            Spacer(modifier = Modifier.height(4.dp))
+            if (transactions.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "최근 거래 내역이 없습니다.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = OnBackground.copy(alpha = 0.5f)
+                    )
+                }
+            } else {
+                transactions.forEach { item ->
+                    TransactionRow(item = item)
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+            }
         }
     }
 }
-
 @Composable
 private fun TransactionRow(item: TransactionItem) {
     Row(
@@ -936,12 +961,26 @@ private fun TransactionRow(item: TransactionItem) {
     }
 }
 
+private fun String.maskAccountNo(): String =
+    if (length <= 4) this
+    else "*".repeat(length - 4) + takeLast(4)
+
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun HomeScreenLinkedPreview() {
     NaedaTheme {
         HomeScreen(
-            uiState = HomeUiState(isAccountLinked = true)
+            uiState = HomeUiState(
+                account = AssetAccountResponse(
+                    accountId = 1L,
+                    bankCode = "088",
+                    bankName = "신한은행",
+                    accountNo = "110-123-456789",
+                    accountName = "입출금통장",
+                    accountBalance = 18_240_500L,
+                    currency = "KRW"
+                )
+            )
         )
     }
 }
@@ -950,9 +989,7 @@ fun HomeScreenLinkedPreview() {
 @Composable
 fun HomeScreenUnlinkedPreview() {
     NaedaTheme {
-        HomeScreen(
-            uiState = HomeUiState(isAccountLinked = false)
-        )
+        HomeScreen(uiState = HomeUiState(account = null))
     }
 }
 
@@ -961,7 +998,18 @@ fun HomeScreenUnlinkedPreview() {
 fun HomeScreenFaceRegisteredPreview() {
     NaedaTheme {
         HomeScreen(
-            uiState = HomeUiState(isFaceRegistered = true)
+            uiState = HomeUiState(
+                isFaceRegistered = true,
+                account = AssetAccountResponse(
+                    accountId = 1L,
+                    bankCode = "088",
+                    bankName = "신한은행",
+                    accountNo = "110-123-456789",
+                    accountName = "입출금통장",
+                    accountBalance = 18_240_500L,
+                    currency = "KRW"
+                )
+            )
         )
     }
 }

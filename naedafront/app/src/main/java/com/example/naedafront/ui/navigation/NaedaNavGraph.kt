@@ -24,6 +24,7 @@ import androidx.navigation.navArgument
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.FaceRegistrationRepository
 import com.example.naedafront.ui.screen.LoginScreen
+import com.example.naedafront.ui.screen.NotificationScreen
 import com.example.naedafront.ui.screen.WelcomeScreen
 import com.example.naedafront.ui.screen.asset.AccountDetailRoute
 import com.example.naedafront.ui.screen.asset.AccountListRoute
@@ -34,7 +35,6 @@ import com.example.naedafront.ui.screen.facepay.FaceMatchRecognizeScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchResultScreen
 import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
 import com.example.naedafront.ui.screen.home.HomeScreen
-import com.example.naedafront.ui.screen.home.HomeUiState
 import com.example.naedafront.ui.screen.map.MapRegion
 import com.example.naedafront.ui.screen.map.MapSelectScreen
 import com.example.naedafront.ui.screen.mypage.MyPageScreen
@@ -97,9 +97,7 @@ fun NaedaNavGraph(
             SignUpRrnScreen(
                 signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = {
-                    navController.navigate(Screen.SignUpPhone.route)
-                }
+                onConfirmClick = { navController.navigate(Screen.SignUpPhone.route) }
             )
         }
 
@@ -124,14 +122,11 @@ fun NaedaNavGraph(
             )
         ) { backStackEntry ->
             val phone = backStackEntry.arguments?.getString("phone") ?: ""
-
             SignUpVerifyScreen(
                 signUpViewModel = signUpViewModel,
                 phoneNumber = phone,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = {
-                    navController.navigate(Screen.SignUpEmail.route)
-                },
+                onConfirmClick = { navController.navigate(Screen.SignUpEmail.route) },
                 onResendClick = { }
             )
         }
@@ -218,12 +213,8 @@ fun NaedaNavGraph(
 
         composable(Screen.Store.route) {
             PointStoreScreen(
-                onHistoryClick = {
-                    navController.navigate(Screen.PointHistory.route)
-                },
-                onPurchaseClick = { _, _ ->
-                    navController.navigate(Screen.DeliveryAddress.route)
-                }
+                onHistoryClick = { navController.navigate(Screen.PointHistory.route) },
+                onPurchaseClick = { _, _ -> navController.navigate(Screen.DeliveryAddress.route) }
             )
         }
 
@@ -253,9 +244,7 @@ fun NaedaNavGraph(
                         launchSingleTop = true
                     }
                 },
-                onOrderHistoryClick = {
-                    navController.navigate(Screen.PointHistory.route)
-                },
+                onOrderHistoryClick = { navController.navigate(Screen.PointHistory.route) },
                 onHomeClick = {
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Home.route) { inclusive = true }
@@ -272,11 +261,9 @@ fun NaedaNavGraph(
                     navController.currentBackStackEntry
                         ?.savedStateHandle
                         ?.set("selectedRegion", region.label)
-
                     navController.currentBackStackEntry
                         ?.savedStateHandle
                         ?.set("selectedRestaurant", restaurantName)
-
                     navController.navigate(Screen.GumiMap.route)
                 }
             )
@@ -307,12 +294,8 @@ fun NaedaNavGraph(
 
         composable(Screen.More.route) {
             SettingsScreen(
-                onNotificationClick = {
-                    navController.navigate(Screen.Notification.route)
-                },
-                onPinChangeClick = {
-                    navController.navigate(Screen.Security.route)
-                },
+                onNotificationClick = { navController.navigate(Screen.Notification.route) },
+                onPinChangeClick = { navController.navigate(Screen.Security.route) },
                 onTermsClick = { },
                 onPrivacyClick = { },
                 onSupportClick = { },
@@ -352,59 +335,30 @@ fun NaedaNavGraph(
             )
         }
 
-        composable(Screen.FaceIntro.route) {
-            PlaceholderScreen("페이스페이 소개")
-        }
-
-        composable(Screen.FaceGuide.route) {
-            PlaceholderScreen("촬영 가이드")
-        }
-
-        composable(Screen.FaceCapture.route) {
-            PlaceholderScreen("카메라 촬영")
-        }
-
-        composable(Screen.FaceAnalyzing.route) {
-            PlaceholderScreen("분석 중...")
-        }
-
-        composable(Screen.FaceComplete.route) {
-            PlaceholderScreen("등록 완료!")
-        }
+        composable(Screen.FaceIntro.route) { PlaceholderScreen("페이스페이 소개") }
+        composable(Screen.FaceGuide.route) { PlaceholderScreen("촬영 가이드") }
+        composable(Screen.FaceCapture.route) { PlaceholderScreen("카메라 촬영") }
+        composable(Screen.FaceAnalyzing.route) { PlaceholderScreen("분석 중...") }
+        composable(Screen.FaceComplete.route) { PlaceholderScreen("등록 완료!") }
 
         composable(Screen.GumiMap.route) {
             val selectedRegion = navController
-                .previousBackStackEntry
-                ?.savedStateHandle
-                ?.get<String>("selectedRegion")
-                .orEmpty()
-
+                .previousBackStackEntry?.savedStateHandle?.get<String>("selectedRegion").orEmpty()
             val selectedRestaurant = navController
-                .previousBackStackEntry
-                ?.savedStateHandle
-                ?.get<String>("selectedRestaurant")
-                .orEmpty()
+                .previousBackStackEntry?.savedStateHandle?.get<String>("selectedRestaurant").orEmpty()
 
             PlaceholderScreen(
                 when {
-                    selectedRegion.isBlank() && selectedRestaurant.isBlank() -> {
-                        "🗺️ 구미 맛집 지도"
-                    }
-                    selectedRestaurant.isBlank() -> {
-                        "🗺️ 구미 맛집 지도\n선택 지역: $selectedRegion"
-                    }
-                    else -> {
-                        "🗺️ 구미 맛집 지도\n선택 지역: $selectedRegion\n맛집: $selectedRestaurant"
-                    }
+                    selectedRegion.isBlank() && selectedRestaurant.isBlank() -> "🗺️ 구미 맛집 지도"
+                    selectedRestaurant.isBlank() -> "🗺️ 구미 맛집 지도\n선택 지역: $selectedRegion"
+                    else -> "🗺️ 구미 맛집 지도\n선택 지역: $selectedRegion\n맛집: $selectedRestaurant"
                 }
             )
         }
 
         composable(
             route = Screen.StoreDetail.route,
-            arguments = listOf(
-                navArgument("storeId") { type = NavType.StringType }
-            )
+            arguments = listOf(navArgument("storeId") { type = NavType.StringType })
         ) { backStackEntry ->
             val storeId = backStackEntry.arguments?.getString("storeId") ?: ""
             PlaceholderScreen("매장 상세: $storeId")
@@ -413,14 +367,10 @@ fun NaedaNavGraph(
         composable(
             route = Screen.AccountList.route,
             arguments = listOf(
-                navArgument("tab") {
-                    type = NavType.IntType
-                    defaultValue = 0
-                }
+                navArgument("tab") { type = NavType.IntType; defaultValue = 0 }
             )
         ) { backStackEntry ->
             val tab = backStackEntry.arguments?.getInt("tab") ?: 0
-
             AccountListRoute(
                 initialTab = tab,
                 onBack = { navController.popBackStack() },
@@ -445,12 +395,9 @@ fun NaedaNavGraph(
 
         composable(
             route = Screen.RegisterAsset.route,
-            arguments = listOf(
-                navArgument("tab") { type = NavType.IntType }
-            )
+            arguments = listOf(navArgument("tab") { type = NavType.IntType })
         ) { backStackEntry ->
             val tab = backStackEntry.arguments?.getInt("tab") ?: 0
-
             RegisterAssetScreen(
                 initialTab = tab,
                 onBack = {
@@ -485,12 +432,9 @@ fun NaedaNavGraph(
 
         composable(
             route = Screen.CardDetail.route,
-            arguments = listOf(
-                navArgument("cardId") { type = NavType.StringType }
-            )
+            arguments = listOf(navArgument("cardId") { type = NavType.StringType })
         ) { backStackEntry ->
             val cardId = backStackEntry.arguments?.getString("cardId") ?: ""
-
             CardDetailScreen(
                 cardId = cardId,
                 onBack = { navController.popBackStack() }
@@ -507,36 +451,19 @@ fun NaedaNavGraph(
             )
         }
 
-        composable(Screen.Report.route) {
-            PlaceholderScreen("📊 소비 리포트")
-        }
-
-        composable(Screen.Coupon.route) {
-            PlaceholderScreen("할인권 교환")
-        }
-
-        composable(Screen.Donation.route) {
-            PlaceholderScreen("후원하기")
-        }
+        composable(Screen.Report.route) { PlaceholderScreen("📊 소비 리포트") }
+        composable(Screen.Coupon.route) { PlaceholderScreen("할인권 교환") }
+        composable(Screen.Donation.route) { PlaceholderScreen("후원하기") }
 
         composable(Screen.MyPage.route) {
             val myPageViewModel: MyPageViewModel = viewModel()
-
             MyPageScreen(
                 viewModel = myPageViewModel,
                 onBackClick = { navController.popBackStack() },
-                onNotificationClick = {
-                    navController.navigate(Screen.Notification.route)
-                },
-                onSettingsClick = {
-                    navController.navigate(Screen.Settings.route)
-                },
-                onFaceReRegisterClick = {
-                    navController.navigate(Screen.FaceRegister.route)
-                },
-                onPinChangeClick = {
-                    navController.navigate(Screen.Security.route)
-                },
+                onNotificationClick = { navController.navigate(Screen.Notification.route) },
+                onSettingsClick = { navController.navigate(Screen.Settings.route) },
+                onFaceReRegisterClick = { navController.navigate(Screen.FaceRegister.route) },
+                onPinChangeClick = { navController.navigate(Screen.Security.route) },
                 onEditProfileClick = { },
                 onContactManageClick = { },
                 onCustomerCenterClick = { },
@@ -553,12 +480,8 @@ fun NaedaNavGraph(
 
         composable(Screen.Settings.route) {
             SettingsScreen(
-                onNotificationClick = {
-                    navController.navigate(Screen.Notification.route)
-                },
-                onPinChangeClick = {
-                    navController.navigate(Screen.Security.route)
-                },
+                onNotificationClick = { navController.navigate(Screen.Notification.route) },
+                onPinChangeClick = { navController.navigate(Screen.Security.route) },
                 onTermsClick = { },
                 onPrivacyClick = { },
                 onSupportClick = { },
@@ -573,13 +496,14 @@ fun NaedaNavGraph(
             )
         }
 
+        // ── 알림 화면 ──
         composable(Screen.Notification.route) {
-            PlaceholderScreen("🔔 알림")
+            NotificationScreen(
+                onBackClick = { navController.popBackStack() }
+            )
         }
 
-        composable(Screen.Security.route) {
-            PlaceholderScreen("🔒 보안 내역")
-        }
+        composable(Screen.Security.route) { PlaceholderScreen("🔒 보안 내역") }
     }
 }
 
@@ -589,9 +513,6 @@ private fun PlaceholderScreen(name: String) {
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = name,
-            fontSize = 24.sp
-        )
+        Text(text = name, fontSize = 24.sp)
     }
 }
