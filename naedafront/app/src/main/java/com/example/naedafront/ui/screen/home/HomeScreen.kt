@@ -1,6 +1,11 @@
 package com.example.naedafront.ui.screen.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
+import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.example.naedafront.R
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -25,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.LocationOn
@@ -32,6 +38,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -42,6 +49,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -129,7 +137,8 @@ fun HomeScreen(
     onSearchClick: () -> Unit = {},
     onAlarmClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
-    onSecretFaceMatchTestClick: () -> Unit = {}
+    onSecretFaceMatchTestClick: () -> Unit = {},
+    onChatClick: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -138,6 +147,9 @@ fun HomeScreen(
                 onAlarmClick = onAlarmClick,
                 onProfileClick = onProfileClick
             )
+        },
+        floatingActionButton = {
+            ChatFloatingButton(onClick = onChatClick)
         },
         containerColor = Background
     ) { innerPadding ->
@@ -971,6 +983,23 @@ private fun TransactionRow(item: TransactionItem) {
                 fontWeight = FontWeight.Bold
             ),
             color = if (item.isIncome) Success else OnBackground
+        )
+    }
+}
+
+@Composable
+private fun ChatFloatingButton(onClick: () -> Unit) {
+    FloatingActionButton(
+        onClick = onClick,
+        containerColor = Mint900,
+        contentColor = Color.White,
+        shape = CircleShape,
+        modifier = Modifier.size(56.dp)
+    ) {
+        Icon(
+            Icons.Default.SmartToy,
+            contentDescription = "챗봇",
+            modifier = Modifier.size(28.dp)
         )
     }
 }
