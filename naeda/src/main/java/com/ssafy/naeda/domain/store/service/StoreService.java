@@ -170,6 +170,8 @@ public class StoreService {
     /**
      * DB에 존재하지만 SSAFY 가맹점 등록이 안 된 매장들을 일괄 등록하고
      * 발급받은 merchantId를 매핑한다.
+     *
+     * 핵심: createMerchant 호출 전후 목록을 비교해서 새로 생긴 merchantId를 찾는다.
      */
     @Transactional
     public Map<String, Object> registerAllUnregisteredMerchants() {
@@ -187,11 +189,14 @@ public class StoreService {
         int failCount = 0;
         List<Map<String, Object>> results = new java.util.ArrayList<>();
 
+        // 현재 SSAFY에 등록된 전체 가맹점 목록의 merchantId 집합을 먼저 조회
+        Set<String> knownMerchantIds = fetchCurrentMerchantIds();
+
         for (Store store : unregistered) {
             try {
-                // 공공 CSV 카테고리를 SSAFY 카테고리로 매핑
                 String ssafyCategoryId = mapToSsafyCategoryId(store.getCategoryId());
 
+                // createMerchant 호출
                 Map<String, Object> header = ssafyHeaderFactory.create("createMerchant");
                 Map<String, Object> body = ssafyApiClient.buildBody(header,
                         "categoryId", ssafyCategoryId,
@@ -201,16 +206,18 @@ public class StoreService {
 
                 List<SsafyMerchantRec> merchants = parseMerchantList(response);
 
-                // 방금 등록한 가맹점 찾기 (이름 일치하는 마지막 항목)
-                SsafyMerchantRec registered = merchants.stream()
-                        .filter(rec -> Objects.equals(store.getStoreName(), rec.getMerchantName()))
-                        .reduce((first, second) -> second)
+                // 호출 전에 없었던 새로운 merchantId 찾기
+                SsafyMerchantRec newMerchant = merchants.stream()
+                        .filter(rec -> rec.getMerchantId() != null && !knownMerchantIds.contains(rec.getMerchantId()))
+                        .findFirst()
                         .orElse(null);
 
-                if (registered != null) {
-                    Long merchantId = parseLong(registered.getMerchantId());
+                if (newMerchant != null) {
+                    Long merchantId = parseLong(newMerchant.getMerchantId());
                     store.assignSsafyIdentity(merchantId);
                     storeRepository.save(store);
+                    // 새로 등록한 ID를 known 집합에 추가 (다음 루프에서 중복 방지)
+                    knownMerchantIds.add(newMerchant.getMerchantId());
                     successCount++;
                     results.add(Map.of(
                             "storeId", store.getStoreId(),
@@ -226,9 +233,9 @@ public class StoreService {
                             "storeId", store.getStoreId(),
                             "storeName", store.getStoreName(),
                             "status", "FAIL",
-                            "reason", "응답에서 매장을 찾을 수 없음"
+                            "reason", "새로운 merchantId를 찾을 수 없음"
                     ));
-                    log.warn("[StoreService] SSAFY 가맹점 등록 실패 (응답 매칭 불가): storeId={}, storeName={}",
+                    log.warn("[StoreService] SSAFY 가맹점 등록 실패: storeId={}, storeName={}",
                             store.getStoreId(), store.getStoreName());
                 }
             } catch (Exception e) {
@@ -250,6 +257,25 @@ public class StoreService {
                 "fail", failCount,
                 "details", results
         );
+    }
+
+    /**
+     * SSAFY에 현재 등록된 전체 가맹점 목록의 merchantId 집합을 조회한다.
+     */
+    private Set<String> fetchCurrentMerchantIds() {
+        try {
+            Map<String, Object> header = ssafyHeaderFactory.create("inquireMerchantList");
+            Map<String, Object> body = ssafyApiClient.buildBody(header);
+            Map<String, Object> response = ssafyApiClient.post(MERCHANT_LIST_API, body);
+
+            return parseMerchantList(response).stream()
+                    .map(SsafyMerchantRec::getMerchantId)
+                    .filter(id -> id != null)
+                    .collect(Collectors.toCollection(java.util.HashSet::new));
+        } catch (Exception e) {
+            log.warn("[StoreService] 기존 가맹점 목록 조회 실패, 빈 집합으로 시작: {}", e.getMessage());
+            return new java.util.HashSet<>();
+        }
     }
 
     /**
