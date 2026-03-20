@@ -1,9 +1,14 @@
 package com.example.naedafront
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -31,7 +36,25 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // FCM 토큰 확인용 (나중에 지워도 됨)
+        // Android 13+ 알림 권한 요청
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    1001
+                )
+            }
+        }
+
+        // 로그인 상태면 FCM 토큰을 서버에 등록
+        if (AuthPrefs.hasSession(this)) {
+            com.example.naedafront.fcm.NaedaFirebaseMessagingService.registerCurrentToken(this)
+        }
+
+        // FCM 토큰 확인용 (디버그)
         com.google.firebase.messaging.FirebaseMessaging.getInstance().token
             .addOnSuccessListener { token ->
                 android.util.Log.d("FCM_TOKEN", "토큰: $token")
