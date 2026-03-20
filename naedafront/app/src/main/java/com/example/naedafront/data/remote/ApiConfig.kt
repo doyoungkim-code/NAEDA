@@ -29,7 +29,7 @@ object ApiConfig {
     private val refreshLock = Any()
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BASIC
+        level = HttpLoggingInterceptor.Level.BODY
     }
 
     fun initialize(context: Context) {

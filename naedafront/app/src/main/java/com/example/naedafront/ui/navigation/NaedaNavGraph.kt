@@ -37,7 +37,9 @@ import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
 import com.example.naedafront.ui.screen.home.HomeScreen
 import com.example.naedafront.ui.screen.map.MapRegion
 import com.example.naedafront.ui.screen.map.MapSelectScreen
+import com.example.naedafront.ui.screen.mypage.CustomerCenterScreen
 import com.example.naedafront.ui.screen.mypage.MyPageScreen
+import com.example.naedafront.ui.screen.mypage.PinChangeScreen
 import com.example.naedafront.ui.screen.mypage.MyPageViewModel
 import com.example.naedafront.ui.screen.setting.SettingsScreen
 import com.example.naedafront.ui.screen.signup.SignUpEmailScreen
@@ -464,9 +466,8 @@ fun NaedaNavGraph(
                 onSettingsClick = { navController.navigate(Screen.Settings.route) },
                 onFaceReRegisterClick = { navController.navigate(Screen.FaceRegister.route) },
                 onPinChangeClick = { navController.navigate(Screen.Security.route) },
-                onEditProfileClick = { },
-                onContactManageClick = { },
-                onCustomerCenterClick = { },
+                onDeliveryAddressClick = { navController.navigate(Screen.DeliveryAddress.route) },
+                onCustomerCenterClick = { navController.navigate(Screen.CustomerCenter.route) },
                 onLogoutClick = {
                     AuthPrefs.clearSession(context)
                     navController.navigate(Screen.Welcome.route) {
@@ -503,7 +504,17 @@ fun NaedaNavGraph(
             )
         }
 
-        composable(Screen.Security.route) { PlaceholderScreen("🔒 보안 내역") }
+        composable(Screen.Security.route) {
+            PinChangeScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.CustomerCenter.route) {
+            CustomerCenterScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
     }
 }
 

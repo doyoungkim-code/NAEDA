@@ -14,19 +14,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Badge
-import androidx.compose.material.icons.outlined.ContactPhone
+import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Face
 import androidx.compose.material.icons.outlined.HeadsetMic
 import androidx.compose.material.icons.outlined.LockReset
 import androidx.compose.material.icons.outlined.NotificationsNone
-import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
@@ -61,8 +62,7 @@ fun MyPageScreen(
     onSettingsClick: () -> Unit = {},
     onFaceReRegisterClick: () -> Unit = {},
     onPinChangeClick: () -> Unit = {},
-    onEditProfileClick: () -> Unit = {},
-    onContactManageClick: () -> Unit = {},
+    onDeliveryAddressClick: () -> Unit = {},
     onCustomerCenterClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
     onFabClick: () -> Unit = {},
@@ -129,6 +129,7 @@ fun MyPageScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp)
             ) {
                 Spacer(modifier = Modifier.height(18.dp))
@@ -186,18 +187,11 @@ fun MyPageScreen(
                 MenuSectionCard(
                     items = listOf(
                         MyPageMenuItemData(
-                            title = "프로필 정보 수정",
-                            icon = Icons.Outlined.PersonOutline,
-                            iconBg = Color(0xFFF3F4F6),
-                            iconTint = Color(0xFF5B6472),
-                            onClick = onEditProfileClick
-                        ),
-                        MyPageMenuItemData(
-                            title = "연락처 관리",
-                            icon = Icons.Outlined.ContactPhone,
-                            iconBg = Color(0xFFF3F4F6),
-                            iconTint = Color(0xFF5B6472),
-                            onClick = onContactManageClick
+                            title = "배송지 관리",
+                            icon = Icons.Outlined.LocationOn,
+                            iconBg = Color(0xFFEEF4FF),
+                            iconTint = Color(0xFF2F6FED),
+                            onClick = onDeliveryAddressClick
                         )
                     )
                 )
