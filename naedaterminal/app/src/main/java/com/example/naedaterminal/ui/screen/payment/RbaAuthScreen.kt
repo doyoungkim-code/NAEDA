@@ -19,6 +19,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.naedaterminal.ui.theme.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 
 private val BgColor = Background
 private val TextPrimary = Color(0xFF0D3B35)
@@ -38,6 +46,8 @@ fun RbaAuthContainer(
     authSteps: List<RbaAuthType>,
     paymentAmount: Long,
     merchantName: String,
+    apiBaseUrl: String,
+    userNo: Long?,
     onAuthComplete: () -> Unit,
     onAuthCancel: () -> Unit,
     onPinEntered: ((pin: String) -> Unit)? = null,
@@ -75,6 +85,8 @@ fun RbaAuthContainer(
                 paymentAmount = paymentAmount,
                 merchantName = merchantName,
                 stepInfo = "${currentStepIndex + 1}/${authSteps.size}",
+                apiBaseUrl = apiBaseUrl,
+                userNo = userNo,
                 title = "전화번호 가운데\n4자리를 입력해주세요",
                 subtitle = "본인 확인을 위해 휴대폰 번호 가운데 4자리를 입력하세요",
                 onSuccess = { digits ->
@@ -285,6 +297,8 @@ fun RbaPhoneScreen(
     paymentAmount: Long,
     merchantName: String,
     stepInfo: String,
+    apiBaseUrl: String,
+    userNo: Long?,
     title: String,
     subtitle: String,
     onSuccess: (digits: String) -> Unit,
@@ -292,7 +306,11 @@ fun RbaPhoneScreen(
 ) {
     var enteredDigits by remember { mutableStateOf("") }
     var isError by remember { mutableStateOf(false) }
+    var isSubmitting by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("번호가 일치하지 않습니다") }
     val maxLength = 4
+    val scope = rememberCoroutineScope()
+    val client = remember { OkHttpClient() }
 
     LaunchedEffect(isError) {
         if (isError) {
@@ -303,8 +321,36 @@ fun RbaPhoneScreen(
     }
 
     LaunchedEffect(enteredDigits) {
-        if (enteredDigits.length == maxLength) {
-            onSuccess(enteredDigits)
+        if (enteredDigits.length == maxLength && !isSubmitting) {
+            if (userNo == null) {
+                errorMessage = "사용자 정보를 확인할 수 없습니다"
+                isError = true
+                return@LaunchedEffect
+            }
+
+            isSubmitting = true
+            scope.launch {
+                val verified = withContext(Dispatchers.IO) {
+                    runCatching {
+                        verifyPhoneMiddleDigits(
+                            client = client,
+                            apiBaseUrl = apiBaseUrl,
+                            userNo = userNo,
+                            middleDigits = enteredDigits
+                        )
+                    }.getOrElse { error ->
+                        PhoneVerifyResult(false, error.message ?: "전화번호 검증에 실패했습니다.")
+                    }
+                }
+
+                isSubmitting = false
+                if (verified.verified) {
+                    onSuccess(enteredDigits)
+                } else {
+                    errorMessage = verified.message ?: "번호가 일치하지 않습니다"
+                    isError = true
+                }
+            }
         }
     }
 
@@ -377,8 +423,20 @@ fun RbaPhoneScreen(
         if (isError) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "번호가 일치하지 않습니다",
+                text = errorMessage,
                 color = ErrorColor,
+                fontSize = 13.sp,
+                fontFamily = NaedaFontFamily,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center
+            )
+        }
+
+        if (isSubmitting) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "전화번호를 확인하는 중입니다...",
+                color = AccentColor,
                 fontSize = 13.sp,
                 fontFamily = NaedaFontFamily,
                 modifier = Modifier.fillMaxWidth(),
@@ -388,10 +446,51 @@ fun RbaPhoneScreen(
 
         Spacer(modifier = Modifier.weight(1f))
         NaedaNumericKeypad(
-            onNumberClick = { num -> if (enteredDigits.length < maxLength) enteredDigits += num },
-            onDelete = { if (enteredDigits.isNotEmpty()) enteredDigits = enteredDigits.dropLast(1) }
+            onNumberClick = {
+                num -> if (enteredDigits.length < maxLength && !isSubmitting) enteredDigits += num
+            },
+            onDelete = { if (enteredDigits.isNotEmpty() && !isSubmitting) enteredDigits = enteredDigits.dropLast(1) }
         )
         Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+private data class PhoneVerifyResult(
+    val verified: Boolean,
+    val message: String?
+)
+
+private fun verifyPhoneMiddleDigits(
+    client: OkHttpClient,
+    apiBaseUrl: String,
+    userNo: Long,
+    middleDigits: String
+): PhoneVerifyResult {
+    val payload = JSONObject()
+        .put("userNo", userNo)
+        .put("middleDigits", middleDigits)
+
+    val req = Request.Builder()
+        .url("${apiBaseUrl.trimEnd('/')}/api/rba/phone/verify")
+        .post(payload.toString().toRequestBody("application/json".toMediaType()))
+        .build()
+
+    return client.newCall(req).execute().use { res ->
+        val raw = res.body?.string().orEmpty()
+        if (!res.isSuccessful) {
+            val json = runCatching { JSONObject(raw) }.getOrNull()
+            return@use PhoneVerifyResult(
+                verified = false,
+                message = json?.optString("message")?.takeIf { it.isNotBlank() }
+                    ?: "전화번호 검증에 실패했습니다."
+            )
+        }
+
+        val json = JSONObject(raw)
+        PhoneVerifyResult(
+            verified = json.optBoolean("verified", false),
+            message = json.optString("message").takeIf { it.isNotBlank() }
+        )
     }
 }
 
