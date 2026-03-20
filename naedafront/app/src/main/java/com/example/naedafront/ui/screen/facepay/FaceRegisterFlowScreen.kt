@@ -204,6 +204,12 @@ private data class RegistrationFaceFramePayload(
     val croppedFaceJpeg: ByteArray
 )
 
+private data class PendingPayLimit(
+    val dailyLimit: Long,
+    val monthlyLimit: Long,
+    val singleTransactionLimit: Long
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FaceRegisterFlowScreen(
@@ -229,6 +235,7 @@ fun FaceRegisterFlowScreen(
     var currentPinResetKey by remember { mutableStateOf(0) }
     var completedSecondaryAuthEnabled by remember { mutableStateOf(false) }
     var selectedFacePayPaymentMethodId by remember { mutableStateOf<Long?>(null) }
+    var pendingPayLimit by remember { mutableStateOf<PendingPayLimit?>(null) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -252,22 +259,29 @@ fun FaceRegisterFlowScreen(
             return
         }
 
+        val paymentMethodId = selectedFacePayPaymentMethodId
+        val payLimit = pendingPayLimit
+        if (paymentMethodId == null) {
+            globalError = "대표 결제수단을 선택해 주세요."
+            return
+        }
+        if (payLimit == null) {
+            globalError = "결제 한도를 먼저 설정해 주세요."
+            return
+        }
+
         isSavingFacePaySettings = true
         scope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    val response = FaceRegistrationRepository.updateFacePaySettings(
+                    FaceRegistrationRepository.updateFacePaySettings(
                         enableSecondaryAuth = enableSecondaryAuth,
-                        currentPin = currentPin
+                        currentPin = currentPin,
+                        paymentMethodId = paymentMethodId,
+                        dailyLimit = payLimit.dailyLimit,
+                        monthlyLimit = payLimit.monthlyLimit,
+                        singleTransactionLimit = payLimit.singleTransactionLimit
                     )
-                    selectedFacePayPaymentMethodId?.let { paymentMethodId ->
-                        AssetRepository.setFacePayPaymentMethod(
-                            userNo = userNo!!,
-                            paymentMethodId = paymentMethodId,
-                            enabled = true
-                        )
-                    }
-                    response
                 }
             }
 
@@ -371,6 +385,9 @@ fun FaceRegisterFlowScreen(
                                     RegisterStage.IdGuide
                                 }
                             },
+                            onRestartRequested = {
+                                stage = RegisterStage.FaceCapture(0)
+                            },
                             onError = { globalError = it }
                         )
                     }
@@ -408,7 +425,10 @@ fun FaceRegisterFlowScreen(
 
                     is RegisterStage.PaymentLimitSetup -> PaymentLimitSetupStageContent(
                         userNo = userNo!!,
-                        onSaveComplete = { stage = RegisterStage.PinChoice },
+                        onSaveComplete = {
+                            pendingPayLimit = it
+                            stage = RegisterStage.PinChoice
+                        },
                         onError = { globalError = it }
                     )
 
@@ -1177,6 +1197,7 @@ private fun FaceCaptureStageContent(
     currentIndex: Int,
     totalCount: Int,
     onPoseSaved: () -> Unit,
+    onRestartRequested: () -> Unit,
     onError: (String) -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -1193,6 +1214,9 @@ private fun FaceCaptureStageContent(
     val requestInFlight = remember { AtomicBoolean(false) }
     val holdStartedAt = remember { AtomicLong(0L) }
     val livenessEvaluator = remember { RegistrationPassiveLivenessEvaluator() }
+    val requiredHoldMillis = remember(spec.backendPose) {
+        if (spec.backendPose == "front1") 2000L else 1000L
+    }
 
     // poseCompleted가 true로 바뀌는 순간 확실히 트리거
     val onPoseSavedUpdated by rememberUpdatedState(onPoseSaved)
@@ -1264,10 +1288,14 @@ private fun FaceCaptureStageContent(
                 val now = System.currentTimeMillis()
                 if (holdStartedAt.get() == 0L) holdStartedAt.set(now)
                 val elapsed = now - holdStartedAt.get()
-                holdProgress = (elapsed / 1000f).coerceIn(0f, 1f)
-                statusMessage = if (elapsed < 1000L) "현재 자세를 유지해주세요." else "자세 확인 완료. 저장 중입니다."
+                holdProgress = (elapsed.toFloat() / requiredHoldMillis.toFloat()).coerceIn(0f, 1f)
+                statusMessage = when {
+                    elapsed < requiredHoldMillis && spec.backendPose == "front1" -> "기준 얼굴을 저장하는 중입니다. 2초간 정면을 유지해주세요."
+                    elapsed < requiredHoldMillis -> "현재 자세를 유지해주세요."
+                    else -> "자세 확인 완료. 저장 중입니다."
+                }
 
-                if (elapsed < 1000L) {
+                if (elapsed < requiredHoldMillis) {
                     imageProxy.close(); return@FaceRegistrationCameraCard
                 }
 
@@ -1353,11 +1381,24 @@ private fun FaceCaptureStageContent(
                             resetHold(holdStartedAt) { holdProgress = it }
                             val msg = when {
                                 throwable is ApiRequestException -> when (throwable.errorCode) {
-                                    "NO_FACE"        -> "얼굴이 화면 안에 오도록 맞춰주세요."
+                                    "NO_FACE" -> "얼굴이 화면 안에 오도록 맞춰주세요."
                                     "MULTIPLE_FACES" -> "한 명만 화면에 나오게 해주세요."
                                     "AI_TIMEOUT",
                                     "AI_UNAVAILABLE" -> "서버 상태를 확인 후 다시 시도해주세요."
-                                    else             -> throwable.message ?: "얼굴 등록에 실패했습니다."
+                                    "REGISTRATION_QUALITY_LOW" -> if (spec.backendPose == "front1") "정면 얼굴을 더 또렷하게 2초간 유지해주세요." else "현재 자세를 더 또렷하게 유지한 뒤 다시 촬영해주세요."
+                                    "REGISTRATION_MISMATCH" -> when (spec.backendPose) {
+                                        "front2", "front3" -> "기준 정면 얼굴과 일치하지 않습니다. 같은 사람이 다시 정면을 촬영해주세요."
+                                        else -> "기준 얼굴과 차이가 큽니다. 같은 사람이 해당 자세를 다시 촬영해주세요."
+                                    }
+                                    "REGISTRATION_FRONT_REQUIRED" -> {
+                                        onRestartRequested()
+                                        "정면 기준 얼굴이 필요합니다. 처음부터 다시 촬영해주세요."
+                                    }
+                                    "REGISTRATION_SESSION_EXPIRED" -> {
+                                        onRestartRequested()
+                                        "얼굴 등록 세션이 만료되었습니다. 처음부터 다시 진행해주세요."
+                                    }
+                                    else -> throwable.message ?: "얼굴 등록에 실패했습니다."
                                 }
                                 else -> throwable.message ?: "얼굴 등록에 실패했습니다."
                             }
@@ -2415,28 +2456,14 @@ private fun PaymentMethodSelectStageContent(
                 Button(
                     onClick = {
                         val paymentMethodId = item.paymentMethodId ?: return@Button
-                        scope.launch {
-                            isSubmitting = true
-                            runCatching {
-                                withContext(Dispatchers.IO) {
-                                    AssetRepository.setDefaultPaymentMethod(userNo, paymentMethodId)
-                                }
-                            }.onSuccess {
-                                isSubmitting = false
-                                pendingSelection = null
-                                onSelectionComplete(paymentMethodId)
-                            }.onFailure { throwable ->
-                                isSubmitting = false
-                                pendingSelection = null
-                                onError(throwable.message ?: "대표 결제수단 설정에 실패했습니다.")
-                            }
-                        }
+                        pendingSelection = null
+                        onSelectionComplete(paymentMethodId)
                     },
                     enabled = !isSubmitting,
                     colors = ButtonDefaults.buttonColors(containerColor = Mint900)
                 ) {
                     Text(
-                        text = if (isSubmitting) "저장 중..." else "확인",
+                        text = "선택",
                         fontFamily = NaedaFontFamily,
                         color = Color.White
                     )
@@ -2582,7 +2609,7 @@ private fun PaymentMethodSelectCard(
 @Composable
 private fun PaymentLimitSetupStageContent(
     userNo: Long,
-    onSaveComplete: () -> Unit,
+    onSaveComplete: (PendingPayLimit) -> Unit,
     onError: (String) -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -2720,22 +2747,14 @@ private fun PaymentLimitSetupStageContent(
 
                     isSaving = true
                     scope.launch {
-                        runCatching {
-                            withContext(Dispatchers.IO) {
-                                FaceRegistrationRepository.updatePayLimit(
-                                    userNo = userNo,
-                                    dailyLimit = dailyLimit,
-                                    monthlyLimit = max(monthlyLimit, dailyLimit),
-                                    singleTransactionLimit = singleLimit
-                                )
-                            }
-                        }.onSuccess {
-                            isSaving = false
-                            onSaveComplete()
-                        }.onFailure { throwable ->
-                            isSaving = false
-                            onError(throwable.message ?: "결제 한도 저장에 실패했습니다.")
-                        }
+                        isSaving = false
+                        onSaveComplete(
+                            PendingPayLimit(
+                                dailyLimit = dailyLimit,
+                                monthlyLimit = max(monthlyLimit, dailyLimit),
+                                singleTransactionLimit = singleLimit
+                            )
+                        )
                     }
                 },
                 enabled = !isSaving,

@@ -65,7 +65,11 @@ data class PinUpdateResponseDto(
 
 data class FacePaySettingsRequestBody(
     val enableSecondaryAuth: Boolean,
-    val currentPin: String? = null
+    val currentPin: String? = null,
+    val paymentMethodId: Long? = null,
+    val dailyLimit: Long? = null,
+    val monthlyLimit: Long? = null,
+    val singleTransactionLimit: Long? = null
 )
 
 data class FacePaySettingsResponseDto(
@@ -216,13 +220,21 @@ object FaceRegistrationRepository {
 
     suspend fun updateFacePaySettings(
         enableSecondaryAuth: Boolean,
-        currentPin: String?
+        currentPin: String?,
+        paymentMethodId: Long?,
+        dailyLimit: Long?,
+        monthlyLimit: Long?,
+        singleTransactionLimit: Long?
     ): FacePaySettingsResponseDto {
         return runCatching {
             service.updateFacePaySettings(
                 FacePaySettingsRequestBody(
                     enableSecondaryAuth = enableSecondaryAuth,
-                    currentPin = currentPin?.trim()?.takeUnless { it.isBlank() }
+                    currentPin = currentPin?.trim()?.takeUnless { it.isBlank() },
+                    paymentMethodId = paymentMethodId,
+                    dailyLimit = dailyLimit,
+                    monthlyLimit = monthlyLimit,
+                    singleTransactionLimit = singleTransactionLimit
                 )
             )
         }.getOrElse { throwable ->

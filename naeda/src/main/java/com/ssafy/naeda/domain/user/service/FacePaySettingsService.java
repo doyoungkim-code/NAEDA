@@ -1,5 +1,10 @@
 package com.ssafy.naeda.domain.user.service;
 
+import com.ssafy.naeda.domain.face.exception.FaceException;
+import com.ssafy.naeda.domain.face.service.FaceRegistrationSessionService;
+import com.ssafy.naeda.domain.pay.dto.request.PayLimitRequest;
+import com.ssafy.naeda.domain.pay.service.PayLimitService;
+import com.ssafy.naeda.domain.pay.service.PayMethodService;
 import com.ssafy.naeda.domain.user.dto.request.UpdateFacePaySettingsRequest;
 import com.ssafy.naeda.domain.user.dto.response.FacePaySettingsResponse;
 import com.ssafy.naeda.domain.user.entity.User;
@@ -19,6 +24,9 @@ public class FacePaySettingsService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final FaceRegistrationSessionService faceRegistrationSessionService;
+    private final PayMethodService payMethodService;
+    private final PayLimitService payLimitService;
 
     public FacePaySettingsResponse getSettings(String userId) {
         User user = findUser(userId);
@@ -34,7 +42,28 @@ public class FacePaySettingsService {
             validateCurrentPin(user, request.getCurrentPin());
         }
 
+        boolean hasPendingRegistration = faceRegistrationSessionService.hasActiveSession(userId);
+        if (hasPendingRegistration) {
+            validateRegistrationRequest(request);
+            if (!faceRegistrationSessionService.isRegistrationReady(userId)) {
+                throw new FaceException(com.ssafy.naeda.domain.face.exception.FaceErrorCode.REGISTRATION_INCOMPLETE);
+            }
+            faceRegistrationSessionService.persistPendingEmbeddings(userId);
+            payMethodService.setFacePay(user.getUserNo(), request.getPaymentMethodId());
+            payLimitService.setLimit(user.getUserNo(), PayLimitRequest.builder()
+                    .dailyLimit(request.getDailyLimit())
+                    .monthlyLimit(request.getMonthlyLimit())
+                    .singleTransactionLimit(request.getSingleTransactionLimit())
+                    .build());
+        } else if (!Boolean.TRUE.equals(user.getFaceRegistered())) {
+            throw new BadRequestException("얼굴 등록이 완료되지 않았습니다.");
+        }
+
         user.updateFacePaySettings(true, enableSecondaryAuth);
+
+        if (hasPendingRegistration) {
+            faceRegistrationSessionService.clearSession(userId);
+        }
 
         String message = enableSecondaryAuth
                 ? "페이스페이 등록과 PIN 2차 인증 설정이 완료되었습니다."
@@ -57,6 +86,15 @@ public class FacePaySettingsService {
         }
         if (!passwordEncoder.matches(currentPin, currentHashedPin)) {
             throw new AuthenticationFailedException("현재 PIN이 일치하지 않습니다.");
+        }
+    }
+
+    private void validateRegistrationRequest(UpdateFacePaySettingsRequest request) {
+        if (request.getPaymentMethodId() == null) {
+            throw new BadRequestException("대표 결제수단을 선택해주세요.");
+        }
+        if (request.getDailyLimit() == null || request.getMonthlyLimit() == null || request.getSingleTransactionLimit() == null) {
+            throw new BadRequestException("결제 한도 정보를 모두 입력해주세요.");
         }
     }
 }
