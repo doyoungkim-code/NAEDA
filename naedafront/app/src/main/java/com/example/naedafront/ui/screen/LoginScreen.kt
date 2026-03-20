@@ -120,6 +120,9 @@ fun LoginScreen(
                         faceRegistered = result.response.faceRegistered,
                         secondaryAuthEnabled = result.response.secondaryAuthEnabled
                     )
+                    // 로그인 성공 직후 FCM 토큰을 서버에 등록
+                    com.example.naedafront.fcm.NaedaFirebaseMessagingService
+                        .registerCurrentToken(context)
                     isLoading = false
                     onLoginSuccess()
                 }
