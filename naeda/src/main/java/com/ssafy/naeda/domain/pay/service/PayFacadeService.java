@@ -117,9 +117,12 @@ public class PayFacadeService {
             }
 
             // 8. FacePay 등록된 결제수단 자동 조회
-            PayMethod paymentMethod = payMethodRepository
-                    .findByUserNoAndIsFacePayTrueAndIsActiveTrue(user.getUserNo())
-                    .orElseThrow(() -> new NotFoundException("페이스페이 결제 수단이 등록되지 않았습니다."));
+            List<PayMethod> facePayMethods = payMethodRepository
+                    .findByUserNoAndIsFacePayTrueAndIsActiveTrue(user.getUserNo());
+            if (facePayMethods.isEmpty()) {
+                throw new NotFoundException("페이스페이 결제 수단이 등록되지 않았습니다.");
+            }
+            PayMethod paymentMethod = facePayMethods.get(0);
 
             // 9. PIN 2차 인증 (pin이 전달된 경우 검증)
             boolean pinVerified = false;

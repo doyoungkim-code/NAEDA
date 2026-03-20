@@ -10,7 +10,7 @@ public interface PayMethodRepository extends JpaRepository<PayMethod, Long> {
 
     List<PayMethod> findByUserNoAndIsActiveTrue(Long userNo);
 
-    Optional<PayMethod> findByUserNoAndIsFacePayTrueAndIsActiveTrue(Long userNo);
+    List<PayMethod> findByUserNoAndIsFacePayTrueAndIsActiveTrue(Long userNo);
 
     Optional<PayMethod> findByCreditCardIdAndIsActiveTrue(Long creditCardId);
 
