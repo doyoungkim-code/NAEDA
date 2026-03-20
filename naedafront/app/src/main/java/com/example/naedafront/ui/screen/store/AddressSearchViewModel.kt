@@ -1,5 +1,7 @@
 package com.example.naedafront.ui.screen.store
 
+//C:\Users\SSAFY\Desktop\kimjongwoo\xmrghk\S14P21D103\naedafront\app\src\main\java\com\example\naedafront\ui\screen\store\AddressSearchViewModel.kt
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope

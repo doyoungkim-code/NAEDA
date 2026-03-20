@@ -1,5 +1,5 @@
 package com.example.naedafront.data.remote.api
-
+// C:\Users\SSAFY\Desktop\kimjongwoo\xmrghk\S14P21D103\naedafront\app\src\main\java\com\example\naedafront\data\remote\api\NaverGeocodingApi.kt
 import com.example.naedafront.data.remote.response.NaverGeocodeResponse
 import retrofit2.Response
 import retrofit2.http.GET
