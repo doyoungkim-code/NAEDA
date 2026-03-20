@@ -16,4 +16,6 @@ public interface PointWalletRepository extends JpaRepository<PointWallet, Long> 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT pw FROM PointWallet pw WHERE pw.userNo = :userNo")
     Optional<PointWallet> findByUserNoForUpdate(@Param("userNo") Long userNo);
+
+    void deleteByUserNo(Long userNo);
 }

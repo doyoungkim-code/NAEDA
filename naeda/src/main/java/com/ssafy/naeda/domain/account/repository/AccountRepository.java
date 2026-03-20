@@ -25,4 +25,6 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 
     // 계좌번호 중복 확인 (계좌 등록 시)
     boolean existsByAccountNo(String accountNo);
+
+    void deleteByUserNo(Long userNo);
 }

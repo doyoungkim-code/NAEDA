@@ -11,4 +11,6 @@ public interface FdsLogRepository extends JpaRepository<FdsLog, Long> {
     Optional<FdsLog> findByPaymentId(Long paymentId);
 
     List<FdsLog> findByUserNo(Long userNo);
+
+    void deleteByUserNo(Long userNo);
 }

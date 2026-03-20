@@ -15,4 +15,6 @@ public interface CreditCardRepository extends JpaRepository<CreditCard, Long> {
     boolean existsByCardNo(String cardNo);
 
     List<CreditCard> findByUserNoAndIsActiveTrue(Long userNo);
+
+    void deleteByUserNo(Long userNo);
 }

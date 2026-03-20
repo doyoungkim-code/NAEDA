@@ -2,10 +2,24 @@ package com.ssafy.naeda.domain.user.service;
 
 import com.ssafy.naeda.domain.account.entity.Account;
 import com.ssafy.naeda.domain.account.repository.AccountRepository;
+import com.ssafy.naeda.domain.address.repository.AddressRepository;
+import com.ssafy.naeda.domain.card.repository.CreditCardRepository;
+import com.ssafy.naeda.domain.card.repository.DebitCardRepository;
+import com.ssafy.naeda.domain.face.repository.FaceEmbeddingRepository;
+import com.ssafy.naeda.domain.fds.repository.FdsLogRepository;
+import com.ssafy.naeda.domain.notification.repository.NotificationRepository;
+import com.ssafy.naeda.domain.notificationsetting.repository.NotificationSettingRepository;
 import com.ssafy.naeda.domain.pay.entity.MethodType;
 import com.ssafy.naeda.domain.pay.entity.PayMethod;
+import com.ssafy.naeda.domain.pay.repository.PayLimitRepository;
 import com.ssafy.naeda.domain.pay.repository.PayMethodRepository;
+import com.ssafy.naeda.domain.pay.repository.PayTransactionRepository;
 import com.ssafy.naeda.domain.pay.service.PayLimitService;
+import com.ssafy.naeda.domain.point.repository.PointHistoryRepository;
+import com.ssafy.naeda.domain.point.repository.PointOrderRepository;
+import com.ssafy.naeda.domain.point.repository.PointWalletRepository;
+import com.ssafy.naeda.domain.report.repository.ConsumptionReportRepository;
+import com.ssafy.naeda.domain.transaction.repository.TransactionLogRepository;
 import com.ssafy.naeda.global.ssafy.SsafyApiClient;
 import com.ssafy.naeda.global.ssafy.SsafyHeaderFactory;
 import com.ssafy.naeda.domain.user.dto.request.LoginRequest;
@@ -31,6 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -51,6 +66,20 @@ public class AuthService {
     private final PayMethodRepository payMethodRepository;
     private final SsafyApiClient ssafyApiClient;
     private final SsafyHeaderFactory ssafyHeaderFactory;
+    private final FdsLogRepository fdsLogRepository;
+    private final PayTransactionRepository payTransactionRepository;
+    private final PayLimitRepository payLimitRepository;
+    private final NotificationRepository notificationRepository;
+    private final NotificationSettingRepository notificationSettingRepository;
+    private final AddressRepository addressRepository;
+    private final CreditCardRepository creditCardRepository;
+    private final DebitCardRepository debitCardRepository;
+    private final FaceEmbeddingRepository faceEmbeddingRepository;
+    private final PointWalletRepository pointWalletRepository;
+    private final PointOrderRepository pointOrderRepository;
+    private final PointHistoryRepository pointHistoryRepository;
+    private final ConsumptionReportRepository consumptionReportRepository;
+    private final TransactionLogRepository transactionLogRepository;
 
     @Value("${ssafy.api.base-url}")
     private String ssafyBaseUrl;
@@ -290,6 +319,78 @@ public class AuthService {
         log.info("[AuthService] 로그아웃 완료: userId = {}", userId);
     }
 
+
+    public String getUserIdFromToken(String token) {
+        if (!jwtTokenProvider.validateToken(token)) {
+            throw new AuthenticationFailedException("유효하지 않은 토큰입니다.");
+        }
+        return jwtTokenProvider.getUserId(token);
+    }
+
+    @Transactional
+    public void withdraw(String userId, String accessToken) {
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new AuthenticationFailedException("사용자를 찾을 수 없습니다."));
+
+        Long userNo = user.getUserNo();
+
+        // FK 의존 순서에 따라 자식 테이블부터 삭제
+        // 1. FDS 로그 (pay_transaction 참조)
+        fdsLogRepository.deleteByUserNo(userNo);
+
+        // 2. 결제 트랜잭션
+        payTransactionRepository.deleteByUserNo(userNo);
+
+        // 3. 결제수단, 결제한도
+        payMethodRepository.deleteByUserNo(userNo);
+        payLimitRepository.deleteByUserNo(userNo);
+
+        // 4. 포인트 (history → wallet 순서)
+        pointWalletRepository.findByUserNo(userNo).ifPresent(wallet ->
+                pointHistoryRepository.deleteByWalletId(wallet.getWalletId())
+        );
+        pointOrderRepository.deleteByUserNo(userNo);
+        pointWalletRepository.deleteByUserNo(userNo);
+
+        // 5. 거래내역 (account 참조)
+        List<Account> accounts = accountRepository.findByUserNo(userNo);
+        for (Account account : accounts) {
+            transactionLogRepository.deleteByAccountId(account.getAccountId());
+        }
+
+        // 6. 카드 (account 참조 가능)
+        creditCardRepository.deleteByUserNo(userNo);
+        debitCardRepository.deleteByUserNo(userNo);
+
+        // 7. 계좌
+        accountRepository.deleteByUserNo(userNo);
+
+        // 8. 주소, 알림, 알림설정, 소비리포트
+        addressRepository.deleteByUserNo(userNo);
+        notificationRepository.deleteByUserNo(userNo);
+        notificationSettingRepository.deleteByUserNo(userNo);
+        consumptionReportRepository.deleteByUserNo(userNo);
+
+        // 9. 얼굴 임베딩 (userId 기반)
+        faceEmbeddingRepository.deleteByUserId(userId);
+
+        // 10. 사용자 삭제
+        userRepository.delete(user);
+
+        // 11. Redis 정리 (refreshToken 삭제 + accessToken 블랙리스트)
+        redisTemplate.delete("refresh:" + userId);
+        long remainTime = jwtTokenProvider.getRemainingTime(accessToken);
+        if (remainTime > 0) {
+            redisTemplate.opsForValue().set(
+                    "blacklist:" + accessToken,
+                    "withdrawn",
+                    remainTime,
+                    TimeUnit.MILLISECONDS
+            );
+        }
+
+        log.info("[AuthService] 회원탈퇴 완료: userId={}, userNo={}", userId, userNo);
+    }
 
     /**
      * SSAFY 금융망 사용자 계정 생성 API 호출.

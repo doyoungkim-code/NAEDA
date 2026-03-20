@@ -19,4 +19,6 @@ public interface PayMethodRepository extends JpaRepository<PayMethod, Long> {
     Optional<PayMethod> findByDebitCardIdAndIsActiveTrue(Long debitCardId);
 
     List<PayMethod> findAllByDebitCardIdAndIsActiveTrue(Long debitCardId);
+
+    void deleteByUserNo(Long userNo);
 }

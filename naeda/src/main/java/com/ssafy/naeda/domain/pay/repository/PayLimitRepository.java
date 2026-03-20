@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface PayLimitRepository extends JpaRepository<PayLimit, Long> {
 
     Optional<PayLimit> findByUserNo(Long userNo);
+
+    void deleteByUserNo(Long userNo);
 }
