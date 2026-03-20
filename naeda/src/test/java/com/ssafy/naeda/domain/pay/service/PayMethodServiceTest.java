@@ -14,6 +14,7 @@ import java.lang.reflect.Field;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -47,7 +48,7 @@ class PayMethodServiceTest {
     @Test
     @DisplayName("페이스페이 결제수단 변경 시 기존 isFacePay는 해제되고 선택한 수단만 true가 된다")
     void setFacePay_switchesSingleFacePay() throws Exception {
-        PayMethod accountMethod = buildMethod(1L, 10L, MethodType.ACCOUNT, false, true);
+        PayMethod accountMethod = buildMethod(1L, 10L, MethodType.ACCOUNT, true, true);
         PayMethod cardMethod = buildMethod(2L, 10L, MethodType.CREDIT_CARD, false, false);
 
         given(payMethodRepository.findByUserNoAndIsActiveTrue(10L))
@@ -60,6 +61,23 @@ class PayMethodServiceTest {
         assertThat(cardMethod.getIsDefault()).isTrue();
         assertThat(result.getPaymentMethodId()).isEqualTo(2L);
         verify(payMethodRepository).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("페이스페이 사용 해제 시 default는 유지하고 isFacePay만 false가 된다")
+    void clearFacePay_keepsDefaultAndDisablesFacePay() throws Exception {
+        PayMethod accountMethod = buildMethod(1L, 10L, MethodType.ACCOUNT, true, true);
+
+        given(payMethodRepository.findByUserNoAndIsActiveTrue(10L))
+                .willReturn(List.of(accountMethod));
+        given(payMethodRepository.save(any(PayMethod.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        PayMethod result = payMethodService.clearFacePay(10L, 1L);
+
+        assertThat(accountMethod.getIsDefault()).isTrue();
+        assertThat(accountMethod.getIsFacePay()).isFalse();
+        assertThat(result.getPaymentMethodId()).isEqualTo(1L);
+        verify(payMethodRepository).save(accountMethod);
     }
 
     private PayMethod buildMethod(

@@ -76,6 +76,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -227,6 +228,7 @@ fun FaceRegisterFlowScreen(
     var isSavingFacePaySettings by remember { mutableStateOf(false) }
     var currentPinResetKey by remember { mutableStateOf(0) }
     var completedSecondaryAuthEnabled by remember { mutableStateOf(false) }
+    var selectedFacePayPaymentMethodId by remember { mutableStateOf<Long?>(null) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -254,10 +256,18 @@ fun FaceRegisterFlowScreen(
         scope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    FaceRegistrationRepository.updateFacePaySettings(
+                    val response = FaceRegistrationRepository.updateFacePaySettings(
                         enableSecondaryAuth = enableSecondaryAuth,
                         currentPin = currentPin
                     )
+                    selectedFacePayPaymentMethodId?.let { paymentMethodId ->
+                        AssetRepository.setFacePayPaymentMethod(
+                            userNo = userNo!!,
+                            paymentMethodId = paymentMethodId,
+                            enabled = true
+                        )
+                    }
+                    response
                 }
             }
 
@@ -389,7 +399,10 @@ fun FaceRegisterFlowScreen(
 
                     is RegisterStage.PaymentMethodSelect -> PaymentMethodSelectStageContent(
                         userNo = userNo!!,
-                        onSelectionComplete = { stage = RegisterStage.PaymentLimitSetup },
+                        onSelectionComplete = { paymentMethodId ->
+                            selectedFacePayPaymentMethodId = paymentMethodId
+                            stage = RegisterStage.PaymentLimitSetup
+                        },
                         onError = { globalError = it }
                     )
 
@@ -2220,7 +2233,7 @@ private data class FacePaySelectableMethod(
 @Composable
 private fun PaymentMethodSelectStageContent(
     userNo: Long,
-    onSelectionComplete: () -> Unit,
+    onSelectionComplete: (Long) -> Unit,
     onError: (String) -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -2411,7 +2424,7 @@ private fun PaymentMethodSelectStageContent(
                             }.onSuccess {
                                 isSubmitting = false
                                 pendingSelection = null
-                                onSelectionComplete()
+                                onSelectionComplete(paymentMethodId)
                             }.onFailure { throwable ->
                                 isSubmitting = false
                                 pendingSelection = null

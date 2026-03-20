@@ -1,6 +1,11 @@
 package com.example.naedafront.ui.screen.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
+import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.example.naedafront.R
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -25,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.LocationOn
@@ -32,6 +38,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -42,6 +49,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -108,7 +116,11 @@ data class HomeUiState(
 
     val account: AssetAccountResponse? = null,
     val isLoadingAccount: Boolean = true,  // ← false → true 로 변경
-    val accountError: String? = null
+    val accountError: String? = null,
+    val facePayEnabled: Boolean = false,
+    val facePayMethodId: Long? = null,
+    val defaultPaymentMethodId: Long? = null,
+    val isUpdatingFacePay: Boolean = false
 ) {
     val isAccountLinked: Boolean get() = account != null
 
@@ -125,7 +137,8 @@ fun HomeScreen(
     onSearchClick: () -> Unit = {},
     onAlarmClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
-    onSecretFaceMatchTestClick: () -> Unit = {}
+    onSecretFaceMatchTestClick: () -> Unit = {},
+    onChatClick: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -134,6 +147,9 @@ fun HomeScreen(
                 onAlarmClick = onAlarmClick,
                 onProfileClick = onProfileClick
             )
+        },
+        floatingActionButton = {
+            ChatFloatingButton(onClick = onChatClick)
         },
         containerColor = Background
     ) { innerPadding ->
@@ -162,7 +178,9 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             if (uiState.isFaceRegistered) {
-                FacePayBenefitCard(onReRegisterClick = onFacePaySettingClick)
+                FacePayBenefitCard(
+                    onReRegisterClick = onFacePaySettingClick
+                )
             } else {
                 FacePayBannerCard(onFacePaySettingClick = onFacePaySettingClick)
             }
@@ -520,7 +538,9 @@ private fun FacePayBannerCard(onFacePaySettingClick: () -> Unit) {
 }
 
 @Composable
-private fun FacePayBenefitCard(onReRegisterClick: () -> Unit = {}) {
+private fun FacePayBenefitCard(
+    onReRegisterClick: () -> Unit = {}
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -536,29 +556,35 @@ private fun FacePayBenefitCard(onReRegisterClick: () -> Unit = {}) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clip(CircleShape)
-                            .background(Mint900),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.Check,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(12.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clip(CircleShape)
+                                .background(Mint900),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "페이스페이 등록 완료",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = Mint900
                         )
                     }
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "페이스페이 등록 완료",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = Mint900
-                    )
+
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -570,7 +596,7 @@ private fun FacePayBenefitCard(onReRegisterClick: () -> Unit = {}) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "내다 페이스페이로 결제하면\n결제 금액의 5%가 포인트로 적립돼요.",
+                    text = "얼굴 등록이 완료되었어요. 필요한 경우 아래에서 얼굴 정보를 다시 등록할 수 있습니다.",
                     style = MaterialTheme.typography.bodySmall,
                     color = OnBackground.copy(alpha = 0.55f)
                 )
@@ -592,7 +618,7 @@ private fun FacePayBenefitCard(onReRegisterClick: () -> Unit = {}) {
                     .background(Mint900.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = "🎉", fontSize = 36.sp)
+                Text(text = "😎", fontSize = 36.sp)
             }
         }
     }
@@ -957,6 +983,23 @@ private fun TransactionRow(item: TransactionItem) {
                 fontWeight = FontWeight.Bold
             ),
             color = if (item.isIncome) Success else OnBackground
+        )
+    }
+}
+
+@Composable
+private fun ChatFloatingButton(onClick: () -> Unit) {
+    FloatingActionButton(
+        onClick = onClick,
+        containerColor = Mint900,
+        contentColor = Color.White,
+        shape = CircleShape,
+        modifier = Modifier.size(56.dp)
+    ) {
+        Icon(
+            Icons.Default.SmartToy,
+            contentDescription = "챗봇",
+            modifier = Modifier.size(28.dp)
         )
     }
 }
