@@ -32,8 +32,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -202,18 +200,8 @@ public class PayFacadeService {
             transaction = payDbService.save(transaction);
             fdsRuleService.saveLog(transaction.getId(), user.getUserNo(), fdsResult);
 
-            // 16. Redis 상태 갱신 (DB 커밋 후)
-            final PayTransaction finalTransaction = transaction;
-            if (TransactionSynchronizationManager.isSynchronizationActive()) {
-                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        updateRedisSuccess(requestId, finalTransaction.getId(), ssafyTransactionId);
-                    }
-                });
-            } else {
-                updateRedisSuccess(requestId, finalTransaction.getId(), ssafyTransactionId);
-            }
+            // 16. Redis 상태 갱신
+            updateRedisSuccess(requestId, transaction.getId(), ssafyTransactionId);
 
             log.info("[Pay] 페이스페이 결제 성공: requestId={}, transactionId={}, method={}, amount={}",
                     requestId, transaction.getId(), methodType, amount);
