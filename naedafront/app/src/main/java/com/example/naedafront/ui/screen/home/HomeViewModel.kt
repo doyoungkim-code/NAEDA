@@ -114,6 +114,7 @@ class HomeViewModel : ViewModel() {
             _uiState.update {
                 it.copy(
                     account = wallet.accounts.firstOrNull(),
+                    cards = wallet.cards.filter { card -> card.isActive != false },
                     isLoadingAccount = false,
                     accountError = null,
                     facePayEnabled = facePayMethod != null,
@@ -127,6 +128,7 @@ class HomeViewModel : ViewModel() {
             _uiState.update {
                 it.copy(
                     account = null,
+                    cards = emptyList(),
                     isLoadingAccount = false,
                     accountError = e.message,
                     facePayEnabled = false,

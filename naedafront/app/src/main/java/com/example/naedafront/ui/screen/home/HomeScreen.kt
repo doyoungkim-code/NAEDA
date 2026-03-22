@@ -7,7 +7,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import com.example.naedafront.R
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -75,6 +78,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.naedafront.data.remote.AssetAccountResponse
+import com.example.naedafront.data.remote.AssetCardResponse
 import com.example.naedafront.ui.theme.Background
 import com.example.naedafront.ui.theme.KronaOneFontFamily
 import com.example.naedafront.ui.theme.Mint100
@@ -117,7 +121,8 @@ data class HomeUiState(
     val notices: List<NoticeItem> = emptyList(),
 
     val account: AssetAccountResponse? = null,
-    val isLoadingAccount: Boolean = true,  // ← false → true 로 변경
+    val cards: List<AssetCardResponse> = emptyList(),
+    val isLoadingAccount: Boolean = true,
     val accountError: String? = null,
     val facePayEnabled: Boolean = false,
     val facePayMethodId: Long? = null,
@@ -140,7 +145,8 @@ fun HomeScreen(
     onAlarmClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     onSecretFaceMatchTestClick: () -> Unit = {},
-    onChatClick: () -> Unit = {}
+    onChatClick: () -> Unit = {},
+    onRegisterCardClick: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -171,9 +177,11 @@ fun HomeScreen(
 
             when {
                 uiState.isLoadingAccount -> BalanceCardSkeleton()
-                uiState.isAccountLinked -> BalanceCard(
+                uiState.isAccountLinked -> AssetCardPager(
                     account = uiState.account!!,
-                    onTransactionClick = onTransactionClick
+                    cards = uiState.cards,
+                    onTransactionClick = onTransactionClick,
+                    onRegisterCardClick = onRegisterCardClick
                 )
                 else -> LinkAccountCard(onLinkAccountClick = onLinkAccountClick)
             }
@@ -382,6 +390,147 @@ private fun BalanceCard(
                     color = Color.White
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun AssetCardPager(
+    account: AssetAccountResponse,
+    cards: List<AssetCardResponse>,
+    onTransactionClick: () -> Unit,
+    onRegisterCardClick: () -> Unit
+) {
+    // 계좌(1) + 카드(N) + 카드없으면 등록카드(1)
+    val pages = mutableListOf<@Composable () -> Unit>()
+    pages.add { BalanceCard(account = account, onTransactionClick = onTransactionClick) }
+
+    if (cards.isEmpty()) {
+        pages.add { RegisterCardPrompt(onClick = onRegisterCardClick) }
+    } else {
+        cards.forEach { card ->
+            pages.add { CardInfoCard(card = card) }
+        }
+    }
+
+    val pagerState = rememberPagerState(pageCount = { pages.size })
+
+    Column {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxWidth()
+        ) { page ->
+            pages[page]()
+        }
+
+        // 인디케이터 (2페이지 이상일 때만)
+        if (pages.size > 1) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                repeat(pages.size) { index ->
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 3.dp)
+                            .size(if (pagerState.currentPage == index) 8.dp else 6.dp)
+                            .background(
+                                color = if (pagerState.currentPage == index) Mint900 else Mint900.copy(alpha = 0.25f),
+                                shape = CircleShape
+                            )
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CardInfoCard(card: AssetCardResponse) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A2E)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = card.cardIssuerName ?: "",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White.copy(alpha = 0.65f)
+                    )
+                    Text(
+                        text = card.cardNo ?: "",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.45f)
+                    )
+                }
+                Icon(
+                    Icons.Default.AccountBalanceWallet,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = card.cardName ?: "등록 카드",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = Color.White
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = if (card.cardType?.uppercase() == "CREDIT") "신용카드" else "체크카드",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.6f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun RegisterCardPrompt(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Mint900.copy(alpha = 0.08f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                Icons.Default.Add,
+                contentDescription = "카드 등록",
+                tint = Mint900,
+                modifier = Modifier.size(36.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "카드 등록하러 가기",
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = Mint900
+            )
         }
     }
 }

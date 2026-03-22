@@ -43,6 +43,7 @@ fun NaedaBottomNavBar(
 ) {
     val selectedRoute = when (currentRoute) {
         Screen.PointHistory.route -> Screen.Store.route
+        Screen.MyPage.route -> Screen.Home.route
         else -> currentRoute
     }
 
