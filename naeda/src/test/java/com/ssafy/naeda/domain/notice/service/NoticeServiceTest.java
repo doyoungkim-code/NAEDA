@@ -6,6 +6,7 @@ import com.ssafy.naeda.domain.notice.dto.response.NoticeResponse;
 import com.ssafy.naeda.domain.notice.entity.Notice;
 import com.ssafy.naeda.domain.notice.repository.NoticeRepository;
 import com.ssafy.naeda.domain.notification.entity.NotificationType;
+import com.ssafy.naeda.domain.notification.entity.ReferenceType;
 import com.ssafy.naeda.global.exception.BadRequestException;
 import com.ssafy.naeda.global.exception.NotFoundException;
 import com.ssafy.naeda.global.fcm.FcmSendResult;
@@ -25,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
+
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
@@ -163,7 +164,7 @@ class NoticeServiceTest {
         given(noticeRepository.findById(1L)).willReturn(Optional.of(notice));
         given(fcmService.sendToAllUsers(
                 eq("점검 안내"), eq("점검 내용입니다."),
-                eq(NotificationType.SYSTEM), eq(1L), isNull()
+                eq(NotificationType.SYSTEM), eq(1L), eq(ReferenceType.NOTICE)
         )).willReturn(new FcmSendResult(100, 80, 78, 2));
 
         FcmSendResult result = noticeService.notifyNotice(1L);

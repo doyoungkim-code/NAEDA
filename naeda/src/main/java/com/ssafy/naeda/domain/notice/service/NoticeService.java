@@ -6,6 +6,7 @@ import com.ssafy.naeda.domain.notice.dto.response.NoticeResponse;
 import com.ssafy.naeda.domain.notice.entity.Notice;
 import com.ssafy.naeda.domain.notice.repository.NoticeRepository;
 import com.ssafy.naeda.domain.notification.entity.NotificationType;
+import com.ssafy.naeda.domain.notification.entity.ReferenceType;
 import com.ssafy.naeda.global.exception.BadRequestException;
 import com.ssafy.naeda.global.exception.NotFoundException;
 import com.ssafy.naeda.global.fcm.FcmSendResult;
@@ -73,7 +74,7 @@ public class NoticeService {
                 notice.getContent(),
                 NotificationType.SYSTEM,
                 notice.getNoticeId(),
-                null
+                ReferenceType.NOTICE
         );
     }
 
