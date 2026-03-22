@@ -208,7 +208,6 @@ private fun PointHistoryHeader(
             .fillMaxWidth()
             .height(540.dp)
             .background(StoreGreen)
-            .statusBarsPadding()
     ) {
         Canvas(
             modifier = Modifier

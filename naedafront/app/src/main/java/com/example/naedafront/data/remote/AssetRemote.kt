@@ -4,9 +4,12 @@ import com.google.gson.Gson
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import retrofit2.HttpException
+import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.PATCH
+import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -61,6 +64,39 @@ data class AssetPayMethodResponse(
     val isActive: Boolean?
 )
 
+data class CardProductResponse(
+    val cardUniqueNo: String?,
+    val cardIssuerCode: String?,
+    val cardIssuerName: String?,
+    val cardName: String?,
+    val cardTypeCode: String?,
+    val cardTypeName: String?,
+    val baselinePerformance: String?,
+    val maxBenefitLimit: String?,
+    val cardDescription: String?
+)
+
+data class CardRegisterRequest(
+    val cardUniqueNo: String,
+    val withdrawalAccountNo: String,
+    val withdrawalDate: String,
+    val cardTypeCode: String
+)
+
+data class CardRegisterResponse(
+    val cardId: Long?,
+    val cardNo: String?,
+    val cardUniqueNo: String?,
+    val cardIssuerCode: String?,
+    val cardIssuerName: String?,
+    val cardName: String?,
+    val cardExpiryDate: String?,
+    val cardType: String?,
+    val withdrawalAccountNo: String?,
+    val withdrawalDate: String?,
+    val paymentMethodId: Long?
+)
+
 data class WalletAssetsResponse(
     val accounts: List<AssetAccountResponse>,
     val cards: List<AssetCardResponse>,
@@ -103,6 +139,24 @@ interface AssetApi {
     suspend fun getCards(
         @Query("userNo") userNo: Long
     ): List<AssetCardResponse>
+
+    @GET("api/cards/products")
+    suspend fun getCardProducts(
+        @Query("userNo") userNo: Long
+    ): List<CardProductResponse>
+
+    @POST("api/cards")
+    suspend fun registerCard(
+        @Query("userNo") userNo: Long,
+        @Body request: CardRegisterRequest
+    ): CardRegisterResponse
+
+    @DELETE("api/cards/{cardId}")
+    suspend fun deleteCard(
+        @Path("cardId") cardId: Long,
+        @Query("userNo") userNo: Long,
+        @Query("cardType") cardType: String
+    )
 
     @GET("api/transactions")
     suspend fun getTransactions(
@@ -215,6 +269,22 @@ object AssetRepository {
             )
         }.getOrElse { throwable ->
             throw toReadableException(throwable, if (enabled) "페이스페이 사용 설정에 실패했습니다." else "페이스페이 사용 해제에 실패했습니다.")
+        }
+    }
+
+    suspend fun getCardProducts(userNo: Long): List<CardProductResponse> {
+        return runCatching {
+            api.getCardProducts(userNo)
+        }.getOrElse { throwable ->
+            throw toReadableException(throwable, "카드 상품 목록을 불러오지 못했습니다.")
+        }
+    }
+
+    suspend fun registerCard(userNo: Long, request: CardRegisterRequest): CardRegisterResponse {
+        return runCatching {
+            api.registerCard(userNo, request)
+        }.getOrElse { throwable ->
+            throw toReadableException(throwable, "카드 등록에 실패했습니다.")
         }
     }
 
