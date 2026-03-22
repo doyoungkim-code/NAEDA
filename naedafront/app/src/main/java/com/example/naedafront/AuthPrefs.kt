@@ -153,4 +153,5 @@ object AuthPrefs {
             .putBoolean(KEY_SECONDARY_AUTH_ENABLED, secondaryAuthEnabled)
             .apply()
     }
+
 }

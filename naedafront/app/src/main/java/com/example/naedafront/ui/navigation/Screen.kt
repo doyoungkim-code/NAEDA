@@ -83,5 +83,9 @@ sealed class Screen(val route: String) {
     object MyPage : Screen("mypage")
     object Settings : Screen("settings")
     object Notification : Screen("notification")
+    object NotificationSettings : Screen("notification_settings")
+    object TermsOfService : Screen("terms_of_service")
+    object PrivacyPolicy : Screen("privacy_policy")
     object Security : Screen("security")
+    object CustomerCenter : Screen("customer_center")
 }

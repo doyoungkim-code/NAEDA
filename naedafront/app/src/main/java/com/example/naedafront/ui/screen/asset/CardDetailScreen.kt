@@ -84,7 +84,7 @@ fun CardDetailScreen(
         .filter { !it.isCanceled && it.date.startsWith("2026.03") }
         .sumOf { it.amount }
 
-    Scaffold(containerColor = Background) { innerPadding ->
+    Scaffold(containerColor = Background, contentWindowInsets = WindowInsets(0)) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()

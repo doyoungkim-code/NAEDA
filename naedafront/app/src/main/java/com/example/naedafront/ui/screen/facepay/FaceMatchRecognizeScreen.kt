@@ -11,6 +11,7 @@ import android.graphics.Rect
 import android.graphics.YuvImage
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
@@ -120,7 +121,8 @@ fun FaceMatchRecognizeScreen(
                     }
                 }
             )
-        }
+        },
+        contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         Column(
             modifier = Modifier

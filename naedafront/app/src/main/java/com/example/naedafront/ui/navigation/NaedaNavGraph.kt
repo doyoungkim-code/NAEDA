@@ -29,7 +29,7 @@ import com.example.naedafront.ui.screen.WelcomeScreen
 import com.example.naedafront.ui.screen.asset.AccountDetailRoute
 import com.example.naedafront.ui.screen.asset.AccountListRoute
 import com.example.naedafront.ui.screen.asset.CardDetailScreen
-import com.example.naedafront.ui.screen.asset.RegisterAssetScreen
+import com.example.naedafront.ui.screen.asset.RegisterAssetDialog
 import com.example.naedafront.ui.screen.asset.TradeReportScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchRecognizeScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchResultScreen
@@ -37,9 +37,14 @@ import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
 import com.example.naedafront.ui.screen.home.HomeScreen
 import com.example.naedafront.ui.screen.map.MapRegion
 import com.example.naedafront.ui.screen.map.MapSelectScreen
+import com.example.naedafront.ui.screen.mypage.CustomerCenterScreen
 import com.example.naedafront.ui.screen.mypage.MyPageScreen
+import com.example.naedafront.ui.screen.mypage.PinChangeScreen
 import com.example.naedafront.ui.screen.mypage.MyPageViewModel
+import com.example.naedafront.ui.screen.setting.NotificationSettingsScreen
+import com.example.naedafront.ui.screen.setting.PrivacyPolicyScreen
 import com.example.naedafront.ui.screen.setting.SettingsScreen
+import com.example.naedafront.ui.screen.setting.TermsOfServiceScreen
 import com.example.naedafront.ui.screen.signup.SignUpEmailScreen
 import com.example.naedafront.ui.screen.signup.SignUpNameScreen
 import com.example.naedafront.ui.screen.signup.SignUpPasswordScreen
@@ -275,12 +280,6 @@ fun NaedaNavGraph(
             AccountListRoute(
                 initialTab = 0,
                 onBack = { navController.popBackStack() },
-                onRegisterNewAccount = {
-                    navController.navigate(Screen.RegisterAsset.createRoute(0))
-                },
-                onRegisterNewCard = {
-                    navController.navigate(Screen.RegisterAsset.createRoute(1))
-                },
                 onAccountClick = { account ->
                     navController.navigate(Screen.AccountDetail.createRoute(account.accountId, account.accountNumber))
                 },
@@ -290,17 +289,17 @@ fun NaedaNavGraph(
                 onDeleteAccount = { },
                 onSetPrimary = { },
                 onSetPrimaryCard = { },
-                onDeleteCard = { }
+                onDeleteCard = { },
+                useRegisterDialog = true
             )
         }
 
         composable(Screen.More.route) {
             SettingsScreen(
-                onNotificationClick = { navController.navigate(Screen.Notification.route) },
-                onPinChangeClick = { navController.navigate(Screen.Security.route) },
-                onTermsClick = { },
-                onPrivacyClick = { },
-                onSupportClick = { },
+                onNotificationClick = { navController.navigate(Screen.NotificationSettings.route) },
+                onTermsClick = { navController.navigate(Screen.TermsOfService.route) },
+                onPrivacyClick = { navController.navigate(Screen.PrivacyPolicy.route) },
+                onSupportClick = { navController.navigate(Screen.CustomerCenter.route) },
                 onLogoutClick = {
                     AuthPrefs.clearSession(context)
                     navController.navigate(Screen.Welcome.route) {
@@ -376,12 +375,6 @@ fun NaedaNavGraph(
             AccountListRoute(
                 initialTab = tab,
                 onBack = { navController.popBackStack() },
-                onRegisterNewAccount = {
-                    navController.navigate(Screen.RegisterAsset.createRoute(0))
-                },
-                onRegisterNewCard = {
-                    navController.navigate(Screen.RegisterAsset.createRoute(1))
-                },
                 onAccountClick = { account ->
                     navController.navigate(Screen.AccountDetail.createRoute(account.accountId, account.accountNumber))
                 },
@@ -391,7 +384,8 @@ fun NaedaNavGraph(
                 onDeleteAccount = { },
                 onSetPrimary = { },
                 onSetPrimaryCard = { },
-                onDeleteCard = { }
+                onDeleteCard = { },
+                useRegisterDialog = true
             )
         }
 
@@ -400,18 +394,10 @@ fun NaedaNavGraph(
             arguments = listOf(navArgument("tab") { type = NavType.IntType })
         ) { backStackEntry ->
             val tab = backStackEntry.arguments?.getInt("tab") ?: 0
-            RegisterAssetScreen(
+            RegisterAssetDialog(
                 initialTab = tab,
-                onBack = {
-                    navController.navigate(Screen.AccountList.createRoute(tab)) {
-                        popUpTo(Screen.AccountList.route) { inclusive = true }
-                    }
-                },
-                onRegisterComplete = {
-                    navController.navigate(Screen.AccountList.createRoute(tab)) {
-                        popUpTo(Screen.AccountList.route) { inclusive = true }
-                    }
-                }
+                onDismiss = { navController.popBackStack() },
+                onRegisterComplete = { navController.popBackStack() }
             )
         }
 
@@ -466,9 +452,7 @@ fun NaedaNavGraph(
                 onSettingsClick = { navController.navigate(Screen.Settings.route) },
                 onFaceReRegisterClick = { navController.navigate(Screen.FaceRegister.route) },
                 onPinChangeClick = { navController.navigate(Screen.Security.route) },
-                onEditProfileClick = { },
-                onContactManageClick = { },
-                onCustomerCenterClick = { },
+                onDeliveryAddressClick = { navController.navigate(Screen.DeliveryAddress.route) },
                 onLogoutClick = {
                     AuthPrefs.clearSession(context)
                     navController.navigate(Screen.Welcome.route) {
@@ -482,11 +466,10 @@ fun NaedaNavGraph(
 
         composable(Screen.Settings.route) {
             SettingsScreen(
-                onNotificationClick = { navController.navigate(Screen.Notification.route) },
-                onPinChangeClick = { navController.navigate(Screen.Security.route) },
-                onTermsClick = { },
-                onPrivacyClick = { },
-                onSupportClick = { },
+                onNotificationClick = { navController.navigate(Screen.NotificationSettings.route) },
+                onTermsClick = { navController.navigate(Screen.TermsOfService.route) },
+                onPrivacyClick = { navController.navigate(Screen.PrivacyPolicy.route) },
+                onSupportClick = { navController.navigate(Screen.CustomerCenter.route) },
                 onLogoutClick = {
                     AuthPrefs.clearSession(context)
                     navController.navigate(Screen.Welcome.route) {
@@ -498,6 +481,13 @@ fun NaedaNavGraph(
             )
         }
 
+        // ── 알림 설정 화면 ──
+        composable(Screen.NotificationSettings.route) {
+            NotificationSettingsScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
         // ── 알림 화면 ──
         composable(Screen.Notification.route) {
             NotificationScreen(
@@ -505,13 +495,28 @@ fun NaedaNavGraph(
             )
         }
 
-        composable(Screen.Security.route) { PlaceholderScreen("🔒 보안 내역") }
+        composable(Screen.Security.route) {
+            PinChangeScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
 
-        // ── 챗봇 ──
-        composable(Screen.Chat.route) {
-            val userNo = AuthPrefs.getUserNo(context) ?: 0L
-            ChatScreen(
-                userNo = userNo,
+        composable(Screen.CustomerCenter.route) {
+            CustomerCenterScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // ── 이용약관 ──
+        composable(Screen.TermsOfService.route) {
+            TermsOfServiceScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // ── 개인정보 처리방침 ──
+        composable(Screen.PrivacyPolicy.route) {
+            PrivacyPolicyScreen(
                 onBackClick = { navController.popBackStack() }
             )
         }
