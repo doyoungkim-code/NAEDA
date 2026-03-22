@@ -367,6 +367,27 @@ public class PayFacadeService {
         Account depositAccount = accountRepository.findById(store.getAccountId())
                 .orElseThrow(() -> new NotFoundException("매장 입금 계좌를 찾을 수 없습니다."));
 
+        // 계좌 잔액 사전 검증
+        // SSAFY 이체 API를 호출하기 전에 출금 계좌의 잔액을 확인한다.
+        // 잔액 부족 시 SSAFY API를 호출 없이 즉시 실패 처리하여
+        // 불필요한 외부 API 호출을 줄이고, 에러 메시지 전달
+        try{
+            long currentBalance = getBalanceAfter(user.getUserKey(), withdrawalAccount.getAccountNo());
+            if(currentBalance < amount){
+                transaction.markFailed("잔액 부족");
+                payDbService.save(transaction);
+                payRequestRedisService.transition(requestId,PayRequestStatus.FAILED);
+                throw new BadRequestException("잔액이 부족합니다. (현재 잔액: " + currentBalance + ")");
+            }
+        }catch(BadRequestException e){
+            // 잔액 부족 예외는 그대로 전파
+            throw e;
+        }catch (Exception e){
+            //잔액 조회 실패시 로그만 남기고 SSAFY API에 위임
+            // 잔액 조회 장애로 결제 자체가 막히면 안됨
+            log.warn("[Pay] 사전 잔액 조회 실패, SSAFY API에 위임 : requestId={}", requestId,e);
+        }
+
         // SSAFY 계좌이체 API 호출
         Map<String, Object> transferBody = ssafyApiClient.buildBody(
                 ssafyHeaderFactory.create("updateDemandDepositAccountTransfer", user.getUserKey()),
