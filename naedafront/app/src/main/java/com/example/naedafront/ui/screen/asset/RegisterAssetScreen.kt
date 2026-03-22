@@ -59,49 +59,55 @@ private val cardList = listOf(
 // 메인 화면
 // ─────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RegisterAssetScreen(
+fun RegisterAssetDialog(
     initialTab: Int = 0,   // 0: 계좌, 1: 카드
-    onBack: () -> Unit = {},
+    onDismiss: () -> Unit = {},
     onRegisterComplete: () -> Unit = {}
 ) {
     val isAccount = initialTab == 0
     val title = if (isAccount) "계좌 추가" else "카드 추가"
 
-    Scaffold(
-        containerColor = Background,
-        topBar = {
-            TopAppBar(
-                title = {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = Surface,
+            shadowElevation = 8.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.85f)
+        ) {
+            Column {
+                // 헤더
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
                         text = title,
-                        style = NaedaTypography.titleMedium,
-                        color = OnBackground
+                        style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = OnBackground,
+                        modifier = Modifier.weight(1f)
                     )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "뒤로가기",
-                            tint = OnBackground
+                            imageVector = Icons.Default.ArrowDropUp,
+                            contentDescription = "닫기",
+                            tint = OnSurfaceVariant
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            if (isAccount) {
-                AccountRegisterForm(onRegisterComplete = onRegisterComplete)
-            } else {
-                CardRegisterForm(onRegisterComplete = onRegisterComplete)
+                }
+
+                HorizontalDivider(color = OutlineVariant, thickness = 0.5.dp)
+
+                // 폼
+                if (isAccount) {
+                    AccountRegisterForm(onRegisterComplete = onRegisterComplete)
+                } else {
+                    CardRegisterForm(onRegisterComplete = onRegisterComplete)
+                }
             }
         }
     }
