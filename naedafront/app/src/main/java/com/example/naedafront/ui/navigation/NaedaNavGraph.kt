@@ -41,6 +41,7 @@ import com.example.naedafront.ui.screen.mypage.CustomerCenterScreen
 import com.example.naedafront.ui.screen.mypage.MyPageScreen
 import com.example.naedafront.ui.screen.mypage.PinChangeScreen
 import com.example.naedafront.ui.screen.mypage.MyPageViewModel
+import com.example.naedafront.ui.screen.setting.NotificationSettingsScreen
 import com.example.naedafront.ui.screen.setting.SettingsScreen
 import com.example.naedafront.ui.screen.signup.SignUpEmailScreen
 import com.example.naedafront.ui.screen.signup.SignUpNameScreen
@@ -298,11 +299,10 @@ fun NaedaNavGraph(
 
         composable(Screen.More.route) {
             SettingsScreen(
-                onNotificationClick = { navController.navigate(Screen.Notification.route) },
-                onPinChangeClick = { navController.navigate(Screen.Security.route) },
+                onNotificationClick = { navController.navigate(Screen.NotificationSettings.route) },
                 onTermsClick = { },
                 onPrivacyClick = { },
-                onSupportClick = { },
+                onSupportClick = { navController.navigate(Screen.CustomerCenter.route) },
                 onLogoutClick = {
                     AuthPrefs.clearSession(context)
                     navController.navigate(Screen.Welcome.route) {
@@ -313,7 +313,6 @@ fun NaedaNavGraph(
                 onWithdrawClick = { }
             )
         }
-    }
 
         composable(Screen.FaceRegister.route) {
             FaceRegisterScreen(
@@ -470,7 +469,6 @@ fun NaedaNavGraph(
                 onFaceReRegisterClick = { navController.navigate(Screen.FaceRegister.route) },
                 onPinChangeClick = { navController.navigate(Screen.Security.route) },
                 onDeliveryAddressClick = { navController.navigate(Screen.DeliveryAddress.route) },
-                onCustomerCenterClick = { navController.navigate(Screen.CustomerCenter.route) },
                 onLogoutClick = {
                     AuthPrefs.clearSession(context)
                     navController.navigate(Screen.Welcome.route) {
@@ -484,11 +482,10 @@ fun NaedaNavGraph(
 
         composable(Screen.Settings.route) {
             SettingsScreen(
-                onNotificationClick = { navController.navigate(Screen.Notification.route) },
-                onPinChangeClick = { navController.navigate(Screen.Security.route) },
+                onNotificationClick = { navController.navigate(Screen.NotificationSettings.route) },
                 onTermsClick = { },
                 onPrivacyClick = { },
-                onSupportClick = { },
+                onSupportClick = { navController.navigate(Screen.CustomerCenter.route) },
                 onLogoutClick = {
                     AuthPrefs.clearSession(context)
                     navController.navigate(Screen.Welcome.route) {
@@ -497,6 +494,13 @@ fun NaedaNavGraph(
                     }
                 },
                 onWithdrawClick = { }
+            )
+        }
+
+        // ── 알림 설정 화면 ──
+        composable(Screen.NotificationSettings.route) {
+            NotificationSettingsScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
 

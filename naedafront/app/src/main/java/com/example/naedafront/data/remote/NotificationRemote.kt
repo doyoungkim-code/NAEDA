@@ -1,6 +1,10 @@
 package com.example.naedafront.data.remote
 
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.POST
+import retrofit2.http.PUT
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 data class NotificationResponse(
@@ -15,6 +19,23 @@ data class NotificationResponse(
     val sent: String?
 )
 
+data class NotificationSettingResponse(
+    val settingId: Long?,
+    val paymentEnabled: Boolean,
+    val fdsEnabled: Boolean,
+    val festivalEnabled: Boolean,
+    val pointEnabled: Boolean,
+    val systemEnabled: Boolean
+)
+
+data class NotificationSettingRequest(
+    val paymentEnabled: Boolean,
+    val fdsEnabled: Boolean,
+    val festivalEnabled: Boolean,
+    val pointEnabled: Boolean,
+    val systemEnabled: Boolean
+)
+
 interface NotificationApi {
     @GET("api/notifications")
     suspend fun getNotifications(
@@ -25,6 +46,22 @@ interface NotificationApi {
     suspend fun getUnreadCount(
         @Query("userNo") userNo: Long
     ): Map<String, Long>
+
+    @GET("api/notification-settings/{userNo}")
+    suspend fun getNotificationSettings(
+        @Path("userNo") userNo: Long
+    ): NotificationSettingResponse
+
+    @POST("api/notification-settings/{userNo}")
+    suspend fun createNotificationSettings(
+        @Path("userNo") userNo: Long
+    ): NotificationSettingResponse
+
+    @PUT("api/notification-settings/{userNo}")
+    suspend fun updateNotificationSettings(
+        @Path("userNo") userNo: Long,
+        @Body request: NotificationSettingRequest
+    ): NotificationSettingResponse
 }
 
 object NotificationRepository {
@@ -36,5 +73,24 @@ object NotificationRepository {
 
     suspend fun getUnreadCount(userNo: Long): Result<Long> = runCatching {
         api.getUnreadCount(userNo).values.firstOrNull() ?: 0L
+    }
+
+    suspend fun getNotificationSettings(userNo: Long): Result<NotificationSettingResponse> = runCatching {
+        try {
+            api.getNotificationSettings(userNo)
+        } catch (e: retrofit2.HttpException) {
+            if (e.code() == 404) {
+                api.createNotificationSettings(userNo)
+            } else {
+                throw e
+            }
+        }
+    }
+
+    suspend fun updateNotificationSettings(
+        userNo: Long,
+        request: NotificationSettingRequest
+    ): Result<NotificationSettingResponse> = runCatching {
+        api.updateNotificationSettings(userNo, request)
     }
 }

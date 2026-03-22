@@ -25,7 +25,6 @@ import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Face
-import androidx.compose.material.icons.outlined.HeadsetMic
 import androidx.compose.material.icons.outlined.LockReset
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Settings
@@ -63,7 +62,6 @@ fun MyPageScreen(
     onFaceReRegisterClick: () -> Unit = {},
     onPinChangeClick: () -> Unit = {},
     onDeliveryAddressClick: () -> Unit = {},
-    onCustomerCenterClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
     onFabClick: () -> Unit = {},
 ) {
@@ -196,22 +194,6 @@ fun MyPageScreen(
                     )
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                SectionTitle("서비스 지원")
-                Spacer(modifier = Modifier.height(12.dp))
-
-                MenuSectionCard(
-                    items = listOf(
-                        MyPageMenuItemData(
-                            title = "고객센터",
-                            icon = Icons.Outlined.HeadsetMic,
-                            iconBg = Color(0xFFF3F4F6),
-                            iconTint = Color(0xFF5B6472),
-                            onClick = onCustomerCenterClick
-                        )
-                    )
-                )
             }
 
             if (uiState.isLoading) {

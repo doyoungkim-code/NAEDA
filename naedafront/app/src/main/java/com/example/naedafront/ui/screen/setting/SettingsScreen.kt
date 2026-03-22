@@ -24,11 +24,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.HeadsetMic
-import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.PersonOff
 import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -45,8 +47,9 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun SettingsScreen(
+    isDarkMode: Boolean = false,
+    onDarkModeChange: (Boolean) -> Unit = {},
     onNotificationClick: () -> Unit = {},
-    onPinChangeClick: () -> Unit = {},
     onTermsClick: () -> Unit = {},
     onPrivacyClick: () -> Unit = {},
     onSupportClick: () -> Unit = {},
@@ -113,10 +116,11 @@ fun SettingsScreen(
 
                 CardDivider()
 
-                SettingsArrowRow(
-                    icon = Icons.Outlined.Lock,
-                    title = "결제 비밀번호 변경",
-                    onClick = onPinChangeClick
+                SettingsToggleRow(
+                    icon = Icons.Outlined.DarkMode,
+                    title = "다크 모드",
+                    checked = isDarkMode,
+                    onCheckedChange = onDarkModeChange
                 )
             }
 
@@ -249,6 +253,45 @@ private fun LeadingIcon(
             contentDescription = null,
             tint = Color(0xFF6B7280),
             modifier = Modifier.size(22.dp)
+        )
+    }
+}
+
+@Composable
+private fun SettingsToggleRow(
+    icon: ImageVector,
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        LeadingIcon(icon = icon)
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        Text(
+            text = title,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF202632)
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = Color(0xFF0FA37F),
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = Color(0xFFD1D5DB)
+            )
         )
     }
 }
