@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -44,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import com.example.naedafront.ui.theme.Background
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -73,7 +75,7 @@ fun MyPageScreen(
         viewModel.fetchMyInfo(context)
     }
 
-    val bgColor = Color(0xFFF5F6F8)
+    val bgColor = Background
     val fabColor = Color(0xFF0FA37F)
 
     Scaffold(
@@ -116,7 +118,8 @@ fun MyPageScreen(
                     modifier = Modifier.size(24.dp)
                 )
             }
-        }
+        },
+        contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         Box(
             modifier = Modifier
