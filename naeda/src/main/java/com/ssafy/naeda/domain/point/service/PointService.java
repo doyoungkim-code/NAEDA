@@ -94,7 +94,7 @@ public class PointService {
         PointWallet wallet = pointWalletRepository.findByUserNo(userNo)
                 .orElseThrow(() -> new NotFoundException("포인트 지갑이 존재하지 않습니다. userNo: " + userNo));
 
-        return pointHistoryRepository.findByWalletIdOrderByCreatedDesc(wallet.getWalletId())
+        return pointHistoryRepository.findByWalletIdOrderByCreatedDescHistoryIdDesc(wallet.getWalletId())
                 .stream()
                 .map(PointHistoryResponse::from)
                 .toList();
