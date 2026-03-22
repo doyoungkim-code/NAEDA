@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingBag
@@ -151,7 +153,8 @@ fun HomeScreen(
         floatingActionButton = {
             ChatFloatingButton(onClick = onChatClick)
         },
-        containerColor = Background
+        containerColor = Background,
+        contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -230,11 +233,8 @@ private fun NaedaHomeTopBar(
             )
         },
         actions = {
-            IconButton(onClick = onSearchClick) {
-                Icon(Icons.Default.Search, contentDescription = "검색", tint = OnBackground)
-            }
             IconButton(onClick = onAlarmClick) {
-                Icon(Icons.Default.Notifications, contentDescription = "알림", tint = OnBackground)
+                Icon(Icons.Outlined.Notifications, contentDescription = "알림", tint = OnBackground)
             }
             IconButton(onClick = onProfileClick) {
                 Box(
