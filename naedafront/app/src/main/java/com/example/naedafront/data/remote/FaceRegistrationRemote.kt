@@ -198,14 +198,15 @@ object FaceRegistrationRepository {
     }
 
     suspend fun updatePin(currentPin: String?, newPin: String): PinUpdateResponseDto {
+        val body = UpdatePinRequestBody(
+            currentPin = currentPin?.trim()?.takeUnless { it.isBlank() },
+            newPin = newPin.trim()
+        )
+        android.util.Log.d("PinChange", "updatePin request: currentPin=${body.currentPin}, newPin=${body.newPin}")
         return runCatching {
-            service.updatePin(
-                UpdatePinRequestBody(
-                    currentPin = currentPin?.trim()?.takeUnless { it.isBlank() },
-                    newPin = newPin.trim()
-                )
-            )
+            service.updatePin(body)
         }.getOrElse { throwable ->
+            android.util.Log.e("PinChange", "updatePin failed", throwable)
             throw toReadableException(throwable, "PIN 설정에 실패했습니다.")
         }
     }

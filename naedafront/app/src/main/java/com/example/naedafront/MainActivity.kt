@@ -78,13 +78,15 @@ fun NaedaApp() {
         Screen.Scan.route,
         Screen.PointHistory.route,
         Screen.Asset.route,
-        Screen.More.route
+        Screen.More.route,
+        Screen.MyPage.route
     )
 
     val showBottomBar = currentRoute in bottomBarRoutes
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        containerColor = com.example.naedafront.ui.theme.Background,
         bottomBar = {
             if (showBottomBar) {
                 NaedaBottomNavBar(
