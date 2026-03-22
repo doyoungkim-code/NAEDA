@@ -1,5 +1,6 @@
 package com.example.naedafront.ui.navigation
 
+import com.example.naedafront.ui.screen.home.HomeViewModel
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
