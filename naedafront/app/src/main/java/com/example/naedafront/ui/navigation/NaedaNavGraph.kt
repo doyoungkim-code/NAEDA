@@ -217,8 +217,7 @@ fun NaedaNavGraph(
         composable(Screen.Store.route) {
             PointStoreScreen(
                 onHistoryClick = { navController.navigate(Screen.PointHistory.route) },
-                onPurchaseClick = { item ->
-                    StoreOrderDraftStore.updateSelectedItem(item)
+                onPurchaseClick = {
                     navController.navigate(Screen.DeliveryAddress.route)
                 }
             )

@@ -1,10 +1,15 @@
 package com.example.naedafront.data.repository
 
-import com.example.naedafront.data.remote.RetrofitClient
+import com.example.naedafront.data.remote.ApiConfig
+import com.example.naedafront.data.remote.api.OrderApi
 import com.example.naedafront.data.remote.request.CreateOrderRequest
 import com.example.naedafront.data.remote.response.OrderResponse
 
 class OrderRepository {
+
+    private val orderApi: OrderApi by lazy {
+        ApiConfig.retrofit.create(OrderApi::class.java)
+    }
 
     suspend fun createOrder(
         userNo: Long,
@@ -12,7 +17,7 @@ class OrderRepository {
         addressId: Long
     ): Result<OrderResponse> {
         return try {
-            val response = RetrofitClient.orderApi.createOrder(
+            val response = orderApi.createOrder(
                 userNo = userNo,
                 request = CreateOrderRequest(
                     productId = productId,

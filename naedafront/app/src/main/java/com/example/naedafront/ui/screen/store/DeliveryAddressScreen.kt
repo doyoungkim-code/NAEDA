@@ -2,6 +2,7 @@
 
 package com.example.naedafront.ui.screen.store
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -111,6 +112,8 @@ fun DeliveryAddressScreen(
     var isCustomRequest by remember { mutableStateOf(false) }
     var saveAsDefault by remember { mutableStateOf(true) }
     var showAddressSearchSheet by remember { mutableStateOf(false) }
+    var localErrorMessage by remember { mutableStateOf<String?>(null) }
+    var isOrdering by remember { mutableStateOf(false) }
 
     LaunchedEffect(userNo) {
         if (userNo != null) {
@@ -121,6 +124,8 @@ fun DeliveryAddressScreen(
                 phone = AuthPrefs.getPhone(context).orEmpty()
             }
             viewModel.loadAddresses(userNo)
+        } else {
+            localErrorMessage = "로그인 사용자 정보를 찾을 수 없습니다."
         }
     }
 
@@ -140,7 +145,7 @@ fun DeliveryAddressScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "로그인 사용자 정보를 찾을 수 없습니다.",
+                        text = localErrorMessage ?: "로그인 사용자 정보를 찾을 수 없습니다.",
                         color = ErrorColor,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium
@@ -176,8 +181,8 @@ fun DeliveryAddressScreen(
                     onCustomRequestChange = { isCustomRequest = it },
                     saveAsDefault = saveAsDefault,
                     onSaveAsDefaultChange = { saveAsDefault = it },
-                    errorMessage = uiState.errorMessage,
-                    isSubmitting = uiState.isSubmitting,
+                    errorMessage = localErrorMessage ?: uiState.errorMessage,
+                    isSubmitting = uiState.isSubmitting || isOrdering,
                     onSearchPostCodeClick = {
                         onSearchPostCodeClick()
                         showAddressSearchSheet = true
@@ -193,11 +198,58 @@ fun DeliveryAddressScreen(
                     },
                     onCompleteClick = {
                         val selectedItem = StoreOrderDraftStore.selectedItem
-                        if (selectedItem == null || userNo == null) {
+
+                        if (selectedItem == null) {
+                            localErrorMessage = "선택된 상품 정보가 없습니다. 상품 화면에서 다시 선택해주세요."
                             return@DeliveryAddressFormContent
                         }
 
-                        StoreOrderDraftStore.setDeliveryRequest(deliveryRequest)
+                        if (userNo == null) {
+                            localErrorMessage = "로그인 사용자 정보를 찾을 수 없습니다."
+                            return@DeliveryAddressFormContent
+                        }
+
+                        localErrorMessage = null
+                        StoreOrderDraftStore.updateDeliveryRequest(deliveryRequest)
+
+                        val existingAddress = uiState.addresses.firstOrNull { saved ->
+                            saved.recipient.trim() == recipientName.trim() &&
+                                    saved.phone.trim() == phone.trim() &&
+                                    saved.zipCode.trim() == postCode.trim() &&
+                                    saved.roadAddress.trim() == address.trim() &&
+                                    saved.detailAddress.trim() == detailAddress.trim()
+                        }
+
+                        if (existingAddress != null) {
+                            coroutineScope.launch {
+                                isOrdering = true
+
+                                Log.d(
+                                    "ORDER_FLOW",
+                                    "use existing address userNo=$userNo, productId=${selectedItem.id}, addressId=${existingAddress.addressId}"
+                                )
+
+                                orderRepository.createOrder(
+                                    userNo = userNo,
+                                    productId = selectedItem.id,
+                                    addressId = existingAddress.addressId
+                                ).onSuccess { orderResponse ->
+                                    StoreOrderDraftStore.buildCompletedOrder(
+                                        order = orderResponse,
+                                        address = existingAddress,
+                                        recipientName = recipientName,
+                                        phone = phone
+                                    )
+                                    isOrdering = false
+                                    onAddressSelected(existingAddress)
+                                }.onFailure { throwable ->
+                                    isOrdering = false
+                                    localErrorMessage = throwable.message ?: "주문 생성에 실패했습니다."
+                                    Log.e("ORDER_FLOW", "createOrder failed", throwable)
+                                }
+                            }
+                            return@DeliveryAddressFormContent
+                        }
 
                         viewModel.createAddress(
                             userNo = userNo,
@@ -209,9 +261,16 @@ fun DeliveryAddressScreen(
                             saveAsDefault = saveAsDefault,
                             onSuccess = { savedAddress ->
                                 coroutineScope.launch {
+                                    isOrdering = true
+
+                                    Log.d(
+                                        "ORDER_FLOW",
+                                        "createOrder start userNo=$userNo, productId=${selectedItem.id}, addressId=${savedAddress.addressId}"
+                                    )
+
                                     orderRepository.createOrder(
                                         userNo = userNo,
-                                        productId = selectedItem.id, // StoreItem 필드명이 productId면 이 줄만 교체
+                                        productId = selectedItem.id,
                                         addressId = savedAddress.addressId
                                     ).onSuccess { orderResponse ->
                                         StoreOrderDraftStore.buildCompletedOrder(
@@ -220,10 +279,13 @@ fun DeliveryAddressScreen(
                                             recipientName = recipientName,
                                             phone = phone
                                         )
+                                        isOrdering = false
                                         onAddressSelected(savedAddress)
                                     }.onFailure { throwable ->
-                                        // 필요하면 ViewModel의 error 상태로 연결
-                                        throwable.printStackTrace()
+                                        isOrdering = false
+                                        localErrorMessage =
+                                            throwable.message ?: "주문 생성에 실패했습니다."
+                                        Log.e("ORDER_FLOW", "createOrder failed", throwable)
                                     }
                                 }
                             }
@@ -1016,7 +1078,7 @@ private fun AddressSearchBottomSheet(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = uiState.errorMessage,
+                            text = uiState.errorMessage ?: "주소 검색에 실패했습니다.",
                             color = ErrorColor,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium

@@ -10,7 +10,6 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
 
-    private const val BACKEND_BASE_URL = "http://10.0.2.2:8080/"
     private const val NAVER_GEOCODE_BASE_URL = "https://maps.apigw.ntruss.com/"
 
     private val backendClient: OkHttpClient by lazy {
@@ -32,7 +31,7 @@ object RetrofitClient {
 
     private val backendRetrofit: Retrofit by lazy {
         Retrofit.Builder()
-            .baseUrl(BACKEND_BASE_URL)
+            .baseUrl(BuildConfig.BACKEND_BASE_URL)
             .client(backendClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

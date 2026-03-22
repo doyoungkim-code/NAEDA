@@ -24,12 +24,16 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,8 +53,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.material3.Icon
 
 private data class StoreCategory(
     val id: String,
@@ -95,6 +99,7 @@ fun PointStoreScreen(
     }
 
     var selectedCategory by remember { mutableStateOf("all") }
+    var selectedItem by remember { mutableStateOf<StoreItem?>(null) }
 
     val saleItems = uiState.items.filter { it.status == "ON_SALE" }
 
@@ -224,14 +229,25 @@ fun PointStoreScreen(
                             ProductCard(
                                 item = item,
                                 onClick = {
-                                    StoreOrderDraftStore.updateSelectedItem(item)
-                                    onPurchaseClick(item)
+                                    selectedItem = item
                                 }
                             )
                         }
                     }
                 }
             }
+        }
+
+        selectedItem?.let { item ->
+            StoreItemDetailDialog(
+                item = item,
+                onDismiss = { selectedItem = null },
+                onPurchaseClick = {
+                    StoreOrderDraftStore.updateSelectedItem(item)
+                    selectedItem = null
+                    onPurchaseClick(item)
+                }
+            )
         }
     }
 }
@@ -589,5 +605,158 @@ private fun ProductCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun StoreItemDetailDialog(
+    item: StoreItem,
+    onDismiss: () -> Unit,
+    onPurchaseClick: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = Color.White
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "상품 상세",
+                        color = Color(0xFF101828),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "close",
+                            tint = Color(0xFF667085)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(Color(0xFFF2F4F7)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = item.thumbnailLabel,
+                        color = Color(0xFF98A2B3),
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = item.brand,
+                    color = Color(0xFF98A2B3),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = item.title,
+                    color = Color(0xFF101828),
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = item.description.ifBlank { "상품 설명이 없습니다." },
+                    color = Color(0xFF475467),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    lineHeight = 22.sp
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    InfoChip(label = "카테고리", value = item.category)
+                    InfoChip(label = "재고", value = "${item.stockQuantity}개")
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Text(
+                    text = "%,d P".format(item.pricePoint),
+                    color = Color(0xFF006B60),
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Button(
+                    onClick = onPurchaseClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF006B60),
+                        contentColor = Color.White
+                    ),
+                    enabled = item.stockQuantity > 0
+                ) {
+                    Text(
+                        text = if (item.stockQuantity > 0) "구매하기" else "품절",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoChip(
+    label: String,
+    value: String
+) {
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xFFF2F4F7))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Text(
+            text = label,
+            color = Color(0xFF98A2B3),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = value,
+            color = Color(0xFF101828),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
