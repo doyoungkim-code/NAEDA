@@ -28,13 +28,8 @@ def test_resident_id_ocr_requires_service_token():
     assert response.json()["code"] == "UNAUTHORIZED"
 
 
-def test_resident_id_ocr_returns_mock_result(monkeypatch):
+def test_resident_id_ocr_rejects_mock_provider(monkeypatch):
     monkeypatch.setenv("RESIDENT_OCR_PROVIDER", "mock")
-    monkeypatch.setenv("RESIDENT_OCR_MOCK_DOCUMENT_TYPE", "DRIVER_LICENSE")
-    monkeypatch.setenv("RESIDENT_OCR_MOCK_NAME", "홍길동")
-    monkeypatch.setenv("RESIDENT_OCR_MOCK_FRONT6", "900101")
-    monkeypatch.setenv("RESIDENT_OCR_MOCK_BACK1", "1")
-    monkeypatch.setenv("RESIDENT_OCR_MOCK_CONFIDENCE", "0.91")
 
     from app.core.config import get_settings
 
@@ -48,15 +43,10 @@ def test_resident_id_ocr_returns_mock_result(monkeypatch):
     finally:
         get_settings.cache_clear()
 
-    assert response.status_code == 200
+    assert response.status_code == 503
     data = response.json()
-    assert data["documentType"] == "DRIVER_LICENSE"
-    assert data["documentMatched"] is True
-    assert data["name"] == "홍길동"
-    assert data["residentFront6"] == "900101"
-    assert data["residentBackFirst1"] == "1"
-    assert data["provider"] == "mock"
-    assert data["confidence"] == 0.91
+    assert data["code"] == "OCR_UNAVAILABLE"
+    assert "Mock OCR provider is disabled" in data["message"]
 
 
 def test_resident_id_ocr_returns_paddleocr_result(monkeypatch):
