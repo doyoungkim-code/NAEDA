@@ -336,22 +336,6 @@ def _extract_with_paddle_provider(image_raw: bytes) -> dict:
     }
 
 
-def _extract_with_mock_provider() -> dict:
-    settings = get_settings()
-    document_type = (settings.resident_ocr_mock_document_type or "").upper()
-    if document_type not in {"RESIDENT_ID", "DRIVER_LICENSE"}:
-        raise AIServiceError(status_code=400, code="OCR_EXTRACTION_FAILED", message="Unsupported id card type")
-    return {
-        "documentType": document_type,
-        "documentMatched": True,
-        "name": _normalize_name(settings.resident_ocr_mock_name),
-        "residentFront6": _normalize_digits(settings.resident_ocr_mock_front6, 6),
-        "residentBackFirst1": _normalize_digits(settings.resident_ocr_mock_back1, 1),
-        "provider": "mock",
-        "confidence": settings.resident_ocr_mock_confidence,
-    }
-
-
 async def extract_resident_id_fields(upload_file: UploadFile) -> dict:
     settings = get_settings()
     image_raw = await upload_file.read()
@@ -361,7 +345,11 @@ async def extract_resident_id_fields(upload_file: UploadFile) -> dict:
     try:
         provider = settings.resident_ocr_provider.lower()
         if provider == "mock":
-            return _extract_with_mock_provider()
+            raise AIServiceError(
+                status_code=503,
+                code="OCR_UNAVAILABLE",
+                message="Mock OCR provider is disabled. Set RESIDENT_OCR_PROVIDER to paddleocr",
+            )
         if provider == "paddleocr":
             return _extract_with_paddle_provider(image_raw)
 
