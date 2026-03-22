@@ -74,4 +74,17 @@ public class PayLimitService {
             throw new BadRequestException("1회 한도는 최대 " + MAX_SINGLE + "원까지 설정 가능합니다.");
         }
     }
+
+    public void validatePaymentLimit(Long userNo, Long amount, long todaySum, long monthSum){
+        PayLimit limit = payLimitRepository.findByUserNo(userNo).orElse(null);
+
+        long singleLimit = (limit != null) ? limit.getSingleTransactionLimit() : DEFAULT_SINGLE;
+        long dailyLimit = (limit != null) ? limit.getDailyLimit() : DEFAULT_DAILY;
+        long monthlyLimit = (limit != null) ? limit.getMonthlyLimit() : DEFAULT_MONTHLY;
+
+        //1회 결제 한도 검증
+        if(amount > singleLimit){
+            throw new BadRequestException("1회 결제 한도를 초과했습니다. (한도 :" + singleLimit + ")");
+        }
+    }
 }

@@ -36,6 +36,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.text.NumberFormat;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -63,6 +64,8 @@ public class PayFacadeService {
     private final DebitCardRepository debitCardRepository;
     private final PasswordEncoder passwordEncoder;
     private final FcmService fcmService;
+    private final PayLimitService payLimitService;
+
 
     private static final String CREDIT_CARD_API = "/edu/creditCard/createCreditCardTransaction";
     private static final String TRANSFER_API = "/edu/demandDeposit/updateDemandDepositAccountTransfer";
@@ -139,6 +142,23 @@ public class PayFacadeService {
                     .filter(PayMethod::getIsDefault)
                     .findFirst()
                     .orElse(facePayMethods.get(0));
+
+            //결제 한도 검증
+            //결제 요청 금액이 유저가 설정한 1회/1일/월 한도를 초과하는지 검증한다.
+            // SUCCESS 상태의 거래만 누적 합산하여 비교한다.
+            LocalDateTime todayStart = LocalDate.now().atStartOfDay();
+            LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+
+            long todaySum = payDbService.getPayTransactionRepository()
+                    .sumAmountByUserNoAndStatusAndCreatedAtAfter(
+                            user.getUserNo(), PayStatus.SUCCESS, todayStart
+                    );
+            long monthSum = payDbService.getPayTransactionRepository()
+                    .sumAmountByUserNoAndStatusAndCreatedAtAfter(
+                            user.getUserNo(),PayStatus.SUCCESS,monthStart
+                    );
+
+            payLimitService.validatePaymentLimit(user.getUserNo(),amount,todaySum,monthSum);
 
             // 9. PIN 2차 인증 (pin이 전달된 경우 검증)
             boolean pinVerified = false;
