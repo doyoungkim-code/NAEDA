@@ -156,7 +156,6 @@ private fun OrderCompleteTopBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.White)
-            .statusBarsPadding()
     ) {
         Box(
             modifier = Modifier

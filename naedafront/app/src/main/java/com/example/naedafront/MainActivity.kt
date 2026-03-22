@@ -9,8 +9,13 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,6 +34,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         ApiConfig.initialize(applicationContext)
         enableEdgeToEdge()
+
+        // 시스템 네비게이션 바 숨기기
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.hide(WindowInsetsCompat.Type.navigationBars())
+        insetsController.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
         setContent {
             NaedaTheme {
@@ -87,6 +98,7 @@ fun NaedaApp() {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = com.example.naedafront.ui.theme.Background,
+        contentWindowInsets = WindowInsets.statusBars,
         bottomBar = {
             if (showBottomBar) {
                 NaedaBottomNavBar(

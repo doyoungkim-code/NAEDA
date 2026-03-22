@@ -86,7 +86,6 @@ fun ChatScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Background)
-            .statusBarsPadding()
             .imePadding()
     ) {
         // 상단 바
