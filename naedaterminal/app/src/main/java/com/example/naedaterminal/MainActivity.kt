@@ -231,6 +231,7 @@ class MainActivity : ComponentActivity() {
                         amount = currentAmount,
                         merchant = currentMerchant,
                         method = currentMethod,
+                        userName = matchedUserInfo?.userName,
                         onDone = { route = Route.Waiting }
                     )
                 }
