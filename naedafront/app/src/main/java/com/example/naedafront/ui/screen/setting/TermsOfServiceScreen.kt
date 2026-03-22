@@ -52,7 +52,6 @@ fun TermsOfServiceScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Background)
-                .statusBarsPadding()
                 .padding(innerPadding)
                 .padding(horizontal = 20.dp)
         ) {

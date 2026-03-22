@@ -253,7 +253,8 @@ private fun NaedaHomeTopBar(
                 }
             }
         },
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = Background)
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = Background),
+        windowInsets = WindowInsets(0)
     )
 }
 

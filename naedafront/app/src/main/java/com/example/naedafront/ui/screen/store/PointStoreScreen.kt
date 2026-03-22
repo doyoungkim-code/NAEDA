@@ -273,7 +273,6 @@ private fun PointStoreHeader(
             .fillMaxWidth()
             .height(300.dp)
             .background(Color(0xFF005E54))
-            .statusBarsPadding()
     ) {
         Canvas(
             modifier = Modifier
