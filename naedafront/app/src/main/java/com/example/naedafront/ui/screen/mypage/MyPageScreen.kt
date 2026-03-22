@@ -8,25 +8,26 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Badge
-import androidx.compose.material.icons.outlined.ContactPhone
+import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Face
-import androidx.compose.material.icons.outlined.HeadsetMic
 import androidx.compose.material.icons.outlined.LockReset
 import androidx.compose.material.icons.outlined.NotificationsNone
-import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
@@ -44,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import com.example.naedafront.ui.theme.Background
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -61,9 +63,7 @@ fun MyPageScreen(
     onSettingsClick: () -> Unit = {},
     onFaceReRegisterClick: () -> Unit = {},
     onPinChangeClick: () -> Unit = {},
-    onEditProfileClick: () -> Unit = {},
-    onContactManageClick: () -> Unit = {},
-    onCustomerCenterClick: () -> Unit = {},
+    onDeliveryAddressClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
     onFabClick: () -> Unit = {},
 ) {
@@ -75,7 +75,7 @@ fun MyPageScreen(
         viewModel.fetchMyInfo(context)
     }
 
-    val bgColor = Color(0xFFF5F6F8)
+    val bgColor = Background
     val fabColor = Color(0xFF0FA37F)
 
     Scaffold(
@@ -118,7 +118,8 @@ fun MyPageScreen(
                     modifier = Modifier.size(24.dp)
                 )
             }
-        }
+        },
+        contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -129,6 +130,7 @@ fun MyPageScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp)
             ) {
                 Spacer(modifier = Modifier.height(18.dp))
@@ -186,38 +188,15 @@ fun MyPageScreen(
                 MenuSectionCard(
                     items = listOf(
                         MyPageMenuItemData(
-                            title = "프로필 정보 수정",
-                            icon = Icons.Outlined.PersonOutline,
-                            iconBg = Color(0xFFF3F4F6),
-                            iconTint = Color(0xFF5B6472),
-                            onClick = onEditProfileClick
-                        ),
-                        MyPageMenuItemData(
-                            title = "연락처 관리",
-                            icon = Icons.Outlined.ContactPhone,
-                            iconBg = Color(0xFFF3F4F6),
-                            iconTint = Color(0xFF5B6472),
-                            onClick = onContactManageClick
+                            title = "배송지 관리",
+                            icon = Icons.Outlined.LocationOn,
+                            iconBg = Color(0xFFEEF4FF),
+                            iconTint = Color(0xFF2F6FED),
+                            onClick = onDeliveryAddressClick
                         )
                     )
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                SectionTitle("서비스 지원")
-                Spacer(modifier = Modifier.height(12.dp))
-
-                MenuSectionCard(
-                    items = listOf(
-                        MyPageMenuItemData(
-                            title = "고객센터",
-                            icon = Icons.Outlined.HeadsetMic,
-                            iconBg = Color(0xFFF3F4F6),
-                            iconTint = Color(0xFF5B6472),
-                            onClick = onCustomerCenterClick
-                        )
-                    )
-                )
             }
 
             if (uiState.isLoading) {

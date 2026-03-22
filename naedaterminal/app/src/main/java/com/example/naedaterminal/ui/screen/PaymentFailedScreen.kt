@@ -32,6 +32,7 @@ private val TextPrimary = Color(0xFF0D3B35)
 
 @Composable
 fun PaymentFailedScreen(
+    reason: String? = null,
     onDone: () -> Unit
 ) {
     LaunchedEffect(Unit) {
@@ -110,7 +111,7 @@ fun PaymentFailedScreen(
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "잠시 후 다시 시도해주세요",
+                text = reason ?: "잠시 후 다시 시도해주세요",
                 color = TextPrimary.copy(alpha = 0.45f),
                 fontSize = 14.sp,
                 fontFamily = NaedaFontFamily,

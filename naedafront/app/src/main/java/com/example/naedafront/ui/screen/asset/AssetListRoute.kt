@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -52,13 +53,23 @@ fun AccountListRoute(
     onDeleteAccount: (AccountItem) -> Unit = {},
     onSetPrimary: (AccountItem) -> Unit = {},
     onSetPrimaryCard: (CardItem) -> Unit = {},
-    onDeleteCard: (CardItem) -> Unit = {}
+    onDeleteCard: (CardItem) -> Unit = {},
+    useRegisterDialog: Boolean = false
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val userNo = remember(context) { AuthPrefs.getUserNo(context) }
     var reloadTick by remember { mutableIntStateOf(0) }
     var uiState by remember { mutableStateOf<AssetListUiState>(AssetListUiState.Loading) }
+    var showRegisterDialog by remember { mutableStateOf<Int?>(null) }
+
+    val handleRegisterAccount = if (useRegisterDialog) {
+        { showRegisterDialog = 0 }
+    } else onRegisterNewAccount
+
+    val handleRegisterCard = if (useRegisterDialog) {
+        { showRegisterDialog = 1 }
+    } else onRegisterNewCard
 
     fun setDefaultPaymentMethod(paymentMethodId: Long?, onSuccess: () -> Unit = {}) {
         if (userNo == null || paymentMethodId == null) {
@@ -112,7 +123,7 @@ fun AccountListRoute(
         }
 
         is AssetListUiState.Error -> {
-            Scaffold(containerColor = Background) { innerPadding ->
+            Scaffold(containerColor = Background, contentWindowInsets = WindowInsets(0)) { innerPadding ->
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -142,8 +153,8 @@ fun AccountListRoute(
                 accounts = state.accounts,
                 cards = state.cards,
                 onBack = onBack,
-                onRegisterNewAccount = onRegisterNewAccount,
-                onRegisterNewCard = onRegisterNewCard,
+                onRegisterNewAccount = handleRegisterAccount,
+                onRegisterNewCard = handleRegisterCard,
                 onAccountClick = onAccountClick,
                 onCardClick = onCardClick,
                 onDeleteAccount = onDeleteAccount,
@@ -159,6 +170,17 @@ fun AccountListRoute(
                 },
                 onDeleteCard = onDeleteCard
             )
+
+            if (showRegisterDialog != null) {
+                RegisterAssetDialog(
+                    initialTab = showRegisterDialog!!,
+                    onDismiss = { showRegisterDialog = null },
+                    onRegisterComplete = {
+                        showRegisterDialog = null
+                        reloadTick++
+                    }
+                )
+            }
         }
     }
 }

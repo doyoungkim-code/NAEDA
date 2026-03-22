@@ -1,25 +1,60 @@
 package com.example.naedaterminal.ui.screen
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
-import android.net.Uri
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.ImageFormat
+import android.graphics.Matrix
+import android.graphics.PointF
+import android.graphics.Rect
+import android.graphics.YuvImage
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
+import androidx.annotation.OptIn
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.core.*
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ExperimentalGetImage
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.StoreMallDirectory
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,25 +69,40 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import com.example.naedaterminal.ui.theme.NaedaFontFamily
-import kotlinx.coroutines.*
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.face.Face
+import com.google.mlkit.vision.face.FaceDetection
+import com.google.mlkit.vision.face.FaceDetectorOptions
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
+import java.io.ByteArrayOutputStream
 import java.util.concurrent.Executors
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.sqrt
 
 private val Primary = Color(0xFF00635A)
 private val BgScan = Color(0xFFECF8F7)
 private val TextPrimary = Color(0xFF0D3B35)
+private val GuideReady = Color(0xFF20D5BE)
+
+private const val MAX_SCAN_DURATION_MS = 30_000L
+private const val ANALYSIS_INTERVAL_MS = 100L
+private const val SERVER_REQUEST_INTERVAL_MS = 700L
+private const val CANDIDATE_STALE_MS = 1_500L
+private const val MIN_BRIGHTNESS = 40f
+private const val FRAME_EDGE_MARGIN_RATIO = 0.02f
+private const val MIN_FACE_WIDTH_RATIO = 0.12f
+private const val MIN_FACE_HEIGHT_RATIO = 0.16f
 
 data class CandidateResult(
     val userId: String,
@@ -67,6 +117,7 @@ data class FaceSearchResponse(
     val nextAction: String?,
     val bestUserId: String?,
     val username: String?,
+    val userNo: Long?,
     val matchedUserNo: Long?,
     val similarity: Double,
     val matchThreshold: Double,
@@ -78,6 +129,23 @@ data class FaceSearchResponse(
     val candidates: List<CandidateResult>
 )
 
+private data class GuideFrameState(
+    val faceDetected: Boolean = false,
+    val aligned: Boolean = false,
+    val centered: Boolean = false,
+    val sizeOk: Boolean = false,
+    val brightnessOk: Boolean = true,
+    val score: Float = 0f,
+    val message: String = "얼굴을 원형 가이드 안에 맞춰주세요.",
+    val uploadBytes: ByteArray? = null
+)
+
+private data class UploadCandidate(
+    val jpegBytes: ByteArray,
+    val score: Float,
+    val capturedAt: Long
+)
+
 @Composable
 fun FacePayAuthScreen(
     amount: Long,
@@ -85,12 +153,11 @@ fun FacePayAuthScreen(
     apiBaseUrl: String,
     topK: Int = 3,
     onBack: () -> Unit,
-    onAuthed: (result: FaceSearchResponse) -> Unit,
-    onNotMatched: () -> Unit,
+    onResolved: (FaceSearchResponse) -> Unit,
+    onNotMatched: (String?) -> Unit
 ) {
     val ctx = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val scope = rememberCoroutineScope()
     val client = remember {
         OkHttpClient.Builder()
             .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
@@ -98,17 +165,25 @@ fun FacePayAuthScreen(
             .writeTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
             .build()
     }
-    val executor = remember { Executors.newSingleThreadExecutor() }
+    val analysisExecutor = remember { Executors.newSingleThreadExecutor() }
+    val imageAnalysis = remember {
+        ImageAnalysis.Builder()
+            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .build()
+    }
 
-    var statusText by remember { mutableStateOf("얼굴 스캔 중...") }
-    var busy by remember { mutableStateOf(false) }
-    var scanResult by remember { mutableStateOf<FaceSearchResponse?>(null) }
+    var statusText by remember { mutableStateOf("얼굴 전체가 화면 안에 보이도록 맞춰주세요.") }
+    var guideState by remember { mutableStateOf(GuideFrameState()) }
+    var bestCandidate by remember { mutableStateOf<UploadCandidate?>(null) }
     var hasPerm by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA)
                     == PackageManager.PERMISSION_GRANTED
         )
     }
+    var scanResolved by remember { mutableStateOf(false) }
+    var isSending by remember { mutableStateOf(false) }
+    var remainingSeconds by remember { mutableStateOf((MAX_SCAN_DURATION_MS / 1_000L).toInt()) }
 
     val permLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -118,87 +193,154 @@ fun FacePayAuthScreen(
         if (!hasPerm) permLauncher.launch(Manifest.permission.CAMERA)
     }
 
-    val imageCapture = remember { ImageCapture.Builder().build() }
-    val photoFile = remember { File(ctx.cacheDir, "face_terminal_${System.currentTimeMillis()}.jpg") }
+    DisposableEffect(imageAnalysis) {
+        val analyzer = FaceGuideAnalyzer { frameState ->
+            if (scanResolved) return@FaceGuideAnalyzer
+            guideState = frameState.copy(uploadBytes = null)
+            val uploadBytes = frameState.uploadBytes ?: return@FaceGuideAnalyzer
+            val candidate = UploadCandidate(
+                jpegBytes = uploadBytes,
+                score = frameState.score,
+                capturedAt = SystemClock.elapsedRealtime()
+            )
+            val current = bestCandidate
+            if (current == null ||
+                candidate.score >= current.score ||
+                candidate.capturedAt - current.capturedAt > 1_000L
+            ) {
+                bestCandidate = candidate
+            }
+        }
+        imageAnalysis.setAnalyzer(analysisExecutor, analyzer)
+        onDispose {
+            imageAnalysis.clearAnalyzer()
+            analysisExecutor.shutdown()
+        }
+    }
 
-    // 2.5초 후 자동 캡처 → 서버 전송 (자동 재시도)
     LaunchedEffect(hasPerm) {
         if (!hasPerm) return@LaunchedEffect
-        delay(2500)
 
-        while (true) {
-            withContext(Dispatchers.Main) { statusText = "서버 전송 중..." }
+        val startedAt = SystemClock.elapsedRealtime()
+        while (!scanResolved) {
+            val elapsed = SystemClock.elapsedRealtime() - startedAt
+            val remaining = (MAX_SCAN_DURATION_MS - elapsed).coerceAtLeast(0L)
+            remainingSeconds = kotlin.math.ceil(remaining / 1_000.0).toInt().coerceAtLeast(0)
 
-            val result = withContext(Dispatchers.IO) {
-                runCatching {
-                    captureImage(imageCapture, photoFile, executor)
-                    postFaceSearchFile(client, apiBaseUrl, photoFile, topK, amount)
+            if (remaining <= 0L) {
+                scanResolved = true
+                onNotMatched("30초 동안 얼굴을 인식하지 못했습니다.")
+                return@LaunchedEffect
+            }
+
+            val candidate = bestCandidate
+            if (!isSending &&
+                candidate != null &&
+                SystemClock.elapsedRealtime() - candidate.capturedAt <= CANDIDATE_STALE_MS
+            ) {
+                isSending = true
+                bestCandidate = null
+                statusText = "얼굴 확인 중..."
+
+                val result = withContext(Dispatchers.IO) {
+                    runCatching {
+                        postFaceSearchBytes(
+                            client = client,
+                            apiBaseUrl = apiBaseUrl,
+                            imageBytes = candidate.jpegBytes,
+                            topK = topK,
+                            amount = amount
+                        )
+                    }
                 }
-            }
 
-            result.onSuccess { resp ->
-                android.util.Log.d("FacePay", "응답: matched=${resp.matched}, bestUserId=${resp.bestUserId}, similarity=${resp.similarity}")
-                if (resp.blocked) {
-                    onNotMatched()
-                    return@LaunchedEffect
-                } else if (resp.matched && !resp.bestUserId.isNullOrBlank()) {
-                    onAuthed(resp)
-                    return@LaunchedEffect
-                } else {
-                    // 매칭 안 됨 → 재시도
-                    statusText = "얼굴을 인식하지 못했습니다. 다시 시도합니다..."
-                    android.util.Log.d("FacePay", "매칭 실패, 재시도...")
+                result.onSuccess { response ->
+                    val isAmbiguous = response.status.equals("AMBIGUOUS", ignoreCase = true) ||
+                            response.nextAction == "REQUIRE_SECOND_FACTOR"
+                    val hasBestUser = !response.bestUserId.isNullOrBlank()
+                    when {
+                        response.blocked -> {
+                            scanResolved = true
+                            onNotMatched(response.rbaReason ?: "결제가 차단되었습니다.")
+                            return@LaunchedEffect
+                        }
+
+                        hasBestUser && (response.matched || isAmbiguous) -> {
+                            scanResolved = true
+                            onResolved(response)
+                            return@LaunchedEffect
+                        }
+
+                        else -> {
+                            statusText = guideState.messageWithCountdown(remainingSeconds)
+                        }
+                    }
                 }
-            }
 
-            result.onFailure { error ->
-                android.util.Log.e("FacePay", "얼굴 인식 실패: ${error.message}", error)
-                statusText = "인식 실패: ${error.message?.take(40)}"
-            }
+                result.onFailure { error ->
+                    statusText = "네트워크 오류가 발생했습니다. 다시 시도합니다."
+                    android.util.Log.e("FacePay", "얼굴 검색 실패: ${error.message}", error)
+                }
 
-            delay(2000) // 2초 후 재시도
-            withContext(Dispatchers.Main) { statusText = "얼굴 스캔 중..." }
-            delay(1500)
+                isSending = false
+                delay(SERVER_REQUEST_INTERVAL_MS)
+            } else {
+                statusText = when {
+                    !guideState.brightnessOk -> guideState.message
+                    guideState.aligned -> "좋아요. 얼굴을 그대로 유지해주세요."
+                    else -> guideState.messageWithCountdown(remainingSeconds)
+                }
+                delay(120)
+            }
         }
     }
 
     val transition = rememberInfiniteTransition(label = "scan")
     val progress by transition.animateFloat(
-        initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(2000), RepeatMode.Restart),
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1_500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
         label = "progress"
     )
-
-    DisposableEffect(Unit) { onDispose { executor.shutdown() } }
 
     FaceScanContent(
         hasPerm = hasPerm,
         lifecycleOwner = lifecycleOwner,
-        imageCapture = imageCapture,
-        statusText = statusText,
+        imageAnalysis = imageAnalysis,
+        guideAligned = guideState.aligned,
+        lifecycleStatusText = statusText,
         progress = progress,
         amount = amount,
-        merchant = merchant
+        merchant = merchant,
+        remainingSeconds = remainingSeconds
     )
 }
 
-// ── 스캔 중 화면 ──
+private fun GuideFrameState.messageWithCountdown(remainingSeconds: Int): String {
+    if (remainingSeconds <= 0) return message
+    return "$message (${remainingSeconds}초 남음)"
+}
+
 @Composable
 private fun FaceScanContent(
     hasPerm: Boolean,
     lifecycleOwner: androidx.lifecycle.LifecycleOwner,
-    imageCapture: ImageCapture,
-    statusText: String,
+    imageAnalysis: ImageAnalysis,
+    guideAligned: Boolean,
+    lifecycleStatusText: String,
     progress: Float,
     amount: Long,
-    merchant: String
+    merchant: String,
+    remainingSeconds: Int
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        // ── 카메라 프리뷰 (상단 58%) ──
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -207,21 +349,25 @@ private fun FaceScanContent(
             if (hasPerm) {
                 AndroidView(
                     factory = { context ->
-                        PreviewView(context).also { pv ->
-                            val fut = ProcessCameraProvider.getInstance(context)
-                            fut.addListener({
-                                val provider = fut.get()
-                                val preview = Preview.Builder().build()
-                                    .also { it.setSurfaceProvider(pv.surfaceProvider) }
+                        PreviewView(context).also { previewView ->
+                            previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
+                            val providerFuture = ProcessCameraProvider.getInstance(context)
+                            providerFuture.addListener({
+                                val provider = providerFuture.get()
+                                val preview = Preview.Builder()
+                                    .build()
+                                    .also { it.setSurfaceProvider(previewView.surfaceProvider) }
                                 try {
                                     provider.unbindAll()
                                     provider.bindToLifecycle(
                                         lifecycleOwner,
                                         CameraSelector.DEFAULT_FRONT_CAMERA,
                                         preview,
-                                        imageCapture
+                                        imageAnalysis
                                     )
-                                } catch (e: Exception) { e.printStackTrace() }
+                                } catch (error: Exception) {
+                                    error.printStackTrace()
+                                }
                             }, ContextCompat.getMainExecutor(context))
                         }
                     },
@@ -238,25 +384,25 @@ private fun FaceScanContent(
                 }
             }
 
-            // 원형 가이드 오버레이
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .drawWithCache {
                         val cx = size.width / 2f
                         val cy = size.height / 2f
-                        val r = size.width * 0.38f
+                        val radius = size.width * 0.38f
+                        val guideColor = if (guideAligned) GuideReady else Primary
                         onDrawWithContent {
                             drawContent()
                             drawCircle(
-                                color = Primary,
-                                radius = r,
+                                color = guideColor,
+                                radius = radius,
                                 center = Offset(cx, cy),
                                 style = Stroke(width = 3.dp.toPx())
                             )
                             drawCircle(
-                                color = Primary.copy(alpha = 0.15f),
-                                radius = r + 12.dp.toPx(),
+                                color = guideColor.copy(alpha = 0.15f),
+                                radius = radius + 12.dp.toPx(),
                                 center = Offset(cx, cy),
                                 style = Stroke(width = 1.dp.toPx())
                             )
@@ -265,7 +411,6 @@ private fun FaceScanContent(
             )
         }
 
-        // ── 하단 정보 패널 ──
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -276,24 +421,16 @@ private fun FaceScanContent(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = statusText,
-                color = Primary,
+                text = lifecycleStatusText,
+                color = if (guideAligned) GuideReady else Primary,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = NaedaFontFamily
             )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = "정면을 바라보고 잠시만 기다려 주세요.",
-                color = TextPrimary.copy(alpha = 0.45f),
-                fontSize = 13.sp,
-                fontFamily = NaedaFontFamily
-            )
             Spacer(Modifier.height(14.dp))
 
-            // ✅ progress Float로 수정
             LinearProgressIndicator(
-                progress = progress,
+                progress = { progress },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(3.dp)
@@ -304,7 +441,6 @@ private fun FaceScanContent(
 
             Spacer(Modifier.height(20.dp))
 
-            // ── 결제 정보 카드 ──
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -313,14 +449,13 @@ private fun FaceScanContent(
                     .padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // 가맹점 행
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
+                        androidx.compose.material3.Icon(
                             imageVector = Icons.Default.StoreMallDirectory,
                             contentDescription = null,
                             tint = Primary,
@@ -347,7 +482,6 @@ private fun FaceScanContent(
 
                 HorizontalDivider(color = Primary.copy(alpha = 0.12f))
 
-                // 금액 행
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.Bottom,
@@ -382,55 +516,266 @@ private fun FaceScanContent(
     }
 }
 
-// ── 코루틴 친화적 캡처 helper ──
-private suspend fun captureImage(
-    imageCapture: ImageCapture,
-    file: File,
-    executor: java.util.concurrent.Executor
-): Unit = suspendCoroutine { cont ->
-    imageCapture.takePicture(
-        ImageCapture.OutputFileOptions.Builder(file).build(),
-        executor,
-        object : ImageCapture.OnImageSavedCallback {
-            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                // 이미지 리사이즈 + 압축 (3MB 제한)
-                compressImage(file, maxWidth = 720, quality = 85)
-                cont.resume(Unit)
-            }
-            override fun onError(exc: ImageCaptureException) = cont.resumeWithException(exc)
-        }
+private class FaceGuideAnalyzer(
+    private val onResult: (GuideFrameState) -> Unit
+) : ImageAnalysis.Analyzer {
+    private val handler = Handler(Looper.getMainLooper())
+    private var lastAnalyzedAt = 0L
+    private val detector = FaceDetection.getClient(
+        FaceDetectorOptions.Builder()
+            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+            .build()
     )
-}
 
-private fun compressImage(file: File, maxWidth: Int, quality: Int) {
-    val bitmap = android.graphics.BitmapFactory.decodeFile(file.absolutePath) ?: return
-    val scale = if (bitmap.width > maxWidth) maxWidth.toFloat() / bitmap.width else 1f
-    val resized = if (scale < 1f) {
-        android.graphics.Bitmap.createScaledBitmap(
-            bitmap,
-            (bitmap.width * scale).toInt(),
-            (bitmap.height * scale).toInt(),
-            true
-        )
-    } else bitmap
+    @OptIn(ExperimentalGetImage::class)
+    override fun analyze(image: ImageProxy) {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastAnalyzedAt < ANALYSIS_INTERVAL_MS) {
+            image.close()
+            return
+        }
+        lastAnalyzedAt = now
+        val brightness = sampleLuminance(image)
+        if (brightness < MIN_BRIGHTNESS) {
+            image.close()
+            handler.post {
+                onResult(
+                    GuideFrameState(
+                        brightnessOk = false,
+                        message = "조명을 더 밝게 해주세요."
+                    )
+                )
+            }
+            return
+        }
 
-    file.outputStream().use { out ->
-        resized.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, out)
+        val mediaImage = image.image
+        if (mediaImage == null) {
+            image.close()
+            handler.post { onResult(GuideFrameState(message = "카메라 프레임을 읽는 중입니다.")) }
+            return
+        }
+        val inputImage = InputImage.fromMediaImage(mediaImage, image.imageInfo.rotationDegrees)
+        detector.process(inputImage)
+            .addOnSuccessListener { faces ->
+                val result = evaluateGuideFrame(image, faces, brightness)
+                image.close()
+                handler.post { onResult(result) }
+            }
+            .addOnFailureListener {
+                image.close()
+                handler.post { onResult(GuideFrameState(message = "얼굴을 다시 맞춰주세요.")) }
+            }
     }
-    if (resized !== bitmap) resized.recycle()
-    bitmap.recycle()
 }
 
-private fun postFaceSearchFile(
+private fun evaluateGuideFrame(
+    imageProxy: ImageProxy,
+    faces: List<Face>,
+    brightness: Float
+): GuideFrameState {
+    val face = faces.maxByOrNull { face ->
+        face.boundingBox.width() * face.boundingBox.height()
+    }
+
+    if (face == null) {
+        return GuideFrameState(
+            faceDetected = false,
+            brightnessOk = true,
+            message = "얼굴 전체가 화면 안에 보이도록 맞춰주세요."
+        )
+    }
+
+    val box = face.boundingBox
+    val frameWidth = imageProxy.width.toFloat()
+    val frameHeight = imageProxy.height.toFloat()
+    val midpoint = PointF(box.centerX().toFloat(), box.centerY().toFloat())
+    val guideRadius = frameWidth * 0.38f
+    val guideCenterX = frameWidth / 2f
+    val guideCenterY = frameHeight / 2f
+    val dx = midpoint.x - guideCenterX
+    val dy = midpoint.y - guideCenterY
+    val centerDistance = sqrt(dx * dx + dy * dy)
+
+    val centered = centerDistance <= guideRadius * 0.45f
+    val faceWidthRatio = box.width().toFloat() / frameWidth
+    val faceHeightRatio = box.height().toFloat() / frameHeight
+    val largeEnough = faceWidthRatio >= MIN_FACE_WIDTH_RATIO && faceHeightRatio >= MIN_FACE_HEIGHT_RATIO
+    val sizeOk = largeEnough
+    val frameMarginX = frameWidth * FRAME_EDGE_MARGIN_RATIO
+    val frameMarginY = frameHeight * FRAME_EDGE_MARGIN_RATIO
+    val fullyVisible =
+        box.left >= frameMarginX &&
+        box.right <= frameWidth - frameMarginX &&
+        box.top >= frameMarginY &&
+        box.bottom <= frameHeight - frameMarginY
+    val aligned = fullyVisible && largeEnough
+    val alignmentScore = (1f - (centerDistance / guideRadius).coerceIn(0f, 1f))
+    val sizeScore = ((faceWidthRatio + faceHeightRatio) / 2f).coerceIn(0f, 1f)
+    val brightnessScore = ((brightness - MIN_BRIGHTNESS) / 60f).coerceIn(0f, 1f)
+    val score = (alignmentScore * 0.55f) + (sizeScore * 0.30f) + (brightnessScore * 0.15f)
+
+    val message = when {
+        !fullyVisible -> "얼굴 전체가 화면 안에 보이도록 맞춰주세요."
+        !largeEnough -> "얼굴을 조금 더 가까이 보여주세요."
+        !centered -> "가능하면 얼굴을 가운데로 맞춰주세요."
+        else -> "좋아요. 얼굴을 그대로 유지해주세요."
+    }
+
+    val bytes = if (aligned) createSearchJpeg(imageProxy, box) else null
+
+    return GuideFrameState(
+        faceDetected = true,
+        aligned = aligned,
+        centered = centered,
+        sizeOk = sizeOk,
+        brightnessOk = true,
+        score = score,
+            message = message,
+            uploadBytes = bytes
+        )
+}
+
+private fun createSearchJpeg(imageProxy: ImageProxy, faceBounds: Rect): ByteArray {
+    val fullJpeg = imageProxyToJpegBytes(imageProxy)
+    return cropFaceJpeg(fullJpeg, faceBounds)
+}
+
+private fun sampleLuminance(image: ImageProxy): Float {
+    val buffer = image.planes.firstOrNull()?.buffer ?: return 0f
+    val data = ByteArray(buffer.remaining())
+    buffer.get(data)
+    var sum = 0L
+    val step = maxOf(1, data.size / 1_000)
+    for (index in data.indices step step) {
+        sum += data[index].toInt() and 0xFF
+    }
+    val sampleCount = maxOf(1, data.size / step)
+    return sum.toFloat() / sampleCount
+}
+
+private fun imageProxyToJpegBytes(imageProxy: ImageProxy): ByteArray {
+    val nv21 = imageProxyToNv21(imageProxy)
+    val yuvImage = YuvImage(nv21, ImageFormat.NV21, imageProxy.width, imageProxy.height, null)
+    val output = ByteArrayOutputStream()
+    yuvImage.compressToJpeg(Rect(0, 0, imageProxy.width, imageProxy.height), 90, output)
+    val jpegBytes = output.toByteArray()
+    return rotateJpeg(jpegBytes, imageProxy.imageInfo.rotationDegrees)
+}
+
+private fun imageProxyToNv21(image: ImageProxy): ByteArray {
+    val yBuffer = image.planes[0].buffer
+    val uBuffer = image.planes[1].buffer
+    val vBuffer = image.planes[2].buffer
+
+    val ySize = yBuffer.remaining()
+    val uSize = uBuffer.remaining()
+    val vSize = vBuffer.remaining()
+
+    val nv21 = ByteArray(ySize + uSize + vSize)
+    yBuffer.get(nv21, 0, ySize)
+    vBuffer.get(nv21, ySize, vSize)
+    uBuffer.get(nv21, ySize + vSize, uSize)
+    return nv21
+}
+
+private fun rotateJpeg(jpegBytes: ByteArray, rotationDegrees: Int): ByteArray {
+    if (rotationDegrees == 0) return jpegBytes
+    val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size) ?: return jpegBytes
+    val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
+    val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+    val output = ByteArrayOutputStream()
+    rotated.compress(Bitmap.CompressFormat.JPEG, 90, output)
+    bitmap.recycle()
+    rotated.recycle()
+    return output.toByteArray()
+}
+
+private fun cropFaceJpeg(jpegBytes: ByteArray, faceBounds: Rect): ByteArray {
+    val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size) ?: return jpegBytes
+    val cropRect = expandedFaceRect(faceBounds, bitmap.width, bitmap.height)
+    if (cropRect.width() <= 0 || cropRect.height() <= 0) {
+        bitmap.recycle()
+        return jpegBytes
+    }
+
+    val croppedBitmap = Bitmap.createBitmap(
+        bitmap,
+        cropRect.left,
+        cropRect.top,
+        cropRect.width(),
+        cropRect.height()
+    )
+    bitmap.recycle()
+
+    val resizedBitmap = resizeBitmapIfNeeded(croppedBitmap, 720)
+    if (resizedBitmap !== croppedBitmap) {
+        croppedBitmap.recycle()
+    }
+
+    val output = ByteArrayOutputStream()
+    resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 92, output)
+    resizedBitmap.recycle()
+    return output.toByteArray()
+}
+
+private fun expandedFaceRect(faceBounds: Rect, imageWidth: Int, imageHeight: Int): Rect {
+    val centerX = faceBounds.centerX().toFloat()
+    val centerY = faceBounds.centerY().toFloat()
+    val targetSize = (max(faceBounds.width(), faceBounds.height()) * 1.8f).toInt().coerceAtLeast(1)
+    var left = (centerX - targetSize / 2f).toInt()
+    var top = (centerY - targetSize / 2f).toInt()
+    var right = left + targetSize
+    var bottom = top + targetSize
+
+    if (left < 0) {
+        right = (right - left).coerceAtMost(imageWidth)
+        left = 0
+    }
+    if (top < 0) {
+        bottom = (bottom - top).coerceAtMost(imageHeight)
+        top = 0
+    }
+    if (right > imageWidth) {
+        val delta = right - imageWidth
+        left = (left - delta).coerceAtLeast(0)
+        right = imageWidth
+    }
+    if (bottom > imageHeight) {
+        val delta = bottom - imageHeight
+        top = (top - delta).coerceAtLeast(0)
+        bottom = imageHeight
+    }
+
+    return Rect(left, top, right, bottom)
+}
+
+private fun resizeBitmapIfNeeded(bitmap: Bitmap, maxDimension: Int): Bitmap {
+    val currentMax = max(bitmap.width, bitmap.height)
+    if (currentMax <= maxDimension) {
+        return bitmap
+    }
+
+    val scale = maxDimension / currentMax.toFloat()
+    val scaledWidth = (bitmap.width * scale).toInt().coerceAtLeast(1)
+    val scaledHeight = (bitmap.height * scale).toInt().coerceAtLeast(1)
+    return Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, true)
+}
+
+private fun postFaceSearchBytes(
     client: OkHttpClient,
     apiBaseUrl: String,
-    file: File,
+    imageBytes: ByteArray,
     topK: Int,
     amount: Long = 0L
 ): FaceSearchResponse {
     val body = MultipartBody.Builder()
         .setType(MultipartBody.FORM)
-        .addFormDataPart("image", file.name, file.asRequestBody("image/jpeg".toMediaType()))
+        .addFormDataPart(
+            "image",
+            "face_terminal.jpg",
+            imageBytes.toRequestBody("image/jpeg".toMediaType())
+        )
         .addFormDataPart("topK", topK.toString())
         .addFormDataPart("amount", amount.toString())
         .build()
@@ -471,8 +816,12 @@ private fun postFaceSearchFile(
             nextAction = json.optString("nextAction").takeIf { it.isNotBlank() },
             bestUserId = json.optString("bestUserId").takeIf { it.isNotBlank() },
             username = json.optString("username").takeIf { it.isNotBlank() },
-            matchedUserNo = if (json.has("matchedUserNo") && !json.isNull("matchedUserNo"))
-                json.optLong("matchedUserNo") else null,
+            userNo = if (json.has("userNo") && !json.isNull("userNo")) json.optLong("userNo") else null,
+            matchedUserNo = if (json.has("matchedUserNo") && !json.isNull("matchedUserNo")) {
+                json.optLong("matchedUserNo")
+            } else {
+                null
+            },
             similarity = json.optDouble("similarity", 0.0),
             matchThreshold = json.optDouble("matchThreshold", 0.7),
             ambiguousThreshold = json.optDouble("ambiguousThreshold", 0.65),
@@ -484,6 +833,3 @@ private fun postFaceSearchFile(
         )
     }
 }
-
-private fun fileUri(context: Context, file: File): Uri =
-    FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)

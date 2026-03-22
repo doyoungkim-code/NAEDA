@@ -57,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import com.example.naedafront.ui.theme.Background
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -145,7 +146,7 @@ fun PointStoreScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF4F5F7))
+            .background(Background)
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
@@ -272,7 +273,6 @@ private fun PointStoreHeader(
             .fillMaxWidth()
             .height(300.dp)
             .background(Color(0xFF005E54))
-            .statusBarsPadding()
     ) {
         Canvas(
             modifier = Modifier
@@ -645,7 +645,6 @@ private fun PurchaseBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
         ) {
             Column(
                 modifier = Modifier

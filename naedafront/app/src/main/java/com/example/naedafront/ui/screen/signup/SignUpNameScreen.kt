@@ -2,6 +2,7 @@ package com.example.naedafront.ui.screen.signup
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,6 +42,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import com.example.naedafront.ui.theme.Background
 import com.example.naedafront.ui.theme.Mint900
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -103,11 +105,12 @@ fun SignUpNameScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = Background
                 )
             )
         },
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = Background,
+        contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         Column(
             modifier = Modifier
