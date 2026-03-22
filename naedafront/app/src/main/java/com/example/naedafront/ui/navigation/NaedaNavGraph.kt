@@ -53,6 +53,7 @@ import com.example.naedafront.ui.screen.signup.SignUpViewModel
 import com.example.naedafront.ui.screen.store.DeliveryAddressScreen
 import com.example.naedafront.ui.screen.store.OrderCompleteScreen
 import com.example.naedafront.ui.screen.store.PointHistoryScreen
+import com.example.naedafront.ui.screen.chat.ChatScreen
 import com.example.naedafront.ui.screen.store.PointStoreScreen
 
 @Composable
@@ -209,7 +210,8 @@ fun NaedaNavGraph(
                 onSearchClick = { },
                 onAlarmClick = { navController.navigate(Screen.Notification.route) },
                 onProfileClick = { navController.navigate(Screen.MyPage.route) },
-                onSecretFaceMatchTestClick = { navController.navigate(Screen.FaceMatchRecognize.route) }
+                onSecretFaceMatchTestClick = { navController.navigate(Screen.FaceMatchRecognize.route) },
+                onChatClick = { navController.navigate(Screen.Chat.route) }
             )
         }
 
@@ -506,6 +508,15 @@ fun NaedaNavGraph(
         }
 
         composable(Screen.Security.route) { PlaceholderScreen("🔒 보안 내역") }
+
+        // ── 챗봇 ──
+        composable(Screen.Chat.route) {
+            val userNo = AuthPrefs.getUserNo(context) ?: 0L
+            ChatScreen(
+                userNo = userNo,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
     }
 }
 

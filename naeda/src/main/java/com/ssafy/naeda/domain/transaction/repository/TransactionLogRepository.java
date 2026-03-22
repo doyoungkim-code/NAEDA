@@ -25,4 +25,6 @@ public interface TransactionLogRepository extends JpaRepository<TransactionLog, 
     Optional<TransactionLog> findBySsafyTransactionId(String ssafyTransactionId);
 
     List<TransactionLog> findBySsafyTransactionIdIn(List<String> ssafyTransactionIds);
+
+    void deleteByAccountId(Long accountId);
 }

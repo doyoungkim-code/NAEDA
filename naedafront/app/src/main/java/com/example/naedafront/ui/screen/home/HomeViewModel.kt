@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.naedafront.AuthPrefs
+import com.example.naedafront.data.remote.AssetPayMethodResponse
 import com.example.naedafront.data.remote.AssetRepository
 import com.example.naedafront.data.remote.PaymentResponse
 import com.example.naedafront.data.repository.ReportRepository
@@ -52,39 +53,86 @@ class HomeViewModel : ViewModel() {
                     account = null,
                     spendingCategories = emptyList(),
                     topSpendingCategory = null,
-                    topSpendingAmount = 0L
+                    topSpendingAmount = 0L,
+                    facePayEnabled = false,
+                    facePayMethodId = null,
+                    defaultPaymentMethodId = null,
+                    isUpdatingFacePay = false
                 )
             }
             return
         }
 
-        viewModelScope.launch { loadAccount(userNo) }
+        viewModelScope.launch { loadWalletSummary(userNo) }
         viewModelScope.launch { loadRecentTransactions(userNo) }
         viewModelScope.launch { loadSpendingReport(userNo) }
     }
 
-    private suspend fun loadAccount(userNo: Long) {
-        Log.d("HomeViewModel", "▶ loadAccount 시작 / userNo=$userNo")
+    fun toggleFacePay(context: Context) {
+        val userNo = AuthPrefs.getUserNo(context) ?: return
+        val currentState = _uiState.value
+        val targetPaymentMethodId = if (currentState.facePayEnabled) {
+            currentState.facePayMethodId
+        } else {
+            currentState.defaultPaymentMethodId
+        }
+
+        if (targetPaymentMethodId == null) {
+            Log.w("HomeViewModel", "⚠ 토글할 결제수단이 없습니다.")
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUpdatingFacePay = true) }
+            runCatching {
+                AssetRepository.setFacePayPaymentMethod(
+                    userNo = userNo,
+                    paymentMethodId = targetPaymentMethodId,
+                    enabled = !currentState.facePayEnabled
+                )
+            }.onSuccess {
+                loadWalletSummary(userNo)
+            }.onFailure { e ->
+                Log.e("HomeViewModel", "❌ 페이스페이 사용 토글 실패: ${e.message}", e)
+                _uiState.update { it.copy(isUpdatingFacePay = false) }
+            }
+        }
+    }
+
+    private suspend fun loadWalletSummary(userNo: Long) {
+        Log.d("HomeViewModel", "▶ loadWalletSummary 시작 / userNo=$userNo")
         _uiState.update { it.copy(isLoadingAccount = true) }
 
         runCatching {
-            AssetRepository.getWalletAssets(userNo).accounts.firstOrNull()
-        }.onSuccess { account ->
-            Log.d("HomeViewModel", "✅ 계좌 로드 성공: bank=${account?.bankName}, balance=${account?.accountBalance}")
+            AssetRepository.getWalletAssets(userNo)
+        }.onSuccess { wallet ->
+            val activeMethods = wallet.payMethods.filter { it.isActive != false }
+            val facePayMethod = activeMethods.firstOrNull { it.isFacePay == true }
+            val defaultMethod = activeMethods.firstOrNull { it.isDefault == true }
+
+            Log.d("HomeViewModel", "✅ 지갑 로드 성공: account=${wallet.accounts.firstOrNull()?.bankName}, facePay=${facePayMethod?.paymentMethodId}, default=${defaultMethod?.paymentMethodId}")
             _uiState.update {
                 it.copy(
-                    account = account,
+                    account = wallet.accounts.firstOrNull(),
                     isLoadingAccount = false,
-                    accountError = null
+                    accountError = null,
+                    facePayEnabled = facePayMethod != null,
+                    facePayMethodId = facePayMethod?.paymentMethodId,
+                    defaultPaymentMethodId = defaultMethod?.paymentMethodId,
+                    isUpdatingFacePay = false
                 )
             }
         }.onFailure { e ->
-            Log.e("HomeViewModel", "❌ 계좌 로드 실패: ${e.message}", e)
+            Log.e("HomeViewModel", "❌ 지갑 로드 실패: ${e.message}", e)
             _uiState.update {
                 it.copy(
                     account = null,
                     isLoadingAccount = false,
-                    accountError = e.message
+                    accountError = e.message,
+                    facePayEnabled = false,
+                    facePayMethodId = null,
+                    defaultPaymentMethodId = null,
+                    isUpdatingFacePay = false
                 )
             }
         }

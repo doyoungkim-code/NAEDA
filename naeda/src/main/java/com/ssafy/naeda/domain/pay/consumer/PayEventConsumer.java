@@ -1,11 +1,19 @@
 package com.ssafy.naeda.domain.pay.consumer;
+import com.ssafy.naeda.domain.notification.entity.NotificationType;
+import com.ssafy.naeda.domain.notification.entity.ReferenceType;
 import com.ssafy.naeda.domain.pay.event.PayEvent;
 import com.ssafy.naeda.domain.point.dto.request.PointEarnRequest;
 import com.ssafy.naeda.domain.point.service.PointService;
+import com.ssafy.naeda.global.fcm.FcmService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+
+import java.text.NumberFormat;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -15,9 +23,8 @@ import org.springframework.stereotype.Component;
         matchIfMissing = false
 )
 public class PayEventConsumer {
-    // TODO: PointService, NotificationService 주입
-
     private final PointService pointService;
+    private final FcmService fcmService;
 
 
     @KafkaListener(
@@ -70,14 +77,38 @@ public class PayEventConsumer {
     public void handleNotification(PayEvent event) {
         if (!"SUCCESS".equals(event.getStatus())) return;
 
-        log.info("[Consumer] 알림 발송: transactionId={}, userNo={}",
+        log.info("[Consumer] 결제 알림 발송: transactionId={}, userNo={}",
                 event.getTransactionId(), event.getUserNo());
 
         try {
-            // TODO: notificationService.sendPaymentComplete(event.getUserNo(), event.getAmount())
-            log.info("[Consumer] 알림 발송 완료");
+            String formattedAmount = NumberFormat.getNumberInstance(Locale.KOREA)
+                    .format(event.getAmount());
+
+            String title = "결제 완료";
+            String body = formattedAmount + "원 결제가 완료되었습니다.";
+
+            Map<String, String> data = new HashMap<>();
+            data.put("paymentId", String.valueOf(event.getTransactionId()));
+            data.put("amount", String.valueOf(event.getAmount()));
+            data.put("storeId", String.valueOf(event.getStoreId()));
+            if (event.getEarnedPoints() != null) {
+                data.put("earnedPoints", String.valueOf(event.getEarnedPoints()));
+            }
+
+            fcmService.sendToUser(
+                    event.getUserNo(),
+                    title,
+                    body,
+                    NotificationType.PAYMENT,
+                    event.getTransactionId(),
+                    ReferenceType.PAYMENT,
+                    data
+            );
+
+            log.info("[Consumer] 결제 알림 발송 완료: userNo={}, amount={}",
+                    event.getUserNo(), event.getAmount());
         } catch (Exception e) {
-            log.error("[Consumer] 알림 발송 실패: transactionId={}", event.getTransactionId(), e);
+            log.error("[Consumer] 결제 알림 발송 실패: transactionId={}", event.getTransactionId(), e);
         }
     }
 

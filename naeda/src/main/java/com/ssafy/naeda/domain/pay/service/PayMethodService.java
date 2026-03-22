@@ -52,4 +52,23 @@ public class PayMethodService {
         payMethodRepository.saveAll(methods);
         return target;
     }
+
+    @Transactional
+    public PayMethod updateFacePay(Long userNo, Long paymentMethodId, boolean enabled) {
+        return enabled ? setFacePay(userNo, paymentMethodId) : clearFacePay(userNo, paymentMethodId);
+    }
+
+    @Transactional
+    public PayMethod clearFacePay(Long userNo, Long paymentMethodId) {
+        List<PayMethod> methods = payMethodRepository.findByUserNoAndIsActiveTrue(userNo);
+
+        PayMethod target = methods.stream()
+                .filter(method -> method.getPaymentMethodId().equals(paymentMethodId))
+                .findFirst()
+                .orElseThrow(() -> new NotFoundException("결제 수단을 찾을 수 없습니다."));
+
+        target.clearFacePay();
+        payMethodRepository.save(target);
+        return target;
+    }
 }

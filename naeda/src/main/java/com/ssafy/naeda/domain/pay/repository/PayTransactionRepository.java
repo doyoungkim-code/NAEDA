@@ -40,4 +40,6 @@ public interface PayTransactionRepository extends JpaRepository<PayTransaction, 
             @Param("userNo") Long userNo,
             @Param("status") PayStatus status,
             @Param("since") LocalDateTime since);
+
+    void deleteByUserNo(Long userNo);
 }
