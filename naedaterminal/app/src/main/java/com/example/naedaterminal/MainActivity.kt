@@ -116,12 +116,13 @@ class MainActivity : ComponentActivity() {
                             currentRequestId = requestId
                             currentAmount = amount
                             currentMerchant = merchant
+                            currentMethod = "페이스페이"
                             paymentFailureReason = null
                             matchedUserInfo = null
                             rbaAuthSteps = emptyList()
                             enteredPin = null
                             enteredPhoneDigits = null
-                            route = Route.PaymentSelect
+                            route = Route.FacePay
                         },
                         onLogout = {
                             clearPosKey(context)
