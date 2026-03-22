@@ -129,7 +129,16 @@ public class PayFacadeService {
             if (facePayMethods.isEmpty()) {
                 throw new NotFoundException("페이스페이 결제 수단이 등록되지 않았습니다.");
             }
-            PayMethod paymentMethod = facePayMethods.get(0);
+
+            //Facepay 결제 수단 선택
+            //유저가 FacePay로 등록한 결제 수단이 여러 개일 수 있으므로,
+            //기본 결제수단(isDefault = true)을 우선 선택한다.
+            //기본 결제수단이 없으면 가장 먼저 등록된 결제 수단을 사용한다.
+
+            PayMethod paymentMethod = facePayMethods.stream()
+                    .filter(PayMethod::getIsDefault)
+                    .findFirst()
+                    .orElse(facePayMethods.get(0));
 
             // 9. PIN 2차 인증 (pin이 전달된 경우 검증)
             boolean pinVerified = false;
