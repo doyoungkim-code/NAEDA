@@ -267,11 +267,20 @@ public class PayFacadeService {
         if (paymentMethod.getMethodType() == MethodType.CREDIT_CARD) {
             var card = creditCardRepository.findById(paymentMethod.getCreditCardId())
                     .orElseThrow(() -> new NotFoundException("신용카드 정보를 찾을 수 없습니다."));
+            //카드 소유자와 결제 요청 유저가 일치하는지 검증. 소유자 검증
+            if(!card.getUserNo().equals(user.getUserNo())){
+                throw new BadRequestException("본인 소유의 카드가 아닙니다.");
+            }
+
             cardNo = card.getCardNo();
             cvc = card.getCvc();
         } else {
             var card = debitCardRepository.findById(paymentMethod.getDebitCardId())
                     .orElseThrow(() -> new NotFoundException("체크카드 정보를 찾을 수 없습니다."));
+            //카드 소유자와 결제 요청 유저가 일치하는지 검증. 소유자 검증
+            if(!card.getUserNo().equals(user.getUserNo())){
+                throw new BadRequestException("본인 소유의 카드가 아닙니다.");
+            }
             cardNo = card.getCardNo();
             cvc = card.getCvc();
         }
