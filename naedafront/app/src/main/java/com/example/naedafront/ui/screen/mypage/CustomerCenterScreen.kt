@@ -92,7 +92,8 @@ fun CustomerCenterScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Background)
             )
         },
-        containerColor = Background
+        containerColor = Background,
+        contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         Column(
             modifier = Modifier

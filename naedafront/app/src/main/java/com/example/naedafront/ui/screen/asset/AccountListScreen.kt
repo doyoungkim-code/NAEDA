@@ -220,7 +220,8 @@ fun AccountListScreen(
 
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
             )
-        }
+        },
+        contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         Column(
             modifier = Modifier

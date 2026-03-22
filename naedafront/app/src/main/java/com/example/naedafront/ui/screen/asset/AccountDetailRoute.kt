@@ -3,6 +3,7 @@ package com.example.naedafront.ui.screen.asset
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -83,7 +84,7 @@ fun AccountDetailRoute(
         }
 
         is AccountDetailUiState.Error -> {
-            Scaffold(containerColor = Background) { innerPadding ->
+            Scaffold(containerColor = Background, contentWindowInsets = WindowInsets(0)) { innerPadding ->
                 Box(
                     modifier = Modifier
                         .fillMaxSize()

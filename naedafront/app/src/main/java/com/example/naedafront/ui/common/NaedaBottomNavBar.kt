@@ -1,5 +1,6 @@
 package com.example.naedafront.ui.common
 
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
@@ -21,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.naedafront.ui.navigation.Screen
+import com.example.naedafront.ui.theme.Background
 
 enum class BottomNavItem(
     val route: String,
@@ -45,8 +47,9 @@ fun NaedaBottomNavBar(
     }
 
     NavigationBar(
-        containerColor = Color.White,
-        tonalElevation = 8.dp
+        containerColor = Background,
+        tonalElevation = 0.dp,
+        windowInsets = WindowInsets(0)
     ) {
         BottomNavItem.entries.forEach { item ->
             val isSelected = selectedRoute == item.route
