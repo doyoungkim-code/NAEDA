@@ -98,34 +98,16 @@ public class NaverStoreEnrichmentClient {
             String description = cleanDescription(candidate.description());
             Double rating = candidate.rating();
 
-            String html = fetchPlacePage(candidate.placeId());
-            if (hasText(html)) {
-                Document document = Jsoup.parse(html);
-                imageUrl = firstNonBlank(
-                        sanitizeImageUrl(metaContent(document, "property", "og:image")),
-                        sanitizeImageUrl(metaContent(document, "name", "twitter:image")),
-                        sanitizeImageUrl(extractByRegex(html, "\\\"imageUrl\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"")),
-                        sanitizeImageUrl(extractByRegex(html, "\\\"thumbnail\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"")),
-                        sanitizeImageUrl(extractByRegex(html, "\\\"photoUrl\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"")),
-                        imageUrl
-                );
-                description = firstNonBlank(
-                        cleanDescription(metaContent(document, "property", "og:description")),
-                        cleanDescription(extractByRegex(html, "\\\"introduction\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\"")),
-                        cleanDescription(extractByRegex(html, "\\\"description\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\"")),
-                        cleanDescription(extractByRegex(html, "\\\"desc\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\"")),
-                        cleanDescription(extractByRegex(html, "\\\"microReview\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\"")),
-                        cleanDescription(extractByRegex(html, "\\\"summary\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\"")),
-                        cleanDescription(extractByRegex(html, "\\\"briefDesc\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\"")),
-                        description
-                );
-                rating = firstNonNull(
-                        extractDouble(html, "\\\"totalRating\\\"\\s*:\\s*([0-9.]+)"),
-                        extractDouble(html, "\\\"visitorReviewScore\\\"\\s*:\\s*([0-9.]+)"),
-                        extractDouble(html, "\\\"starScore\\\"\\s*:\\s*([0-9.]+)"),
-                        extractDouble(html, "\\\"rating\\\"\\s*:\\s*([0-9.]+)"),
-                        rating
-                );
+            String photoHtml = fetchPlacePhotoPage(candidate.placeId());
+            imageUrl = firstNonBlank(extractPlaceImageUrl(photoHtml), imageUrl);
+            description = firstNonBlank(extractPlaceDescription(photoHtml), description);
+            rating = firstNonNull(extractPlaceRating(photoHtml), rating);
+
+            if (!hasText(imageUrl) || !hasText(description) || rating == null) {
+                String homeHtml = fetchPlaceHomePage(candidate.placeId());
+                imageUrl = firstNonBlank(extractPlaceImageUrl(homeHtml), imageUrl);
+                description = firstNonBlank(extractPlaceDescription(homeHtml), description);
+                rating = firstNonNull(extractPlaceRating(homeHtml), rating);
             }
 
             if (!hasText(imageUrl) && !hasText(description) && rating == null) {
@@ -279,7 +261,18 @@ public class NaverStoreEnrichmentClient {
         return Optional.empty();
     }
 
-    private String fetchPlacePage(String placeId) {
+    private String fetchPlacePhotoPage(String placeId) {
+        List<String> urls = List.of(
+                "https://pcmap.place.naver.com/restaurant/" + placeId + "/photo",
+                "https://pcmap.place.naver.com/place/" + placeId + "/photo",
+                "https://m.place.naver.com/restaurant/" + placeId + "/photo",
+                "https://m.place.naver.com/place/" + placeId + "/photo"
+        );
+
+        return fetchFirstAvailablePage(urls);
+    }
+
+    private String fetchPlaceHomePage(String placeId) {
         List<String> urls = List.of(
                 "https://pcmap.place.naver.com/restaurant/" + placeId + "/home",
                 "https://pcmap.place.naver.com/place/" + placeId + "/home",
@@ -288,6 +281,10 @@ public class NaverStoreEnrichmentClient {
                 "https://map.naver.com/p/entry/place/" + placeId
         );
 
+        return fetchFirstAvailablePage(urls);
+    }
+
+    private String fetchFirstAvailablePage(List<String> urls) {
         for (String url : urls) {
             try {
                 String html = crawlClient().get()
@@ -301,6 +298,51 @@ public class NaverStoreEnrichmentClient {
             }
         }
         return null;
+    }
+
+    String extractPlaceImageUrl(String html) {
+        if (!hasText(html)) {
+            return null;
+        }
+
+        Document document = Jsoup.parse(html);
+        return firstNonBlank(
+                sanitizeImageUrl(metaContent(document, "property", "og:image")),
+                sanitizeImageUrl(metaContent(document, "name", "twitter:image")),
+                sanitizeImageUrl(extractByRegex(html, "\\\"imageUrl\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"")),
+                sanitizeImageUrl(extractByRegex(html, "\\\"thumbnail\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"")),
+                sanitizeImageUrl(extractByRegex(html, "\\\"photoUrl\\\"\\s*:\\s*\\\"([^\\\"]+)\\\""))
+        );
+    }
+
+    String extractPlaceDescription(String html) {
+        if (!hasText(html)) {
+            return null;
+        }
+
+        Document document = Jsoup.parse(html);
+        return firstNonBlank(
+                cleanDescription(metaContent(document, "property", "og:description")),
+                cleanDescription(extractByRegex(html, "\\\"introduction\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\"")),
+                cleanDescription(extractByRegex(html, "\\\"description\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\"")),
+                cleanDescription(extractByRegex(html, "\\\"desc\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\"")),
+                cleanDescription(extractByRegex(html, "\\\"microReview\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\"")),
+                cleanDescription(extractByRegex(html, "\\\"summary\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\"")),
+                cleanDescription(extractByRegex(html, "\\\"briefDesc\\\"\\s*:\\s*\\\"([^\\\"]{5,400})\\\""))
+        );
+    }
+
+    Double extractPlaceRating(String html) {
+        if (!hasText(html)) {
+            return null;
+        }
+
+        return firstNonNull(
+                extractDouble(html, "\\\"totalRating\\\"\\s*:\\s*([0-9.]+)"),
+                extractDouble(html, "\\\"visitorReviewScore\\\"\\s*:\\s*([0-9.]+)"),
+                extractDouble(html, "\\\"starScore\\\"\\s*:\\s*([0-9.]+)"),
+                extractDouble(html, "\\\"rating\\\"\\s*:\\s*([0-9.]+)")
+        );
     }
 
     private Optional<JsonNode> findBestLocalItem(Store store) throws Exception {
