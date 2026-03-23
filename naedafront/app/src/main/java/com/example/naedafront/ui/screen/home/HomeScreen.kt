@@ -105,10 +105,14 @@ data class SpendingCategory(
 )
 
 data class NoticeItem(
+    val id: Long,
+    val type: String, // "notice" or "festival"
     val tag: String,
     val tagColor: Color,
     val title: String,
-    val date: String
+    val content: String = "",
+    val date: String,
+    val createdRaw: String = ""
 )
 
 data class HomeUiState(
@@ -146,7 +150,9 @@ fun HomeScreen(
     onProfileClick: () -> Unit = {},
     onSecretFaceMatchTestClick: () -> Unit = {},
     onChatClick: () -> Unit = {},
-    onRegisterCardClick: () -> Unit = {}
+    onRegisterCardClick: () -> Unit = {},
+    onNoticeItemClick: (NoticeItem) -> Unit = {},
+    onNoticeMoreClick: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -198,7 +204,11 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            NoticeCard(notices = uiState.notices)
+            NoticeCard(
+                notices = uiState.notices,
+                onItemClick = onNoticeItemClick,
+                onMoreClick = onNoticeMoreClick
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -775,29 +785,12 @@ private fun FacePayBenefitCard(
 }
 
 @Composable
-private fun NoticeCard(notices: List<NoticeItem>) {
-    val displayNotices = if (notices.isEmpty()) {
-        listOf(
-            NoticeItem(
-                tag = "축제",
-                tagColor = Color(0xFFE91E63),
-                title = "2025 구미 낙동강 세계 물 축제",
-                date = "03.15 ~ 03.20"
-            ),
-            NoticeItem(
-                tag = "공지",
-                tagColor = Color(0xFF1976D2),
-                title = "구미시 청년 창업 지원금 신청 안내",
-                date = "03.10 마감"
-            ),
-            NoticeItem(
-                tag = "이벤트",
-                tagColor = Color(0xFF388E3C),
-                title = "구미 사랑 상품권 10% 추가 할인",
-                date = "03.01 ~ 03.31"
-            )
-        )
-    } else notices
+private fun NoticeCard(
+    notices: List<NoticeItem>,
+    onItemClick: (NoticeItem) -> Unit = {},
+    onMoreClick: () -> Unit = {}
+) {
+    val displayNotices = notices
 
     Card(
         modifier = Modifier
@@ -833,19 +826,36 @@ private fun NoticeCard(notices: List<NoticeItem>) {
                     text = "더보기",
                     style = MaterialTheme.typography.labelMedium,
                     color = Mint900,
-                    modifier = Modifier.clickable { }
+                    modifier = Modifier.clickable { onMoreClick() }
                 )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            displayNotices.forEachIndexed { index, notice ->
-                NoticeRow(notice = notice)
-                if (index < displayNotices.lastIndex) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(vertical = 8.dp),
-                        color = OnBackground.copy(alpha = 0.06f)
+            if (displayNotices.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "공지사항이 없습니다.",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = OnBackground.copy(alpha = 0.5f)
                     )
+                }
+            } else {
+                displayNotices.forEachIndexed { index, notice ->
+                    NoticeRow(notice = notice, onClick = { onItemClick(notice) })
+                    if (index < displayNotices.lastIndex) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            color = OnBackground.copy(alpha = 0.06f)
+                        )
+                    }
                 }
             }
         }
@@ -853,9 +863,11 @@ private fun NoticeCard(notices: List<NoticeItem>) {
 }
 
 @Composable
-private fun NoticeRow(notice: NoticeItem) {
+private fun NoticeRow(notice: NoticeItem, onClick: () -> Unit = {}) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
