@@ -91,17 +91,19 @@ public class StoreEnrichmentService {
             return 0;
         }
 
-        List<Store> batch = storeRepository.findIncompleteStoresForEnrichment(
-                StoreSourceType.PUBLIC_CSV,
-                PageRequest.of(0, 100)
-        );
-        if (batch.isEmpty()) {
-            return 0;
-        }
+        int retried = 0;
+        while (true) {
+            List<Store> batch = storeRepository.findIncompleteStoresForEnrichment(
+                    StoreSourceType.PUBLIC_CSV,
+                    PageRequest.of(0, 100)
+            );
+            if (batch.isEmpty()) {
+                return retried;
+            }
 
-        int retried = enrichBatch(batch);
-        log.info("[StoreEnrichment] 누락 필드 재보강 처리 batchSize={}, retried={}", batch.size(), retried);
-        return retried;
+            retried += enrichBatch(batch);
+            log.info("[StoreEnrichment] 누락 필드 재보강 처리 batchSize={}, totalRetried={}", batch.size(), retried);
+        }
     }
 
     private boolean canEnrich() {

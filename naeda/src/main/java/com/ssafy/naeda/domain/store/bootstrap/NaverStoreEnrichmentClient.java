@@ -114,14 +114,29 @@ public class NaverStoreEnrichmentClient {
 
     private Optional<NaverMapPlaceCandidate> findMapPlaceCandidate(Store store) {
         Optional<NaverMapPlaceCandidate> apiCandidate = findMapPlaceCandidateByApi(store);
+        Optional<NaverMapPlaceCandidate> htmlCandidate = findMapPlaceCandidateByHtml(store);
+        Optional<NaverMapPlaceCandidate> searchPageCandidate = findMapPlaceCandidateBySearchPage(store);
+        return selectPreferredCandidate(apiCandidate, htmlCandidate, searchPageCandidate);
+    }
+
+    Optional<NaverMapPlaceCandidate> selectPreferredCandidate(
+            Optional<NaverMapPlaceCandidate> apiCandidate,
+            Optional<NaverMapPlaceCandidate> htmlCandidate,
+            Optional<NaverMapPlaceCandidate> searchPageCandidate
+    ) {
+        if (apiCandidate.isPresent() && hasText(apiCandidate.get().imageUrl())) {
+            return apiCandidate;
+        }
+        if (htmlCandidate.isPresent() && hasText(htmlCandidate.get().imageUrl())) {
+            return htmlCandidate;
+        }
+        if (searchPageCandidate.isPresent()) {
+            return searchPageCandidate;
+        }
         if (apiCandidate.isPresent()) {
             return apiCandidate;
         }
-        Optional<NaverMapPlaceCandidate> htmlCandidate = findMapPlaceCandidateByHtml(store);
-        if (htmlCandidate.isPresent()) {
-            return htmlCandidate;
-        }
-        return findMapPlaceCandidateBySearchPage(store);
+        return htmlCandidate;
     }
 
     private Optional<NaverMapPlaceCandidate> findMapPlaceCandidateByApi(Store store) {
@@ -828,7 +843,7 @@ public class NaverStoreEnrichmentClient {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private record NaverMapPlaceCandidate(
+    record NaverMapPlaceCandidate(
             String placeId,
             String name,
             String roadAddress,

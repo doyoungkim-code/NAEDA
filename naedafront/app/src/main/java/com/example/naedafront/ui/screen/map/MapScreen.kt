@@ -1,12 +1,13 @@
 package com.example.naedafront.ui.screen.map
 
 import android.Manifest
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Rect
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color as AndroidColor
-import android.graphics.Paint
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
@@ -40,7 +41,9 @@ import com.naver.maps.map.MapView
 import com.naver.maps.map.NaverMap
 import com.naver.maps.map.overlay.Marker
 import com.naver.maps.map.overlay.OverlayImage
+import com.naver.maps.map.R as NaverMapR
 import kotlin.math.floor
+import kotlin.math.roundToInt
 
 private data class StoreMarkerCluster(
     val stores: List<MapStoreResponseDto>,
@@ -95,6 +98,7 @@ fun NaverRestaurantMapScreen(
 
         val cameraIdleListener = NaverMap.OnCameraIdleListener {
             renderStoreMarkers(
+                context = context,
                 naverMap = map,
                 mapView = mapView,
                 stores = latestStores,
@@ -109,6 +113,7 @@ fun NaverRestaurantMapScreen(
         }
 
         renderStoreMarkers(
+            context = context,
             naverMap = map,
             mapView = mapView,
             stores = latestStores,
@@ -125,6 +130,7 @@ fun NaverRestaurantMapScreen(
     LaunchedEffect(stores, naverMap) {
         val map = naverMap ?: return@LaunchedEffect
         renderStoreMarkers(
+            context = context,
             naverMap = map,
             mapView = mapView,
             stores = stores,
@@ -172,6 +178,7 @@ private fun setupMap(
 }
 
 private fun renderStoreMarkers(
+    context: Context,
     naverMap: NaverMap,
     mapView: MapView,
     stores: List<MapStoreResponseDto>,
@@ -193,7 +200,7 @@ private fun renderStoreMarkers(
     clusters.forEach { cluster ->
         val marker = Marker().apply {
             position = cluster.position
-            icon = OverlayImage.fromBitmap(createClusterMarkerBitmap(cluster))
+            icon = OverlayImage.fromBitmap(createClusterMarkerBitmap(context, cluster))
             width = Marker.SIZE_AUTO
             height = Marker.SIZE_AUTO
             isHideCollidedSymbols = true
@@ -257,54 +264,69 @@ private fun clearMarkers(activeMarkers: MutableList<Marker>) {
     activeMarkers.clear()
 }
 
-private fun createClusterMarkerBitmap(cluster: StoreMarkerCluster): Bitmap {
-    val isCluster = cluster.stores.size > 1
-    val size = if (isCluster) 92 else 72
-    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
+private fun createClusterMarkerBitmap(
+    context: Context,
+    cluster: StoreMarkerCluster
+): Bitmap {
+    val markerRes = if (cluster.stores.any { it.facePayEnabled }) {
+        NaverMapR.drawable.navermap_default_marker_icon_green
+    } else {
+        NaverMapR.drawable.navermap_default_marker_icon_yellow
+    }
 
-    val mainPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = if (isCluster) AndroidColor.parseColor("#152341") else AndroidColor.parseColor("#009688")
+    val original = BitmapFactory.decodeResource(context.resources, markerRes)
+    val scale = if (cluster.stores.size > 1) 0.72f else 0.68f
+    val markerWidth = (original.width * scale).roundToInt().coerceAtLeast(1)
+    val markerHeight = (original.height * scale).roundToInt().coerceAtLeast(1)
+    val scaledMarker = Bitmap.createScaledBitmap(original, markerWidth, markerHeight, true)
+
+    if (cluster.stores.size == 1) {
+        return scaledMarker
+    }
+
+    val badgeRadius = (markerWidth * 0.22f).coerceAtLeast(15f)
+    val extraTop = (badgeRadius * 0.7f).roundToInt()
+    val extraRight = (badgeRadius * 0.8f).roundToInt()
+    val result = Bitmap.createBitmap(
+        markerWidth + extraRight,
+        markerHeight + extraTop,
+        Bitmap.Config.ARGB_8888
+    )
+    val canvas = Canvas(result)
+    canvas.drawBitmap(scaledMarker, 0f, extraTop.toFloat(), null)
+
+    val badgeCenterX = result.width - badgeRadius
+    val badgeCenterY = badgeRadius
+    val badgeFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.WHITE
         style = Paint.Style.FILL
     }
-    val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.WHITE
+    val badgeStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = if (cluster.stores.any { it.facePayEnabled }) {
+            android.graphics.Color.parseColor("#009688")
+        } else {
+            android.graphics.Color.parseColor("#F2CB05")
+        }
         style = Paint.Style.STROKE
-        strokeWidth = 6f
-    }
-    val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.WHITE
-        textAlign = Paint.Align.CENTER
-        textSize = if (isCluster) 23f else 21f
-        isFakeBoldText = true
-    }
-    val badgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.parseColor("#44E3D3")
-        style = Paint.Style.FILL
+        strokeWidth = 4f
     }
     val badgeTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.parseColor("#0B1F32")
+        color = android.graphics.Color.parseColor("#152341")
         textAlign = Paint.Align.CENTER
-        textSize = 20f
+        textSize = if (cluster.stores.size >= 100) badgeRadius * 0.85f else badgeRadius * 1.05f
         isFakeBoldText = true
     }
 
-    val radius = if (isCluster) 28f else 22f
-    val centerX = size * 0.46f
-    val centerY = size * 0.54f
-    canvas.drawCircle(centerX, centerY, radius, mainPaint)
-    canvas.drawCircle(centerX, centerY, radius, strokePaint)
-    canvas.drawText(if (isCluster) "식" else "점", centerX, centerY + 8f, textPaint)
+    canvas.drawCircle(badgeCenterX, badgeCenterY, badgeRadius, badgeFillPaint)
+    canvas.drawCircle(badgeCenterX, badgeCenterY, badgeRadius, badgeStrokePaint)
 
-    if (isCluster) {
-        val badgeRadius = 16f
-        val badgeX = size * 0.73f
-        val badgeY = size * 0.28f
-        canvas.drawCircle(badgeX, badgeY, badgeRadius, badgePaint)
-        canvas.drawText(cluster.stores.size.toString(), badgeX, badgeY + 7f, badgeTextPaint)
-    }
+    val countText = if (cluster.stores.size > 99) "99+" else cluster.stores.size.toString()
+    val textBounds = Rect()
+    badgeTextPaint.getTextBounds(countText, 0, countText.length, textBounds)
+    val textBaseline = badgeCenterY - textBounds.exactCenterY()
+    canvas.drawText(countText, badgeCenterX, textBaseline, badgeTextPaint)
 
-    return bitmap
+    return result
 }
 
 private fun moveCameraToDefaultRegion(
