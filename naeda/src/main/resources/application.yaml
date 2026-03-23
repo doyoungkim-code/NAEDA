@@ -94,7 +94,7 @@ store:
     resources: classpath:seed/stores/gumi_bakery.csv,classpath:seed/stores/gumi_restaurant.csv
   enrichment:
     enabled: true
-    version: map-v3
+    version: map-v4
     timeout-seconds: 3
     user-agent: Mozilla/5.0
     defaults:
