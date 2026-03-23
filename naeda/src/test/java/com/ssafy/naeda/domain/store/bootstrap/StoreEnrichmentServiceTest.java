@@ -132,4 +132,39 @@ class StoreEnrichmentServiceTest {
         assertThat(store.getRating()).isEqualTo(4.5);
         verify(storeRepository).save(store);
     }
+
+    @Test
+    @DisplayName("기본 이미지가 저장된 공공 매장은 새 이미지가 없으면 목업 URL을 제거한다")
+    void retryIncompleteStores_clearsDefaultImageWhenNewImageMissing() {
+        ReflectionTestUtils.setField(storeEnrichmentService, "enrichmentEnabled", true);
+
+        Store store = Store.builder()
+                .storeId(4L)
+                .storeName("테스트 제과점")
+                .categoryId("PUBLIC_BAKERY")
+                .categoryName("제과점영업")
+                .sourceType(StoreSourceType.PUBLIC_CSV)
+                .isActive(true)
+                .imageUrl("/images/store/default-bakery.svg")
+                .description("기존 설명")
+                .rating(4.2)
+                .build();
+
+        given(storeRepository.findIncompleteStoresForEnrichment(any(StoreSourceType.class), any(Pageable.class)))
+                .willReturn(List.of(store));
+        given(naverStoreEnrichmentClient.enrich(store))
+                .willReturn(Optional.of(new StoreEnrichmentData(
+                        null,
+                        "제과점 설명",
+                        null
+                )));
+
+        int result = storeEnrichmentService.retryIncompleteStores();
+
+        assertThat(result).isEqualTo(1);
+        assertThat(store.getImageUrl()).isNull();
+        assertThat(store.getDescription()).isEqualTo("제과점 설명");
+        assertThat(store.getRating()).isEqualTo(4.2);
+        verify(storeRepository).save(store);
+    }
 }
