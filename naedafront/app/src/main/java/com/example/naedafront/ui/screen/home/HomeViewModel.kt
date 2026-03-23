@@ -11,6 +11,7 @@ import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.AssetPayMethodResponse
 import com.example.naedafront.data.remote.AssetRepository
 import com.example.naedafront.data.remote.PaymentResponse
+import com.example.naedafront.data.repository.NoticeRepository
 import com.example.naedafront.data.repository.ReportRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -66,6 +67,7 @@ class HomeViewModel : ViewModel() {
         viewModelScope.launch { loadWalletSummary(userNo) }
         viewModelScope.launch { loadRecentTransactions(userNo) }
         viewModelScope.launch { loadSpendingReport(userNo) }
+        viewModelScope.launch { loadNotices() }
     }
 
     fun toggleFacePay(context: Context) {
@@ -114,6 +116,7 @@ class HomeViewModel : ViewModel() {
             _uiState.update {
                 it.copy(
                     account = wallet.accounts.firstOrNull(),
+                    cards = wallet.cards.filter { card -> card.isActive != false },
                     isLoadingAccount = false,
                     accountError = null,
                     facePayEnabled = facePayMethod != null,
@@ -127,6 +130,7 @@ class HomeViewModel : ViewModel() {
             _uiState.update {
                 it.copy(
                     account = null,
+                    cards = emptyList(),
                     isLoadingAccount = false,
                     accountError = e.message,
                     facePayEnabled = false,
@@ -151,6 +155,58 @@ class HomeViewModel : ViewModel() {
                 Log.e("HomeViewModel", "❌ 최근거래 로드 실패: ${e.message}", e)
                 _uiState.update { it.copy(recentTransactions = emptyList()) }
             }
+    }
+
+    private suspend fun loadNotices() {
+        val noticeItems = mutableListOf<NoticeItem>()
+
+        NoticeRepository.getAllFestivals()
+            .onSuccess { festivals ->
+                festivals.forEach { f ->
+                    val startDate = f.startDate?.substring(5)?.replace("-", ".") ?: ""
+                    val endDate = f.endDate?.substring(5)?.replace("-", ".") ?: ""
+                    noticeItems.add(
+                        NoticeItem(
+                            id = f.festivalId ?: 0L,
+                            type = "festival",
+                            tag = "축제",
+                            tagColor = Color(0xFFE91E63),
+                            title = f.title ?: "",
+                            content = f.description ?: "",
+                            date = "$startDate ~ $endDate",
+                            createdRaw = f.created ?: ""
+                        )
+                    )
+                }
+            }
+            .onFailure { e ->
+                Log.e("HomeViewModel", "축제 로드 실패: ${e.message}", e)
+            }
+
+        NoticeRepository.getAllNotices()
+            .onSuccess { notices ->
+                notices.forEach { n ->
+                    val created = n.created?.substring(5, 10)?.replace("-", ".") ?: ""
+                    noticeItems.add(
+                        NoticeItem(
+                            id = n.noticeId ?: 0L,
+                            type = "notice",
+                            tag = "공지",
+                            tagColor = Color(0xFF1976D2),
+                            title = n.title ?: "",
+                            content = n.content ?: "",
+                            date = created,
+                            createdRaw = n.created ?: ""
+                        )
+                    )
+                }
+            }
+            .onFailure { e ->
+                Log.e("HomeViewModel", "공지사항 로드 실패: ${e.message}", e)
+            }
+
+        val sorted = noticeItems.sortedByDescending { it.createdRaw }
+        _uiState.update { it.copy(notices = sorted.take(3)) }
     }
 
     private suspend fun loadSpendingReport(userNo: Long) {

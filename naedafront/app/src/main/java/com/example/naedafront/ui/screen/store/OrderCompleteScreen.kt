@@ -40,12 +40,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.naedafront.ui.theme.Background
 import java.text.NumberFormat
 import java.util.Locale
 
 private val CompletePrimary = Color(0xFF00695C)
 private val CompleteMint = Color(0xFF20D5BE)
-private val CompleteBg = Color(0xFFF5F7FA)
+private val CompleteBg = Background
 private val CompleteBorder = Color(0xFFE3E8EF)
 private val CompleteLabel = Color(0xFF94A3B8)
 private val CompleteText = Color(0xFF111827)
@@ -105,7 +106,6 @@ fun OrderCompleteScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(CompleteBg)
-                .navigationBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             Button(
@@ -161,7 +161,6 @@ private fun OrderCompleteTopBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.White)
-            .statusBarsPadding()
     ) {
         Box(
             modifier = Modifier

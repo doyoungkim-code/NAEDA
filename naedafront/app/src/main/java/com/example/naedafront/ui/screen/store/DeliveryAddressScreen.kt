@@ -67,6 +67,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.naedafront.ui.theme.Background
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.response.AddressResponse
@@ -76,7 +77,7 @@ import kotlinx.coroutines.launch
 
 private val StorePrimary = Color(0xFF00695C)
 private val StoreMint = Color(0xFF20D5BE)
-private val ScreenBg = Color(0xFFF7F8FA)
+private val ScreenBg = Background
 private val DividerColor = Color(0xFFE3E8EF)
 private val LabelColor = Color(0xFFB2BCCB)
 private val ValueColor = Color(0xFF6B7280)
@@ -327,7 +328,6 @@ private fun DeliveryAddressTopBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.White)
-            .statusBarsPadding()
     ) {
         Box(
             modifier = Modifier

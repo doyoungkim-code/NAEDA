@@ -12,9 +12,11 @@ import android.graphics.YuvImage
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import androidx.annotation.OptIn
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
@@ -68,6 +70,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.example.naedaterminal.ui.theme.NaedaFontFamily
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.face.Face
+import com.google.mlkit.vision.face.FaceDetection
+import com.google.mlkit.vision.face.FaceDetectorOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -81,6 +87,7 @@ import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.Executors
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.sqrt
 
 private val Primary = Color(0xFF00635A)
@@ -92,7 +99,10 @@ private const val MAX_SCAN_DURATION_MS = 30_000L
 private const val ANALYSIS_INTERVAL_MS = 100L
 private const val SERVER_REQUEST_INTERVAL_MS = 700L
 private const val CANDIDATE_STALE_MS = 1_500L
-private const val MIN_BRIGHTNESS = 55f
+private const val MIN_BRIGHTNESS = 40f
+private const val FRAME_EDGE_MARGIN_RATIO = 0.02f
+private const val MIN_FACE_WIDTH_RATIO = 0.12f
+private const val MIN_FACE_HEIGHT_RATIO = 0.16f
 
 data class CandidateResult(
     val userId: String,
@@ -162,7 +172,7 @@ fun FacePayAuthScreen(
             .build()
     }
 
-    var statusText by remember { mutableStateOf("얼굴을 원형 가이드 안에 맞춰주세요.") }
+    var statusText by remember { mutableStateOf("얼굴 전체가 화면 안에 보이도록 맞춰주세요.") }
     var guideState by remember { mutableStateOf(GuideFrameState()) }
     var bestCandidate by remember { mutableStateOf<UploadCandidate?>(null) }
     var hasPerm by remember {
@@ -417,13 +427,6 @@ private fun FaceScanContent(
                 fontWeight = FontWeight.Bold,
                 fontFamily = NaedaFontFamily
             )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = "얼굴이 원형 가이드 안에 정확히 들어와야 인식됩니다. 남은 시간 ${remainingSeconds}초",
-                color = TextPrimary.copy(alpha = 0.45f),
-                fontSize = 13.sp,
-                fontFamily = NaedaFontFamily
-            )
             Spacer(Modifier.height(14.dp))
 
             LinearProgressIndicator(
@@ -518,7 +521,13 @@ private class FaceGuideAnalyzer(
 ) : ImageAnalysis.Analyzer {
     private val handler = Handler(Looper.getMainLooper())
     private var lastAnalyzedAt = 0L
+    private val detector = FaceDetection.getClient(
+        FaceDetectorOptions.Builder()
+            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+            .build()
+    )
 
+    @OptIn(ExperimentalGetImage::class)
     override fun analyze(image: ImageProxy) {
         val now = SystemClock.elapsedRealtime()
         if (now - lastAnalyzedAt < ANALYSIS_INTERVAL_MS) {
@@ -526,77 +535,94 @@ private class FaceGuideAnalyzer(
             return
         }
         lastAnalyzedAt = now
-
-        val result = runCatching { evaluateGuideFrame(image) }
-            .getOrElse {
-                GuideFrameState(message = "얼굴을 다시 맞춰주세요.")
+        val brightness = sampleLuminance(image)
+        if (brightness < MIN_BRIGHTNESS) {
+            image.close()
+            handler.post {
+                onResult(
+                    GuideFrameState(
+                        brightnessOk = false,
+                        message = "조명을 더 밝게 해주세요."
+                    )
+                )
             }
-        image.close()
+            return
+        }
 
-        handler.post { onResult(result) }
+        val mediaImage = image.image
+        if (mediaImage == null) {
+            image.close()
+            handler.post { onResult(GuideFrameState(message = "카메라 프레임을 읽는 중입니다.")) }
+            return
+        }
+        val inputImage = InputImage.fromMediaImage(mediaImage, image.imageInfo.rotationDegrees)
+        detector.process(inputImage)
+            .addOnSuccessListener { faces ->
+                val result = evaluateGuideFrame(image, faces, brightness)
+                image.close()
+                handler.post { onResult(result) }
+            }
+            .addOnFailureListener {
+                image.close()
+                handler.post { onResult(GuideFrameState(message = "얼굴을 다시 맞춰주세요.")) }
+            }
     }
 }
 
-private fun evaluateGuideFrame(image: ImageProxy): GuideFrameState {
-    val brightness = sampleLuminance(image)
-    if (brightness < MIN_BRIGHTNESS) {
-        return GuideFrameState(
-            brightnessOk = false,
-            message = "조명을 더 밝게 해주세요."
-        )
+private fun evaluateGuideFrame(
+    imageProxy: ImageProxy,
+    faces: List<Face>,
+    brightness: Float
+): GuideFrameState {
+    val face = faces.maxByOrNull { face ->
+        face.boundingBox.width() * face.boundingBox.height()
     }
-
-    val uprightBitmap = imageProxyToBitmap(image)
-        ?: return GuideFrameState(message = "카메라 프레임을 읽는 중입니다.")
-    val previewBitmap = scaleDownBitmap(uprightBitmap, maxWidth = 640)
-    if (previewBitmap !== uprightBitmap) {
-        uprightBitmap.recycle()
-    }
-
-    val rgb565 = previewBitmap
-        .let(::ensureEvenBitmapWidth)
-        .copy(Bitmap.Config.RGB_565, false)
-    val face = detectPrimaryFace(rgb565)
 
     if (face == null) {
-        if (rgb565 !== previewBitmap) rgb565.recycle()
-        previewBitmap.recycle()
         return GuideFrameState(
             faceDetected = false,
             brightnessOk = true,
-            message = "얼굴을 원형 가이드 안에 맞춰주세요."
+            message = "얼굴 전체가 화면 안에 보이도록 맞춰주세요."
         )
     }
 
-    val midpoint = PointF().also(face::getMidPoint)
-    val faceRadius = face.eyesDistance() * 1.75f
-    val guideRadius = previewBitmap.width * 0.38f
-    val guideCenterX = previewBitmap.width / 2f
-    val guideCenterY = previewBitmap.height / 2f
+    val box = face.boundingBox
+    val frameWidth = imageProxy.width.toFloat()
+    val frameHeight = imageProxy.height.toFloat()
+    val midpoint = PointF(box.centerX().toFloat(), box.centerY().toFloat())
+    val guideRadius = frameWidth * 0.38f
+    val guideCenterX = frameWidth / 2f
+    val guideCenterY = frameHeight / 2f
     val dx = midpoint.x - guideCenterX
     val dy = midpoint.y - guideCenterY
     val centerDistance = sqrt(dx * dx + dy * dy)
 
-    val centered = centerDistance <= guideRadius * 0.18f
-    val sizeOk = faceRadius in (guideRadius * 0.40f)..(guideRadius * 0.78f)
-    val aligned = centerDistance + faceRadius <= guideRadius * 0.98f && centered && sizeOk
+    val centered = centerDistance <= guideRadius * 0.45f
+    val faceWidthRatio = box.width().toFloat() / frameWidth
+    val faceHeightRatio = box.height().toFloat() / frameHeight
+    val largeEnough = faceWidthRatio >= MIN_FACE_WIDTH_RATIO && faceHeightRatio >= MIN_FACE_HEIGHT_RATIO
+    val sizeOk = largeEnough
+    val frameMarginX = frameWidth * FRAME_EDGE_MARGIN_RATIO
+    val frameMarginY = frameHeight * FRAME_EDGE_MARGIN_RATIO
+    val fullyVisible =
+        box.left >= frameMarginX &&
+        box.right <= frameWidth - frameMarginX &&
+        box.top >= frameMarginY &&
+        box.bottom <= frameHeight - frameMarginY
+    val aligned = fullyVisible && largeEnough
     val alignmentScore = (1f - (centerDistance / guideRadius).coerceIn(0f, 1f))
-    val sizeScore = (1f - abs(faceRadius - guideRadius * 0.58f) / guideRadius).coerceIn(0f, 1f)
+    val sizeScore = ((faceWidthRatio + faceHeightRatio) / 2f).coerceIn(0f, 1f)
     val brightnessScore = ((brightness - MIN_BRIGHTNESS) / 60f).coerceIn(0f, 1f)
     val score = (alignmentScore * 0.55f) + (sizeScore * 0.30f) + (brightnessScore * 0.15f)
 
     val message = when {
-        !centered -> "얼굴을 원형 중앙으로 맞춰주세요."
-        !sizeOk && faceRadius < guideRadius * 0.40f -> "얼굴을 조금 더 가까이 보여주세요."
-        !sizeOk -> "얼굴을 조금 더 뒤로 이동해주세요."
-        !aligned -> "얼굴이 가이드를 벗어났습니다."
+        !fullyVisible -> "얼굴 전체가 화면 안에 보이도록 맞춰주세요."
+        !largeEnough -> "얼굴을 조금 더 가까이 보여주세요."
+        !centered -> "가능하면 얼굴을 가운데로 맞춰주세요."
         else -> "좋아요. 얼굴을 그대로 유지해주세요."
     }
 
-    val bytes = if (aligned) bitmapToJpeg(previewBitmap) else null
-
-    if (rgb565 !== previewBitmap) rgb565.recycle()
-    previewBitmap.recycle()
+    val bytes = if (aligned) createSearchJpeg(imageProxy, box) else null
 
     return GuideFrameState(
         faceDetected = true,
@@ -605,16 +631,14 @@ private fun evaluateGuideFrame(image: ImageProxy): GuideFrameState {
         sizeOk = sizeOk,
         brightnessOk = true,
         score = score,
-        message = message,
-        uploadBytes = bytes
-    )
+            message = message,
+            uploadBytes = bytes
+        )
 }
 
-private fun detectPrimaryFace(bitmap: Bitmap): android.media.FaceDetector.Face? {
-    val faces = arrayOfNulls<android.media.FaceDetector.Face>(1)
-    val detector = android.media.FaceDetector(bitmap.width, bitmap.height, 1)
-    val found = detector.findFaces(bitmap, faces)
-    return if (found > 0) faces[0] else null
+private fun createSearchJpeg(imageProxy: ImageProxy, faceBounds: Rect): ByteArray {
+    val fullJpeg = imageProxyToJpegBytes(imageProxy)
+    return cropFaceJpeg(fullJpeg, faceBounds)
 }
 
 private fun sampleLuminance(image: ImageProxy): Float {
@@ -630,18 +654,13 @@ private fun sampleLuminance(image: ImageProxy): Float {
     return sum.toFloat() / sampleCount
 }
 
-private fun imageProxyToBitmap(image: ImageProxy): Bitmap? {
-    val nv21 = imageProxyToNv21(image)
-    val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)
-    val out = ByteArrayOutputStream()
-    yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 85, out)
-    val jpegBytes = out.toByteArray()
-    val rawBitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size) ?: return null
-    return if (image.imageInfo.rotationDegrees != 0) {
-        rotateBitmap(rawBitmap, image.imageInfo.rotationDegrees.toFloat())
-    } else {
-        rawBitmap
-    }
+private fun imageProxyToJpegBytes(imageProxy: ImageProxy): ByteArray {
+    val nv21 = imageProxyToNv21(imageProxy)
+    val yuvImage = YuvImage(nv21, ImageFormat.NV21, imageProxy.width, imageProxy.height, null)
+    val output = ByteArrayOutputStream()
+    yuvImage.compressToJpeg(Rect(0, 0, imageProxy.width, imageProxy.height), 90, output)
+    val jpegBytes = output.toByteArray()
+    return rotateJpeg(jpegBytes, imageProxy.imageInfo.rotationDegrees)
 }
 
 private fun imageProxyToNv21(image: ImageProxy): ByteArray {
@@ -660,33 +679,87 @@ private fun imageProxyToNv21(image: ImageProxy): ByteArray {
     return nv21
 }
 
-private fun rotateBitmap(bitmap: Bitmap, rotationDegrees: Float): Bitmap {
-    val matrix = Matrix().apply { postRotate(rotationDegrees) }
+private fun rotateJpeg(jpegBytes: ByteArray, rotationDegrees: Int): ByteArray {
+    if (rotationDegrees == 0) return jpegBytes
+    val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size) ?: return jpegBytes
+    val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
     val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+    val output = ByteArrayOutputStream()
+    rotated.compress(Bitmap.CompressFormat.JPEG, 90, output)
     bitmap.recycle()
-    return rotated
+    rotated.recycle()
+    return output.toByteArray()
 }
 
-private fun scaleDownBitmap(bitmap: Bitmap, maxWidth: Int): Bitmap {
-    if (bitmap.width <= maxWidth) return bitmap
-    val scale = maxWidth.toFloat() / bitmap.width
-    return Bitmap.createScaledBitmap(
+private fun cropFaceJpeg(jpegBytes: ByteArray, faceBounds: Rect): ByteArray {
+    val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size) ?: return jpegBytes
+    val cropRect = expandedFaceRect(faceBounds, bitmap.width, bitmap.height)
+    if (cropRect.width() <= 0 || cropRect.height() <= 0) {
+        bitmap.recycle()
+        return jpegBytes
+    }
+
+    val croppedBitmap = Bitmap.createBitmap(
         bitmap,
-        maxWidth,
-        (bitmap.height * scale).toInt(),
-        true
+        cropRect.left,
+        cropRect.top,
+        cropRect.width(),
+        cropRect.height()
     )
+    bitmap.recycle()
+
+    val resizedBitmap = resizeBitmapIfNeeded(croppedBitmap, 720)
+    if (resizedBitmap !== croppedBitmap) {
+        croppedBitmap.recycle()
+    }
+
+    val output = ByteArrayOutputStream()
+    resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 92, output)
+    resizedBitmap.recycle()
+    return output.toByteArray()
 }
 
-private fun ensureEvenBitmapWidth(bitmap: Bitmap): Bitmap {
-    if (bitmap.width % 2 == 0) return bitmap
-    return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width - 1, bitmap.height)
+private fun expandedFaceRect(faceBounds: Rect, imageWidth: Int, imageHeight: Int): Rect {
+    val centerX = faceBounds.centerX().toFloat()
+    val centerY = faceBounds.centerY().toFloat()
+    val targetSize = (max(faceBounds.width(), faceBounds.height()) * 1.8f).toInt().coerceAtLeast(1)
+    var left = (centerX - targetSize / 2f).toInt()
+    var top = (centerY - targetSize / 2f).toInt()
+    var right = left + targetSize
+    var bottom = top + targetSize
+
+    if (left < 0) {
+        right = (right - left).coerceAtMost(imageWidth)
+        left = 0
+    }
+    if (top < 0) {
+        bottom = (bottom - top).coerceAtMost(imageHeight)
+        top = 0
+    }
+    if (right > imageWidth) {
+        val delta = right - imageWidth
+        left = (left - delta).coerceAtLeast(0)
+        right = imageWidth
+    }
+    if (bottom > imageHeight) {
+        val delta = bottom - imageHeight
+        top = (top - delta).coerceAtLeast(0)
+        bottom = imageHeight
+    }
+
+    return Rect(left, top, right, bottom)
 }
 
-private fun bitmapToJpeg(bitmap: Bitmap): ByteArray {
-    val out = ByteArrayOutputStream()
-    bitmap.compress(Bitmap.CompressFormat.JPEG, 88, out)
-    return out.toByteArray()
+private fun resizeBitmapIfNeeded(bitmap: Bitmap, maxDimension: Int): Bitmap {
+    val currentMax = max(bitmap.width, bitmap.height)
+    if (currentMax <= maxDimension) {
+        return bitmap
+    }
+
+    val scale = maxDimension / currentMax.toFloat()
+    val scaledWidth = (bitmap.width * scale).toInt().coerceAtLeast(1)
+    val scaledHeight = (bitmap.height * scale).toInt().coerceAtLeast(1)
+    return Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, true)
 }
 
 private fun postFaceSearchBytes(

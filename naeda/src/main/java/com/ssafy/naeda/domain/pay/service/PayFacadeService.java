@@ -36,6 +36,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.text.NumberFormat;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -63,6 +64,8 @@ public class PayFacadeService {
     private final DebitCardRepository debitCardRepository;
     private final PasswordEncoder passwordEncoder;
     private final FcmService fcmService;
+    private final PayLimitService payLimitService;
+
 
     private static final String CREDIT_CARD_API = "/edu/creditCard/createCreditCardTransaction";
     private static final String TRANSFER_API = "/edu/demandDeposit/updateDemandDepositAccountTransfer";
@@ -129,7 +132,33 @@ public class PayFacadeService {
             if (facePayMethods.isEmpty()) {
                 throw new NotFoundException("페이스페이 결제 수단이 등록되지 않았습니다.");
             }
-            PayMethod paymentMethod = facePayMethods.get(0);
+
+            //Facepay 결제 수단 선택
+            //유저가 FacePay로 등록한 결제 수단이 여러 개일 수 있으므로,
+            //기본 결제수단(isDefault = true)을 우선 선택한다.
+            //기본 결제수단이 없으면 가장 먼저 등록된 결제 수단을 사용한다.
+
+            PayMethod paymentMethod = facePayMethods.stream()
+                    .filter(PayMethod::getIsDefault)
+                    .findFirst()
+                    .orElse(facePayMethods.get(0));
+
+            //결제 한도 검증
+            //결제 요청 금액이 유저가 설정한 1회/1일/월 한도를 초과하는지 검증한다.
+            // SUCCESS 상태의 거래만 누적 합산하여 비교한다.
+            LocalDateTime todayStart = LocalDate.now().atStartOfDay();
+            LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+
+            long todaySum = payDbService.getPayTransactionRepository()
+                    .sumAmountByUserNoAndStatusAndCreatedAtAfter(
+                            user.getUserNo(), PayStatus.SUCCESS, todayStart
+                    );
+            long monthSum = payDbService.getPayTransactionRepository()
+                    .sumAmountByUserNoAndStatusAndCreatedAtAfter(
+                            user.getUserNo(),PayStatus.SUCCESS,monthStart
+                    );
+
+            payLimitService.validatePaymentLimit(user.getUserNo(),amount,todaySum,monthSum);
 
             // 9. PIN 2차 인증 (pin이 전달된 경우 검증)
             boolean pinVerified = false;
@@ -267,11 +296,20 @@ public class PayFacadeService {
         if (paymentMethod.getMethodType() == MethodType.CREDIT_CARD) {
             var card = creditCardRepository.findById(paymentMethod.getCreditCardId())
                     .orElseThrow(() -> new NotFoundException("신용카드 정보를 찾을 수 없습니다."));
+            //카드 소유자와 결제 요청 유저가 일치하는지 검증. 소유자 검증
+            if(!card.getUserNo().equals(user.getUserNo())){
+                throw new BadRequestException("본인 소유의 카드가 아닙니다.");
+            }
+
             cardNo = card.getCardNo();
             cvc = card.getCvc();
         } else {
             var card = debitCardRepository.findById(paymentMethod.getDebitCardId())
                     .orElseThrow(() -> new NotFoundException("체크카드 정보를 찾을 수 없습니다."));
+            //카드 소유자와 결제 요청 유저가 일치하는지 검증. 소유자 검증
+            if(!card.getUserNo().equals(user.getUserNo())){
+                throw new BadRequestException("본인 소유의 카드가 아닙니다.");
+            }
             cardNo = card.getCardNo();
             cvc = card.getCvc();
         }
@@ -328,6 +366,27 @@ public class PayFacadeService {
                 .orElseThrow(() -> new NotFoundException("출금 계좌를 찾을 수 없습니다."));
         Account depositAccount = accountRepository.findById(store.getAccountId())
                 .orElseThrow(() -> new NotFoundException("매장 입금 계좌를 찾을 수 없습니다."));
+
+        // 계좌 잔액 사전 검증
+        // SSAFY 이체 API를 호출하기 전에 출금 계좌의 잔액을 확인한다.
+        // 잔액 부족 시 SSAFY API를 호출 없이 즉시 실패 처리하여
+        // 불필요한 외부 API 호출을 줄이고, 에러 메시지 전달
+        try{
+            long currentBalance = getBalanceAfter(user.getUserKey(), withdrawalAccount.getAccountNo());
+            if(currentBalance < amount){
+                transaction.markFailed("잔액 부족");
+                payDbService.save(transaction);
+                payRequestRedisService.transition(requestId,PayRequestStatus.FAILED);
+                throw new BadRequestException("잔액이 부족합니다. (현재 잔액: " + currentBalance + ")");
+            }
+        }catch(BadRequestException e){
+            // 잔액 부족 예외는 그대로 전파
+            throw e;
+        }catch (Exception e){
+            //잔액 조회 실패시 로그만 남기고 SSAFY API에 위임
+            // 잔액 조회 장애로 결제 자체가 막히면 안됨
+            log.warn("[Pay] 사전 잔액 조회 실패, SSAFY API에 위임 : requestId={}", requestId,e);
+        }
 
         // SSAFY 계좌이체 API 호출
         Map<String, Object> transferBody = ssafyApiClient.buildBody(

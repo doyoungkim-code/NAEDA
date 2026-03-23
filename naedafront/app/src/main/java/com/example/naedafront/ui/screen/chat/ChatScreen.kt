@@ -86,7 +86,6 @@ fun ChatScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Background)
-            .statusBarsPadding()
             .imePadding()
     ) {
         // 상단 바
@@ -329,7 +328,6 @@ private fun ChatInputBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(Surface)
-            .navigationBarsPadding()
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

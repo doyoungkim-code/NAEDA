@@ -218,9 +218,11 @@ fun AccountListScreen(
                     }
                 },
 
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface),
+                windowInsets = WindowInsets(0)
             )
-        }
+        },
+        contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -638,6 +640,11 @@ private fun CardListContent(
 // 카드 아이템 (실제 카드 모양)
 // ─────────────────────────────────────────────
 
+private fun isLightColor(color: Color): Boolean {
+    val luminance = 0.299 * color.red + 0.587 * color.green + 0.114 * color.blue
+    return luminance > 0.5
+}
+
 @Composable
 private fun CardListItem(
     card: CardItem,
@@ -647,6 +654,14 @@ private fun CardListItem(
     onSetPrimary: () -> Unit = {},
     onDeleteRequest: () -> Unit = {}
 ) {
+    val isLight = isLightColor(card.cardGradientStart)
+    val textPrimary = if (isLight) Color(0xFF1A1A1A) else Color.White
+    val textSecondary = if (isLight) Color(0xFF1A1A1A).copy(alpha = 0.55f) else Color.White.copy(alpha = 0.45f)
+    val textBody = if (isLight) Color(0xFF1A1A1A).copy(alpha = 0.8f) else Color.White.copy(alpha = 0.85f)
+    val badgeBg = if (isLight) Color.Black.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.2f)
+    val decoColor = if (isLight) Color.Black.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.06f)
+    val decoColor2 = if (isLight) Color.Black.copy(alpha = 0.03f) else Color.White.copy(alpha = 0.04f)
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -666,14 +681,14 @@ private fun CardListItem(
                 .size(180.dp)
                 .offset(x = 160.dp, y = (-40).dp)
                 .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.06f))
+                .background(decoColor)
         )
         Box(
             modifier = Modifier
                 .size(130.dp)
                 .offset(x = 200.dp, y = 60.dp)
                 .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.04f))
+                .background(decoColor2)
         )
 
         Column(
@@ -692,21 +707,20 @@ private fun CardListItem(
                     Text(
                         text = card.cardIssuerName,
                         style = NaedaTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White
+                        color = textPrimary
                     )
                     if (card.isPrimary) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(Color.White.copy(alpha = 0.25f))
+                                .background(badgeBg)
                                 .padding(horizontal = 7.dp, vertical = 3.dp)
                         ) {
                             Text(
                                 text = "대표",
-                                style = NaedaTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                color = Color.White,
-                                fontSize = 10.sp
+                                style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = textPrimary
                             )
                         }
                     }
@@ -715,14 +729,13 @@ private fun CardListItem(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color.White.copy(alpha = 0.2f))
+                            .background(badgeBg)
                             .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
                         Text(
                             text = if (card.cardType == "CREDIT") "신용" else "체크",
-                            style = NaedaTypography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = Color.White,
-                            fontSize = 10.sp
+                            style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = textPrimary
                         )
                     }
                     Spacer(modifier = Modifier.width(4.dp))
@@ -734,7 +747,7 @@ private fun CardListItem(
                             Icon(
                                 imageVector = Icons.Default.MoreVert,
                                 contentDescription = "더보기",
-                                tint = Color.White,
+                                tint = textPrimary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -773,8 +786,8 @@ private fun CardListItem(
             // 중단: 카드 상품명
             Text(
                 text = card.cardName,
-                style = NaedaTypography.bodyMedium,
-                color = Color.White.copy(alpha = 0.85f),
+                style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Medium),
+                color = textBody,
                 maxLines = 1
             )
 
@@ -782,16 +795,16 @@ private fun CardListItem(
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = card.cardNumber,
-                    style = NaedaTypography.labelLarge.copy(
+                    style = NaedaTypography.bodyMedium.copy(
                         fontWeight = FontWeight.Medium,
                         letterSpacing = 2.sp
                     ),
-                    color = Color.White
+                    color = textPrimary
                 )
                 Text(
                     text = "~ ${card.cardExpiryDate}",
-                    style = NaedaTypography.labelSmall,
-                    color = Color.White.copy(alpha = 0.7f)
+                    style = NaedaTypography.bodySmall,
+                    color = textSecondary
                 )
             }
         }

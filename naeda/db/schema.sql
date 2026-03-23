@@ -17,7 +17,7 @@ CREATE TYPE angle_type_enum AS ENUM ('front1', 'front2', 'front3', 'left', 'righ
 CREATE TYPE point_product_status_enum AS ENUM ('ON_SALE', 'SOLD_OUT');
 CREATE TYPE method_type_enum AS ENUM ('ACCOUNT', 'DEBIT_CARD', 'CREDIT_CARD');
 CREATE TYPE notification_type_enum AS ENUM ('PAYMENT', 'FDS_ALERT', 'FESTIVAL', 'POINT', 'SYSTEM');
-CREATE TYPE reference_type_enum AS ENUM ('PAYMENT', 'FESTIVAL');
+CREATE TYPE reference_type_enum AS ENUM ('PAYMENT', 'FESTIVAL', 'NOTICE');
 
 -- ================================================
 -- 2. 테이블 생성
@@ -286,7 +286,17 @@ CREATE TABLE festival (
                           created        TIMESTAMP      NOT NULL DEFAULT NOW()
 );
 
--- 18) Notification (FCM 알림 이력)
+-- 18) Notice (공지사항)
+CREATE TABLE notice (
+                        notice_id      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                        title          VARCHAR(200)   NOT NULL,
+                        content        TEXT           NOT NULL,
+                        fcm_notified   BOOLEAN        NOT NULL DEFAULT FALSE,
+                        created        TIMESTAMP      NOT NULL DEFAULT NOW(),
+                        modified       TIMESTAMP
+);
+
+-- 19) Notification (FCM 알림 이력)
 CREATE TABLE notification (
                               notification_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                               user_no         BIGINT                  NOT NULL,              -- FK → user
