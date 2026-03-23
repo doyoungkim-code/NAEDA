@@ -35,6 +35,8 @@ import com.example.naedafront.ui.screen.facepay.FaceMatchRecognizeScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchResultScreen
 import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
 import com.example.naedafront.ui.screen.home.HomeScreen
+import com.example.naedafront.ui.screen.home.NoticeDetailScreen
+import com.example.naedafront.ui.screen.home.NoticeListScreen
 import com.example.naedafront.ui.screen.map.MapRegion
 import com.example.naedafront.ui.screen.map.MapSelectScreen
 import com.example.naedafront.ui.screen.mypage.CustomerCenterScreen
@@ -214,7 +216,12 @@ fun NaedaNavGraph(
                 onAlarmClick = { navController.navigate(Screen.Notification.route) },
                 onProfileClick = { navController.navigate(Screen.MyPage.route) },
                 onSecretFaceMatchTestClick = { navController.navigate(Screen.FaceMatchRecognize.route) },
-                onChatClick = { navController.navigate(Screen.Chat.route) }
+                onChatClick = { navController.navigate(Screen.Chat.route) },
+                onRegisterCardClick = { navController.navigate(Screen.Asset.route) },
+                onNoticeItemClick = { item ->
+                    navController.navigate(Screen.NoticeDetail.createRoute(item.type, item.id))
+                },
+                onNoticeMoreClick = { navController.navigate(Screen.NoticeList.route) }
             )
         }
 
@@ -517,6 +524,33 @@ fun NaedaNavGraph(
         // ── 개인정보 처리방침 ──
         composable(Screen.PrivacyPolicy.route) {
             PrivacyPolicyScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // ── 구미시 소식 목록 ──
+        composable(Screen.NoticeList.route) {
+            NoticeListScreen(
+                onBackClick = { navController.popBackStack() },
+                onItemClick = { type, id ->
+                    navController.navigate(Screen.NoticeDetail.createRoute(type, id))
+                }
+            )
+        }
+
+        // ── 공지/축제 상세 ──
+        composable(
+            route = Screen.NoticeDetail.route,
+            arguments = listOf(
+                navArgument("type") { type = NavType.StringType },
+                navArgument("id") { type = NavType.LongType }
+            )
+        ) { backStackEntry ->
+            val noticeType = backStackEntry.arguments?.getString("type") ?: "notice"
+            val noticeId = backStackEntry.arguments?.getLong("id") ?: 0L
+            NoticeDetailScreen(
+                type = noticeType,
+                id = noticeId,
                 onBackClick = { navController.popBackStack() }
             )
         }
