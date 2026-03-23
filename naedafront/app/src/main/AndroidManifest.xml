@@ -20,6 +20,11 @@
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.Naedafront">
 
+        <!--
+            네이버 지도 Android SDK용 키 넣는 위치
+            여기에 "Client ID"를 넣는다.
+            예: android:value="발급받은_네이버지도_CLIENT_ID"
+        -->
         <meta-data
             android:name="com.naver.maps.map.NCP_KEY_ID"
             android:value="qg3aff0aq3" />
@@ -31,10 +36,10 @@
             android:theme="@style/Theme.Naedafront">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <service
             android:name=".fcm.NaedaFirebaseMessagingService"
             android:exported="false">

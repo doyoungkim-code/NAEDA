@@ -7,7 +7,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import com.example.naedafront.R
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -75,6 +78,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.naedafront.data.remote.AssetAccountResponse
+import com.example.naedafront.data.remote.AssetCardResponse
 import com.example.naedafront.ui.theme.Background
 import com.example.naedafront.ui.theme.KronaOneFontFamily
 import com.example.naedafront.ui.theme.Mint100
@@ -101,10 +105,14 @@ data class SpendingCategory(
 )
 
 data class NoticeItem(
+    val id: Long,
+    val type: String, // "notice" or "festival"
     val tag: String,
     val tagColor: Color,
     val title: String,
-    val date: String
+    val content: String = "",
+    val date: String,
+    val createdRaw: String = ""
 )
 
 data class HomeUiState(
@@ -117,7 +125,8 @@ data class HomeUiState(
     val notices: List<NoticeItem> = emptyList(),
 
     val account: AssetAccountResponse? = null,
-    val isLoadingAccount: Boolean = true,  // ← false → true 로 변경
+    val cards: List<AssetCardResponse> = emptyList(),
+    val isLoadingAccount: Boolean = true,
     val accountError: String? = null,
     val facePayEnabled: Boolean = false,
     val facePayMethodId: Long? = null,
@@ -140,7 +149,10 @@ fun HomeScreen(
     onAlarmClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     onSecretFaceMatchTestClick: () -> Unit = {},
-    onChatClick: () -> Unit = {}
+    onChatClick: () -> Unit = {},
+    onRegisterCardClick: () -> Unit = {},
+    onNoticeItemClick: (NoticeItem) -> Unit = {},
+    onNoticeMoreClick: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -171,9 +183,11 @@ fun HomeScreen(
 
             when {
                 uiState.isLoadingAccount -> BalanceCardSkeleton()
-                uiState.isAccountLinked -> BalanceCard(
+                uiState.isAccountLinked -> AssetCardPager(
                     account = uiState.account!!,
-                    onTransactionClick = onTransactionClick
+                    cards = uiState.cards,
+                    onTransactionClick = onTransactionClick,
+                    onRegisterCardClick = onRegisterCardClick
                 )
                 else -> LinkAccountCard(onLinkAccountClick = onLinkAccountClick)
             }
@@ -190,7 +204,11 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            NoticeCard(notices = uiState.notices)
+            NoticeCard(
+                notices = uiState.notices,
+                onItemClick = onNoticeItemClick,
+                onMoreClick = onNoticeMoreClick
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -302,6 +320,8 @@ private fun GreetingSection(
     }
 }
 
+private val CARD_HEIGHT = 200.dp
+
 @Composable
 private fun BalanceCard(
     account: AssetAccountResponse,
@@ -310,57 +330,63 @@ private fun BalanceCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .height(CARD_HEIGHT)
             .padding(horizontal = 20.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF00635A)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = account.bankName ?: "",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color.White.copy(alpha = 0.65f)
-                    )
-                    Text(
-                        text = account.accountNo?.maskAccountNo() ?: "",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.45f)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = account.bankName ?: "",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White.copy(alpha = 0.65f)
+                        )
+                        Text(
+                            text = account.accountNo?.maskAccountNo() ?: "",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.45f)
+                        )
+                    }
+                    Icon(
+                        Icons.Default.AccountBalanceWallet,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.85f),
+                        modifier = Modifier.size(20.dp)
                     )
                 }
-                Icon(
-                    Icons.Default.AccountBalanceWallet,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.85f),
-                    modifier = Modifier.size(20.dp)
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = account.accountName ?: "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "₩${"%,d".format(account.accountBalance ?: 0L)}",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 30.sp
+                    ),
+                    color = Color.White
                 )
             }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = account.accountName ?: "",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.7f)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "₩${"%,d".format(account.accountBalance ?: 0L)}",
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 30.sp
-                ),
-                color = Color.White
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedButton(
                 onClick = onTransactionClick,
@@ -382,6 +408,218 @@ private fun BalanceCard(
                     color = Color.White
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun AssetCardPager(
+    account: AssetAccountResponse,
+    cards: List<AssetCardResponse>,
+    onTransactionClick: () -> Unit,
+    onRegisterCardClick: () -> Unit
+) {
+    // 계좌(1) + 카드(N) + 카드없으면 등록카드(1)
+    val pages = mutableListOf<@Composable () -> Unit>()
+    pages.add { BalanceCard(account = account, onTransactionClick = onTransactionClick) }
+
+    if (cards.isEmpty()) {
+        pages.add { RegisterCardPrompt(onClick = onRegisterCardClick) }
+    } else {
+        cards.forEach { card ->
+            pages.add { CardInfoCard(card = card) }
+        }
+    }
+
+    val actualPageCount = pages.size
+    // 순환 스와이프: 충분히 큰 페이지 수로 설정
+    val loopPageCount = if (actualPageCount > 1) actualPageCount * 1000 else actualPageCount
+    val startPage = if (actualPageCount > 1) (loopPageCount / 2) - ((loopPageCount / 2) % actualPageCount) else 0
+    val pagerState = rememberPagerState(initialPage = startPage, pageCount = { loopPageCount })
+
+    Column {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxWidth()
+        ) { page ->
+            val actualPage = page % actualPageCount
+            pages[actualPage]()
+        }
+
+        // 인디케이터 (2페이지 이상일 때만)
+        if (actualPageCount > 1) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                val currentActualPage = pagerState.currentPage % actualPageCount
+                repeat(actualPageCount) { index ->
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 3.dp)
+                            .size(if (currentActualPage == index) 8.dp else 6.dp)
+                            .background(
+                                color = if (currentActualPage == index) Mint900 else Mint900.copy(alpha = 0.25f),
+                                shape = CircleShape
+                            )
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun isLightColor(color: Color): Boolean {
+    val luminance = 0.299 * color.red + 0.587 * color.green + 0.114 * color.blue
+    return luminance > 0.5
+}
+
+private fun resolveCardGradient(cardIssuerCode: String?, cardIssuerName: String?): Pair<Color, Color> {
+    val code = cardIssuerCode.orEmpty()
+    val name = cardIssuerName.orEmpty()
+    return when {
+        code == "1005" || name.contains("신한") -> Color(0xFF0046FF) to Color(0xFF0088FF)
+        code == "1006" || name.contains("삼성") -> Color(0xFF1A1A2E) to Color(0xFF16213E)
+        code == "1007" || name.contains("현대") -> Color(0xFF2D2D2D) to Color(0xFF555555)
+        code == "1004" || name.contains("국민") || name.contains("KB") -> Color(0xFFFFB800) to Color(0xFFFF8C00)
+        code == "1003" || name.contains("롯데") -> Color(0xFFE53935) to Color(0xFFFF7043)
+        name.contains("카카오") -> Color(0xFFFFE400) to Color(0xFFFFC000)
+        name.contains("하나") -> Color(0xFF0F9D58) to Color(0xFF34A853)
+        name.contains("우리") -> Color(0xFF1565C0) to Color(0xFF42A5F5)
+        else -> Color(0xFF264653) to Color(0xFF2A9D8F)
+    }
+}
+
+@Composable
+private fun CardInfoCard(card: AssetCardResponse) {
+    val (gradientStart, gradientEnd) = resolveCardGradient(card.cardIssuerCode, card.cardIssuerName)
+    val isLight = isLightColor(gradientStart)
+    val textPrimary = if (isLight) Color(0xFF1A1A1A) else Color.White
+    val textSecondary = if (isLight) Color(0xFF1A1A1A).copy(alpha = 0.55f) else Color.White.copy(alpha = 0.45f)
+    val textBody = if (isLight) Color(0xFF1A1A1A).copy(alpha = 0.8f) else Color.White.copy(alpha = 0.85f)
+    val badgeBg = if (isLight) Color.Black.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.2f)
+    val decoColor = if (isLight) Color.Black.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.06f)
+    val decoColor2 = if (isLight) Color.Black.copy(alpha = 0.03f) else Color.White.copy(alpha = 0.04f)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(CARD_HEIGHT)
+            .padding(horizontal = 20.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                    colors = listOf(gradientStart, gradientEnd)
+                )
+            )
+    ) {
+        // 배경 원형 장식
+        Box(
+            modifier = Modifier
+                .size(180.dp)
+                .align(Alignment.TopEnd)
+                .clip(CircleShape)
+                .background(decoColor)
+        )
+        Box(
+            modifier = Modifier
+                .size(130.dp)
+                .align(Alignment.BottomEnd)
+                .clip(CircleShape)
+                .background(decoColor2)
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            // 상단
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = card.cardIssuerName ?: "",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = textPrimary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = card.cardNo ?: "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = textSecondary
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(badgeBg)
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = if (card.cardType?.uppercase() == "CREDIT") "신용" else "체크",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = textPrimary
+                        )
+                    }
+                }
+            }
+
+            // 중단: 카드 상품명
+            Text(
+                text = card.cardName ?: "등록 카드",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
+                color = textBody,
+                maxLines = 1
+            )
+
+            // 하단: 유효기간
+            Text(
+                text = "~ ${card.cardExpiryDate ?: ""}",
+                style = MaterialTheme.typography.bodySmall,
+                color = textSecondary
+            )
+        }
+    }
+}
+
+@Composable
+private fun RegisterCardPrompt(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(CARD_HEIGHT)
+            .padding(horizontal = 20.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Mint900.copy(alpha = 0.08f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                Icons.Default.Add,
+                contentDescription = "카드 등록",
+                tint = Mint900,
+                modifier = Modifier.size(36.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "카드 등록하러 가기",
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = Mint900
+            )
         }
     }
 }
@@ -626,29 +864,12 @@ private fun FacePayBenefitCard(
 }
 
 @Composable
-private fun NoticeCard(notices: List<NoticeItem>) {
-    val displayNotices = if (notices.isEmpty()) {
-        listOf(
-            NoticeItem(
-                tag = "축제",
-                tagColor = Color(0xFFE91E63),
-                title = "2025 구미 낙동강 세계 물 축제",
-                date = "03.15 ~ 03.20"
-            ),
-            NoticeItem(
-                tag = "공지",
-                tagColor = Color(0xFF1976D2),
-                title = "구미시 청년 창업 지원금 신청 안내",
-                date = "03.10 마감"
-            ),
-            NoticeItem(
-                tag = "이벤트",
-                tagColor = Color(0xFF388E3C),
-                title = "구미 사랑 상품권 10% 추가 할인",
-                date = "03.01 ~ 03.31"
-            )
-        )
-    } else notices
+private fun NoticeCard(
+    notices: List<NoticeItem>,
+    onItemClick: (NoticeItem) -> Unit = {},
+    onMoreClick: () -> Unit = {}
+) {
+    val displayNotices = notices
 
     Card(
         modifier = Modifier
@@ -684,19 +905,36 @@ private fun NoticeCard(notices: List<NoticeItem>) {
                     text = "더보기",
                     style = MaterialTheme.typography.labelMedium,
                     color = Mint900,
-                    modifier = Modifier.clickable { }
+                    modifier = Modifier.clickable { onMoreClick() }
                 )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            displayNotices.forEachIndexed { index, notice ->
-                NoticeRow(notice = notice)
-                if (index < displayNotices.lastIndex) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(vertical = 8.dp),
-                        color = OnBackground.copy(alpha = 0.06f)
+            if (displayNotices.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "공지사항이 없습니다.",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = OnBackground.copy(alpha = 0.5f)
                     )
+                }
+            } else {
+                displayNotices.forEachIndexed { index, notice ->
+                    NoticeRow(notice = notice, onClick = { onItemClick(notice) })
+                    if (index < displayNotices.lastIndex) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            color = OnBackground.copy(alpha = 0.06f)
+                        )
+                    }
                 }
             }
         }
@@ -704,9 +942,11 @@ private fun NoticeCard(notices: List<NoticeItem>) {
 }
 
 @Composable
-private fun NoticeRow(notice: NoticeItem) {
+private fun NoticeRow(notice: NoticeItem, onClick: () -> Unit = {}) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(

@@ -1,12 +1,12 @@
 package com.example.naedafront.ui.navigation
 
-import androidx.compose.runtime.collectAsState
 import com.example.naedafront.ui.screen.home.HomeViewModel
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,10 +31,13 @@ import com.example.naedafront.ui.screen.asset.AccountListRoute
 import com.example.naedafront.ui.screen.asset.CardDetailScreen
 import com.example.naedafront.ui.screen.asset.RegisterAssetDialog
 import com.example.naedafront.ui.screen.asset.TradeReportScreen
+import com.example.naedafront.ui.screen.chat.ChatScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchRecognizeScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchResultScreen
 import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
 import com.example.naedafront.ui.screen.home.HomeScreen
+import com.example.naedafront.ui.screen.home.NoticeDetailScreen
+import com.example.naedafront.ui.screen.home.NoticeListScreen
 import com.example.naedafront.ui.screen.map.MapRegion
 import com.example.naedafront.ui.screen.map.MapSelectScreen
 import com.example.naedafront.ui.screen.mypage.CustomerCenterScreen
@@ -56,8 +59,8 @@ import com.example.naedafront.ui.screen.signup.SignUpViewModel
 import com.example.naedafront.ui.screen.store.DeliveryAddressScreen
 import com.example.naedafront.ui.screen.store.OrderCompleteScreen
 import com.example.naedafront.ui.screen.store.PointHistoryScreen
-import com.example.naedafront.ui.screen.chat.ChatScreen
 import com.example.naedafront.ui.screen.store.PointStoreScreen
+import com.example.naedafront.ui.screen.store.StoreOrderDraftStore
 
 @Composable
 fun NaedaNavGraph(
@@ -214,14 +217,21 @@ fun NaedaNavGraph(
                 onAlarmClick = { navController.navigate(Screen.Notification.route) },
                 onProfileClick = { navController.navigate(Screen.MyPage.route) },
                 onSecretFaceMatchTestClick = { navController.navigate(Screen.FaceMatchRecognize.route) },
-                onChatClick = { navController.navigate(Screen.Chat.route) }
+                onChatClick = { navController.navigate(Screen.Chat.route) },
+                onRegisterCardClick = { navController.navigate(Screen.Asset.route) },
+                onNoticeItemClick = { item ->
+                    navController.navigate(Screen.NoticeDetail.createRoute(item.type, item.id))
+                },
+                onNoticeMoreClick = { navController.navigate(Screen.NoticeList.route) }
             )
         }
 
         composable(Screen.Store.route) {
             PointStoreScreen(
                 onHistoryClick = { navController.navigate(Screen.PointHistory.route) },
-                onPurchaseClick = { _, _ -> navController.navigate(Screen.DeliveryAddress.route) }
+                onPurchaseClick = {
+                    navController.navigate(Screen.DeliveryAddress.route)
+                }
             )
         }
 
@@ -237,28 +247,45 @@ fun NaedaNavGraph(
                 onBackClick = { navController.popBackStack() },
                 onSearchPostCodeClick = { },
                 onRequestClick = { },
-                onSaveAndPayClick = { _, _, _, _, _, _, _ ->
+                onAddressSelected = {
                     navController.navigate(Screen.OrderComplete.route)
                 }
             )
         }
 
         composable(Screen.OrderComplete.route) {
-            OrderCompleteScreen(
-                onCloseClick = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Home.route) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                },
-                onOrderHistoryClick = { navController.navigate(Screen.PointHistory.route) },
-                onHomeClick = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Home.route) { inclusive = true }
-                        launchSingleTop = true
-                    }
+            val orderInfo = StoreOrderDraftStore.completedOrder
+
+            if (orderInfo == null) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("주문 정보가 없습니다.")
                 }
-            )
+            } else {
+                OrderCompleteScreen(
+                    orderInfo = orderInfo,
+                    onCloseClick = {
+                        StoreOrderDraftStore.clearCompletedOrder()
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Home.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                    onOrderHistoryClick = {
+                        StoreOrderDraftStore.clearCompletedOrder()
+                        navController.navigate(Screen.PointHistory.route)
+                    },
+                    onHomeClick = {
+                        StoreOrderDraftStore.clearCompletedOrder()
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Home.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
         }
 
         composable(Screen.Scan.route) {
@@ -488,7 +515,9 @@ fun NaedaNavGraph(
             )
         }
 
-        // ── 알림 화면 ──
+        // ── 알림 설정 화면 ──
+    
+
         composable(Screen.Notification.route) {
             NotificationScreen(
                 onBackClick = { navController.popBackStack() }
@@ -517,6 +546,33 @@ fun NaedaNavGraph(
         // ── 개인정보 처리방침 ──
         composable(Screen.PrivacyPolicy.route) {
             PrivacyPolicyScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // ── 구미시 소식 목록 ──
+        composable(Screen.NoticeList.route) {
+            NoticeListScreen(
+                onBackClick = { navController.popBackStack() },
+                onItemClick = { type, id ->
+                    navController.navigate(Screen.NoticeDetail.createRoute(type, id))
+                }
+            )
+        }
+
+        // ── 공지/축제 상세 ──
+        composable(
+            route = Screen.NoticeDetail.route,
+            arguments = listOf(
+                navArgument("type") { type = NavType.StringType },
+                navArgument("id") { type = NavType.LongType }
+            )
+        ) { backStackEntry ->
+            val noticeType = backStackEntry.arguments?.getString("type") ?: "notice"
+            val noticeId = backStackEntry.arguments?.getLong("id") ?: 0L
+            NoticeDetailScreen(
+                type = noticeType,
+                id = noticeId,
                 onBackClick = { navController.popBackStack() }
             )
         }
