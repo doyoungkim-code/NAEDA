@@ -59,12 +59,16 @@ import com.example.naedafront.ui.screen.signup.SignUpVerifyScreen
 import com.example.naedafront.ui.screen.signup.SignUpViewModel
 import com.example.naedafront.ui.screen.store.DeliveryAddressScreen
 import com.example.naedafront.ui.screen.store.OrderCompleteScreen
+import com.example.naedafront.ui.screen.store.OrderDetailScreen
+import com.example.naedafront.ui.screen.store.OrderDetailViewModel
 import com.example.naedafront.ui.screen.store.OrderHistoryScreen
 import com.example.naedafront.ui.screen.store.OrderHistoryViewModel
 import com.example.naedafront.ui.screen.store.PointHistoryScreen
 import com.example.naedafront.ui.screen.store.PointStoreScreen
 import com.example.naedafront.ui.screen.store.StoreOrderDraftStore
-
+import com.example.naedafront.data.repository.AddressRepository
+import com.example.naedafront.data.repository.ProductRepository
+import com.example.naedafront.data.repository.UserRepository
 @Composable
 fun NaedaNavGraph(
     navController: NavHostController,
@@ -260,32 +264,24 @@ fun NaedaNavGraph(
             val orderInfo = StoreOrderDraftStore.completedOrder
 
             if (orderInfo == null) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("주문 정보가 없습니다.")
+                LaunchedEffect(Unit) {
+                    navController.navigate(Screen.Home.route) {
+                        launchSingleTop = true
+                    }
                 }
+
+                Box(modifier = Modifier.fillMaxSize()) {}
             } else {
                 OrderCompleteScreen(
                     orderInfo = orderInfo,
                     onCloseClick = {
-                        StoreOrderDraftStore.clearCompletedOrder()
-                        navController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.Home.route) { inclusive = true }
-                            launchSingleTop = true
-                        }
+                        navController.navigate(Screen.Home.route)
                     },
                     onOrderHistoryClick = {
-                        StoreOrderDraftStore.clearCompletedOrder()
                         navController.navigate(Screen.OrderHistory.route)
                     },
                     onHomeClick = {
-                        StoreOrderDraftStore.clearCompletedOrder()
-                        navController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.Home.route) { inclusive = true }
-                            launchSingleTop = true
-                        }
+                        navController.navigate(Screen.Home.route)
                     }
                 )
             }
@@ -302,6 +298,33 @@ fun NaedaNavGraph(
 
             OrderHistoryScreen(
                 viewModel = orderHistoryViewModel,
+                onBackClick = { navController.popBackStack() },
+                onOrderClick = { orderId ->
+                    navController.navigate(Screen.OrderDetail.createRoute(orderId))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.OrderDetail.route,
+            arguments = listOf(
+                navArgument("orderId") { type = NavType.LongType }
+            )
+        ) { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getLong("orderId") ?: 0L
+
+            val orderDetailViewModel: OrderDetailViewModel = viewModel(
+                factory = OrderDetailViewModel.factory(
+                    orderId = orderId,
+                    orderRepository = OrderRepository(),
+                    productRepository = ProductRepository(),
+                    addressRepository = AddressRepository(),
+                    userRepository = UserRepository()
+                )
+            )
+
+            OrderDetailScreen(
+                viewModel = orderDetailViewModel,
                 onBackClick = { navController.popBackStack() }
             )
         }

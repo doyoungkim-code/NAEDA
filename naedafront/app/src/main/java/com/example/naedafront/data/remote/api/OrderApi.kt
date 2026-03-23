@@ -6,6 +6,7 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface OrderApi {
@@ -21,4 +22,9 @@ interface OrderApi {
         @Query("userNo") userNo: Long,
         @Query("size") size: Int = 100
     ): Response<List<OrderResponse>>
+
+    @GET("/api/orders/{orderId}")
+    suspend fun getOrderDetail(
+        @Path("orderId") orderId: Long
+    ): Response<OrderResponse>
 }

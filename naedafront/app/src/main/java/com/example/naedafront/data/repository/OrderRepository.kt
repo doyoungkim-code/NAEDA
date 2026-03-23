@@ -92,4 +92,39 @@ class OrderRepository {
             )
         }
     }
+
+    suspend fun getOrderDetail(
+        orderId: Long
+    ): Result<OrderResponse> {
+        return try {
+            val response = orderApi.getOrderDetail(orderId)
+
+            if (!response.isSuccessful) {
+                val errorBody = response.errorBody()?.string().orEmpty()
+                Result.failure(
+                    IllegalStateException(
+                        if (errorBody.isNotBlank()) {
+                            "주문 상세 조회 실패: HTTP ${response.code()} / $errorBody"
+                        } else {
+                            "주문 상세 조회 실패: HTTP ${response.code()}"
+                        }
+                    )
+                )
+            } else {
+                val body = response.body()
+                    ?: return Result.failure(
+                        IllegalStateException("주문 상세 응답 바디가 비어 있습니다.")
+                    )
+
+                Result.success(body)
+            }
+        } catch (e: Exception) {
+            Result.failure(
+                IllegalStateException(
+                    e.message ?: "주문 상세 조회 중 오류가 발생했습니다.",
+                    e
+                )
+            )
+        }
+    }
 }
