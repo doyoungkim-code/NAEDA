@@ -470,3 +470,60 @@ GET /api/orders?userNo=1
 | status | String | 상품 상태 (ON_SALE / SOLD_OUT) |
 | startsAt | String | 판매 시작일 (ISO 8601) |
 | endsAt | String | 판매 종료일 (ISO 8601) |
+
+---
+
+## 9. 주문 단건 조회
+
+포인트 상품 주문을 단건 조회한다.
+
+| 항목 | 내용 |
+|------|------|
+| **Method** | `GET` |
+| **URL** | `/api/orders/{orderId}` |
+| **Auth** | - |
+
+### Path Parameters
+
+| 이름 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| orderId | Long | O | 주문 ID |
+
+### Request Body
+
+없음
+
+### Response
+
+**Status: `200 OK`**
+```json
+{
+  "orderId": 1,
+  "userNo": 1,
+  "productId": 1,
+  "productName": "아메리카노 쿠폰",
+  "pointPrice": 3000,
+  "roadAddress": "구미시 인동중앙로 100",
+  "numberAddress": "인동동 123-4",
+  "orderAt": "2026-03-10T15:30:00"
+}
+```
+
+### Error
+
+| Status | 조건 | 메시지 |
+|--------|------|--------|
+| 404 | 주문이 존재하지 않는 경우 | 주문을 찾을 수 없습니다. id={orderId} |
+
+## Order Response 공통 구조
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| orderId | Long | 주문 PK |
+| userNo | Long | 사용자 번호 |
+| productId | Long | 상품 ID |
+| productName | String | 상품명 |
+| pointPrice | Long | 차감 포인트 |
+| roadAddress | String | 도로명 주소 (nullable) |
+| numberAddress | String | 지번 주소 (nullable) |
+| orderAt | String | 주문 시각 (ISO 8601) |
