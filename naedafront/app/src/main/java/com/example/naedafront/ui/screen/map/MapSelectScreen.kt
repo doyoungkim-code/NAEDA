@@ -7,10 +7,13 @@ import android.graphics.Paint
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -21,6 +24,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -34,17 +38,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -76,7 +82,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -87,6 +95,8 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.naedafront.R
 import com.example.naedafront.data.remote.MapStoreResponseDto
+import com.example.naedafront.data.remote.RecommendRepository
+import com.example.naedafront.data.remote.RecommendResponseDto
 import com.example.naedafront.data.remote.StoreMapRepository
 import com.example.naedafront.ui.common.NaedaButton
 import com.example.naedafront.ui.common.NaedaButtonType
@@ -97,7 +107,12 @@ import com.example.naedafront.ui.theme.Navy900
 import com.example.naedafront.ui.theme.OnBackground
 import com.example.naedafront.ui.theme.OnSurfaceVariant
 import com.example.naedafront.ui.theme.OutlineVariant
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.ui.graphics.graphicsLayer
 
 data class Restaurant(
     val name: String,
@@ -111,7 +126,10 @@ data class MapRegion(
     val label: String,
     val points: List<Offset>,
     val color: Color,
-    val restaurants: List<Restaurant>
+    val restaurants: List<Restaurant>,
+    val labelCenter: Offset? = null,
+    val pinX: Float = 0f,  // 이미지 너비 기준 % (0~1)
+    val pinY: Float = 0f   // 이미지 높이 기준 % (0~1)
 )
 
 private data class StoreMapFilterState(
@@ -134,6 +152,8 @@ private fun parsePoints(raw: String): List<Offset> =
 private val REGIONS: List<MapRegion> = listOf(
     MapRegion(
         label = "무을면",
+        labelCenter = Offset(150f, 230f),
+        pinX = 0.20f, pinY = 0.20f,
         points = parsePoints("89,195 110,182 132,174 174,169 172,185 178,200 191,213 207,211 227,207 214,223 219,241 219,249 219,263 212,271 202,276 185,261 183,245 152,241 143,237 132,238 130,210 118,217 101,210 90,200"),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -144,6 +164,8 @@ private val REGIONS: List<MapRegion> = listOf(
     ),
     MapRegion(
         label = "도개면",
+        labelCenter = Offset(320f, 155f),
+        pinX = 0.67f, pinY = 0.26f,
         points = parsePoints("237,117 236,135 238,150 243,166 280,189 292,208 301,216 304,222 322,225 337,222 361,225 372,218 377,205 367,189 353,178 342,164 321,142 313,126 285,112 267,128 253,136 243,120"),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -154,6 +176,8 @@ private val REGIONS: List<MapRegion> = listOf(
     ),
     MapRegion(
         label = "옥성면",
+        labelCenter = Offset(210f, 165f),
+        pinX = 0.42f, pinY = 0.20f,
         points = parsePoints("178,166 189,151 196,127 211,109 232,110 232,135 235,164 245,169 276,188 287,201 283,227 271,241 243,259 235,260 222,235 217,213 193,195 187,192 179,170"),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -164,6 +188,8 @@ private val REGIONS: List<MapRegion> = listOf(
     ),
     MapRegion(
         label = "선산읍",
+        labelCenter = Offset(260f, 280f),
+        pinX = 0.40f, pinY = 0.34f,
         points = parsePoints("193,277 219,263 220,238 231,244 236,255 245,255 274,245 281,238 283,228 308,219 314,228 319,252 327,281 337,313 336,321 324,326 295,324 277,324 260,310 247,314 250,322 250,331 242,331 228,317 222,304 225,295 214,287 205,285 193,279"),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -174,6 +200,8 @@ private val REGIONS: List<MapRegion> = listOf(
     ),
     MapRegion(
         label = "해평면",
+        labelCenter = Offset(370f, 290f),
+        pinX = 0.63f, pinY = 0.50f,
         points = parsePoints("312,224 355,223 367,225 382,243 396,250 405,263 403,280 403,297 394,307 386,325 383,332 373,337 362,348 363,363 363,373 358,375 348,357 331,335 331,319"),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -184,6 +212,8 @@ private val REGIONS: List<MapRegion> = listOf(
     ),
     MapRegion(
         label = "고아읍",
+        labelCenter = Offset(270f, 345f),
+        pinX = 0.40f, pinY = 0.53f,
         points = parsePoints("228,375 254,373 274,380 290,380 327,380 338,376 358,373 345,347 341,331 305,319 268,320 258,308 252,313 251,329 251,337 247,341 239,359 247,372 230,376"),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -193,17 +223,110 @@ private val REGIONS: List<MapRegion> = listOf(
         )
     ),
     MapRegion(
-        label = "시내동지구",
+        label = "선주원남동",
+        pinX = 0.23f, pinY = 0.70f,
         points = parsePoints("221,373 303,373 345,375 369,375 399,365 415,375 429,393 426,413 418,435 391,436 368,429 357,422 335,437 330,454 318,451 282,423 276,410 258,412 246,405 235,396 223,380"),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
             Restaurant("구미역전곱창", "한식", "곱창·막창구이", "구미 원조 곱창골목 대표 맛집", listOf("야식", "도보 5분")),
             Restaurant("원조부대찌개", "한식", "부대찌개", "30년 전통, 라면사리 무한 추가", listOf("FACE PAY", "도보 8분")),
-            Restaurant("시내일식", "일식", "초밥·라멘", "구미 시내 가성비 일식당", listOf("일식", "도보 6분"))
+            Restaurant("선주원남 칼국수", "한식", "칼국수·만두", "직접 뽑은 면, 점심 줄 서는 집", listOf("노포", "도보 5분"))
+        )
+    ),
+    MapRegion(
+        label = "지산동",
+        pinX = 0.41f, pinY = 0.69f,
+        points = emptyList(),
+        color = Color(0xFF5B5CEB),
+        restaurants = listOf(
+            Restaurant("지산동 돈까스", "일식", "돈까스·우동", "두꺼운 수제 돈까스 인기 맛집", listOf("인기", "도보 3분")),
+            Restaurant("지산 커피하우스", "카페", "핸드드립·라떼", "조용한 분위기의 로스터리 카페", listOf("카페", "도보 5분"))
+        )
+    ),
+    MapRegion(
+        label = "송정동",
+        pinX = 0.38f, pinY = 0.72f,
+        points = emptyList(),
+        color = Color(0xFF5B5CEB),
+        restaurants = listOf(
+            Restaurant("송정동 치킨집", "한식", "후라이드·양념", "바삭한 치킨으로 동네 소문난 집", listOf("야식", "도보 4분")),
+            Restaurant("송정 분식당", "분식", "떡볶이·순대", "학생들이 줄 서는 분식 맛집", listOf("가성비", "도보 6분"))
+        )
+    ),
+    MapRegion(
+        label = "원평동",
+        pinX = 0.35f, pinY = 0.69f,
+        points = emptyList(),
+        color = Color(0xFF5B5CEB),
+        restaurants = listOf(
+            Restaurant("원평동 파스타", "양식", "파스타·리조또", "편한 분위기의 캐주얼 파스타 매장", listOf("데이트", "도보 7분")),
+            Restaurant("원평 곱창골목", "한식", "곱창·막창", "구미 대표 곱창 골목 원조", listOf("야식", "도보 3분"))
+        )
+    ),
+    MapRegion(
+        label = "광평동",
+        pinX = 0.38f, pinY = 0.77f,
+        points = emptyList(),
+        color = Color(0xFF5B5CEB),
+        restaurants = listOf(
+            Restaurant("광평 삼겹살", "한식", "삼겹살·목살", "숙성 삼겹살 맛집, 회식 단골", listOf("모임", "도보 5분")),
+            Restaurant("광평동 국밥", "한식", "순대국밥", "진한 국물 순대국 아침 든든하게", listOf("아침", "도보 8분"))
+        )
+    ),
+    MapRegion(
+        label = "공단동",
+        pinX = 0.43f, pinY = 0.805f,
+        points = emptyList(),
+        color = Color(0xFF5B5CEB),
+        restaurants = listOf(
+            Restaurant("공단 백반집", "한식", "백반·찌개", "직장인 점심 단골 가성비 백반", listOf("가성비", "도보 3분")),
+            Restaurant("공단동 중화요리", "중식", "짜장·짬뽕", "빠른 배달, 푸짐한 양의 중식당", listOf("중식", "도보 6분"))
+        )
+    ),
+    MapRegion(
+        label = "상모사곡동",
+        pinX = 0.31f, pinY = 0.80f,
+        points = emptyList(),
+        color = Color(0xFF5B5CEB),
+        restaurants = listOf(
+            Restaurant("상모 감자탕", "한식", "감자탕·뼈해장국", "뼈 푹 고은 감자탕 전문점", listOf("보양식", "도보 5분")),
+            Restaurant("사곡동 횟집", "한식", "회·매운탕", "싱싱한 활어회 전문", listOf("횟집", "도보 10분"))
+        )
+    ),
+    MapRegion(
+        label = "임오동",
+        pinX = 0.34f, pinY = 0.86f,
+        points = emptyList(),
+        color = Color(0xFF5B5CEB),
+        restaurants = listOf(
+            Restaurant("임오동 닭갈비", "한식", "닭갈비·볶음밥", "매콤한 철판 닭갈비 맛집", listOf("매콤", "도보 4분")),
+            Restaurant("임오 카페거리", "카페", "디저트·음료", "감성 카페 모여있는 거리", listOf("카페", "도보 7분"))
+        )
+    ),
+    MapRegion(
+        label = "양포동",
+        pinX = 0.56f, pinY = 0.75f,
+        points = emptyList(),
+        color = Color(0xFF5B5CEB),
+        restaurants = listOf(
+            Restaurant("양포동 족발", "한식", "족발·보쌈", "쫄깃한 족발 야식 맛집", listOf("야식", "도보 5분")),
+            Restaurant("양포 버거", "양식", "수제버거", "두꺼운 패티의 수제 버거 전문점", listOf("양식", "도보 8분"))
+        )
+    ),
+    MapRegion(
+        label = "진미동",
+        pinX = 0.50f, pinY = 0.84f,
+        points = emptyList(),
+        color = Color(0xFF5B5CEB),
+        restaurants = listOf(
+            Restaurant("진미동 해장국", "한식", "해장국·선지국", "새벽부터 여는 해장 맛집", listOf("아침", "도보 3분")),
+            Restaurant("진미 일식", "일식", "초밥·라멘", "구미 시내 가성비 일식당", listOf("일식", "도보 6분"))
         )
     ),
     MapRegion(
         label = "산동면",
+        labelCenter = Offset(435f, 330f),
+        pinX = 0.69f, pinY = 0.69f,
         points = parsePoints("364,361 364,342 380,326 405,301 402,257 428,253 441,269 453,289 464,296 468,313 454,328 444,334 436,345 422,372 419,374 410,367 396,361 385,367 377,368 370,365 367,361"),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -214,12 +337,64 @@ private val REGIONS: List<MapRegion> = listOf(
     ),
     MapRegion(
         label = "장천면",
+        labelCenter = Offset(470f, 365f),
+        pinX = 0.83f, pinY = 0.84f,
         points = parsePoints("467,290 485,288 502,308 500,321 483,330 490,355 492,370 499,396 452,391 438,391 418,376 423,360 437,342 466,332 469,313 462,296 460,286"),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
             Restaurant("장천순대국", "한식", "순대국밥", "직접 만든 수제 순대, 국물 진함", listOf("수제", "도보 4분")),
             Restaurant("장천갈비탕", "한식", "갈비탕·갈비찜", "뚝배기 갈비탕 한 그릇에 든든하게", listOf("보양식", "도보 7분")),
             Restaurant("장천두부전골", "한식", "두부전골·삼겹살", "직접 만든 두부로 끓인 전골", listOf("전골", "도보 10분"))
+        )
+    ),
+    MapRegion(
+        label = "신평동",
+        pinX = 0.41f, pinY = 0.74f,
+        points = emptyList(),
+        color = Color(0xFF5B5CEB),
+        restaurants = listOf(
+            Restaurant("신평 감자탕", "한식", "감자탕·뼈해장국", "뼈 푹 고은 감자탕 전문점", listOf("보양식", "도보 5분")),
+            Restaurant("신평동 칼국수", "한식", "칼국수·수제비", "손 반죽 칼국수 동네 맛집", listOf("노포", "도보 7분"))
+        )
+    ),
+    MapRegion(
+        label = "비산동",
+        pinX = 0.44f, pinY = 0.72f,
+        points = emptyList(),
+        color = Color(0xFF5B5CEB),
+        restaurants = listOf(
+            Restaurant("비산동 삼겹살", "한식", "삼겹살·목살", "숙성 삼겹살 구이 전문점", listOf("모임", "도보 4분")),
+            Restaurant("비산 커피숍", "카페", "핸드드립·라떼", "조용한 분위기의 감성 카페", listOf("카페", "도보 6분"))
+        )
+    ),
+    MapRegion(
+        label = "도량동",
+        pinX = 0.35f, pinY = 0.65f,
+        points = emptyList(),
+        color = Color(0xFF5B5CEB),
+        restaurants = listOf(
+            Restaurant("도량동 국밥", "한식", "돼지국밥·순대국", "진한 사골 국물 든든한 국밥집", listOf("아침", "도보 3분")),
+            Restaurant("도량 분식", "분식", "떡볶이·순대", "학생들 사이 인기 분식 맛집", listOf("가성비", "도보 5분"))
+        )
+    ),
+    MapRegion(
+        label = "형곡동",
+        pinX = 0.315f, pinY = 0.75f,
+        points = emptyList(),
+        color = Color(0xFF5B5CEB),
+        restaurants = listOf(
+            Restaurant("형곡동 치킨", "한식", "후라이드·양념", "바삭한 치킨 배달 맛집", listOf("야식", "도보 4분")),
+            Restaurant("형곡 파스타", "양식", "파스타·스테이크", "캐주얼 분위기의 양식 레스토랑", listOf("데이트", "도보 8분"))
+        )
+    ),
+    MapRegion(
+        label = "인동동",
+        pinX = 0.58f, pinY = 0.87f,
+        points = emptyList(),
+        color = Color(0xFF5B5CEB),
+        restaurants = listOf(
+            Restaurant("인동 곱창", "한식", "곱창·막창", "불 맛 살린 철판 곱창 맛집", listOf("야식", "도보 5분")),
+            Restaurant("인동동 초밥", "일식", "초밥·사시미", "신선한 재료의 가성비 초밥집", listOf("일식", "도보 7분"))
         )
     )
 )
@@ -287,7 +462,7 @@ fun MapSelectScreen(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
 
         hasLocationPermission = granted
         if (granted) {
@@ -512,37 +687,62 @@ private fun TopMapHeader(
     onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Surface(
-            onClick = onBack,
-            modifier = Modifier.size(40.dp),
-            shape = CircleShape,
-            color = Color.White,
-            shadowElevation = 6.dp
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "뒤로가기",
-                    tint = Color(0xFF30384A)
+            Surface(
+                onClick = onBack,
+                modifier = Modifier.size(40.dp),
+                shape = CircleShape,
+                color = Color.White,
+                shadowElevation = 6.dp
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "뒤로가기",
+                        tint = Color(0xFF30384A)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            SegmentedTabs(
+                selectedTabIndex = selectedTabIndex,
+                items = listOf("식당", "맛집"),
+                onSelected = onTabSelected
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.size(40.dp))
+        }
+
+        if (selectedTabIndex == 1) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "지역명을 터치해 맛집을 알아보세요!",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF374151)
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "확대하면 글씨와 지도를 크게 볼 수 있습니다.",
+                    fontSize = 11.sp,
+                    color = Color(0xFF9CA3AF)
                 )
             }
         }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        SegmentedTabs(
-            selectedTabIndex = selectedTabIndex,
-            items = listOf("식당", "맛집"),
-            onSelected = onTabSelected
-        )
-
-        Spacer(modifier = Modifier.weight(1f))
-        Spacer(modifier = Modifier.size(40.dp))
     }
 }
 
@@ -732,6 +932,7 @@ private fun StoreMapStatusOverlay(
         }
     }
 }
+
 @Composable
 private fun CurrentLocationFab(
     onClick: () -> Unit,
@@ -955,7 +1156,7 @@ private fun BottomStoreSheet(
     val totalCount = region.restaurants.size * 43
 
     Surface(
-        modifier = modifier.offset(y = (-6).dp),
+        modifier = modifier,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         color = Color(0xFFF7F7F8),
         shadowElevation = 14.dp
@@ -1041,6 +1242,309 @@ private fun BottomStoreSheet(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RecommendBottomSheet(
+    regionLabel: String,
+    stores: List<RecommendResponseDto>,
+    isLoading: Boolean,
+    expanded: Boolean,
+    onToggleExpanded: () -> Unit,
+    onStoreClick: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var selectedCategory by remember { mutableStateOf<String?>(null) }
+
+    val categories = remember(stores) {
+        stores.mapNotNull { it.categoryName }.distinct()
+    }
+
+    val filteredStores = remember(stores, selectedCategory) {
+        if (selectedCategory == null) stores
+        else stores.filter { it.categoryName == selectedCategory }
+    }
+
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        color = Color(0xFFF7F7F8),
+        shadowElevation = 14.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 10.dp, start = 20.dp, end = 20.dp, bottom = 10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onToggleExpanded)
+                    .padding(bottom = 8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .width(48.dp)
+                        .height(5.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Color(0xFFD1D5DB))
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "$regionLabel 맛집 리스트",
+                        color = Color(0xFF1F2937),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "추천순",
+                        color = Color(0xFF4F74FF),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Text(
+                    text = "총 ${filteredStores.size}개",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            if (categories.size > 1) {
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CategoryFilterChip(
+                        label = "전체",
+                        selected = selectedCategory == null,
+                        onClick = { selectedCategory = null }
+                    )
+                    categories.forEach { category ->
+                        CategoryFilterChip(
+                            label = category,
+                            selected = selectedCategory == category,
+                            onClick = {
+                                selectedCategory = if (selectedCategory == category) null else category
+                            }
+                        )
+                    }
+                }
+            }
+
+            AnimatedContent(
+                targetState = expanded,
+                transitionSpec = {
+                    (fadeIn() + slideInVertically { it / 4 }) togetherWith fadeOut()
+                },
+                label = "recommend_sheet_expand"
+            ) { isExpanded ->
+                if (isExpanded) {
+                    Column {
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        if (isLoading) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(100.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(32.dp),
+                                    color = Color(0xFF5B5CEB)
+                                )
+                            }
+                        } else if (filteredStores.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(100.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (selectedCategory != null) "해당 카테고리의 맛집이 없습니다."
+                                           else "이 지역에 등록된 맛집이 없습니다.",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 14.sp
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.heightIn(max = 250.dp),
+                                verticalArrangement = Arrangement.spacedBy(0.dp)
+                            ) {
+                                items(filteredStores) { store ->
+                                    RecommendStoreRow(
+                                        store = store,
+                                        onClick = { onStoreClick(store.storeId) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoryFilterChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(if (selected) Color(0xFF5B5CEB) else Color.White)
+            .border(1.dp, if (selected) Color(0xFF5B5CEB) else Color(0xFFD1D5DB), RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 7.dp)
+    ) {
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            color = if (selected) Color.White else Color(0xFF4B5563)
+        )
+    }
+}
+
+@Composable
+private fun RecommendStoreRow(
+    store: RecommendResponseDto,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 14.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.Top
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(width = 96.dp, height = 96.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color(0xFFE8E2D9)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!store.imageUrl.isNullOrBlank()) {
+                    coil.compose.AsyncImage(
+                        model = store.imageUrl,
+                        contentDescription = store.storeName,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(id = R.drawable.gumi_map_select),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFFB8A48B).copy(alpha = 0.35f))
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = store.storeName,
+                    fontSize = 17.sp,
+                    lineHeight = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF222B45),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.Star,
+                        contentDescription = null,
+                        tint = Color(0xFFFFB800),
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        text = String.format("%.1f", store.rating),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF475569)
+                    )
+                    if (!store.categoryName.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "· ${store.categoryName}",
+                            fontSize = 14.sp,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (store.visitCount > 0) {
+                        Text(
+                            text = "방문 ${store.visitCount}회",
+                            fontSize = 13.sp,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+                    if (!store.roadAddress.isNullOrBlank()) {
+                        Text(
+                            text = store.roadAddress,
+                            fontSize = 13.sp,
+                            color = Color(0xFF94A3B8),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+        HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp)
     }
 }
 
@@ -1141,17 +1645,6 @@ private fun StoreListRow(
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Icon(
-                imageVector = Icons.Outlined.FavoriteBorder,
-                contentDescription = "찜",
-                tint = Color(0xFFCBD5E1),
-                modifier = Modifier
-                    .padding(top = 4.dp)
-                    .size(24.dp)
-            )
         }
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -1187,99 +1680,172 @@ private fun PopularRestaurantMapTab(
     onRestaurantClick: (MapRegion, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    val bitmap = ImageBitmap.imageResource(context.resources, R.drawable.gumi_map_select)
-    var canvasSize by remember { mutableStateOf(Size.Zero) }
+    var recommendStores by remember { mutableStateOf<List<RecommendResponseDto>>(emptyList()) }
+    var isRecommendLoading by remember { mutableStateOf(false) }
+    var selectedStoreDetail by remember { mutableStateOf<MapStoreResponseDto?>(null) }
+    var isDetailLoading by remember { mutableStateOf(false) }
 
-    fun scalePoint(point: Offset): Offset {
-        if (canvasSize == Size.Zero) return point
-        return Offset(
-            point.x * canvasSize.width / 600f,
-            point.y * canvasSize.height / 600f
-        )
+    LaunchedEffect(selectedRegion?.label) {
+        if (selectedRegion != null) {
+            isRecommendLoading = true
+            runCatching {
+                RecommendRepository.getRecommendStores(dong = selectedRegion.label)
+            }.onSuccess { stores ->
+                recommendStores = stores
+            }.onFailure {
+                recommendStores = emptyList()
+            }
+            isRecommendLoading = false
+        } else {
+            recommendStores = emptyList()
+        }
     }
 
-    fun scaledPolygon(region: MapRegion): List<Offset> = region.points.map(::scalePoint)
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFFF3F4F6))
+            .clickable(
+                indication = null,
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+            ) { onRegionCleared() }
     ) {
+        var boxSize by remember { mutableStateOf(IntSize.Zero) }
+        val density = LocalDensity.current
+
+        var scale by remember { mutableStateOf(1f) }
+        var panOffsetX by remember { mutableStateOf(0f) }
+        var panOffsetY by remember { mutableStateOf(0f) }
+
+        val transformableState = rememberTransformableState { zoomChange, panChange, _ ->
+            scale = (scale * zoomChange).coerceIn(1f, 4f)
+            panOffsetX += panChange.x
+            panOffsetY += panChange.y
+        }
+
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp)
-        ) {
-            Canvas(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(0.92f)
-                    .onSizeChanged {
-                        canvasSize = Size(it.width.toFloat(), it.height.toFloat())
-                    }
-                    .pointerInput(canvasSize) {
-                        detectTapGestures { tapOffset ->
-                            val tappedRegion = REGIONS.firstOrNull { region ->
-                                pointInPolygon(tapOffset, scaledPolygon(region))
-                            }
-
-                            if (tappedRegion != null) {
-                                onRegionSelected(tappedRegion)
-                            } else {
-                                onRegionCleared()
-                            }
-                        }
-                    }
-            ) {
-                drawImage(
-                    image = bitmap,
-                    dstSize = IntSize(
-                        width = size.width.roundToInt(),
-                        height = size.height.roundToInt()
-                    )
+                .fillMaxSize()
+                .onSizeChanged { boxSize = it }
+                .transformable(state = transformableState)
+                .graphicsLayer(
+                    scaleX = scale,
+                    scaleY = scale,
+                    translationX = panOffsetX,
+                    translationY = panOffsetY
                 )
+        ) {
+            if (boxSize.width > 0) {
+                val imgWidth = with(density) { boxSize.width.toDp() }
+                val imgHeight = imgWidth * (1527f / 1247f)
 
-                REGIONS.forEach { region ->
-                    val scaled = scaledPolygon(region)
-                    if (scaled.isEmpty()) return@forEach
-
-                    val isSelected = selectedRegion?.label == region.label
-                    val cx = scaled.map { it.x }.average().toFloat()
-                    val cy = scaled.map { it.y }.average().toFloat()
-
-                    drawContext.canvas.nativeCanvas.drawText(
-                        region.label,
-                        cx,
-                        cy + 4f,
-                        Paint().apply {
-                            color = if (isSelected) {
-                                android.graphics.Color.parseColor("#5B5CEB")
-                            } else {
-                                android.graphics.Color.WHITE
-                            }
-                            textSize = if (isSelected) 30f else 28f
-                            textAlign = Paint.Align.CENTER
-                            isFakeBoldText = true
-                            setShadowLayer(4f, 1f, 1f, android.graphics.Color.BLACK)
-                        }
+                Box(
+                    modifier = Modifier
+                        .width(imgWidth)
+                        .height(imgHeight)
+                        .align(Alignment.Center)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.gumi_map_select),
+                        contentDescription = "구미시 지도",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
                     )
+
+                    val majorRegions = listOf("무을면", "옥성면", "도개면", "선산읍", "해평면", "고아읍", "산동면", "장천면")
+
+                    REGIONS.forEach { region ->
+                        val isSelected = selectedRegion?.label == region.label
+                        val isMajor = region.label in majorRegions
+                        val labelOffsetX = imgWidth * region.pinX
+                        val labelOffsetY = imgHeight * region.pinY
+
+                        Text(
+                            text = region.label,
+                            color = if (isSelected) Color(0xFF5B5CEB) else Color.White,
+                            fontSize = when {
+                                isSelected && isMajor -> 15.sp
+                                isMajor -> 13.sp
+                                isSelected -> 11.sp
+                                else -> 9.sp
+                            },
+                            fontWeight = if (isMajor) FontWeight.Bold else FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                shadow = Shadow(
+                                    color = Color.Black.copy(alpha = if (isMajor) 0.7f else 0.5f),
+                                    offset = androidx.compose.ui.geometry.Offset(1f, 1f),
+                                    blurRadius = if (isMajor) 4f else 3f
+                                )
+                            ),
+                            modifier = Modifier
+                                .offset(
+                                    x = labelOffsetX - if (isMajor) 24.dp else 20.dp,
+                                    y = labelOffsetY - if (isMajor) 8.dp else 6.dp
+                                )
+                                .clickable { onRegionSelected(region) }
+                                .padding(if (isMajor) 4.dp else 2.dp)
+                        )
+                    }
                 }
             }
         }
 
-        if (selectedRegion != null) {
-            BottomStoreSheet(
-                region = selectedRegion,
-                expanded = isSheetExpanded,
-                onToggleExpanded = onToggleExpanded,
-                onRestaurantClick = { restaurantName ->
-                    onRestaurantClick(selectedRegion, restaurantName)
-                },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
+        AnimatedVisibility(
+            visible = selectedRegion != null,
+            enter = slideInVertically(
+                animationSpec = tween(durationMillis = 250),
+                initialOffsetY = { it }
+            ) + fadeIn(animationSpec = tween(durationMillis = 200)),
+            exit = slideOutVertically(
+                animationSpec = tween(durationMillis = 200),
+                targetOffsetY = { it }
+            ) + fadeOut(animationSpec = tween(durationMillis = 150)),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+        ) {
+            if (selectedRegion != null) {
+                RecommendBottomSheet(
+                    regionLabel = selectedRegion.label,
+                    stores = recommendStores,
+                    isLoading = isRecommendLoading,
+                    expanded = isSheetExpanded,
+                    onToggleExpanded = onToggleExpanded,
+                    onStoreClick = { storeId ->
+                        coroutineScope.launch {
+                            isDetailLoading = true
+                            runCatching {
+                                StoreMapRepository.getStoreDetail(storeId)
+                            }.onSuccess { detail ->
+                                selectedStoreDetail = detail
+                            }
+                            isDetailLoading = false
+                        }
+                    }
+                )
+            }
+        }
+
+        if (isDetailLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(36.dp),
+                    color = Color(0xFF5B5CEB)
+                )
+            }
+        }
+
+        selectedStoreDetail?.let { store ->
+            StoreDetailDialog(
+                store = store,
+                onDismiss = { selectedStoreDetail = null }
             )
         }
     }
@@ -1290,10 +1856,7 @@ private fun hasLocationPermission(context: Context): Boolean =
         context,
         Manifest.permission.ACCESS_FINE_LOCATION
     ) == PackageManager.PERMISSION_GRANTED ||
-        ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-
-
-
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED

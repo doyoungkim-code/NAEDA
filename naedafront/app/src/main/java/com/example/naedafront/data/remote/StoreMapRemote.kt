@@ -1,6 +1,7 @@
 package com.example.naedafront.data.remote
 
 import retrofit2.http.GET
+import retrofit2.http.Path
 
 data class MapStoreResponseDto(
     val storeId: Long,
@@ -26,6 +27,9 @@ data class MapStoreResponseDto(
 private interface StoreMapApiService {
     @GET("api/stores/map")
     suspend fun getMapStores(): List<MapStoreResponseDto>
+
+    @GET("api/stores/{storeId}")
+    suspend fun getStoreDetail(@Path("storeId") storeId: Long): MapStoreResponseDto
 }
 
 object StoreMapRepository {
@@ -38,6 +42,17 @@ object StoreMapRepository {
         }.getOrElse { throwable ->
             throw IllegalStateException(
                 throwable.message ?: "식당 지도 데이터를 불러오지 못했습니다.",
+                throwable
+            )
+        }
+    }
+
+    suspend fun getStoreDetail(storeId: Long): MapStoreResponseDto {
+        return runCatching {
+            service.getStoreDetail(storeId)
+        }.getOrElse { throwable ->
+            throw IllegalStateException(
+                throwable.message ?: "가게 상세 정보를 불러오지 못했습니다.",
                 throwable
             )
         }
