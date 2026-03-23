@@ -256,7 +256,7 @@ private fun QuickOrderDeliveryCard(
             ) {
                 Icon(
                     imageVector = Icons.Outlined.LocalShipping,
-                    contentDescription = "주문 배송 조회",
+                    contentDescription = "배송 조회",
                     tint = Color(0xFF16A36A),
                     modifier = Modifier.size(22.dp)
                 )
@@ -268,7 +268,7 @@ private fun QuickOrderDeliveryCard(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = "주문 배송 조회",
+                    text = "배송 조회",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color(0xFF1F2937)

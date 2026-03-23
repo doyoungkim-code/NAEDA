@@ -23,7 +23,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -37,6 +39,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -71,16 +75,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.Instant
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.YearMonth
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-
-// ─────────────────────────────────────────────
-// 색상
-// ─────────────────────────────────────────────
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+import java.util.TimeZone
 
 private val TradePrimary = Color(0xFF00635A)
 private val TradeSurfaceTint = Color(0xFFF5FBFA)
@@ -88,10 +86,6 @@ private val TradeIncome = Color(0xFF00897B)
 private val TradeExpense = Color(0xFF1F2A37)
 private val TradeChipBg = Color(0xFFE5F3F1)
 private val TradeChipBorder = Color(0xFFB7D9D4)
-
-// ─────────────────────────────────────────────
-// 데이터 모델
-// ─────────────────────────────────────────────
 
 data class TradeReportItem(
     val title: String,
@@ -113,10 +107,6 @@ data class TradeReportUiState(
     val error: String? = null
 )
 
-// ─────────────────────────────────────────────
-// ViewModel
-// ─────────────────────────────────────────────
-
 class TradeReportViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(TradeReportUiState())
@@ -128,7 +118,6 @@ class TradeReportViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            // 계좌 정보 로드
             runCatching {
                 AssetRepository.getWalletAssets(userNo).accounts.firstOrNull()
             }.onSuccess { account ->
@@ -141,17 +130,14 @@ class TradeReportViewModel : ViewModel() {
                 }
             }
 
-            // 결제내역 로드
-            val yearMonth = YearMonth.of(year, month)
-            val formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
-            val from = yearMonth.atDay(1).atStartOfDay().format(formatter)
-            val to = yearMonth.atEndOfMonth().atTime(23, 59, 59).format(formatter)
+            val from = buildMonthStart(year, month)
+            val to = buildMonthEnd(year, month)
 
             AssetRepository.getPayments(userNo, from, to)
                 .onSuccess { payments ->
                     _uiState.update {
                         it.copy(
-                            transactions = payments.map { it.toUiItem() },
+                            transactions = payments.map { payment -> payment.toUiItem() },
                             isLoading = false
                         )
                     }
@@ -168,9 +154,35 @@ class TradeReportViewModel : ViewModel() {
     }
 }
 
-// ─────────────────────────────────────────────
-// PaymentResponse → TradeReportItem 변환
-// ─────────────────────────────────────────────
+private fun buildMonthStart(year: Int, month: Int): String {
+    val calendar = Calendar.getInstance().apply {
+        set(Calendar.YEAR, year)
+        set(Calendar.MONTH, month - 1)
+        set(Calendar.DAY_OF_MONTH, 1)
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    return apiDateTimeFormat().format(calendar.time)
+}
+
+private fun buildMonthEnd(year: Int, month: Int): String {
+    val calendar = Calendar.getInstance().apply {
+        set(Calendar.YEAR, year)
+        set(Calendar.MONTH, month - 1)
+        set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
+        set(Calendar.HOUR_OF_DAY, 23)
+        set(Calendar.MINUTE, 59)
+        set(Calendar.SECOND, 59)
+        set(Calendar.MILLISECOND, 0)
+    }
+    return apiDateTimeFormat().format(calendar.time)
+}
+
+private fun apiDateTimeFormat(): SimpleDateFormat {
+    return SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.KOREA)
+}
 
 private fun PaymentResponse.toUiItem(): TradeReportItem {
     val isSuccess = status?.uppercase() in listOf("APPROVED", "SUCCESS", "COMPLETED")
@@ -197,21 +209,55 @@ private fun PaymentResponse.toUiItem(): TradeReportItem {
 }
 
 private fun String.formatCreatedAt(): String {
-    return try {
-        val instant = Instant.parse(this)
-        val ldt = LocalDateTime.ofInstant(instant, ZoneId.systemDefault())
-        val ampm = if (ldt.hour < 12) "오전" else "오후"
-        val hour = ldt.hour % 12
-        val displayHour = if (hour == 0) 12 else hour
-        "${ldt.monthValue}월 ${ldt.dayOfMonth}일 $ampm $displayHour:${"%02d".format(ldt.minute)}"
-    } catch (e: Exception) {
-        this
+    val parsePatterns = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSX",
+        "yyyy-MM-dd'T'HH:mm:ssX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss"
+    )
+
+    for (pattern in parsePatterns) {
+        try {
+            val parser = SimpleDateFormat(pattern, Locale.KOREA)
+            if (pattern.contains("X") || pattern.contains("'Z'")) {
+                parser.timeZone = TimeZone.getTimeZone("UTC")
+            }
+
+            val date = parser.parse(this) ?: continue
+            val calendar = Calendar.getInstance().apply { time = date }
+
+            val hour24 = calendar.get(Calendar.HOUR_OF_DAY)
+            val minute = calendar.get(Calendar.MINUTE)
+            val month = calendar.get(Calendar.MONTH) + 1
+            val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+            val ampm = if (hour24 < 12) "오전" else "오후"
+            val hour12 = when (hour24 % 12) {
+                0 -> 12
+                else -> hour24 % 12
+            }
+
+            return "${month}월 ${day}일 $ampm $hour12:${"%02d".format(minute)}"
+        } catch (_: Exception) {
+        }
     }
+
+    return this
 }
 
-// ─────────────────────────────────────────────
-// 메인 화면
-// ─────────────────────────────────────────────
+private fun TradeReportItem.matches(query: String): Boolean {
+    if (query.isBlank()) return true
+    val keyword = query.trim().lowercase()
+
+    return listOf(
+        title,
+        subTitle,
+        amount,
+        balanceAfter,
+        balanceLabel
+    ).any { it.lowercase().contains(keyword) }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -222,12 +268,19 @@ fun TradeReportScreen(
     val viewModel: TradeReportViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
 
-    val today = remember { LocalDate.now() }
-    var selectedYear by remember { mutableIntStateOf(today.year) }
-    var selectedMonth by remember { mutableIntStateOf(today.monthValue) }
+    val currentCalendar = remember { Calendar.getInstance() }
+    var selectedYear by remember { mutableIntStateOf(currentCalendar.get(Calendar.YEAR)) }
+    var selectedMonth by remember { mutableIntStateOf(currentCalendar.get(Calendar.MONTH) + 1) }
+
+    var isSearchMode by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(selectedYear, selectedMonth) {
         viewModel.loadData(context, selectedYear, selectedMonth)
+    }
+
+    val filteredTransactions = remember(uiState.transactions, searchQuery) {
+        uiState.transactions.filter { it.matches(searchQuery) }
     }
 
     Scaffold(
@@ -252,6 +305,24 @@ fun TradeReportScreen(
                         )
                     }
                 },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            if (isSearchMode) {
+                                searchQuery = ""
+                                isSearchMode = false
+                            } else {
+                                isSearchMode = true
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = if (isSearchMode) Icons.Default.Close else Icons.Default.Search,
+                            contentDescription = if (isSearchMode) "검색 닫기" else "거래내역 검색",
+                            tint = OnBackground
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = Background
                 )
@@ -264,6 +335,15 @@ fun TradeReportScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            if (isSearchMode) {
+                TradeSearchBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
             TradeReportAccountSummaryCard(
                 accountName = uiState.accountName.ifBlank { "대표계좌" },
                 accountNumber = uiState.accountNumber,
@@ -282,7 +362,11 @@ fun TradeReportScreen(
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = "${selectedYear}년 ${selectedMonth}월 내역",
+                text = if (searchQuery.isBlank()) {
+                    "${selectedYear}년 ${selectedMonth}월 내역"
+                } else {
+                    "\"$searchQuery\" 검색 결과 ${filteredTransactions.size}건"
+                },
                 style = MaterialTheme.typography.titleSmall.copy(
                     fontWeight = FontWeight.Bold
                 ),
@@ -328,6 +412,19 @@ fun TradeReportScreen(
                     }
                 }
 
+                filteredTransactions.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "검색 결과가 없습니다.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = OnBackground.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -338,7 +435,7 @@ fun TradeReportScreen(
                             bottom = 24.dp
                         )
                     ) {
-                        items(uiState.transactions) { item ->
+                        items(filteredTransactions) { item ->
                             TradeReportRow(item = item)
                         }
                     }
@@ -348,9 +445,55 @@ fun TradeReportScreen(
     }
 }
 
-// ─────────────────────────────────────────────
-// 계좌 요약 카드
-// ─────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TradeSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        singleLine = true,
+        placeholder = {
+            Text(
+                text = "결제내역 검색",
+                color = OnBackground.copy(alpha = 0.45f)
+            )
+        },
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                tint = TradePrimary
+            )
+        },
+        trailingIcon = {
+            if (query.isNotBlank()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "검색어 지우기",
+                        tint = OnBackground.copy(alpha = 0.7f)
+                    )
+                }
+            }
+        },
+        shape = RoundedCornerShape(16.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = TradePrimary,
+            unfocusedBorderColor = TradeChipBorder,
+            focusedTextColor = OnBackground,
+            unfocusedTextColor = OnBackground,
+            cursorColor = TradePrimary,
+            focusedContainerColor = Color.White,
+            unfocusedContainerColor = Color.White
+        )
+    )
+}
 
 @Composable
 private fun TradeReportAccountSummaryCard(
@@ -424,10 +567,6 @@ private fun TradeReportAccountSummaryCard(
     }
 }
 
-// ─────────────────────────────────────────────
-// 날짜 선택
-// ─────────────────────────────────────────────
-
 @Composable
 private fun TradeReportDateSection(
     selectedYear: Int,
@@ -438,7 +577,7 @@ private fun TradeReportDateSection(
     var yearExpanded by remember { mutableStateOf(false) }
     var monthExpanded by remember { mutableStateOf(false) }
 
-    val currentYear = remember { LocalDate.now().year }
+    val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
     val years = remember { (currentYear downTo currentYear - 2).toList() }
     val months = (1..12).toList()
 
@@ -468,7 +607,10 @@ private fun TradeReportDateSection(
                                     color = if (selectedYear == year) TradePrimary else OnBackground
                                 )
                             },
-                            onClick = { onYearChange(year); yearExpanded = false },
+                            onClick = {
+                                onYearChange(year)
+                                yearExpanded = false
+                            },
                             colors = MenuDefaults.itemColors()
                         )
                     }
@@ -491,7 +633,10 @@ private fun TradeReportDateSection(
                                     color = if (selectedMonth == month) TradePrimary else OnBackground
                                 )
                             },
-                            onClick = { onMonthChange(month); monthExpanded = false },
+                            onClick = {
+                                onMonthChange(month)
+                                monthExpanded = false
+                            },
                             colors = MenuDefaults.itemColors()
                         )
                     }
@@ -538,10 +683,6 @@ private fun TradeSelectableChip(
         menuContent()
     }
 }
-
-// ─────────────────────────────────────────────
-// 거래 행
-// ─────────────────────────────────────────────
 
 @Composable
 private fun TradeReportRow(item: TradeReportItem) {
