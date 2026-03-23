@@ -10,47 +10,106 @@ class AddressRepository {
     private val addressApi: AddressApi =
         ApiConfig.retrofit.create(AddressApi::class.java)
 
-    suspend fun getAddresses(userNo: Long): Result<List<AddressResponse>> {
+    suspend fun getAddresses(
+        userNo: Long
+    ): Result<List<AddressResponse>> {
         return try {
             val response = addressApi.getAddresses(userNo)
+
             if (response.isSuccessful) {
                 Result.success(response.body().orEmpty())
             } else {
-                Result.failure(Exception("주소 목록 조회 실패: ${response.code()}"))
+                val errorBody = response.errorBody()?.string().orEmpty()
+                Result.failure(
+                    IllegalStateException(
+                        if (errorBody.isNotBlank()) {
+                            "배송지 목록 조회 실패: HTTP ${response.code()} / $errorBody"
+                        } else {
+                            "배송지 목록 조회 실패: HTTP ${response.code()}"
+                        }
+                    )
+                )
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(
+                IllegalStateException(
+                    e.message ?: "배송지 목록 조회 중 오류가 발생했습니다.",
+                    e
+                )
+            )
         }
     }
 
-    suspend fun getAddressDetail(userNo: Long, addressId: Long): Result<AddressResponse> {
+    suspend fun getAddressDetail(
+        userNo: Long,
+        addressId: Long
+    ): Result<AddressResponse> {
         return try {
-            val response = addressApi.getAddressDetail(userNo, addressId)
+            val response = addressApi.getAddressDetail(
+                userNo = userNo,
+                addressId = addressId
+            )
+
             if (response.isSuccessful) {
                 val body = response.body()
-                if (body != null) {
-                    Result.success(body)
-                } else {
-                    Result.failure(Exception("주소 상세 응답이 비어있습니다."))
-                }
+                    ?: return Result.failure(
+                        IllegalStateException("배송지 상세 응답 바디가 비어 있습니다.")
+                    )
+
+                Result.success(body)
             } else {
-                Result.failure(Exception("주소 단건 조회 실패: ${response.code()}"))
+                val errorBody = response.errorBody()?.string().orEmpty()
+                Result.failure(
+                    IllegalStateException(
+                        if (errorBody.isNotBlank()) {
+                            "배송지 상세 조회 실패: HTTP ${response.code()} / $errorBody"
+                        } else {
+                            "배송지 상세 조회 실패: HTTP ${response.code()}"
+                        }
+                    )
+                )
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(
+                IllegalStateException(
+                    e.message ?: "배송지 상세 조회 중 오류가 발생했습니다.",
+                    e
+                )
+            )
         }
     }
 
-    suspend fun deleteAddress(userNo: Long, addressId: Long): Result<Unit> {
+    suspend fun deleteAddress(
+        userNo: Long,
+        addressId: Long
+    ): Result<Unit> {
         return try {
-            val response = addressApi.deleteAddress(userNo, addressId)
+            val response = addressApi.deleteAddress(
+                userNo = userNo,
+                addressId = addressId
+            )
+
             if (response.isSuccessful) {
                 Result.success(Unit)
             } else {
-                Result.failure(Exception("주소 삭제 실패: ${response.code()}"))
+                val errorBody = response.errorBody()?.string().orEmpty()
+                Result.failure(
+                    IllegalStateException(
+                        if (errorBody.isNotBlank()) {
+                            "배송지 삭제 실패: HTTP ${response.code()} / $errorBody"
+                        } else {
+                            "배송지 삭제 실패: HTTP ${response.code()}"
+                        }
+                    )
+                )
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(
+                IllegalStateException(
+                    e.message ?: "배송지 삭제 중 오류가 발생했습니다.",
+                    e
+                )
+            )
         }
     }
 
@@ -59,37 +118,76 @@ class AddressRepository {
         request: CreateAddressRequest
     ): Result<AddressResponse> {
         return try {
-            val response = addressApi.createAddress(userNo, request)
+            val response = addressApi.createAddress(
+                userNo = userNo,
+                request = request
+            )
+
             if (response.isSuccessful) {
                 val body = response.body()
-                if (body != null) {
-                    Result.success(body)
-                } else {
-                    Result.failure(Exception("주소 생성 응답이 비어있습니다."))
-                }
+                    ?: return Result.failure(
+                        IllegalStateException("배송지 생성 응답 바디가 비어 있습니다.")
+                    )
+
+                Result.success(body)
             } else {
-                Result.failure(Exception("주소 생성 실패: ${response.code()}"))
+                val errorBody = response.errorBody()?.string().orEmpty()
+                Result.failure(
+                    IllegalStateException(
+                        if (errorBody.isNotBlank()) {
+                            "배송지 생성 실패: HTTP ${response.code()} / $errorBody"
+                        } else {
+                            "배송지 생성 실패: HTTP ${response.code()}"
+                        }
+                    )
+                )
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(
+                IllegalStateException(
+                    e.message ?: "배송지 생성 중 오류가 발생했습니다.",
+                    e
+                )
+            )
         }
     }
 
-    suspend fun setDefaultAddress(userNo: Long, addressId: Long): Result<AddressResponse> {
+    suspend fun setDefaultAddress(
+        userNo: Long,
+        addressId: Long
+    ): Result<AddressResponse> {
         return try {
-            val response = addressApi.setDefaultAddress(userNo, addressId)
+            val response = addressApi.setDefaultAddress(
+                userNo = userNo,
+                addressId = addressId
+            )
+
             if (response.isSuccessful) {
                 val body = response.body()
-                if (body != null) {
-                    Result.success(body)
-                } else {
-                    Result.failure(Exception("기본 배송지 설정 응답이 비어있습니다."))
-                }
+                    ?: return Result.failure(
+                        IllegalStateException("기본 배송지 설정 응답 바디가 비어 있습니다.")
+                    )
+
+                Result.success(body)
             } else {
-                Result.failure(Exception("기본 배송지 설정 실패: ${response.code()}"))
+                val errorBody = response.errorBody()?.string().orEmpty()
+                Result.failure(
+                    IllegalStateException(
+                        if (errorBody.isNotBlank()) {
+                            "기본 배송지 설정 실패: HTTP ${response.code()} / $errorBody"
+                        } else {
+                            "기본 배송지 설정 실패: HTTP ${response.code()}"
+                        }
+                    )
+                )
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(
+                IllegalStateException(
+                    e.message ?: "기본 배송지 설정 중 오류가 발생했습니다.",
+                    e
+                )
+            )
         }
     }
 }

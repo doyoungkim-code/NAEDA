@@ -1,5 +1,6 @@
 package com.example.naedafront.ui.screen.store
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -61,6 +62,10 @@ fun OrderCompleteScreen(
 ) {
     val scrollState = rememberScrollState()
 
+    BackHandler {
+        onHomeClick()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -107,6 +112,7 @@ fun OrderCompleteScreen(
                 .fillMaxWidth()
                 .background(CompleteBg)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
+                .navigationBarsPadding()
         ) {
             Button(
                 onClick = onOrderHistoryClick,
@@ -161,6 +167,7 @@ private fun OrderCompleteTopBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.White)
+            .statusBarsPadding()
     ) {
         Box(
             modifier = Modifier

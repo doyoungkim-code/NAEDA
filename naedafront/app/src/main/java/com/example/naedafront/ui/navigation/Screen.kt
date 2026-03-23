@@ -1,20 +1,19 @@
 package com.example.naedafront.ui.navigation
 
-/**
- * 앱 전체 화면 Route 정의
- * 네비게이션 그래프에서 각 화면을 식별하는 데 사용
- */
 sealed class Screen(val route: String) {
 
-    // ── 인증 플로우 ──
     object Splash : Screen("splash")
     object Welcome : Screen("welcome")
     object Login : Screen("login")
 
-    // 회원가입 플로우 전체를 묶는 부모 graph
     object SignUpGraph : Screen("signup_graph")
 
     object OrderComplete : Screen("order_complete")
+    object OrderHistory : Screen("order_history")
+    object OrderDetail : Screen("order_detail/{orderId}") {
+        fun createRoute(orderId: Long) = "order_detail/$orderId"
+    }
+
     object DeliveryAddress : Screen("delivery_address")
     object SignUp : Screen("signup")
     object SignUpRrn : Screen("signup_rrn")
@@ -28,7 +27,6 @@ sealed class Screen(val route: String) {
     object SignUpPassword : Screen("signup_password")
     object SignUpPin : Screen("signup_pin")
 
-    // ── 메인 5탭 ──
     object Home : Screen("home")
     object Store : Screen("store")
     object PointHistory : Screen("point_history")
@@ -36,7 +34,6 @@ sealed class Screen(val route: String) {
     object Asset : Screen("asset")
     object More : Screen("more")
 
-    // ── 스캔 탭 하위 ──
     object FaceRegister : Screen("face_register")
     object FaceIntro : Screen("face_intro")
     object FaceGuide : Screen("face_guide")
@@ -51,7 +48,6 @@ sealed class Screen(val route: String) {
         fun createRoute(storeId: String) = "store_detail/$storeId"
     }
 
-    // ── 자산 탭 하위 ──
     object AccountList : Screen("account_list/{tab}") {
         fun createRoute(tab: Int = 0) = "account_list/$tab"
     }
@@ -61,7 +57,8 @@ sealed class Screen(val route: String) {
     }
 
     object AccountDetail : Screen("account_detail/{accountId}/{accountNo}") {
-        fun createRoute(accountId: Long?, accountNo: String) = "account_detail/${accountId ?: 0}/$accountNo"
+        fun createRoute(accountId: Long?, accountNo: String) =
+            "account_detail/${accountId ?: 0}/$accountNo"
     }
 
     object CardDetail : Screen("card_detail/{cardId}") {
@@ -72,14 +69,11 @@ sealed class Screen(val route: String) {
     object Transaction : Screen("transaction")
     object Report : Screen("report")
 
-    // ── 혜택 탭 하위 ──
     object Coupon : Screen("coupon")
     object Donation : Screen("donation")
 
-    // ── 챗봇 ──
     object Chat : Screen("chat")
 
-    // ── 더보기/마이페이지 하위 ──
     object MyPage : Screen("mypage")
     object Settings : Screen("settings")
     object Notification : Screen("notification")
@@ -89,7 +83,6 @@ sealed class Screen(val route: String) {
     object Security : Screen("security")
     object CustomerCenter : Screen("customer_center")
 
-    // ── 구미시 소식 ──
     object NoticeList : Screen("notice_list")
 
     object NoticeDetail : Screen("notice_detail/{type}/{id}") {
