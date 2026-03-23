@@ -150,7 +150,11 @@ services:
       FACE_ENCRYPT_KEY: ${FACE_ENCRYPT_KEY}
       # Kafka
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # FCM
+      FCM_CREDENTIALS_PATH: /firebase/firebase-service-account.json
       TZ: Asia/Seoul
+    volumes:
+      - ./firebase-service-account.json:/firebase/firebase-service-account.json:ro
     ports:
       - "8080:8080"
     networks:
