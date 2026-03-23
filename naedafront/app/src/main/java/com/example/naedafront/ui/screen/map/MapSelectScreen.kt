@@ -17,6 +17,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,10 +44,13 @@ import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -108,6 +113,17 @@ data class MapRegion(
     val color: Color,
     val restaurants: List<Restaurant>
 )
+
+private data class StoreMapFilterState(
+    val selectedCategory: String? = null,
+    val facePayOnly: Boolean = false
+) {
+    val hasActiveFilters: Boolean
+        get() = selectedCategory != null || facePayOnly
+
+    val activeFilterCount: Int
+        get() = (if (selectedCategory != null) 1 else 0) + (if (facePayOnly) 1 else 0)
+}
 
 private fun parsePoints(raw: String): List<Offset> =
     raw.trim().split(" ").map {
@@ -250,6 +266,22 @@ fun MapSelectScreen(
         mutableStateOf(hasLocationPermission(context))
     }
     var showLocationPermissionDialog by remember { mutableStateOf(false) }
+    var showStoreFilterDialog by remember { mutableStateOf(false) }
+    var storeFilterState by remember { mutableStateOf(StoreMapFilterState()) }
+
+    val availableCategories = remember(mapStores) {
+        mapStores.mapNotNull { store ->
+            store.categoryName?.takeIf { category -> category.isNotBlank() }
+        }.distinct().sorted()
+    }
+    val filteredMapStores = remember(mapStores, storeFilterState) {
+        mapStores.filter { store ->
+            val categoryMatches = storeFilterState.selectedCategory == null ||
+                store.categoryName == storeFilterState.selectedCategory
+            val facePayMatches = !storeFilterState.facePayOnly || store.facePayEnabled
+            categoryMatches && facePayMatches
+        }
+    }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -287,6 +319,14 @@ fun MapSelectScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    LaunchedEffect(filteredMapStores) {
+        val visibleStoreIds = filteredMapStores.map { it.storeId }.toSet()
+        if (selectedStoreCluster.isNotEmpty()) {
+            selectedStoreCluster = selectedStoreCluster.filter { it.storeId in visibleStoreIds }
+        }
+        selectedStoreDetail = selectedStoreDetail?.takeIf { it.storeId in visibleStoreIds }
+    }
+
     LaunchedEffect(selectedTabIndex, hasLocationPermission) {
         if (selectedTabIndex == 0) {
             if (!hasLocationPermission) {
@@ -307,7 +347,7 @@ fun MapSelectScreen(
             .background(Color(0xFFF3F4F6))
     ) {
         NaverRestaurantMapScreen(
-            stores = mapStores,
+            stores = filteredMapStores,
             hasLocationPermission = hasLocationPermission,
             currentLocationRequestKey = currentLocationRequestKey,
             onStoreClusterSelected = { stores ->
@@ -352,6 +392,20 @@ fun MapSelectScreen(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .padding(horizontal = 24.dp)
+            )
+        }
+
+        if (
+            selectedTabIndex == 0 &&
+            !isMapStoresLoading &&
+            mapStoresError.isNullOrBlank()
+        ) {
+            StoreMapFilterButton(
+                activeFilterCount = storeFilterState.activeFilterCount,
+                onClick = { showStoreFilterDialog = true },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 84.dp, end = 20.dp)
             )
         }
 
@@ -418,6 +472,26 @@ fun MapSelectScreen(
                             Manifest.permission.ACCESS_COARSE_LOCATION
                         )
                     )
+                }
+            )
+        }
+
+        if (showStoreFilterDialog) {
+            StoreMapFilterDialog(
+                currentState = storeFilterState,
+                categories = availableCategories,
+                onDismiss = { showStoreFilterDialog = false },
+                onApply = { nextState ->
+                    storeFilterState = nextState
+                    showStoreFilterDialog = false
+                    selectedStoreCluster = emptyList()
+                    selectedStoreDetail = null
+                },
+                onReset = {
+                    storeFilterState = StoreMapFilterState()
+                    showStoreFilterDialog = false
+                    selectedStoreCluster = emptyList()
+                    selectedStoreDetail = null
                 }
             )
         }
@@ -677,6 +751,161 @@ private fun CurrentLocationFab(
                 tint = Mint500,
                 modifier = Modifier.size(24.dp)
             )
+        }
+    }
+}
+
+@Composable
+private fun StoreMapFilterButton(
+    activeFilterCount: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isActive = activeFilterCount > 0
+
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(24.dp),
+        color = if (isActive) Mint500 else Background.copy(alpha = 0.96f),
+        shadowElevation = 12.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Tune,
+                contentDescription = "지도 필터",
+                tint = if (isActive) Color.White else Navy900,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = if (isActive) "필터 $activeFilterCount" else "필터",
+                color = if (isActive) Color.White else Navy900,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+private fun StoreMapFilterDialog(
+    currentState: StoreMapFilterState,
+    categories: List<String>,
+    onDismiss: () -> Unit,
+    onApply: (StoreMapFilterState) -> Unit,
+    onReset: () -> Unit
+) {
+    var selectedCategory by remember(currentState) { mutableStateOf(currentState.selectedCategory) }
+    var facePayOnly by remember(currentState) { mutableStateOf(currentState.facePayOnly) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = Background,
+            shadowElevation = 16.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 24.dp)
+            ) {
+                Text(
+                    text = "지도 필터",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Navy900
+                )
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Text(
+                    text = "카테고리",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = OnBackground
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = selectedCategory == null,
+                        onClick = { selectedCategory = null },
+                        label = { Text("전체") }
+                    )
+                    categories.forEach { category ->
+                        FilterChip(
+                            selected = selectedCategory == category,
+                            onClick = { selectedCategory = category },
+                            label = { Text(category) }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+                HorizontalDivider(color = OutlineVariant, thickness = 1.dp)
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "페이스페이 가능 매장만 보기",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = OnBackground
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "페이스페이 결제가 가능한 매장만 지도에 표시합니다.",
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp,
+                            color = OnSurfaceVariant
+                        )
+                    }
+
+                    Switch(
+                        checked = facePayOnly,
+                        onCheckedChange = { facePayOnly = it }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    NaedaButton(
+                        text = "초기화",
+                        onClick = onReset,
+                        type = NaedaButtonType.OUTLINED,
+                        modifier = Modifier.weight(1f)
+                    )
+                    NaedaButton(
+                        text = "적용",
+                        onClick = {
+                            onApply(
+                                StoreMapFilterState(
+                                    selectedCategory = selectedCategory,
+                                    facePayOnly = facePayOnly
+                                )
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
         }
     }
 }
