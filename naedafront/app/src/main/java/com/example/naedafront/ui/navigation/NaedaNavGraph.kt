@@ -171,7 +171,7 @@ fun NaedaNavGraph(
                     AuthPrefs.setLoggedIn(context, false)
                     AuthPrefs.setFaceRegistered(context, false)
                     navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                        popUpTo(Screen.Welcome.route) { inclusive = false }
                         launchSingleTop = true
                     }
                 }
@@ -179,67 +179,11 @@ fun NaedaNavGraph(
         }
 
         composable(Screen.Home.route) {
-            val displayName = AuthPrefs.getUsername(context)
-                ?.takeUnless { it.isBlank() }
-                ?: "사용자"
-
-            var isFaceRegistered by remember {
-                mutableStateOf(AuthPrefs.isFaceRegistered(context))
-            }
-
-            val homeViewModel: HomeViewModel = viewModel()
-            val homeUiState by homeViewModel.uiState.collectAsState()
-
-            LaunchedEffect(Unit) {
-                runCatching { FaceRegistrationRepository.getFacePaySettings() }
-                    .onSuccess { settings ->
-                        AuthPrefs.saveFacePaySettings(
-                            context = context,
-                            faceRegistered = settings.faceRegistered,
-                            secondaryAuthEnabled = settings.secondaryAuthEnabled
-                        )
-                        isFaceRegistered = settings.faceRegistered
-                        homeViewModel.loadHomeData(
-                            context = context,
-                            userName = displayName,
-                            isFaceRegistered = settings.faceRegistered
-                        )
-                    }
-                    .onFailure {
-                        homeViewModel.loadHomeData(
-                            context = context,
-                            userName = displayName,
-                            isFaceRegistered = isFaceRegistered
-                        )
-                    }
-            }
-
-            HomeScreen(
-                uiState = homeUiState,
-                onTransactionClick = { navController.navigate(Screen.Transaction.route) },
-                onFacePaySettingClick = { navController.navigate(Screen.FaceRegister.route) },
-                onLinkAccountClick = { navController.navigate(Screen.AccountList.createRoute(0)) },
-                onViewAllTransactionsClick = { navController.navigate(Screen.Transaction.route) },
-                onSearchClick = { },
-                onAlarmClick = { navController.navigate(Screen.Notification.route) },
-                onProfileClick = { navController.navigate(Screen.MyPage.route) },
-                onSecretFaceMatchTestClick = { navController.navigate(Screen.FaceMatchRecognize.route) },
-                onChatClick = { navController.navigate(Screen.Chat.route) },
-                onRegisterCardClick = { navController.navigate(Screen.Asset.route) },
-                onNoticeItemClick = { item ->
-                    navController.navigate(Screen.NoticeDetail.createRoute(item.type, item.id))
-                },
-                onNoticeMoreClick = { navController.navigate(Screen.NoticeList.route) }
-            )
+            HomeTabContent(navController)
         }
 
         composable(Screen.Store.route) {
-            PointStoreScreen(
-                onHistoryClick = { navController.navigate(Screen.PointHistory.route) },
-                onPurchaseClick = {
-                    navController.navigate(Screen.DeliveryAddress.route)
-                }
-            )
+            StoreTabContent(navController)
         }
 
         composable(Screen.PointHistory.route) {
@@ -330,58 +274,15 @@ fun NaedaNavGraph(
         }
 
         composable(Screen.Scan.route) {
-            MapSelectScreen(
-                onBack = { navController.popBackStack() },
-                onRestaurantClick = { region: MapRegion, restaurantName: String ->
-                    navController.currentBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("selectedRegion", region.label)
-                    navController.currentBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("selectedRestaurant", restaurantName)
-                    navController.navigate(Screen.GumiMap.route)
-                }
-            )
+            MapTabContent(navController)
         }
 
         composable(Screen.Asset.route) {
-            AccountListRoute(
-                initialTab = 0,
-                onBack = { navController.popBackStack() },
-                onAccountClick = { account ->
-                    navController.navigate(
-                        Screen.AccountDetail.createRoute(
-                            account.accountId,
-                            account.accountNumber
-                        )
-                    )
-                },
-                onCardClick = { card ->
-                    navController.navigate(Screen.CardDetail.createRoute(card.id))
-                },
-                onDeleteAccount = { },
-                onSetPrimary = { },
-                onSetPrimaryCard = { },
-                onDeleteCard = { },
-                useRegisterDialog = true
-            )
+            AssetTabContent(navController)
         }
 
         composable(Screen.More.route) {
-            SettingsScreen(
-                onNotificationClick = { navController.navigate(Screen.NotificationSettings.route) },
-                onTermsClick = { navController.navigate(Screen.TermsOfService.route) },
-                onPrivacyClick = { navController.navigate(Screen.PrivacyPolicy.route) },
-                onSupportClick = { navController.navigate(Screen.CustomerCenter.route) },
-                onLogoutClick = {
-                    AuthPrefs.clearSession(context)
-                    navController.navigate(Screen.Welcome.route) {
-                        popUpTo(Screen.Welcome.route) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                },
-                onWithdrawClick = { }
-            )
+            SettingsTabContent(navController)
         }
 
         composable(Screen.FaceRegister.route) {
@@ -461,14 +362,19 @@ fun NaedaNavGraph(
                 onBack = { navController.popBackStack() },
                 onAccountClick = { account ->
                     navController.navigate(
-                        Screen.AccountDetail.createRoute(
-                            account.accountId,
-                            account.accountNumber
+                        Screen.Transaction.createRoute(
+                            assetType = Screen.Transaction.ASSET_TYPE_ACCOUNT,
+                            paymentMethodId = account.paymentMethodId
                         )
                     )
                 },
                 onCardClick = { card ->
-                    navController.navigate(Screen.CardDetail.createRoute(card.id))
+                    navController.navigate(
+                        Screen.Transaction.createRoute(
+                            assetType = Screen.Transaction.ASSET_TYPE_CARD,
+                            paymentMethodId = card.paymentMethodId
+                        )
+                    )
                 },
                 onDeleteAccount = { },
                 onSetPrimary = { },
@@ -520,8 +426,31 @@ fun NaedaNavGraph(
             PlaceholderScreen("이체")
         }
 
-        composable(Screen.Transaction.route) {
+        composable(
+            route = Screen.Transaction.routeWithArgs,
+            arguments = listOf(
+                navArgument(Screen.Transaction.ASSET_TYPE_ARG) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+                navArgument(Screen.Transaction.PAYMENT_METHOD_ID_ARG) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                }
+            )
+        ) { backStackEntry ->
+            val assetType = backStackEntry.arguments
+                ?.getString(Screen.Transaction.ASSET_TYPE_ARG)
+                .orEmpty()
+                .ifBlank { null }
+            val paymentMethodId = backStackEntry.arguments
+                ?.getString(Screen.Transaction.PAYMENT_METHOD_ID_ARG)
+                .orEmpty()
+                .toLongOrNull()
+
             TradeReportScreen(
+                targetType = assetType,
+                paymentMethodId = paymentMethodId,
                 onBackClick = { navController.popBackStack() }
             )
         }
@@ -529,6 +458,14 @@ fun NaedaNavGraph(
         composable(Screen.Report.route) { PlaceholderScreen("📊 소비 리포트") }
         composable(Screen.Coupon.route) { PlaceholderScreen("할인권 교환") }
         composable(Screen.Donation.route) { PlaceholderScreen("후원하기") }
+
+        composable(Screen.Chat.route) {
+            val userNo = remember(context) { AuthPrefs.getUserNo(context) }
+            ChatScreen(
+                userNo = userNo,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
 
         composable(Screen.MyPage.route) {
             val myPageViewModel: MyPageViewModel = viewModel()
@@ -632,6 +569,149 @@ fun NaedaNavGraph(
             )
         }
     }
+}
+
+@Composable
+private fun HomeTabContent(
+    navController: NavHostController
+) {
+    val context = LocalContext.current
+    val displayName = AuthPrefs.getUsername(context)
+        ?.takeUnless { it.isBlank() }
+        ?: "사용자"
+
+    var isFaceRegistered by remember {
+        mutableStateOf(AuthPrefs.isFaceRegistered(context))
+    }
+
+    val homeViewModel: HomeViewModel = viewModel()
+    val homeUiState by homeViewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        runCatching { FaceRegistrationRepository.getFacePaySettings() }
+            .onSuccess { settings ->
+                AuthPrefs.saveFacePaySettings(
+                    context = context,
+                    faceRegistered = settings.faceRegistered,
+                    secondaryAuthEnabled = settings.secondaryAuthEnabled
+                )
+                isFaceRegistered = settings.faceRegistered
+                homeViewModel.loadHomeData(
+                    context = context,
+                    userName = displayName,
+                    isFaceRegistered = settings.faceRegistered
+                )
+            }
+            .onFailure {
+                homeViewModel.loadHomeData(
+                    context = context,
+                    userName = displayName,
+                    isFaceRegistered = isFaceRegistered
+                )
+            }
+    }
+
+    HomeScreen(
+        uiState = homeUiState,
+        onTransactionClick = { navController.navigate(Screen.Transaction.createRoute()) },
+        onFacePaySettingClick = { navController.navigate(Screen.FaceRegister.route) },
+        onLinkAccountClick = { navController.navigate(Screen.AccountList.createRoute(0)) },
+        onViewAllTransactionsClick = { navController.navigate(Screen.Transaction.createRoute()) },
+        onSearchClick = { },
+        onAlarmClick = { navController.navigate(Screen.Notification.route) },
+        onProfileClick = { navController.navigate(Screen.MyPage.route) },
+        onSecretFaceMatchTestClick = { navController.navigate(Screen.FaceMatchRecognize.route) },
+        onRegisterCardClick = { navController.navigate(Screen.Asset.route) },
+        onNoticeItemClick = { item ->
+            navController.navigate(Screen.NoticeDetail.createRoute(item.type, item.id))
+        },
+        onNoticeMoreClick = { navController.navigate(Screen.NoticeList.route) }
+    )
+}
+
+@Composable
+private fun StoreTabContent(
+    navController: NavHostController
+) {
+    PointStoreScreen(
+        onHistoryClick = { navController.navigate(Screen.PointHistory.route) },
+        onPurchaseClick = {
+            navController.navigate(Screen.DeliveryAddress.route)
+        }
+    )
+}
+
+@Composable
+private fun MapTabContent(
+    navController: NavHostController
+) {
+    MapSelectScreen(
+        onBack = { },
+        showBackButton = false,
+        onRestaurantClick = { region: MapRegion, restaurantName: String ->
+            navController.currentBackStackEntry
+                ?.savedStateHandle
+                ?.set("selectedRegion", region.label)
+            navController.currentBackStackEntry
+                ?.savedStateHandle
+                ?.set("selectedRestaurant", restaurantName)
+            navController.navigate(Screen.GumiMap.route)
+        }
+    )
+}
+
+@Composable
+private fun AssetTabContent(
+    navController: NavHostController
+) {
+    AccountListRoute(
+        initialTab = 0,
+        onBack = { },
+        showBackButton = false,
+        onAccountClick = { account ->
+            navController.navigate(
+                Screen.Transaction.createRoute(
+                    assetType = Screen.Transaction.ASSET_TYPE_ACCOUNT,
+                    paymentMethodId = account.paymentMethodId
+                )
+            )
+        },
+        onCardClick = { card ->
+            navController.navigate(
+                Screen.Transaction.createRoute(
+                    assetType = Screen.Transaction.ASSET_TYPE_CARD,
+                    paymentMethodId = card.paymentMethodId
+                )
+            )
+        },
+        onDeleteAccount = { },
+        onSetPrimary = { },
+        onSetPrimaryCard = { },
+        onDeleteCard = { },
+        useRegisterDialog = true
+    )
+}
+
+@Composable
+private fun SettingsTabContent(
+    navController: NavHostController
+) {
+    val context = LocalContext.current
+
+    SettingsScreen(
+        onNotificationClick = { navController.navigate(Screen.NotificationSettings.route) },
+        onTermsClick = { navController.navigate(Screen.TermsOfService.route) },
+        onPrivacyClick = { navController.navigate(Screen.PrivacyPolicy.route) },
+        onSupportClick = { navController.navigate(Screen.CustomerCenter.route) },
+        onLogoutClick = {
+            AuthPrefs.clearSession(context)
+            navController.navigate(Screen.Welcome.route) {
+                popUpTo(Screen.Welcome.route) { inclusive = true }
+                launchSingleTop = true
+            }
+        },
+        onWithdrawClick = { }
+    )
 }
 
 @Composable

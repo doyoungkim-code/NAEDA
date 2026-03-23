@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -113,10 +114,29 @@ public class NaverStoreEnrichmentClient {
 
     private Optional<NaverMapPlaceCandidate> findMapPlaceCandidate(Store store) {
         Optional<NaverMapPlaceCandidate> apiCandidate = findMapPlaceCandidateByApi(store);
+        Optional<NaverMapPlaceCandidate> htmlCandidate = findMapPlaceCandidateByHtml(store);
+        Optional<NaverMapPlaceCandidate> searchPageCandidate = findMapPlaceCandidateBySearchPage(store);
+        return selectPreferredCandidate(apiCandidate, htmlCandidate, searchPageCandidate);
+    }
+
+    Optional<NaverMapPlaceCandidate> selectPreferredCandidate(
+            Optional<NaverMapPlaceCandidate> apiCandidate,
+            Optional<NaverMapPlaceCandidate> htmlCandidate,
+            Optional<NaverMapPlaceCandidate> searchPageCandidate
+    ) {
+        if (apiCandidate.isPresent() && hasText(apiCandidate.get().imageUrl())) {
+            return apiCandidate;
+        }
+        if (htmlCandidate.isPresent() && hasText(htmlCandidate.get().imageUrl())) {
+            return htmlCandidate;
+        }
+        if (searchPageCandidate.isPresent()) {
+            return searchPageCandidate;
+        }
         if (apiCandidate.isPresent()) {
             return apiCandidate;
         }
-        return findMapPlaceCandidateByHtml(store);
+        return htmlCandidate;
     }
 
     private Optional<NaverMapPlaceCandidate> findMapPlaceCandidateByApi(Store store) {
@@ -251,6 +271,42 @@ public class NaverStoreEnrichmentClient {
         return Optional.empty();
     }
 
+    private Optional<NaverMapPlaceCandidate> findMapPlaceCandidateBySearchPage(Store store) {
+        for (String query : buildQueries(store)) {
+            try {
+                URI uri = UriComponentsBuilder
+                        .fromUriString("https://search.naver.com/search.naver")
+                        .queryParam("query", query)
+                        .build(true)
+                        .toUri();
+
+                String html = crawlClient().get()
+                        .uri(uri)
+                        .retrieve()
+                        .body(String.class);
+
+                SearchNaverPlaceCandidate candidate = extractSearchNaverPlaceCandidate(html);
+                if (candidate == null || !hasText(candidate.placeId())) {
+                    continue;
+                }
+
+                return Optional.of(new NaverMapPlaceCandidate(
+                        candidate.placeId(),
+                        firstNonBlank(candidate.name(), store.getStoreName()),
+                        firstNonBlank(candidate.roadAddress(), store.getRoadAddress()),
+                        store.getNumberAddress(),
+                        firstNonBlank(candidate.category(), store.getCategoryName()),
+                        store.getPhone(),
+                        sanitizeImageUrl(candidate.imageUrl()),
+                        cleanDescription(candidate.description()),
+                        null
+                ));
+            } catch (Exception ignored) {
+            }
+        }
+        return Optional.empty();
+    }
+
     private String fetchPlacePhotoPage(String placeId) {
         List<String> urls = List.of(
                 "https://pcmap.place.naver.com/restaurant/" + placeId + "/photo",
@@ -303,6 +359,72 @@ public class NaverStoreEnrichmentClient {
                 sanitizeImageUrl(extractByRegex(html, "\\\"thumbnail\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"")),
                 sanitizeImageUrl(extractByRegex(html, "\\\"photoUrl\\\"\\s*:\\s*\\\"([^\\\"]+)\\\""))
         );
+    }
+
+    SearchNaverPlaceCandidate extractSearchNaverPlaceCandidate(String html) {
+        if (!hasText(html)) {
+            return null;
+        }
+
+        Document document = Jsoup.parse(html);
+        Element root = document.selectFirst("#place-main-section-root");
+        if (root == null) {
+            root = document.selectFirst(".place_pcnx_detail");
+        }
+        if (root == null) {
+            root = document.body();
+        }
+        if (root == null) {
+            return null;
+        }
+
+        Element entryAnchor = root.selectFirst("a[href*=map.naver.com/p/entry/place/]");
+        if (entryAnchor == null) {
+            return null;
+        }
+
+        String placeId = extractByRegex(entryAnchor.attr("href"), "/entry/place/([0-9]+)");
+        if (!hasText(placeId)) {
+            return null;
+        }
+
+        Element titleAnchor = root.selectFirst("#_title a[href*=map.naver.com/p/entry/place/]");
+        if (titleAnchor == null) {
+            titleAnchor = entryAnchor;
+        }
+
+        String name = null;
+        String category = null;
+        if (titleAnchor != null) {
+            var spans = titleAnchor.select("span");
+            if (!spans.isEmpty()) {
+                name = trimToNull(spans.get(0).text());
+                if (spans.size() > 1) {
+                    category = trimToNull(spans.get(1).text());
+                }
+            }
+            if (!hasText(name)) {
+                name = trimToNull(titleAnchor.text());
+            }
+        }
+
+        Element shareAnchor = root.selectFirst("[data-kakaotalk-image-url], [data-line-description], [data-kakaotalk-description]");
+        String imageUrl = shareAnchor == null ? null : firstNonBlank(
+                sanitizeImageUrl(shareAnchor.attr("data-kakaotalk-image-url")),
+                sanitizeImageUrl(shareAnchor.attr("data-line-image-url"))
+        );
+        if (!hasText(imageUrl)) {
+            Element image = root.selectFirst("img[src*=pstatic.net]");
+            imageUrl = image == null ? null : sanitizeImageUrl(image.attr("src"));
+        }
+
+        String roadAddress = shareAnchor == null ? null : firstNonBlank(
+                trimToNull(shareAnchor.attr("data-line-description")),
+                trimToNull(shareAnchor.attr("data-kakaotalk-description"))
+        );
+        String description = trimToNull(root.select(".XtBbS").text());
+
+        return new SearchNaverPlaceCandidate(placeId, name, roadAddress, category, imageUrl, description);
     }
 
     String extractPlaceDescription(String html) {
@@ -721,7 +843,7 @@ public class NaverStoreEnrichmentClient {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private record NaverMapPlaceCandidate(
+    record NaverMapPlaceCandidate(
             String placeId,
             String name,
             String roadAddress,
@@ -731,6 +853,16 @@ public class NaverStoreEnrichmentClient {
             String imageUrl,
             String description,
             Double rating
+    ) {
+    }
+
+    record SearchNaverPlaceCandidate(
+            String placeId,
+            String name,
+            String roadAddress,
+            String category,
+            String imageUrl,
+            String description
     ) {
     }
 }

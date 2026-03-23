@@ -12,9 +12,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -41,11 +44,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.naedafront.ui.common.SignUpProgressBar
+import com.example.naedafront.ui.theme.Background
+import com.example.naedafront.ui.theme.Mint50
+import com.example.naedafront.ui.theme.Mint500
+import com.example.naedafront.ui.theme.NaedaFontFamily
+import com.example.naedafront.ui.theme.OnBackground
+import com.example.naedafront.ui.theme.OnSurfaceVariant
 import kotlinx.coroutines.delay
 
-private val DarkBg = Color(0xFF0D1A1A)
-private val PinFilled = Color(0xFF009688)
-private val PinEmpty = Color.White.copy(alpha = 0.25f)
 private val PinError = Color(0xFFF2522E)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -127,7 +133,14 @@ fun SignUpPinScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {},
+                title = {
+                    Text(
+                        text = if (isConfirming) "PIN 확인" else "PIN 설정",
+                        fontFamily = NaedaFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        color = OnBackground
+                    )
+                },
                 navigationIcon = {
                     IconButton(
                         onClick = {
@@ -144,18 +157,18 @@ fun SignUpPinScreen(
                         }
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "뒤로가기",
-                            tint = Color.White
+                            tint = OnBackground
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DarkBg
+                    containerColor = Background
                 )
             )
         },
-        containerColor = DarkBg,
+        containerColor = Background,
         contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         Column(
@@ -174,103 +187,136 @@ fun SignUpPinScreen(
                     .padding(horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Text(
-                    text = if (isConfirming) {
-                        "PIN 번호를 한 번 더\n입력해주세요"
-                    } else {
-                        "PIN 6자리를\n입력해주세요"
-                    },
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 34.sp
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = if (isConfirming) {
-                        "확인을 위해 PIN 번호를 다시 입력해주세요"
-                    } else {
-                        "2차 인증 비밀번호로 사용할 예정입니다"
-                    },
-                    fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.55f),
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(40.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // ── 상단 콘텐츠 (스크롤 가능) ──
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    repeat(6) { index ->
-                        Box(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    when {
-                                        hasPinMismatchError -> PinError
-                                        index < currentPin.length -> PinFilled
-                                        else -> PinEmpty
-                                    }
-                                )
-                        )
-                    }
-                }
+                    Spacer(modifier = Modifier.height(56.dp))
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                AnimatedVisibility(visible = hasPinMismatchError) {
-                    Text(
-                        text = "PIN 번호가 일치하지 않습니다. 다시 입력해주세요.",
-                        fontSize = 13.sp,
-                        color = PinError,
-                        textAlign = TextAlign.Center
-                    )
-                }
-
-                AnimatedVisibility(visible = !uiState.errorMessage.isNullOrBlank()) {
-                    Text(
-                        text = uiState.errorMessage.orEmpty(),
-                        fontSize = 13.sp,
-                        color = PinError,
-                        textAlign = TextAlign.Center
-                    )
-                }
-
-                AnimatedVisibility(visible = uiState.isLoading) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    // ── 상단 칩 ──
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Mint50)
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
                     ) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        CircularProgressIndicator(
-                            color = PinFilled,
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "회원가입 처리 중입니다...",
+                            text = if (isConfirming) "PIN 확인" else "PIN 설정",
+                            fontFamily = NaedaFontFamily,
+                            fontWeight = FontWeight.Medium,
                             fontSize = 13.sp,
-                            color = Color.White.copy(alpha = 0.7f)
+                            color = Mint500
                         )
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        text = if (isConfirming) {
+                            "PIN 번호를 한 번 더\n입력해주세요"
+                        } else {
+                            "PIN 6자리를\n입력해주세요"
+                        },
+                        fontFamily = NaedaFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 26.sp,
+                        color = OnBackground,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 34.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = if (isConfirming) {
+                            "확인을 위해\nPIN 번호를 다시 입력해주세요"
+                        } else {
+                            "2차 인증 비밀번호로\n사용할 예정입니다"
+                        },
+                        fontFamily = NaedaFontFamily,
+                        fontSize = 14.sp,
+                        color = OnSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 22.sp
+                    )
+
+                    AnimatedVisibility(visible = hasPinMismatchError) {
+                        Column {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "PIN 번호가 일치하지 않습니다. 다시 입력해주세요.",
+                                fontFamily = NaedaFontFamily,
+                                fontSize = 13.sp,
+                                color = PinError,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
+                    AnimatedVisibility(visible = !uiState.errorMessage.isNullOrBlank()) {
+                        Column {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = uiState.errorMessage.orEmpty(),
+                                fontFamily = NaedaFontFamily,
+                                fontSize = 13.sp,
+                                color = PinError,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
+                    AnimatedVisibility(visible = uiState.isLoading) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            CircularProgressIndicator(
+                                color = Mint500,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "회원가입 처리 중입니다...",
+                                fontFamily = NaedaFontFamily,
+                                fontSize = 13.sp,
+                                color = OnSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(48.dp))
+
+                    // ── PIN 도트 ──
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        repeat(6) { index ->
+                            Box(
+                                modifier = Modifier
+                                    .size(14.dp)
+                                    .background(
+                                        color = when {
+                                            hasPinMismatchError -> PinError
+                                            index < currentPin.length -> Mint500
+                                            else -> Color(0xFFE0E0E0)
+                                        },
+                                        shape = CircleShape
+                                    )
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
-
+                // ── 키패드 (하단 고정) ──
                 NumberKeypad(
                     onNumberClick = { onNumberInput(it) },
                     onDeleteClick = { onDelete() },
-                    textColor = Color.White
+                    textColor = OnBackground
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(36.dp))
             }
         }
     }
