@@ -167,4 +167,43 @@ class StoreEnrichmentServiceTest {
         assertThat(store.getRating()).isEqualTo(4.2);
         verify(storeRepository).save(store);
     }
+
+    @Test
+    @DisplayName("누락 필드 재보강은 여러 배치를 연속 처리한다")
+    void retryIncompleteStores_retriesAllBatches() {
+        ReflectionTestUtils.setField(storeEnrichmentService, "enrichmentEnabled", true);
+
+        Store first = Store.builder()
+                .storeId(10L)
+                .storeName("첫 매장")
+                .categoryId("PUBLIC_RESTAURANT")
+                .categoryName("한식")
+                .sourceType(StoreSourceType.PUBLIC_CSV)
+                .isActive(true)
+                .build();
+
+        Store second = Store.builder()
+                .storeId(11L)
+                .storeName("두번째 매장")
+                .categoryId("PUBLIC_RESTAURANT")
+                .categoryName("한식")
+                .sourceType(StoreSourceType.PUBLIC_CSV)
+                .isActive(true)
+                .build();
+
+        given(storeRepository.findIncompleteStoresForEnrichment(any(StoreSourceType.class), any(Pageable.class)))
+                .willReturn(List.of(first), List.of(second), List.of());
+        given(naverStoreEnrichmentClient.enrich(first))
+                .willReturn(Optional.of(new StoreEnrichmentData("https://example.com/1.jpg", "첫 설명", null)));
+        given(naverStoreEnrichmentClient.enrich(second))
+                .willReturn(Optional.of(new StoreEnrichmentData("https://example.com/2.jpg", "둘 설명", null)));
+
+        int result = storeEnrichmentService.retryIncompleteStores();
+
+        assertThat(result).isEqualTo(2);
+        assertThat(first.getImageUrl()).isEqualTo("https://example.com/1.jpg");
+        assertThat(second.getImageUrl()).isEqualTo("https://example.com/2.jpg");
+        verify(storeRepository).save(first);
+        verify(storeRepository).save(second);
+    }
 }

@@ -144,18 +144,43 @@ class StoreServiceTest {
                 .roadAddress("경상북도 구미시 인동35길 38")
                 .latitude(36.12)
                 .longitude(128.34)
+                .sourceKey("public:10")
+                .facePayEnabled(true)
+                .sourceType(StoreSourceType.PUBLIC_CSV)
+                .isActive(true)
+                .build();
+        Store nonFacePayStore = Store.builder()
+                .storeId(11L)
+                .storeName("해평빵집")
+                .categoryId("PUBLIC_BAKERY")
+                .categoryName("제과점영업")
+                .roadAddress("경상북도 구미시 해평면 11")
+                .latitude(36.11)
+                .longitude(128.31)
+                .sourceKey("public:11")
+                .facePayEnabled(false)
                 .sourceType(StoreSourceType.PUBLIC_CSV)
                 .isActive(true)
                 .build();
         given(storeRepository.findBySourceTypeAndIsActiveTrueAndLatitudeIsNotNullAndLongitudeIsNotNullOrderByStoreNameAsc(
                 StoreSourceType.PUBLIC_CSV
-        )).willReturn(List.of(publicStore));
+        )).willReturn(List.of(publicStore, nonFacePayStore));
 
         List<StoreResponse> result = storeService.getMapStores();
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getStoreId()).isEqualTo(10L);
-        assertThat(result.get(0).getSourceType()).isEqualTo(StoreSourceType.PUBLIC_CSV);
+        assertThat(result).hasSize(2);
+        assertThat(result).allMatch(store -> store.getSourceType() == StoreSourceType.PUBLIC_CSV);
+        StoreResponse first = result.stream()
+                .filter(store -> store.getStoreId().equals(10L))
+                .findFirst()
+                .orElseThrow();
+        StoreResponse second = result.stream()
+                .filter(store -> store.getStoreId().equals(11L))
+                .findFirst()
+                .orElseThrow();
+        assertThat(first.getFacePayEnabled())
+                .isEqualTo(Math.floorMod("public:10".hashCode(), 10) < 4);
+        assertThat(second.getFacePayEnabled()).isFalse();
     }
 
     @Test
