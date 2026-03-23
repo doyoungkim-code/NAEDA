@@ -38,4 +38,11 @@ public class PointOrderController {
     ) {
         return ResponseEntity.ok(pointOrderService.getMyOrders(userNo).stream().limit(size).toList());
     }
+
+    @GetMapping("/{orderId}")
+    public ResponseEntity<PointOrderResponse> getOrder(
+            @PathVariable Long orderId
+    ) {
+        return ResponseEntity.ok(pointOrderService.getOrder(orderId));
+    }
 }

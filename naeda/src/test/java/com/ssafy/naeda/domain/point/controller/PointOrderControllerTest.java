@@ -227,4 +227,38 @@ class PointOrderControllerTest {
         mockMvc.perform(get("/api/orders"))
                 .andExpect(status().isBadRequest());
     }
+
+    // === getOrder 테스트 ===
+
+    @Test
+    @DisplayName("단건 주문 조회 성공 - 200")
+    void getOrder_success() throws Exception {
+        PointOrderResponse response = PointOrderResponse.builder()
+                .orderId(1L)
+                .userNo(1L)
+                .productId(1L)
+                .productName("아메리카노 쿠폰")
+                .pointPrice(3000L)
+                .addressId(1L)
+                .orderAt(LocalDateTime.now())
+                .build();
+
+        given(pointOrderService.getOrder(1L)).willReturn(response);
+
+        mockMvc.perform(get("/api/orders/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orderId").value(1))
+                .andExpect(jsonPath("$.productName").value("아메리카노 쿠폰"))
+                .andExpect(jsonPath("$.pointPrice").value(3000));
+    }
+
+    @Test
+    @DisplayName("단건 주문 조회 실패 - 주문 없음 404")
+    void getOrder_notFound() throws Exception {
+        given(pointOrderService.getOrder(999L))
+                .willThrow(new NotFoundException("주문을 찾을 수 없습니다. id=999"));
+
+        mockMvc.perform(get("/api/orders/999"))
+                .andExpect(status().isNotFound());
+    }
 }
