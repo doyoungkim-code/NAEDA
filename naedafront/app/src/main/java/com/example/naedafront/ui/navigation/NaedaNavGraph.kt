@@ -1,6 +1,5 @@
 package com.example.naedafront.ui.navigation
 
-import com.example.naedafront.ui.screen.home.HomeViewModel
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
@@ -23,6 +22,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.FaceRegistrationRepository
+import com.example.naedafront.data.repository.OrderRepository
 import com.example.naedafront.ui.screen.LoginScreen
 import com.example.naedafront.ui.screen.NotificationScreen
 import com.example.naedafront.ui.screen.WelcomeScreen
@@ -36,14 +36,15 @@ import com.example.naedafront.ui.screen.facepay.FaceMatchRecognizeScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchResultScreen
 import com.example.naedafront.ui.screen.facepay.FaceRegisterScreen
 import com.example.naedafront.ui.screen.home.HomeScreen
+import com.example.naedafront.ui.screen.home.HomeViewModel
 import com.example.naedafront.ui.screen.home.NoticeDetailScreen
 import com.example.naedafront.ui.screen.home.NoticeListScreen
 import com.example.naedafront.ui.screen.map.MapRegion
 import com.example.naedafront.ui.screen.map.MapSelectScreen
 import com.example.naedafront.ui.screen.mypage.CustomerCenterScreen
 import com.example.naedafront.ui.screen.mypage.MyPageScreen
-import com.example.naedafront.ui.screen.mypage.PinChangeScreen
 import com.example.naedafront.ui.screen.mypage.MyPageViewModel
+import com.example.naedafront.ui.screen.mypage.PinChangeScreen
 import com.example.naedafront.ui.screen.setting.NotificationSettingsScreen
 import com.example.naedafront.ui.screen.setting.PrivacyPolicyScreen
 import com.example.naedafront.ui.screen.setting.SettingsScreen
@@ -58,6 +59,8 @@ import com.example.naedafront.ui.screen.signup.SignUpVerifyScreen
 import com.example.naedafront.ui.screen.signup.SignUpViewModel
 import com.example.naedafront.ui.screen.store.DeliveryAddressScreen
 import com.example.naedafront.ui.screen.store.OrderCompleteScreen
+import com.example.naedafront.ui.screen.store.OrderHistoryScreen
+import com.example.naedafront.ui.screen.store.OrderHistoryViewModel
 import com.example.naedafront.ui.screen.store.PointHistoryScreen
 import com.example.naedafront.ui.screen.store.PointStoreScreen
 import com.example.naedafront.ui.screen.store.StoreOrderDraftStore
@@ -275,7 +278,7 @@ fun NaedaNavGraph(
                     },
                     onOrderHistoryClick = {
                         StoreOrderDraftStore.clearCompletedOrder()
-                        navController.navigate(Screen.PointHistory.route)
+                        navController.navigate(Screen.OrderHistory.route)
                     },
                     onHomeClick = {
                         StoreOrderDraftStore.clearCompletedOrder()
@@ -286,6 +289,21 @@ fun NaedaNavGraph(
                     }
                 )
             }
+        }
+
+        composable(Screen.OrderHistory.route) {
+            val orderHistoryViewModel: OrderHistoryViewModel = viewModel(
+                factory = OrderHistoryViewModel.factory(
+                    authPrefs = AuthPrefs,
+                    orderRepository = OrderRepository(),
+                    context = context
+                )
+            )
+
+            OrderHistoryScreen(
+                viewModel = orderHistoryViewModel,
+                onBackClick = { navController.popBackStack() }
+            )
         }
 
         composable(Screen.Scan.route) {
@@ -308,7 +326,12 @@ fun NaedaNavGraph(
                 initialTab = 0,
                 onBack = { navController.popBackStack() },
                 onAccountClick = { account ->
-                    navController.navigate(Screen.AccountDetail.createRoute(account.accountId, account.accountNumber))
+                    navController.navigate(
+                        Screen.AccountDetail.createRoute(
+                            account.accountId,
+                            account.accountNumber
+                        )
+                    )
                 },
                 onCardClick = { card ->
                     navController.navigate(Screen.CardDetail.createRoute(card.id))
@@ -371,9 +394,16 @@ fun NaedaNavGraph(
 
         composable(Screen.GumiMap.route) {
             val selectedRegion = navController
-                .previousBackStackEntry?.savedStateHandle?.get<String>("selectedRegion").orEmpty()
+                .previousBackStackEntry
+                ?.savedStateHandle
+                ?.get<String>("selectedRegion")
+                .orEmpty()
+
             val selectedRestaurant = navController
-                .previousBackStackEntry?.savedStateHandle?.get<String>("selectedRestaurant").orEmpty()
+                .previousBackStackEntry
+                ?.savedStateHandle
+                ?.get<String>("selectedRestaurant")
+                .orEmpty()
 
             PlaceholderScreen(
                 when {
@@ -395,15 +425,24 @@ fun NaedaNavGraph(
         composable(
             route = Screen.AccountList.route,
             arguments = listOf(
-                navArgument("tab") { type = NavType.IntType; defaultValue = 0 }
+                navArgument("tab") {
+                    type = NavType.IntType
+                    defaultValue = 0
+                }
             )
         ) { backStackEntry ->
             val tab = backStackEntry.arguments?.getInt("tab") ?: 0
+
             AccountListRoute(
                 initialTab = tab,
                 onBack = { navController.popBackStack() },
                 onAccountClick = { account ->
-                    navController.navigate(Screen.AccountDetail.createRoute(account.accountId, account.accountNumber))
+                    navController.navigate(
+                        Screen.AccountDetail.createRoute(
+                            account.accountId,
+                            account.accountNumber
+                        )
+                    )
                 },
                 onCardClick = { card ->
                     navController.navigate(Screen.CardDetail.createRoute(card.id))
@@ -421,6 +460,7 @@ fun NaedaNavGraph(
             arguments = listOf(navArgument("tab") { type = NavType.IntType })
         ) { backStackEntry ->
             val tab = backStackEntry.arguments?.getInt("tab") ?: 0
+
             RegisterAssetDialog(
                 initialTab = tab,
                 onDismiss = { navController.popBackStack() },
@@ -450,6 +490,7 @@ fun NaedaNavGraph(
             arguments = listOf(navArgument("cardId") { type = NavType.StringType })
         ) { backStackEntry ->
             val cardId = backStackEntry.arguments?.getString("cardId") ?: ""
+
             CardDetailScreen(
                 cardId = cardId,
                 onBack = { navController.popBackStack() }
@@ -472,6 +513,7 @@ fun NaedaNavGraph(
 
         composable(Screen.MyPage.route) {
             val myPageViewModel: MyPageViewModel = viewModel()
+
             MyPageScreen(
                 viewModel = myPageViewModel,
                 onBackClick = { navController.popBackStack() },
@@ -480,6 +522,7 @@ fun NaedaNavGraph(
                 onFaceReRegisterClick = { navController.navigate(Screen.FaceRegister.route) },
                 onPinChangeClick = { navController.navigate(Screen.Security.route) },
                 onDeliveryAddressClick = { navController.navigate(Screen.DeliveryAddress.route) },
+                onOrderHistoryClick = { navController.navigate(Screen.OrderHistory.route) },
                 onLogoutClick = {
                     AuthPrefs.clearSession(context)
                     navController.navigate(Screen.Welcome.route) {
@@ -508,15 +551,11 @@ fun NaedaNavGraph(
             )
         }
 
-        // ── 알림 설정 화면 ──
         composable(Screen.NotificationSettings.route) {
             NotificationSettingsScreen(
                 onBackClick = { navController.popBackStack() }
             )
         }
-
-        // ── 알림 설정 화면 ──
-    
 
         composable(Screen.Notification.route) {
             NotificationScreen(
@@ -536,21 +575,18 @@ fun NaedaNavGraph(
             )
         }
 
-        // ── 이용약관 ──
         composable(Screen.TermsOfService.route) {
             TermsOfServiceScreen(
                 onBackClick = { navController.popBackStack() }
             )
         }
 
-        // ── 개인정보 처리방침 ──
         composable(Screen.PrivacyPolicy.route) {
             PrivacyPolicyScreen(
                 onBackClick = { navController.popBackStack() }
             )
         }
 
-        // ── 구미시 소식 목록 ──
         composable(Screen.NoticeList.route) {
             NoticeListScreen(
                 onBackClick = { navController.popBackStack() },
@@ -560,7 +596,6 @@ fun NaedaNavGraph(
             )
         }
 
-        // ── 공지/축제 상세 ──
         composable(
             route = Screen.NoticeDetail.route,
             arguments = listOf(
@@ -570,6 +605,7 @@ fun NaedaNavGraph(
         ) { backStackEntry ->
             val noticeType = backStackEntry.arguments?.getString("type") ?: "notice"
             val noticeId = backStackEntry.arguments?.getLong("id") ?: 0L
+
             NoticeDetailScreen(
                 type = noticeType,
                 id = noticeId,
@@ -585,6 +621,9 @@ private fun PlaceholderScreen(name: String) {
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Text(text = name, fontSize = 24.sp)
+        Text(
+            text = name,
+            fontSize = 24.sp
+        )
     }
 }

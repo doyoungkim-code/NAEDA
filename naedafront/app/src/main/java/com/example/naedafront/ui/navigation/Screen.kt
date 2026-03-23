@@ -15,6 +15,7 @@ sealed class Screen(val route: String) {
     object SignUpGraph : Screen("signup_graph")
 
     object OrderComplete : Screen("order_complete")
+    object OrderHistory : Screen("order_history")
     object DeliveryAddress : Screen("delivery_address")
     object SignUp : Screen("signup")
     object SignUpRrn : Screen("signup_rrn")

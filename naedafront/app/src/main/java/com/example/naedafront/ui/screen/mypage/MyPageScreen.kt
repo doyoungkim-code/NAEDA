@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Face
 import androidx.compose.material.icons.outlined.LockReset
 import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
@@ -64,6 +65,7 @@ fun MyPageScreen(
     onFaceReRegisterClick: () -> Unit = {},
     onPinChangeClick: () -> Unit = {},
     onDeliveryAddressClick: () -> Unit = {},
+    onOrderHistoryClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
     onFabClick: () -> Unit = {},
 ) {
@@ -193,10 +195,16 @@ fun MyPageScreen(
                             iconBg = Color(0xFFEEF4FF),
                             iconTint = Color(0xFF2F6FED),
                             onClick = onDeliveryAddressClick
+                        ),
+                        MyPageMenuItemData(
+                            title = "주문 조회",
+                            icon = Icons.Outlined.ReceiptLong,
+                            iconBg = Color(0xFFFFF4E5),
+                            iconTint = Color(0xFFF59E0B),
+                            onClick = onOrderHistoryClick
                         )
                     )
                 )
-
             }
 
             if (uiState.isLoading) {
