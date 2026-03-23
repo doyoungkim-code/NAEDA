@@ -76,7 +76,7 @@ public class StoreService {
                         StoreSourceType.PUBLIC_CSV
                 )
                 .stream()
-                .map(StoreResponse::from)
+                .map(store -> StoreResponse.from(store, resolveMapFacePayEnabled(store)))
                 .toList();
     }
 
@@ -304,6 +304,33 @@ public class StoreService {
             case "PUBLIC_BAKERY"     -> "CG-9ca85f66311a23d"; // 생활
             default                  -> "CG-9ca85f66311a23d"; // 기본: 생활
         };
+    }
+
+    private boolean resolveMapFacePayEnabled(Store store) {
+        if (!Boolean.TRUE.equals(store.getFacePayEnabled())) {
+            return false;
+        }
+
+        String seed = firstNonBlank(
+                store.getSourceKey(),
+                store.getStoreName(),
+                store.getRoadAddress(),
+                store.getStoreId() == null ? null : String.valueOf(store.getStoreId())
+        );
+        if (seed == null) {
+            return false;
+        }
+
+        return Math.floorMod(seed.hashCode(), 10) < 4;
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private List<SsafyMerchantRec> parseMerchantList(Map<String, Object> response) {

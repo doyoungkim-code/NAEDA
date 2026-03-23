@@ -120,7 +120,6 @@ public class Store {
         // sourceType은 변경하지 않음 (PUBLIC_CSV 매장이 지도에서 사라지는 문제 방지)
         this.ssafyMerchantId = ssafyMerchantId;
         this.sourceKey = ssafyMerchantId == null ? null : "ssafy:" + ssafyMerchantId;
-        this.facePayEnabled = true;
     }
 
     public void updateEnrichment(String imageUrl, String description, Double rating, LocalDateTime enrichedAt) {

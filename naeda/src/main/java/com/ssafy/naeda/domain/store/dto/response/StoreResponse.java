@@ -30,6 +30,10 @@ public class StoreResponse {
     private Boolean isActive;
 
     public static StoreResponse from(Store store) {
+        return from(store, store.getFacePayEnabled());
+    }
+
+    public static StoreResponse from(Store store, Boolean facePayEnabled) {
         return StoreResponse.builder()
                 .storeId(store.getStoreId())
                 .ssafyMerchantId(store.resolveSsafyMerchantId())
@@ -43,7 +47,7 @@ public class StoreResponse {
                 .longitude(store.getLongitude())
                 .phone(store.getPhone())
                 .isLocalBusiness(store.getIsLocalBusiness())
-                .facePayEnabled(store.getFacePayEnabled())
+                .facePayEnabled(facePayEnabled)
                 .rating(store.getRating())
                 .imageUrl(store.getImageUrl())
                 .description(store.getDescription())
