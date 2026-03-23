@@ -1,7 +1,7 @@
 package com.example.naedafront.ui.screen.store
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,10 +35,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.naedafront.ui.theme.Background
+import java.text.NumberFormat
+import java.util.Locale
 
 private val CompletePrimary = Color(0xFF00695C)
 private val CompleteMint = Color(0xFF20D5BE)
@@ -50,6 +54,7 @@ private val CompleteSubText = Color(0xFF667085)
 
 @Composable
 fun OrderCompleteScreen(
+    orderInfo: OrderCompleteUiModel,
     onCloseClick: () -> Unit = {},
     onOrderHistoryClick: () -> Unit = {},
     onHomeClick: () -> Unit = {}
@@ -70,20 +75,20 @@ fun OrderCompleteScreen(
                 .weight(1f)
                 .verticalScroll(scrollState)
         ) {
-            OrderCompleteSummarySection()
+            OrderCompleteSummarySection(orderInfo)
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            DeliveryInfoSection()
+            DeliveryInfoSection(orderInfo)
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            PaymentAmountSection()
+            PaymentAmountSection(orderInfo)
 
             Spacer(modifier = Modifier.height(28.dp))
 
             Text(
-                text = "상품 준비가 시작되면 배송지 변경이 어려울 수 있습니다.\n문의사항은 고객센터(1588-0000)로 연락해 주세요.",
+                text = "상품 준비가 시작되면 배송지 변경이 어려울 수 있습니다.\n문의사항은 고객센터로 연락해 주세요.",
                 color = Color(0xFFB1BAC8),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
@@ -91,7 +96,7 @@ fun OrderCompleteScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -133,7 +138,7 @@ fun OrderCompleteScreen(
                     containerColor = Color.White,
                     contentColor = CompleteText
                 ),
-                border = androidx.compose.foundation.BorderStroke(
+                border = BorderStroke(
                     width = 1.dp,
                     color = Color(0xFFDCE3EB)
                 )
@@ -194,7 +199,7 @@ private fun OrderCompleteTopBar(
                 Icon(
                     imageVector = Icons.Outlined.Close,
                     contentDescription = "close",
-                    tint = Color(0xFF667085),
+                    tint = CompleteSubText,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -209,7 +214,9 @@ private fun OrderCompleteTopBar(
 }
 
 @Composable
-private fun OrderCompleteSummarySection() {
+private fun OrderCompleteSummarySection(
+    orderInfo: OrderCompleteUiModel
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -225,7 +232,7 @@ private fun OrderCompleteSummarySection() {
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "인형",
+                text = "상품",
                 color = Color(0xFF9CA3AF),
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold
@@ -244,7 +251,7 @@ private fun OrderCompleteSummarySection() {
         Spacer(modifier = Modifier.height(10.dp))
 
         Text(
-            text = "낭만 토미 인형",
+            text = orderInfo.productName,
             color = CompleteText,
             fontSize = 22.sp,
             fontWeight = FontWeight.ExtraBold
@@ -253,7 +260,7 @@ private fun OrderCompleteSummarySection() {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "주문번호: 20231024-000129",
+            text = "주문번호: ${orderInfo.orderNumber}",
             color = CompleteLabel,
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium
@@ -262,7 +269,9 @@ private fun OrderCompleteSummarySection() {
 }
 
 @Composable
-private fun DeliveryInfoSection() {
+private fun DeliveryInfoSection(
+    orderInfo: OrderCompleteUiModel
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -284,10 +293,10 @@ private fun DeliveryInfoSection() {
             Column(
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp)
             ) {
-                KeyValueRow("받는 분", "홍길동")
+                KeyValueRow("받는 분", orderInfo.recipientName)
                 Spacer(modifier = Modifier.height(18.dp))
 
-                KeyValueRow("연락처", "010-1234-5678")
+                KeyValueRow("연락처", orderInfo.phone)
                 Spacer(modifier = Modifier.height(18.dp))
 
                 Column(
@@ -303,12 +312,17 @@ private fun DeliveryInfoSection() {
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "(37301) 경상북도 구미시 송정동 송정대로 55\n구미시청 별관 3층",
+                        text = buildAddressText(orderInfo),
                         color = CompleteText,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
                         lineHeight = 26.sp
                     )
+                }
+
+                if (orderInfo.deliveryRequest.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(18.dp))
+                    KeyValueRow("배송 요청사항", orderInfo.deliveryRequest)
                 }
             }
         }
@@ -316,7 +330,9 @@ private fun DeliveryInfoSection() {
 }
 
 @Composable
-private fun PaymentAmountSection() {
+private fun PaymentAmountSection(
+    orderInfo: OrderCompleteUiModel
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -338,22 +354,6 @@ private fun PaymentAmountSection() {
             Column(
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp)
             ) {
-                KeyValueRow("상품 금액", "15,000원")
-                Spacer(modifier = Modifier.height(14.dp))
-
-                KeyValueRow("배송비", "3,000원")
-                Spacer(modifier = Modifier.height(14.dp))
-
-                KeyValueRow("포인트 사용", "-2,000 P", valueColor = CompleteMint)
-                Spacer(modifier = Modifier.height(18.dp))
-
-                HorizontalDivider(
-                    thickness = 1.dp,
-                    color = CompleteBorder
-                )
-
-                Spacer(modifier = Modifier.height(18.dp))
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -368,7 +368,7 @@ private fun PaymentAmountSection() {
                     Spacer(modifier = Modifier.weight(1f))
 
                     Text(
-                        text = "16,000원",
+                        text = formatWon(orderInfo.totalPaymentAmount),
                         color = CompleteText,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.ExtraBold
@@ -381,7 +381,7 @@ private fun PaymentAmountSection() {
 
 @Composable
 private fun SectionTitle(
-    icon: androidx.compose.ui.graphics.vector.ImageVector?,
+    icon: ImageVector?,
     title: String
 ) {
     Row(
@@ -409,8 +409,7 @@ private fun SectionTitle(
 @Composable
 private fun KeyValueRow(
     label: String,
-    value: String,
-    valueColor: Color = CompleteText
+    value: String
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -427,9 +426,23 @@ private fun KeyValueRow(
 
         Text(
             text = value,
-            color = valueColor,
+            color = CompleteText,
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium
         )
     }
+}
+
+private fun buildAddressText(orderInfo: OrderCompleteUiModel): String {
+    return buildString {
+        append("(${orderInfo.zipCode}) ${orderInfo.address}")
+        if (orderInfo.detailAddress.isNotBlank()) {
+            append("\n")
+            append(orderInfo.detailAddress)
+        }
+    }
+}
+
+private fun formatWon(amount: Int): String {
+    return "${NumberFormat.getNumberInstance(Locale.KOREA).format(amount)}원"
 }
