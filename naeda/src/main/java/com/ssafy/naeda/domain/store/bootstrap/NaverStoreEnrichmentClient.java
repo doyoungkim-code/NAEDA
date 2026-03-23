@@ -41,15 +41,6 @@ public class NaverStoreEnrichmentClient {
     @Value("${store.enrichment.user-agent:Mozilla/5.0}")
     private String userAgent;
 
-    @Value("${store.enrichment.defaults.image.restaurant:/images/store/default-restaurant.svg}")
-    private String defaultRestaurantImageUrl;
-
-    @Value("${store.enrichment.defaults.image.bakery:/images/store/default-bakery.svg}")
-    private String defaultBakeryImageUrl;
-
-    @Value("${store.enrichment.defaults.image.store:/images/store/default-store.svg}")
-    private String defaultStoreImageUrl;
-
     public boolean isConfigured() {
         return hasText(clientId) && hasText(clientSecret);
     }
@@ -66,8 +57,7 @@ public class NaverStoreEnrichmentClient {
             );
             String imageUrl = firstNonBlank(
                     mapData.imageUrl(),
-                    isConfigured() ? findImageUrl(store).orElse(null) : null,
-                    defaultImageUrl(store)
+                    isConfigured() ? findImageUrl(store).orElse(null) : null
             );
 
             return Optional.of(new StoreEnrichmentData(
@@ -79,7 +69,7 @@ public class NaverStoreEnrichmentClient {
             log.warn("[StoreEnrichment] 네이버 보강 실패 storeId={}, name={}, error={}",
                     store.getStoreId(), store.getStoreName(), e.getMessage());
             return Optional.of(new StoreEnrichmentData(
-                    defaultImageUrl(store),
+                    null,
                     fallbackDescription(store),
                     null
             ));
@@ -544,16 +534,6 @@ public class NaverStoreEnrichmentClient {
             return trimmed;
         }
         return String.join(" ", parts[0], parts[1], parts[2], parts[3]);
-    }
-
-    private String defaultImageUrl(Store store) {
-        if ("PUBLIC_BAKERY".equals(store.getCategoryId())) {
-            return defaultBakeryImageUrl;
-        }
-        if ("PUBLIC_RESTAURANT".equals(store.getCategoryId())) {
-            return defaultRestaurantImageUrl;
-        }
-        return defaultStoreImageUrl;
     }
 
     private String fallbackDescription(Store store) {
