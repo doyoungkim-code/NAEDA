@@ -320,6 +320,8 @@ private fun GreetingSection(
     }
 }
 
+private val CARD_HEIGHT = 200.dp
+
 @Composable
 private fun BalanceCard(
     account: AssetAccountResponse,
@@ -328,57 +330,63 @@ private fun BalanceCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .height(CARD_HEIGHT)
             .padding(horizontal = 20.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF00635A)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = account.bankName ?: "",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color.White.copy(alpha = 0.65f)
-                    )
-                    Text(
-                        text = account.accountNo?.maskAccountNo() ?: "",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.45f)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = account.bankName ?: "",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White.copy(alpha = 0.65f)
+                        )
+                        Text(
+                            text = account.accountNo?.maskAccountNo() ?: "",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.45f)
+                        )
+                    }
+                    Icon(
+                        Icons.Default.AccountBalanceWallet,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.85f),
+                        modifier = Modifier.size(20.dp)
                     )
                 }
-                Icon(
-                    Icons.Default.AccountBalanceWallet,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.85f),
-                    modifier = Modifier.size(20.dp)
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = account.accountName ?: "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "₩${"%,d".format(account.accountBalance ?: 0L)}",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 30.sp
+                    ),
+                    color = Color.White
                 )
             }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = account.accountName ?: "",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.7f)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "₩${"%,d".format(account.accountBalance ?: 0L)}",
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 30.sp
-                ),
-                color = Color.White
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedButton(
                 onClick = onTransactionClick,
@@ -424,30 +432,36 @@ private fun AssetCardPager(
         }
     }
 
-    val pagerState = rememberPagerState(pageCount = { pages.size })
+    val actualPageCount = pages.size
+    // 순환 스와이프: 충분히 큰 페이지 수로 설정
+    val loopPageCount = if (actualPageCount > 1) actualPageCount * 1000 else actualPageCount
+    val startPage = if (actualPageCount > 1) (loopPageCount / 2) - ((loopPageCount / 2) % actualPageCount) else 0
+    val pagerState = rememberPagerState(initialPage = startPage, pageCount = { loopPageCount })
 
     Column {
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxWidth()
         ) { page ->
-            pages[page]()
+            val actualPage = page % actualPageCount
+            pages[actualPage]()
         }
 
         // 인디케이터 (2페이지 이상일 때만)
-        if (pages.size > 1) {
+        if (actualPageCount > 1) {
             Spacer(modifier = Modifier.height(10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center
             ) {
-                repeat(pages.size) { index ->
+                val currentActualPage = pagerState.currentPage % actualPageCount
+                repeat(actualPageCount) { index ->
                     Box(
                         modifier = Modifier
                             .padding(horizontal = 3.dp)
-                            .size(if (pagerState.currentPage == index) 8.dp else 6.dp)
+                            .size(if (currentActualPage == index) 8.dp else 6.dp)
                             .background(
-                                color = if (pagerState.currentPage == index) Mint900 else Mint900.copy(alpha = 0.25f),
+                                color = if (currentActualPage == index) Mint900 else Mint900.copy(alpha = 0.25f),
                                 shape = CircleShape
                             )
                     )
@@ -457,17 +471,73 @@ private fun AssetCardPager(
     }
 }
 
+private fun isLightColor(color: Color): Boolean {
+    val luminance = 0.299 * color.red + 0.587 * color.green + 0.114 * color.blue
+    return luminance > 0.5
+}
+
+private fun resolveCardGradient(cardIssuerCode: String?, cardIssuerName: String?): Pair<Color, Color> {
+    val code = cardIssuerCode.orEmpty()
+    val name = cardIssuerName.orEmpty()
+    return when {
+        code == "1005" || name.contains("신한") -> Color(0xFF0046FF) to Color(0xFF0088FF)
+        code == "1006" || name.contains("삼성") -> Color(0xFF1A1A2E) to Color(0xFF16213E)
+        code == "1007" || name.contains("현대") -> Color(0xFF2D2D2D) to Color(0xFF555555)
+        code == "1004" || name.contains("국민") || name.contains("KB") -> Color(0xFFFFB800) to Color(0xFFFF8C00)
+        code == "1003" || name.contains("롯데") -> Color(0xFFE53935) to Color(0xFFFF7043)
+        name.contains("카카오") -> Color(0xFFFFE400) to Color(0xFFFFC000)
+        name.contains("하나") -> Color(0xFF0F9D58) to Color(0xFF34A853)
+        name.contains("우리") -> Color(0xFF1565C0) to Color(0xFF42A5F5)
+        else -> Color(0xFF264653) to Color(0xFF2A9D8F)
+    }
+}
+
 @Composable
 private fun CardInfoCard(card: AssetCardResponse) {
-    Card(
+    val (gradientStart, gradientEnd) = resolveCardGradient(card.cardIssuerCode, card.cardIssuerName)
+    val isLight = isLightColor(gradientStart)
+    val textPrimary = if (isLight) Color(0xFF1A1A1A) else Color.White
+    val textSecondary = if (isLight) Color(0xFF1A1A1A).copy(alpha = 0.55f) else Color.White.copy(alpha = 0.45f)
+    val textBody = if (isLight) Color(0xFF1A1A1A).copy(alpha = 0.8f) else Color.White.copy(alpha = 0.85f)
+    val badgeBg = if (isLight) Color.Black.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.2f)
+    val decoColor = if (isLight) Color.Black.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.06f)
+    val decoColor2 = if (isLight) Color.Black.copy(alpha = 0.03f) else Color.White.copy(alpha = 0.04f)
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A2E)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .height(CARD_HEIGHT)
+            .padding(horizontal = 20.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                    colors = listOf(gradientStart, gradientEnd)
+                )
+            )
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        // 배경 원형 장식
+        Box(
+            modifier = Modifier
+                .size(180.dp)
+                .align(Alignment.TopEnd)
+                .clip(CircleShape)
+                .background(decoColor)
+        )
+        Box(
+            modifier = Modifier
+                .size(130.dp)
+                .align(Alignment.BottomEnd)
+                .clip(CircleShape)
+                .background(decoColor2)
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            // 상단
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -476,37 +546,45 @@ private fun CardInfoCard(card: AssetCardResponse) {
                 Column {
                     Text(
                         text = card.cardIssuerName ?: "",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color.White.copy(alpha = 0.65f)
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = textPrimary
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = card.cardNo ?: "",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.45f)
+                        style = MaterialTheme.typography.bodySmall,
+                        color = textSecondary
                     )
                 }
-                Icon(
-                    Icons.Default.AccountBalanceWallet,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.85f),
-                    modifier = Modifier.size(20.dp)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(badgeBg)
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = if (card.cardType?.uppercase() == "CREDIT") "신용" else "체크",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = textPrimary
+                        )
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
+            // 중단: 카드 상품명
             Text(
                 text = card.cardName ?: "등록 카드",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = Color.White
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
+                color = textBody,
+                maxLines = 1
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
-
+            // 하단: 유효기간
             Text(
-                text = if (card.cardType?.uppercase() == "CREDIT") "신용카드" else "체크카드",
+                text = "~ ${card.cardExpiryDate ?: ""}",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.6f)
+                color = textSecondary
             )
         }
     }
@@ -517,6 +595,7 @@ private fun RegisterCardPrompt(onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .height(CARD_HEIGHT)
             .padding(horizontal = 20.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
@@ -525,9 +604,9 @@ private fun RegisterCardPrompt(onClick: () -> Unit) {
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Icon(
                 Icons.Default.Add,
