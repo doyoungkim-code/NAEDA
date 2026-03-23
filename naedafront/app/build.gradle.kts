@@ -1,3 +1,5 @@
+//C:\Users\SSAFY\Desktop\kimjongwoo\xmrghk\S14P21D103\naedafront\app\build.gradle.kts
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -22,6 +24,9 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "BACKEND_BASE_URL", "\"https://j14d103.p.ssafy.io/\"")
         buildConfigField("String", "AI_BASE_URL", "\"http://j14d103.p.ssafy.io:8000/\"")
+
+        buildConfigField("String", "NAVER_MAPS_KEY_ID", "\"qbrw0rcppkd\"")
+        buildConfigField("String", "NAVER_MAPS_KEY", "\"AezRoYofhTJUqPEx5IVqlFCmt3ivhcifkczZmvZh\"")
     }
 
     buildTypes {
