@@ -1,7 +1,7 @@
 package com.example.naedafront.data.remote.api
 
 import com.example.naedafront.data.remote.response.CardResponse
-import com.google.gson.JsonObject
+import com.example.naedafront.data.remote.response.CardTransactionResponse
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Path
@@ -20,5 +20,5 @@ interface CardApi {
         @Path("cardId") cardId: Long,
         @Query("userNo") userNo: Long,
         @QueryMap(encoded = true) request: Map<String, String>
-    ): Response<List<JsonObject>>
+    ): Response<List<CardTransactionResponse>>
 }

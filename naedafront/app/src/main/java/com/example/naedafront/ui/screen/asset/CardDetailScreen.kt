@@ -26,12 +26,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -58,7 +61,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.response.CardResponse
 import com.example.naedafront.data.repository.CardRepository
-import com.example.naedafront.data.repository.CardTransactionResponse
+import com.example.naedafront.data.repository.CardTransactionItemData
 import com.example.naedafront.ui.theme.Background
 import com.example.naedafront.ui.theme.Mint50
 import com.example.naedafront.ui.theme.Mint700
@@ -87,7 +90,7 @@ data class CardTransactionItem(
     val approvalNumber: String? = null,
     val cardNo: String? = null,
     val installment: String? = null,
-    val raw: CardTransactionResponse
+    val raw: CardTransactionItemData
 ) {
     val date: String
         get() = transacted.toDateKey()
@@ -102,7 +105,7 @@ data class CardDetailUiState(
     val error: String? = null,
     val cards: List<CardResponse> = emptyList(),
     val selectedCard: CardResponse? = null,
-    val selectedPeriod: String = "1개월",
+    val selectedPeriod: String = "전체",
     val selectedCategory: String = "전체",
     val transactions: List<CardTransactionItem> = emptyList(),
     val selectedTransaction: CardTransactionItem? = null
@@ -124,7 +127,17 @@ class CardDetailViewModel : ViewModel() {
     val uiState: StateFlow<CardDetailUiState> = _uiState.asStateFlow()
 
     fun loadInitial(context: Context, initialCardId: Long? = null) {
-        val userNo = AuthPrefs.getUserNo(context) ?: return
+        val userNo = AuthPrefs.getUserNo(context)
+
+        if (userNo == null) {
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    error = "로그인 사용자 정보(userNo)가 없습니다."
+                )
+            }
+            return
+        }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
@@ -148,7 +161,10 @@ class CardDetailViewModel : ViewModel() {
                         loadTransactions(context, selected.cardId, _uiState.value.selectedPeriod)
                     } else {
                         _uiState.update {
-                            it.copy(isLoading = false)
+                            it.copy(
+                                isLoading = false,
+                                error = "조회된 카드가 없습니다."
+                            )
                         }
                     }
                 }
@@ -161,16 +177,6 @@ class CardDetailViewModel : ViewModel() {
                     }
                 }
         }
-    }
-
-    fun selectCard(context: Context, card: CardResponse) {
-        _uiState.update {
-            it.copy(
-                selectedCard = card,
-                selectedTransaction = null
-            )
-        }
-        loadTransactions(context, card.cardId, _uiState.value.selectedPeriod)
     }
 
     fun selectPeriod(context: Context, period: String) {
@@ -276,7 +282,7 @@ class CardDetailViewModel : ViewModel() {
     }
 }
 
-private fun CardTransactionResponse.toUiItem(): CardTransactionItem {
+private fun CardTransactionItemData.toUiItem(): CardTransactionItem {
     return CardTransactionItem(
         id = transactionId,
         merchantName = merchantName,
@@ -291,6 +297,20 @@ private fun CardTransactionResponse.toUiItem(): CardTransactionItem {
     )
 }
 
+private fun CardTransactionItem.matches(query: String): Boolean {
+    if (query.isBlank()) return true
+    val keyword = query.trim().lowercase()
+
+    return listOf(
+        merchantName,
+        category,
+        amount.toString(),
+        date,
+        time,
+        id
+    ).any { it.lowercase().contains(keyword) }
+}
+
 @Composable
 fun CardDetailRoute(
     cardId: Long? = null,
@@ -301,6 +321,8 @@ fun CardDetailRoute(
     val uiState by viewModel.uiState.collectAsState()
 
     var showPeriodDialog by rememberSaveable { mutableStateOf(false) }
+    var isSearchMode by rememberSaveable { mutableStateOf(false) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(cardId) {
         viewModel.loadInitial(context, cardId)
@@ -308,8 +330,18 @@ fun CardDetailRoute(
 
     CardDetailScreen(
         uiState = uiState,
+        isSearchMode = isSearchMode,
+        searchQuery = searchQuery,
+        onSearchToggle = {
+            if (isSearchMode) {
+                searchQuery = ""
+                isSearchMode = false
+            } else {
+                isSearchMode = true
+            }
+        },
+        onSearchQueryChange = { searchQuery = it },
         onBack = onBack,
-        onCardSelect = { viewModel.selectCard(context, it) },
         onPeriodClick = { showPeriodDialog = true },
         onCategorySelect = { viewModel.selectCategory(it) },
         onTransactionClick = { viewModel.loadTransactionDetail(context, it) },
@@ -331,16 +363,24 @@ fun CardDetailRoute(
 @Composable
 fun CardDetailScreen(
     uiState: CardDetailUiState,
+    isSearchMode: Boolean,
+    searchQuery: String,
+    onSearchToggle: () -> Unit,
+    onSearchQueryChange: (String) -> Unit,
     onBack: () -> Unit,
-    onCardSelect: (CardResponse) -> Unit,
     onPeriodClick: () -> Unit,
     onCategorySelect: (String) -> Unit,
     onTransactionClick: (CardTransactionItem) -> Unit,
     onDismissDetail: () -> Unit
 ) {
     val selectedCard = uiState.selectedCard
-    val grouped = remember(uiState.filteredTransactions) {
-        uiState.filteredTransactions.groupBy { it.date }.toSortedMap(reverseOrder())
+
+    val searchedTransactions = remember(uiState.filteredTransactions, searchQuery) {
+        uiState.filteredTransactions.filter { it.matches(searchQuery) }
+    }
+
+    val grouped = remember(searchedTransactions) {
+        searchedTransactions.groupBy { it.date }.toSortedMap(reverseOrder())
     }
 
     val thisMonthTotal = remember(uiState.transactions) {
@@ -363,16 +403,17 @@ fun CardDetailScreen(
                     CardDetailHeader(
                         card = selectedCard,
                         thisMonthTotal = thisMonthTotal,
-                        onBack = onBack
+                        onBack = onBack,
+                        isSearchMode = isSearchMode,
+                        onSearchToggle = onSearchToggle
                     )
                 }
 
-                if (uiState.cards.size > 1) {
+                if (isSearchMode) {
                     item {
-                        CardSelectorRow(
-                            cards = uiState.cards,
-                            selectedCardId = selectedCard.cardId,
-                            onSelect = onCardSelect
+                        CardSearchBar(
+                            query = searchQuery,
+                            onQueryChange = onSearchQueryChange
                         )
                     }
                 }
@@ -426,7 +467,7 @@ fun CardDetailScreen(
                     }
                 }
 
-                grouped.isEmpty() -> {
+                searchedTransactions.isEmpty() -> {
                     item {
                         Box(
                             modifier = Modifier
@@ -435,7 +476,7 @@ fun CardDetailScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "결제내역이 없어요",
+                                text = if (searchQuery.isBlank()) "결제내역이 없어요" else "검색 결과가 없습니다.",
                                 style = NaedaTypography.bodyMedium,
                                 color = OnSurfaceVariant
                             )
@@ -497,43 +538,12 @@ fun CardDetailScreen(
 }
 
 @Composable
-private fun CardSelectorRow(
-    cards: List<CardResponse>,
-    selectedCardId: Long,
-    onSelect: (CardResponse) -> Unit
-) {
-    LazyRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Surface)
-            .padding(top = 14.dp, bottom = 4.dp),
-        contentPadding = PaddingValues(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(cards, key = { it.cardId }) { card ->
-            val selected = card.cardId == selectedCardId
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(if (selected) Mint900 else SurfaceVariant)
-                    .clickable { onSelect(card) }
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    text = card.cardName,
-                    style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = if (selected) Color.White else OnSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun CardDetailHeader(
     card: CardResponse,
     thisMonthTotal: Long,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    isSearchMode: Boolean,
+    onSearchToggle: () -> Unit
 ) {
     val gradient = card.cardGradient()
 
@@ -570,10 +580,11 @@ private fun CardDetailHeader(
                         tint = Color.White
                     )
                 }
-                IconButton(onClick = {}) {
+
+                IconButton(onClick = onSearchToggle) {
                     Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "더보기",
+                        imageVector = if (isSearchMode) Icons.Default.Close else Icons.Default.Search,
+                        contentDescription = if (isSearchMode) "검색 닫기" else "검색",
                         tint = Color.White
                     )
                 }
@@ -630,6 +641,55 @@ private fun CardDetailHeader(
             }
         }
     }
+}
+
+@Composable
+private fun CardSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        singleLine = true,
+        placeholder = {
+            Text(
+                text = "결제내역 검색",
+                color = OnSurfaceVariant
+            )
+        },
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                tint = Mint900
+            )
+        },
+        trailingIcon = {
+            if (query.isNotBlank()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "검색어 지우기",
+                        tint = OnSurfaceVariant
+                    )
+                }
+            }
+        },
+        shape = RoundedCornerShape(14.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Mint900,
+            unfocusedBorderColor = OutlineVariant,
+            focusedTextColor = OnBackground,
+            unfocusedTextColor = OnBackground,
+            cursorColor = Mint900,
+            focusedContainerColor = Surface,
+            unfocusedContainerColor = Surface
+        )
+    )
 }
 
 @Composable
@@ -715,8 +775,16 @@ private fun CardTransactionRow(
     tx: CardTransactionItem,
     onClick: () -> Unit
 ) {
-    val amountColor = if (tx.isCanceled) Mint700 else OnBackground
-    val amountPrefix = if (tx.isCanceled) "+" else "-"
+    val title = when {
+        tx.isCanceled -> "결제 취소"
+        tx.merchantName.isNotBlank() -> tx.merchantName
+        else -> "내다페이 결제"
+    }
+
+    val subtitle = listOfNotNull(
+        tx.time.takeIf { it.isNotBlank() },
+        tx.category.takeIf { it.isNotBlank() }
+    ).joinToString(" · ")
 
     Row(
         modifier = Modifier
@@ -730,13 +798,15 @@ private fun CardTransactionRow(
             modifier = Modifier
                 .size(42.dp)
                 .clip(CircleShape)
-                .background(if (tx.isCanceled) Mint50 else SurfaceVariant),
+                .background(
+                    if (tx.isCanceled) Color(0xFFFFEBEE) else Color(0xFFDCEBFF)
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = if (tx.isCanceled) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                imageVector = if (tx.isCanceled) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
                 contentDescription = null,
-                tint = if (tx.isCanceled) Mint900 else OnSurfaceVariant,
+                tint = if (tx.isCanceled) Color(0xFFD32F2F) else Mint900,
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -744,46 +814,35 @@ private fun CardTransactionRow(
         Spacer(modifier = Modifier.width(14.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = title,
+                style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                color = OnBackground,
+                maxLines = 1
+            )
+
+            if (subtitle.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = tx.merchantName,
-                    style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                    color = OnBackground,
+                    text = subtitle,
+                    style = NaedaTypography.labelSmall,
+                    color = OnSurfaceVariant,
                     maxLines = 1
                 )
-
-                if (tx.isCanceled) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(Mint50)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "취소",
-                            style = NaedaTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = Mint900,
-                            fontSize = 10.sp
-                        )
-                    }
-                }
             }
 
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = listOf(tx.time, tx.category)
-                    .filter { it.isNotBlank() }
-                    .joinToString(" · "),
+                text = "거래 ID ${tx.id}",
                 style = NaedaTypography.labelSmall,
                 color = OnSurfaceVariant
             )
         }
 
         Text(
-            text = "$amountPrefix%,d원".format(tx.amount),
+            text = if (tx.isCanceled) "+${"%,d".format(tx.amount)}원" else "-${"%,d".format(tx.amount)}원",
             style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = amountColor
+            color = OnBackground
         )
     }
 
@@ -855,7 +914,7 @@ private fun CardPeriodPickerDialog(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val periods = listOf("1주일", "1개월", "3개월", "6개월")
+    val periods = listOf("전체", "1주일", "1개월", "3개월", "6개월")
 
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Surface(

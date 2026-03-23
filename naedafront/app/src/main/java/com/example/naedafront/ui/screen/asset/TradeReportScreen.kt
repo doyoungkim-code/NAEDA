@@ -6,7 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -25,7 +24,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -42,7 +40,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -111,13 +108,18 @@ data class TradeReportUiState(
     val error: String? = null,
     val selectedPaymentDetail: PaymentDetailResponse? = null,
     val isDetailLoading: Boolean = false,
-    val detailError: String? = null
+    val detailError: String? = null,
+    val selectedPeriod: String = "전체"
 )
 
 class TradeReportViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(TradeReportUiState())
     val uiState: StateFlow<TradeReportUiState> = _uiState.asStateFlow()
+
+    fun updatePeriod(period: String) {
+        _uiState.update { it.copy(selectedPeriod = period) }
+    }
 
     fun loadPaymentDetail(context: Context, paymentId: Long) {
         val userNo = AuthPrefs.getUserNo(context) ?: return
@@ -161,7 +163,7 @@ class TradeReportViewModel : ViewModel() {
         }
     }
 
-    fun loadData(context: Context, year: Int, month: Int) {
+    fun loadData(context: Context, period: String) {
         val userNo = AuthPrefs.getUserNo(context) ?: return
 
         viewModelScope.launch {
@@ -179,10 +181,9 @@ class TradeReportViewModel : ViewModel() {
                 }
             }
 
-            val from = buildMonthStart(year, month)
-            val to = buildMonthEnd(year, month)
+            val range = buildPeriodRange(period)
 
-            AssetRepository.getPayments(userNo, from, to)
+            AssetRepository.getPayments(userNo, range.first, range.second)
                 .onSuccess { payments ->
                     _uiState.update {
                         it.copy(
@@ -203,30 +204,30 @@ class TradeReportViewModel : ViewModel() {
     }
 }
 
-private fun buildMonthStart(year: Int, month: Int): String {
-    val calendar = Calendar.getInstance().apply {
-        set(Calendar.YEAR, year)
-        set(Calendar.MONTH, month - 1)
-        set(Calendar.DAY_OF_MONTH, 1)
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }
-    return apiDateTimeFormat().format(calendar.time)
-}
-
-private fun buildMonthEnd(year: Int, month: Int): String {
-    val calendar = Calendar.getInstance().apply {
-        set(Calendar.YEAR, year)
-        set(Calendar.MONTH, month - 1)
-        set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
+private fun buildPeriodRange(period: String): Pair<String, String> {
+    val end = Calendar.getInstance().apply {
         set(Calendar.HOUR_OF_DAY, 23)
         set(Calendar.MINUTE, 59)
         set(Calendar.SECOND, 59)
         set(Calendar.MILLISECOND, 0)
     }
-    return apiDateTimeFormat().format(calendar.time)
+
+    val start = Calendar.getInstance().apply {
+        when (period) {
+            "1주일" -> add(Calendar.DAY_OF_MONTH, -7)
+            "1개월" -> add(Calendar.MONTH, -1)
+            "3개월" -> add(Calendar.MONTH, -3)
+            "6개월" -> add(Calendar.MONTH, -6)
+            "전체" -> add(Calendar.YEAR, -10)
+            else -> add(Calendar.YEAR, -10)
+        }
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+
+    return apiDateTimeFormat().format(start.time) to apiDateTimeFormat().format(end.time)
 }
 
 private fun apiDateTimeFormat(): SimpleDateFormat {
@@ -348,6 +349,14 @@ private fun String.toTimeOnly(): String {
     return ""
 }
 
+private fun String?.toPaymentMethodLabel(): String {
+    return when (this?.uppercase()) {
+        "FACE" -> "얼굴인증"
+        "PIN" -> "PIN"
+        else -> this ?: "-"
+    }
+}
+
 private fun TradeReportItem.matches(query: String): Boolean {
     if (query.isBlank()) return true
     val keyword = query.trim().lowercase()
@@ -371,15 +380,12 @@ fun TradeReportScreen(
     val viewModel: TradeReportViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
 
-    val currentCalendar = remember { Calendar.getInstance() }
-    var selectedYear by remember { mutableIntStateOf(currentCalendar.get(Calendar.YEAR)) }
-    var selectedMonth by remember { mutableIntStateOf(currentCalendar.get(Calendar.MONTH) + 1) }
-
     var isSearchMode by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
+    var showPeriodDialog by rememberSaveable { mutableStateOf(false) }
 
-    LaunchedEffect(selectedYear, selectedMonth) {
-        viewModel.loadData(context, selectedYear, selectedMonth)
+    LaunchedEffect(uiState.selectedPeriod) {
+        viewModel.loadData(context, uiState.selectedPeriod)
     }
 
     val filteredTransactions = remember(uiState.transactions, searchQuery) {
@@ -428,24 +434,8 @@ fun TradeReportScreen(
 
             item {
                 TradeFilterRow(
-                    selectedYear = selectedYear,
-                    selectedMonth = selectedMonth,
-                    onPrevMonth = {
-                        if (selectedMonth == 1) {
-                            selectedYear -= 1
-                            selectedMonth = 12
-                        } else {
-                            selectedMonth -= 1
-                        }
-                    },
-                    onNextMonth = {
-                        if (selectedMonth == 12) {
-                            selectedYear += 1
-                            selectedMonth = 1
-                        } else {
-                            selectedMonth += 1
-                        }
-                    }
+                    selectedPeriod = uiState.selectedPeriod,
+                    onPeriodClick = { showPeriodDialog = true }
                 )
             }
 
@@ -520,6 +510,17 @@ fun TradeReportScreen(
         }
     }
 
+    if (showPeriodDialog) {
+        TradePeriodPickerDialog(
+            selected = uiState.selectedPeriod,
+            onSelect = {
+                viewModel.updatePeriod(it)
+                showPeriodDialog = false
+            },
+            onDismiss = { showPeriodDialog = false }
+        )
+    }
+
     if (uiState.isDetailLoading) {
         AlertDialog(
             onDismissRequest = { viewModel.clearPaymentDetail() },
@@ -592,21 +593,12 @@ private fun TradeReportHeader(
                     )
                 }
 
-                Row {
-                    IconButton(onClick = onSearchToggle) {
-                        Icon(
-                            imageVector = if (isSearchMode) Icons.Default.Close else Icons.Default.Search,
-                            contentDescription = if (isSearchMode) "검색 닫기" else "검색",
-                            tint = Color.White
-                        )
-                    }
-                    IconButton(onClick = {}) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "더보기",
-                            tint = Color.White
-                        )
-                    }
+                IconButton(onClick = onSearchToggle) {
+                    Icon(
+                        imageVector = if (isSearchMode) Icons.Default.Close else Icons.Default.Search,
+                        contentDescription = if (isSearchMode) "검색 닫기" else "검색",
+                        tint = Color.White
+                    )
                 }
             }
 
@@ -696,10 +688,8 @@ private fun TradeSearchBar(
 
 @Composable
 private fun TradeFilterRow(
-    selectedYear: Int,
-    selectedMonth: Int,
-    onPrevMonth: () -> Unit,
-    onNextMonth: () -> Unit
+    selectedPeriod: String,
+    onPeriodClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -715,10 +705,26 @@ private fun TradeFilterRow(
             color = OnBackground
         )
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MonthChip(label = "‹", onClick = onPrevMonth)
-            MonthChip(label = "${selectedYear}년 ${selectedMonth}월", onClick = {})
-            MonthChip(label = "›", onClick = onNextMonth)
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(SurfaceVariant)
+                .clickable { onPeriodClick() }
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = selectedPeriod,
+                style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = Mint900
+            )
+            Icon(
+                imageVector = Icons.Default.ArrowDownward,
+                contentDescription = null,
+                tint = Mint900,
+                modifier = Modifier.size(12.dp)
+            )
         }
     }
 
@@ -726,22 +732,80 @@ private fun TradeFilterRow(
 }
 
 @Composable
-private fun MonthChip(
-    label: String,
-    onClick: () -> Unit
+private fun TradePeriodPickerDialog(
+    selected: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(SurfaceVariant)
-            .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-    ) {
-        Text(
-            text = label,
-            style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = Mint900
-        )
+    val periods = listOf("전체","1주일", "1개월", "3개월", "6개월")
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = SurfaceColor,
+            shadowElevation = 8.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(vertical = 20.dp)) {
+                Text(
+                    text = "기간 선택",
+                    style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = OnBackground,
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                periods.forEach { period ->
+                    val isSelected = selected == period
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(period) }
+                            .padding(horizontal = 24.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = period,
+                            style = NaedaTypography.bodyMedium.copy(
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            ),
+                            color = if (isSelected) Mint900 else OnBackground
+                        )
+
+                        if (isSelected) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(Mint900)
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(
+                        color = OutlineVariant,
+                        thickness = 0.5.dp,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                ) {
+                    Text(
+                        text = "취소",
+                        style = NaedaTypography.labelLarge,
+                        color = OnSurfaceVariant
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -869,14 +933,6 @@ private fun PaymentDetailDialog(
             }
         }
     )
-}
-
-private fun String?.toPaymentMethodLabel(): String {
-    return when (this?.uppercase()) {
-        "FACE" -> "얼굴인증"
-        "PIN" -> "PIN"
-        else -> this ?: "-"
-    }
 }
 
 @Composable

@@ -1,5 +1,6 @@
 package com.example.naedafront.data.remote
 
+import android.util.Log
 import com.example.naedafront.BuildConfig
 import com.example.naedafront.data.remote.api.CardApi
 import com.example.naedafront.data.remote.api.NaverGeocodingApi
@@ -12,9 +13,41 @@ import retrofit2.converter.gson.GsonConverterFactory
 object RetrofitClient {
 
     private const val NAVER_GEOCODE_BASE_URL = "https://maps.apigw.ntruss.com/"
+    private const val TAG = "RetrofitClient"
+
+    @Volatile
+    private var accessToken: String? = null
+
+    fun setAccessToken(token: String?) {
+        accessToken = token
+        Log.d(TAG, "setAccessToken called | token=${if (token.isNullOrBlank()) "EMPTY" else "SET"}")
+    }
 
     private val backendClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                val originalRequest = chain.request()
+                val requestBuilder = originalRequest.newBuilder()
+
+                Log.d(
+                    TAG,
+                    "backend request | url=${originalRequest.url} | token=${if (accessToken.isNullOrBlank()) "EMPTY" else "SET"}"
+                )
+
+                accessToken?.takeIf { it.isNotBlank() }?.let { token ->
+                    requestBuilder.header("Authorization", "Bearer $token")
+                    requestBuilder.header("accessToken", token)
+                }
+
+                val request = requestBuilder.build()
+
+                Log.d(
+                    TAG,
+                    "Authorization header = ${request.header("Authorization") ?: "NONE"}"
+                )
+
+                chain.proceed(request)
+            }
             .build()
     }
 

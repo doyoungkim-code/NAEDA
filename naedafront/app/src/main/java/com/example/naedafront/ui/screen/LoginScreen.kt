@@ -7,8 +7,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -19,7 +19,6 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.AuthRepository
 import com.example.naedafront.data.remote.LoginResult
+import com.example.naedafront.data.remote.RetrofitClient
 import com.example.naedafront.ui.theme.KronaOneFontFamily
 import com.example.naedafront.ui.theme.Mint500
 import com.example.naedafront.ui.theme.Mint900
@@ -73,35 +73,34 @@ fun LoginScreen(
 
     fun validate(): Boolean {
         var valid = true
+
         emailError = when {
             email.isBlank() -> {
                 valid = false
                 "이메일을 입력해주세요"
             }
-
             !android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() -> {
                 valid = false
                 "올바른 이메일 형식이 아니에요"
             }
-
             else -> null
         }
+
         passwordError = when {
             password.isBlank() -> {
                 valid = false
                 "비밀번호를 입력해주세요"
             }
-
             else -> null
         }
+
         return valid
     }
 
     fun submit() {
         focusManager.clearFocus()
-        if (!validate() || isLoading) {
-            return
-        }
+
+        if (!validate() || isLoading) return
 
         loginError = null
         isLoading = true
@@ -120,9 +119,14 @@ fun LoginScreen(
                         faceRegistered = result.response.faceRegistered,
                         secondaryAuthEnabled = result.response.secondaryAuthEnabled
                     )
+
+                    // 로그인 직후 Retrofit 요청에도 바로 토큰이 붙도록 메모리에 주입
+                    RetrofitClient.setAccessToken(result.response.accessToken)
+
                     // 로그인 성공 직후 FCM 토큰을 서버에 등록
                     com.example.naedafront.fcm.NaedaFirebaseMessagingService
                         .registerCurrentToken(context)
+
                     isLoading = false
                     onLoginSuccess()
                 }
@@ -147,7 +151,10 @@ fun LoginScreen(
         ) {
             Spacer(modifier = Modifier.height(56.dp))
 
-            IconButton(onClick = onBackClick, modifier = Modifier.size(40.dp)) {
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier.size(40.dp)
+            ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "뒤로가기",
@@ -334,4 +341,3 @@ private fun LoginScreenPreview() {
         LoginScreen()
     }
 }
-

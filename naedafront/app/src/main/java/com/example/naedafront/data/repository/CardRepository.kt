@@ -1,15 +1,15 @@
 package com.example.naedafront.data.repository
 
+import android.util.Log
 import com.example.naedafront.data.remote.RetrofitClient
 import com.example.naedafront.data.remote.api.CardApi
 import com.example.naedafront.data.remote.response.CardResponse
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
+import com.example.naedafront.data.remote.response.CardTransactionResponse
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
-data class CardTransactionResponse(
+data class CardTransactionItemData(
     val transactionId: String,
     val merchantName: String,
     val category: String,
@@ -18,23 +18,35 @@ data class CardTransactionResponse(
     val transactedAt: String,
     val approvalNumber: String?,
     val cardNo: String?,
-    val installment: String?,
-    val rawJson: JsonObject
+    val installment: String?
 )
 
 object CardRepository {
 
-    // 네 RetrofitClient 구조가 다르면 이 줄만 바꾸면 됨.
+    private const val TAG = "CardRepository"
+
     private val api: CardApi by lazy {
         RetrofitClient.cardApi
     }
 
     suspend fun getCards(userNo: Long): Result<List<CardResponse>> {
         return runCatching {
+            Log.d(TAG, "getCards start | userNo=$userNo")
+
             val response = api.getCards(userNo)
+            val errorBody = response.errorBody()?.string()
+
+            Log.d(
+                TAG,
+                "getCards response | code=${response.code()} | body=${response.body()} | error=$errorBody"
+            )
+
             if (!response.isSuccessful) {
-                throw IllegalStateException("카드 목록 조회 실패: ${response.code()}")
+                throw IllegalStateException(
+                    "카드 목록 조회 실패(code=${response.code()}) ${errorBody ?: ""}".trim()
+                )
             }
+
             response.body().orEmpty()
         }
     }
@@ -44,133 +56,101 @@ object CardRepository {
         cardId: Long,
         period: String,
         transactionId: String? = null
-    ): Result<List<CardTransactionResponse>> {
+    ): Result<List<CardTransactionItemData>> {
         return runCatching {
-            val query = buildTransactionQuery(period, transactionId)
+            val query = buildTransactionQuery(period)
+
+            Log.d(
+                TAG,
+                "getCardTransactions start | userNo=$userNo | cardId=$cardId | query=$query"
+            )
+
             val response = api.getCardTransactions(
                 cardId = cardId,
                 userNo = userNo,
                 request = query
             )
+            val errorBody = response.errorBody()?.string()
+
+            Log.d(
+                TAG,
+                "getCardTransactions response | code=${response.code()} | body=${response.body()} | error=$errorBody"
+            )
 
             if (!response.isSuccessful) {
-                throw IllegalStateException("카드 거래내역 조회 실패: ${response.code()}")
+                throw IllegalStateException(
+                    "카드 거래내역 조회 실패(code=${response.code()}) ${errorBody ?: ""}".trim()
+                )
             }
 
-            response.body().orEmpty().map { it.toCardTransactionResponse() }
+            val items = response.body().orEmpty().map { it.toItemData() }
+
+            transactionId?.takeIf { it.isNotBlank() }?.let { targetId ->
+                items.filter { it.transactionId == targetId }
+            } ?: items
         }
     }
 
-    private fun buildTransactionQuery(
-        period: String,
-        transactionId: String? = null
-    ): Map<String, String> {
-        val format = SimpleDateFormat("yyyy-MM-dd", Locale.KOREA)
-        val end = Calendar.getInstance()
-        val start = Calendar.getInstance()
-
-        when (period) {
-            "1주일" -> start.add(Calendar.DAY_OF_MONTH, -7)
-            "1개월" -> start.add(Calendar.MONTH, -1)
-            "3개월" -> start.add(Calendar.MONTH, -3)
-            "6개월" -> start.add(Calendar.MONTH, -6)
-            else -> start.add(Calendar.MONTH, -1)
+    private fun buildTransactionQuery(period: String): Map<String, String> {
+        val format = SimpleDateFormat("yyyyMMdd", Locale.KOREA)
+        val end = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 23)
+            set(Calendar.MINUTE, 59)
+            set(Calendar.SECOND, 59)
+            set(Calendar.MILLISECOND, 999)
         }
 
-        return buildMap {
-            put("fromDate", format.format(start.time))
-            put("toDate", format.format(end.time))
-            transactionId?.takeIf { it.isNotBlank() }?.let {
-                put("transactionId", it)
+        val start = Calendar.getInstance().apply {
+            when (period) {
+                "전체" -> add(Calendar.YEAR, -10)
+                "1주일" -> add(Calendar.DAY_OF_MONTH, -7)
+                "1개월" -> add(Calendar.MONTH, -1)
+                "3개월" -> add(Calendar.MONTH, -3)
+                "6개월" -> add(Calendar.MONTH, -6)
+                else -> add(Calendar.MONTH, -1)
             }
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
         }
+
+        return mapOf(
+            "startDate" to format.format(start.time),
+            "endDate" to format.format(end.time)
+        )
     }
 
-    private fun JsonObject.toCardTransactionResponse(): CardTransactionResponse {
-        val txId = stringOf(
-            "transactionId", "id", "paymentId", "approvalId", "historyId"
-        ) ?: System.currentTimeMillis().toString()
-
-        val merchant = stringOf(
-            "merchantName", "storeName", "shopName", "franchiseName", "placeName", "description"
-        ) ?: "가맹점 정보 없음"
-
-        val category = stringOf(
-            "category", "merchantCategory", "storeCategory", "type"
-        ) ?: "기타"
-
-        val amount = longOf(
-            "amount", "paymentAmount", "approvedAmount", "transactionAmount", "useAmount"
-        ) ?: 0L
-
-        val isCanceled = booleanOf(
-            "isCanceled", "canceled", "cancelled", "isCancel", "cancelYn"
-        ) ?: run {
-            val status = stringOf("status", "transactionStatus", "paymentStatus")?.uppercase()
-            status in listOf("CANCELED", "CANCELLED", "CANCEL", "VOID")
+    private fun CardTransactionResponse.toItemData(): CardTransactionItemData {
+        val resolvedCategory = when {
+            !categoryName.isNullOrBlank() -> categoryName
+            !aiCategory.isNullOrBlank() -> aiCategory
+            else -> "기타"
         }
 
-        val transactedAt = stringOf(
-            "transactedAt", "transactionAt", "approvedAt", "createdAt", "usedAt", "paymentAt"
-        ) ?: ""
+        val transacted = buildString {
+            if (!transactionDate.isNullOrBlank()) append(transactionDate.trim())
+            if (!transactionTime.isNullOrBlank()) {
+                if (isNotBlank()) append(" ")
+                append(transactionTime.trim())
+            }
+        }
 
-        val approvalNumber = stringOf(
-            "approvalNumber", "approveNumber", "approvalNo", "authCode"
-        )
+        val canceled = when (cardStatus?.uppercase()) {
+            "CANCELED", "CANCELLED", "CANCEL", "승인취소", "취소" -> true
+            else -> false
+        }
 
-        val cardNo = stringOf(
-            "cardNo", "maskedCardNo"
-        )
-
-        val installment = stringOf(
-            "installment", "installmentMonths", "monthlyInstallment"
-        )
-
-        return CardTransactionResponse(
-            transactionId = txId,
-            merchantName = merchant,
-            category = category,
+        return CardTransactionItemData(
+            transactionId = transactionUniqueNo.ifBlank { logId.toString() },
+            merchantName = merchantName.orEmpty().ifBlank { "가맹점 정보 없음" },
+            category = resolvedCategory,
             amount = amount,
-            isCanceled = isCanceled,
-            transactedAt = transactedAt,
-            approvalNumber = approvalNumber,
-            cardNo = cardNo,
-            installment = installment,
-            rawJson = this
+            isCanceled = canceled,
+            transactedAt = transacted,
+            approvalNumber = null,
+            cardNo = null,
+            installment = null
         )
-    }
-
-    private fun JsonObject.stringOf(vararg keys: String): String? {
-        for (key in keys) {
-            val value = get(key) ?: continue
-            if (!value.isJsonNull) {
-                return value.asString
-            }
-        }
-        return null
-    }
-
-    private fun JsonObject.longOf(vararg keys: String): Long? {
-        for (key in keys) {
-            val value = get(key) ?: continue
-            if (!value.isJsonNull) {
-                runCatching { return value.asLong }
-                runCatching { return value.asString.replace(",", "").toLong() }
-            }
-        }
-        return null
-    }
-
-    private fun JsonObject.booleanOf(vararg keys: String): Boolean? {
-        for (key in keys) {
-            val value = get(key) ?: continue
-            if (!value.isJsonNull) {
-                runCatching { return value.asBoolean }
-                val text = runCatching { value.asString }.getOrNull()?.uppercase()
-                if (text == "Y" || text == "TRUE") return true
-                if (text == "N" || text == "FALSE") return false
-            }
-        }
-        return null
     }
 }

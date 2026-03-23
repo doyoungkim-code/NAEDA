@@ -7,11 +7,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -21,21 +16,32 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.naedafront.data.remote.ApiConfig
+import com.example.naedafront.data.remote.RetrofitClient
 import com.example.naedafront.ui.common.NaedaBottomNavBar
 import com.example.naedafront.ui.navigation.NaedaNavGraph
 import com.example.naedafront.ui.navigation.Screen
 import com.example.naedafront.ui.theme.NaedaTheme
+import com.google.firebase.messaging.FirebaseMessaging
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         ApiConfig.initialize(applicationContext)
+
+        // 저장된 access token을 앱 시작 시 RetrofitClient에 주입
+        RetrofitClient.setAccessToken(AuthPrefs.getAccessToken(this))
+
         enableEdgeToEdge()
 
-        // 시스템 네비게이션 바 숨기기
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
         insetsController.hide(WindowInsetsCompat.Type.navigationBars())
         insetsController.systemBarsBehavior =
@@ -47,7 +53,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Android 13+ 알림 권한 요청
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED
@@ -60,13 +65,11 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // 로그인 상태면 FCM 토큰을 서버에 등록
         if (AuthPrefs.hasSession(this)) {
             com.example.naedafront.fcm.NaedaFirebaseMessagingService.registerCurrentToken(this)
         }
 
-        // FCM 토큰 확인용 (디버그)
-        com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+        FirebaseMessaging.getInstance().token
             .addOnSuccessListener { token ->
                 android.util.Log.d("FCM_TOKEN", "토큰: $token")
             }
