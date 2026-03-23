@@ -88,4 +88,11 @@ sealed class Screen(val route: String) {
     object PrivacyPolicy : Screen("privacy_policy")
     object Security : Screen("security")
     object CustomerCenter : Screen("customer_center")
+
+    // ── 구미시 소식 ──
+    object NoticeList : Screen("notice_list")
+
+    object NoticeDetail : Screen("notice_detail/{type}/{id}") {
+        fun createRoute(type: String, id: Long) = "notice_detail/$type/$id"
+    }
 }
