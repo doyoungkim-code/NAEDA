@@ -290,4 +290,49 @@ class PointOrderServiceTest {
         // then
         assertThat(result).isEmpty();
     }
+
+    // === getOrder 테스트 ===
+
+    @Test
+    @DisplayName("단건 주문 조회 성공")
+    void getOrder_success() {
+        // given
+        PointOrder order = PointOrder.builder()
+                .orderId(1L)
+                .userNo(1L)
+                .productId(1L)
+                .addressId(1L)
+                .build();
+
+        PointProduct product = PointProduct.builder()
+                .productId(1L)
+                .productName("아메리카노 쿠폰")
+                .pointPrice(3000L)
+                .stockQuantity(10)
+                .status(PointProductStatus.ON_SALE)
+                .build();
+
+        given(pointOrderRepository.findById(1L)).willReturn(Optional.of(order));
+        given(pointProductRepository.findById(1L)).willReturn(Optional.of(product));
+
+        // when
+        PointOrderResponse response = pointOrderService.getOrder(1L);
+
+        // then
+        assertThat(response.getOrderId()).isEqualTo(1L);
+        assertThat(response.getProductName()).isEqualTo("아메리카노 쿠폰");
+        assertThat(response.getPointPrice()).isEqualTo(3000L);
+    }
+
+    @Test
+    @DisplayName("단건 주문 조회 실패 - 주문 없음")
+    void getOrder_notFound() {
+        // given
+        given(pointOrderRepository.findById(999L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> pointOrderService.getOrder(999L))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("주문을 찾을 수 없습니다");
+    }
 }
