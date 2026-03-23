@@ -1,6 +1,7 @@
 package com.ssafy.naeda.domain.store.bootstrap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -69,5 +70,54 @@ class NaverStoreEnrichmentClientTest {
         assertThat(candidate.imageUrl())
                 .isEqualTo("https://search.pstatic.net/common/?autoRotate=true&quality=100&type=f640_380&src=https%3A%2F%2Fldb-phinf.pstatic.net%2Fkimchi.jpg");
         assertThat(candidate.description()).isEqualTo("오감만족 세트로 입맛 사로잡는 맛집");
+    }
+
+    @Test
+    @DisplayName("기존 후보에 이미지가 없으면 검색 결과 후보를 우선 사용한다")
+    void selectPreferredCandidate_prefersSearchCandidateWhenEarlierCandidatesMissImage() {
+        NaverStoreEnrichmentClient.NaverMapPlaceCandidate apiCandidate =
+                new NaverStoreEnrichmentClient.NaverMapPlaceCandidate(
+                        "100",
+                        "API 후보",
+                        null,
+                        null,
+                        "한식",
+                        null,
+                        null,
+                        null,
+                        null
+                );
+        NaverStoreEnrichmentClient.NaverMapPlaceCandidate htmlCandidate =
+                new NaverStoreEnrichmentClient.NaverMapPlaceCandidate(
+                        "100",
+                        "HTML 후보",
+                        null,
+                        null,
+                        "한식",
+                        null,
+                        null,
+                        null,
+                        null
+                );
+        NaverStoreEnrichmentClient.NaverMapPlaceCandidate searchCandidate =
+                new NaverStoreEnrichmentClient.NaverMapPlaceCandidate(
+                        "1782635585",
+                        "김치찜은 못참지 인동점",
+                        "경북 구미시 인동중앙로3길 29 영무메트로 107,108호",
+                        null,
+                        "한식",
+                        null,
+                        "https://search.pstatic.net/common/?autoRotate=true&quality=100&type=f640_380&src=https%3A%2F%2Fldb-phinf.pstatic.net%2Fkimchi.jpg",
+                        "오감만족 세트로 입맛 사로잡는 맛집",
+                        null
+                );
+
+        Optional<NaverStoreEnrichmentClient.NaverMapPlaceCandidate> selected = client.selectPreferredCandidate(
+                Optional.of(apiCandidate),
+                Optional.of(htmlCandidate),
+                Optional.of(searchCandidate)
+        );
+
+        assertThat(selected).contains(searchCandidate);
     }
 }
