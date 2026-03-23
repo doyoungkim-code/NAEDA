@@ -48,6 +48,7 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
               and s.isActive = true
               and (
                     s.imageUrl is null
+                    or s.imageUrl like '/images/store/default-%'
                     or s.description is null
                   )
             order by s.storeId asc
