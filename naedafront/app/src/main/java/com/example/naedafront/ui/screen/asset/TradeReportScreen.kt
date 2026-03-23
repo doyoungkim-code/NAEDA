@@ -21,30 +21,23 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.ShoppingBag
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -52,24 +45,33 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.AssetRepository
 import com.example.naedafront.data.remote.PaymentResponse
+import com.example.naedafront.data.remote.response.PaymentDetailResponse
 import com.example.naedafront.ui.theme.Background
+import com.example.naedafront.ui.theme.Mint500
+import com.example.naedafront.ui.theme.Mint900
+import com.example.naedafront.ui.theme.NaedaTypography
 import com.example.naedafront.ui.theme.OnBackground
+import com.example.naedafront.ui.theme.OnSurfaceVariant
+import com.example.naedafront.ui.theme.OutlineVariant
+import com.example.naedafront.ui.theme.Surface as SurfaceColor
+import com.example.naedafront.ui.theme.SurfaceVariant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -80,23 +82,25 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
 
-private val TradePrimary = Color(0xFF00635A)
-private val TradeSurfaceTint = Color(0xFFF5FBFA)
-private val TradeIncome = Color(0xFF00897B)
-private val TradeExpense = Color(0xFF1F2A37)
-private val TradeChipBg = Color(0xFFE5F3F1)
-private val TradeChipBorder = Color(0xFFB7D9D4)
-
 data class TradeReportItem(
+    val paymentId: Long,
     val title: String,
     val subTitle: String,
     val amount: String,
+    val amountValue: Long,
     val isIncome: Boolean,
     val balanceAfter: String,
     val balanceLabel: String = "적립 포인트",
     val icon: ImageVector,
-    val iconBg: Color
-)
+    val iconBg: Color,
+    val createdAtRaw: String = ""
+) {
+    val date: String
+        get() = createdAtRaw.toDateKey()
+
+    val time: String
+        get() = createdAtRaw.toTimeOnly()
+}
 
 data class TradeReportUiState(
     val accountName: String = "",
@@ -104,13 +108,58 @@ data class TradeReportUiState(
     val balance: Long = 0L,
     val transactions: List<TradeReportItem> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val selectedPaymentDetail: PaymentDetailResponse? = null,
+    val isDetailLoading: Boolean = false,
+    val detailError: String? = null
 )
 
 class TradeReportViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(TradeReportUiState())
     val uiState: StateFlow<TradeReportUiState> = _uiState.asStateFlow()
+
+    fun loadPaymentDetail(context: Context, paymentId: Long) {
+        val userNo = AuthPrefs.getUserNo(context) ?: return
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isDetailLoading = true,
+                    detailError = null,
+                    selectedPaymentDetail = null
+                )
+            }
+
+            AssetRepository.getPaymentDetail(userNo, paymentId)
+                .onSuccess { detail ->
+                    _uiState.update {
+                        it.copy(
+                            isDetailLoading = false,
+                            selectedPaymentDetail = detail
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    _uiState.update {
+                        it.copy(
+                            isDetailLoading = false,
+                            detailError = e.message
+                        )
+                    }
+                }
+        }
+    }
+
+    fun clearPaymentDetail() {
+        _uiState.update {
+            it.copy(
+                selectedPaymentDetail = null,
+                isDetailLoading = false,
+                detailError = null
+            )
+        }
+    }
 
     fun loadData(context: Context, year: Int, month: Int) {
         val userNo = AuthPrefs.getUserNo(context) ?: return
@@ -191,7 +240,10 @@ private fun PaymentResponse.toUiItem(): TradeReportItem {
         ?.let { "${"%,d".format(it)}P 적립" }
         ?: "—"
 
+    val rawAmount = amount ?: 0L
+
     return TradeReportItem(
+        paymentId = paymentId ?: -1L,
         title = when {
             !isSuccess -> "결제 실패"
             authMethod?.uppercase() == "FACE" -> "내다페이 (얼굴인증)"
@@ -199,12 +251,14 @@ private fun PaymentResponse.toUiItem(): TradeReportItem {
             else -> "내다페이 결제"
         },
         subTitle = createdAt?.formatCreatedAt() ?: "",
-        amount = if (isSuccess) "-₩${"%,d".format(amount ?: 0L)}" else "실패",
+        amount = if (isSuccess) "-${"%,d".format(rawAmount)}원" else "실패",
+        amountValue = rawAmount,
         isIncome = false,
         balanceAfter = pointsText,
         balanceLabel = "적립 포인트",
-        icon = Icons.Default.ShoppingBag,
-        iconBg = if (isSuccess) Color(0xFFDCEBFF) else Color(0xFFFFEBEE)
+        icon = Icons.Default.ArrowUpward,
+        iconBg = if (isSuccess) Color(0xFFDCEBFF) else Color(0xFFFFEBEE),
+        createdAtRaw = createdAt ?: ""
     )
 }
 
@@ -246,6 +300,54 @@ private fun String.formatCreatedAt(): String {
     return this
 }
 
+private fun String.toDateKey(): String {
+    val parsePatterns = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSX",
+        "yyyy-MM-dd'T'HH:mm:ssX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss"
+    )
+
+    for (pattern in parsePatterns) {
+        try {
+            val parser = SimpleDateFormat(pattern, Locale.KOREA)
+            if (pattern.contains("X") || pattern.contains("'Z'")) {
+                parser.timeZone = TimeZone.getTimeZone("UTC")
+            }
+            val date = parser.parse(this) ?: continue
+            return SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(date)
+        } catch (_: Exception) {
+        }
+    }
+
+    return take(10)
+}
+
+private fun String.toTimeOnly(): String {
+    val parsePatterns = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSX",
+        "yyyy-MM-dd'T'HH:mm:ssX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss"
+    )
+
+    for (pattern in parsePatterns) {
+        try {
+            val parser = SimpleDateFormat(pattern, Locale.KOREA)
+            if (pattern.contains("X") || pattern.contains("'Z'")) {
+                parser.timeZone = TimeZone.getTimeZone("UTC")
+            }
+            val date = parser.parse(this) ?: continue
+            return SimpleDateFormat("HH:mm", Locale.KOREA).format(date)
+        } catch (_: Exception) {
+        }
+    }
+
+    return ""
+}
+
 private fun TradeReportItem.matches(query: String): Boolean {
     if (query.isBlank()) return true
     val keyword = query.trim().lowercase()
@@ -255,11 +357,12 @@ private fun TradeReportItem.matches(query: String): Boolean {
         subTitle,
         amount,
         balanceAfter,
-        balanceLabel
+        balanceLabel,
+        date,
+        time
     ).any { it.lowercase().contains(keyword) }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TradeReportScreen(
     onBackClick: () -> Unit = {}
@@ -272,8 +375,8 @@ fun TradeReportScreen(
     var selectedYear by remember { mutableIntStateOf(currentCalendar.get(Calendar.YEAR)) }
     var selectedMonth by remember { mutableIntStateOf(currentCalendar.get(Calendar.MONTH) + 1) }
 
-    var isSearchMode by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
+    var isSearchMode by rememberSaveable { mutableStateOf(false) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(selectedYear, selectedMonth) {
         viewModel.loadData(context, selectedYear, selectedMonth)
@@ -283,169 +386,265 @@ fun TradeReportScreen(
         uiState.transactions.filter { it.matches(searchQuery) }
     }
 
+    val groupedTransactions = remember(filteredTransactions) {
+        filteredTransactions.groupBy { it.date }.toSortedMap(reverseOrder())
+    }
+
     Scaffold(
         containerColor = Background,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = "거래내역",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = OnBackground
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "뒤로가기",
-                            tint = OnBackground
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            if (isSearchMode) {
-                                searchQuery = ""
-                                isSearchMode = false
-                            } else {
-                                isSearchMode = true
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = if (isSearchMode) Icons.Default.Close else Icons.Default.Search,
-                            contentDescription = if (isSearchMode) "검색 닫기" else "거래내역 검색",
-                            tint = OnBackground
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Background
-                )
-            )
-        },
         contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            if (isSearchMode) {
-                TradeSearchBar(
-                    query = searchQuery,
-                    onQueryChange = { searchQuery = it }
+            item {
+                TradeReportHeader(
+                    accountName = uiState.accountName.ifBlank { "대표계좌" },
+                    accountNumber = uiState.accountNumber,
+                    balance = uiState.balance,
+                    onBack = onBackClick,
+                    isSearchMode = isSearchMode,
+                    onSearchToggle = {
+                        if (isSearchMode) {
+                            searchQuery = ""
+                            isSearchMode = false
+                        } else {
+                            isSearchMode = true
+                        }
+                    }
                 )
-
-                Spacer(modifier = Modifier.height(8.dp))
             }
 
-            TradeReportAccountSummaryCard(
-                accountName = uiState.accountName.ifBlank { "대표계좌" },
-                accountNumber = uiState.accountNumber,
-                balance = uiState.balance
-            )
+            if (isSearchMode) {
+                item {
+                    TradeSearchBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it }
+                    )
+                }
+            }
 
-            Spacer(modifier = Modifier.height(18.dp))
-
-            TradeReportDateSection(
-                selectedYear = selectedYear,
-                selectedMonth = selectedMonth,
-                onYearChange = { selectedYear = it },
-                onMonthChange = { selectedMonth = it }
-            )
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Text(
-                text = if (searchQuery.isBlank()) {
-                    "${selectedYear}년 ${selectedMonth}월 내역"
-                } else {
-                    "\"$searchQuery\" 검색 결과 ${filteredTransactions.size}건"
-                },
-                style = MaterialTheme.typography.titleSmall.copy(
-                    fontWeight = FontWeight.Bold
-                ),
-                color = OnBackground,
-                modifier = Modifier.padding(horizontal = 20.dp)
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
+            item {
+                TradeFilterRow(
+                    selectedYear = selectedYear,
+                    selectedMonth = selectedMonth,
+                    onPrevMonth = {
+                        if (selectedMonth == 1) {
+                            selectedYear -= 1
+                            selectedMonth = 12
+                        } else {
+                            selectedMonth -= 1
+                        }
+                    },
+                    onNextMonth = {
+                        if (selectedMonth == 12) {
+                            selectedYear += 1
+                            selectedMonth = 1
+                        } else {
+                            selectedMonth += 1
+                        }
+                    }
+                )
+            }
 
             when {
                 uiState.isLoading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = TradePrimary)
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 64.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = Mint900)
+                        }
                     }
                 }
 
                 uiState.error != null -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "데이터를 불러오지 못했습니다.\n${uiState.error}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = OnBackground.copy(alpha = 0.5f)
-                        )
-                    }
-                }
-
-                uiState.transactions.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "이 기간에 거래 내역이 없습니다.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = OnBackground.copy(alpha = 0.5f)
-                        )
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 64.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "데이터를 불러오지 못했습니다.\n${uiState.error}",
+                                style = NaedaTypography.bodyMedium,
+                                color = OnSurfaceVariant
+                            )
+                        }
                     }
                 }
 
                 filteredTransactions.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "검색 결과가 없습니다.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = OnBackground.copy(alpha = 0.5f)
-                        )
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 64.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (searchQuery.isBlank()) "거래내역이 없어요" else "검색 결과가 없습니다.",
+                                style = NaedaTypography.bodyMedium,
+                                color = OnSurfaceVariant
+                            )
+                        }
                     }
                 }
 
                 else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                        contentPadding = PaddingValues(
-                            start = 20.dp,
-                            end = 20.dp,
-                            bottom = 24.dp
-                        )
-                    ) {
-                        items(filteredTransactions) { item ->
-                            TradeReportRow(item = item)
+                    groupedTransactions.forEach { (date, txList) ->
+                        item {
+                            TransactionDateHeader(date = date)
+                        }
+                        items(txList, key = { it.paymentId }) { item ->
+                            TradeTransactionRow(
+                                item = item,
+                                onClick = {
+                                    if (item.paymentId > 0L) {
+                                        viewModel.loadPaymentDetail(context, item.paymentId)
+                                    }
+                                }
+                            )
                         }
                     }
                 }
+            }
+
+            item { Spacer(modifier = Modifier.height(32.dp)) }
+        }
+    }
+
+    if (uiState.isDetailLoading) {
+        AlertDialog(
+            onDismissRequest = { viewModel.clearPaymentDetail() },
+            confirmButton = {},
+            title = { Text("결제 상세 조회 중") },
+            text = {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Mint900)
+                }
+            }
+        )
+    }
+
+    uiState.detailError?.let { message ->
+        AlertDialog(
+            onDismissRequest = { viewModel.clearPaymentDetail() },
+            confirmButton = {
+                TextButton(onClick = { viewModel.clearPaymentDetail() }) {
+                    Text("확인")
+                }
+            },
+            title = { Text("오류") },
+            text = { Text(message) }
+        )
+    }
+
+    uiState.selectedPaymentDetail?.let { detail ->
+        PaymentDetailDialog(
+            detail = detail,
+            onDismiss = { viewModel.clearPaymentDetail() }
+        )
+    }
+}
+
+@Composable
+private fun TradeReportHeader(
+    accountName: String,
+    accountNumber: String,
+    balance: Long,
+    onBack: () -> Unit,
+    isSearchMode: Boolean,
+    onSearchToggle: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(Mint900, Mint500)
+                )
+            )
+            .padding(bottom = 28.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "뒤로가기",
+                        tint = Color.White
+                    )
+                }
+
+                Row {
+                    IconButton(onClick = onSearchToggle) {
+                        Icon(
+                            imageVector = if (isSearchMode) Icons.Default.Close else Icons.Default.Search,
+                            contentDescription = if (isSearchMode) "검색 닫기" else "검색",
+                            tint = Color.White
+                        )
+                    }
+                    IconButton(onClick = {}) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "더보기",
+                            tint = Color.White
+                        )
+                    }
+                }
+            }
+
+            Column(modifier = Modifier.padding(horizontal = 24.dp)) {
+                Text(
+                    text = "거래내역",
+                    style = NaedaTypography.labelMedium,
+                    color = Color.White.copy(alpha = 0.8f)
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = accountNumber,
+                    style = NaedaTypography.labelSmall,
+                    color = Color.White.copy(alpha = 0.65f)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = accountName,
+                    style = NaedaTypography.labelSmall,
+                    color = Color.White.copy(alpha = 0.65f)
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(
+                    text = "현재 잔액",
+                    style = NaedaTypography.labelMedium,
+                    color = Color.White.copy(alpha = 0.75f)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "${"%,d".format(balance)}원",
+                    style = NaedaTypography.displayMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Color.White
+                )
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TradeSearchBar(
     query: String,
@@ -456,19 +655,19 @@ private fun TradeSearchBar(
         onValueChange = onQueryChange,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 20.dp, vertical = 14.dp),
         singleLine = true,
         placeholder = {
             Text(
                 text = "결제내역 검색",
-                color = OnBackground.copy(alpha = 0.45f)
+                color = OnSurfaceVariant
             )
         },
         leadingIcon = {
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = null,
-                tint = TradePrimary
+                tint = Mint900
             )
         },
         trailingIcon = {
@@ -477,294 +676,225 @@ private fun TradeSearchBar(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "검색어 지우기",
-                        tint = OnBackground.copy(alpha = 0.7f)
+                        tint = OnSurfaceVariant
                     )
                 }
             }
         },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = TradePrimary,
-            unfocusedBorderColor = TradeChipBorder,
+            focusedBorderColor = Mint900,
+            unfocusedBorderColor = OutlineVariant,
             focusedTextColor = OnBackground,
             unfocusedTextColor = OnBackground,
-            cursorColor = TradePrimary,
-            focusedContainerColor = Color.White,
-            unfocusedContainerColor = Color.White
+            cursorColor = Mint900,
+            focusedContainerColor = SurfaceColor,
+            unfocusedContainerColor = SurfaceColor
         )
     )
 }
 
 @Composable
-private fun TradeReportAccountSummaryCard(
-    accountName: String,
-    accountNumber: String,
-    balance: Long
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = TradePrimary),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.16f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AccountBalance,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Column {
-                    Text(
-                        text = accountName,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = Color.White
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = accountNumber,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.78f)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Text(
-                text = "현재 잔액",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.76f)
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "₩${"%,d".format(balance)}",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 28.sp
-                ),
-                color = Color.White
-            )
-        }
-    }
-}
-
-@Composable
-private fun TradeReportDateSection(
+private fun TradeFilterRow(
     selectedYear: Int,
     selectedMonth: Int,
-    onYearChange: (Int) -> Unit,
-    onMonthChange: (Int) -> Unit
+    onPrevMonth: () -> Unit,
+    onNextMonth: () -> Unit
 ) {
-    var yearExpanded by remember { mutableStateOf(false) }
-    var monthExpanded by remember { mutableStateOf(false) }
-
-    val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
-    val years = remember { (currentYear downTo currentYear - 2).toList() }
-    val months = (1..12).toList()
-
-    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(SurfaceColor)
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
         Text(
-            text = "날짜",
-            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+            text = "거래내역",
+            style = NaedaTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
             color = OnBackground
         )
 
-        Spacer(modifier = Modifier.height(10.dp))
-
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TradeSelectableChip(
-                label = "${selectedYear}년",
-                onClick = { yearExpanded = true }
-            ) {
-                DropdownMenu(
-                    expanded = yearExpanded,
-                    onDismissRequest = { yearExpanded = false }
-                ) {
-                    years.forEach { year ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = "${year}년",
-                                    color = if (selectedYear == year) TradePrimary else OnBackground
-                                )
-                            },
-                            onClick = {
-                                onYearChange(year)
-                                yearExpanded = false
-                            },
-                            colors = MenuDefaults.itemColors()
-                        )
-                    }
-                }
-            }
-
-            TradeSelectableChip(
-                label = "${selectedMonth}월",
-                onClick = { monthExpanded = true }
-            ) {
-                DropdownMenu(
-                    expanded = monthExpanded,
-                    onDismissRequest = { monthExpanded = false }
-                ) {
-                    months.forEach { month ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = "${month}월",
-                                    color = if (selectedMonth == month) TradePrimary else OnBackground
-                                )
-                            },
-                            onClick = {
-                                onMonthChange(month)
-                                monthExpanded = false
-                            },
-                            colors = MenuDefaults.itemColors()
-                        )
-                    }
-                }
-            }
+            MonthChip(label = "‹", onClick = onPrevMonth)
+            MonthChip(label = "${selectedYear}년 ${selectedMonth}월", onClick = {})
+            MonthChip(label = "›", onClick = onNextMonth)
         }
     }
+
+    HorizontalDivider(color = OutlineVariant, thickness = 1.dp)
 }
 
 @Composable
-private fun TradeSelectableChip(
+private fun MonthChip(
     label: String,
-    onClick: () -> Unit,
-    menuContent: @Composable () -> Unit
+    onClick: () -> Unit
 ) {
-    Box {
-        Surface(
-            modifier = Modifier.clickable { onClick() },
-            shape = RoundedCornerShape(999.dp),
-            color = TradeChipBg,
-            tonalElevation = 0.dp,
-            shadowElevation = 0.dp
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = TradePrimary
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = TradePrimary,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-        menuContent()
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(SurfaceVariant)
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = label,
+            style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = Mint900
+        )
     }
 }
 
 @Composable
-private fun TradeReportRow(item: TradeReportItem) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+private fun TransactionDateHeader(date: String) {
+    Text(
+        text = date,
+        style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+        color = OnSurfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Background)
+            .padding(horizontal = 20.dp, vertical = 10.dp)
+    )
+}
+
+@Composable
+private fun TradeTransactionRow(
+    item: TradeReportItem,
+    onClick: () -> Unit
+) {
+    val amountColor = if (item.isIncome) Color(0xFF1F8F5F) else OnBackground
+
+    val subtitle = listOfNotNull(
+        item.time.takeIf { it.isNotBlank() },
+        item.balanceAfter.takeIf { it.isNotBlank() && it != "—" }
+    ).joinToString(" · ")
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(SurfaceColor)
+            .clickable { onClick() }
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(TradeSurfaceTint)
-                .padding(16.dp)
+                .size(42.dp)
+                .clip(CircleShape)
+                .background(
+                    if (item.isIncome) Color(0xFFDFF7E8)
+                    else if (item.title == "결제 실패") Color(0xFFFFEBEE)
+                    else Color(0xFFDCEBFF)
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(item.iconBg),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = null,
-                        tint = if (item.isIncome) TradeIncome else TradeExpense,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+            Icon(
+                imageVector = if (item.isIncome) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
+                contentDescription = null,
+                tint = if (item.isIncome) Color(0xFF1F8F5F) else Mint900,
+                modifier = Modifier.size(18.dp)
+            )
+        }
 
-                Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(14.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.title,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = OnBackground
-                    )
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Text(
-                        text = item.subTitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = OnBackground.copy(alpha = 0.5f)
-                    )
-                }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = item.title,
+                style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                color = OnBackground,
+                maxLines = 1
+            )
 
+            if (subtitle.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = item.amount,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.ExtraBold
-                    ),
-                    color = if (item.isIncome) TradeIncome else TradeExpense
+                    text = subtitle,
+                    style = NaedaTypography.labelSmall,
+                    color = OnSurfaceVariant,
+                    maxLines = 1
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "${item.balanceLabel} ${item.balanceAfter}",
+                style = NaedaTypography.labelSmall,
+                color = OnSurfaceVariant
+            )
+        }
 
-            HorizontalDivider(color = TradeChipBorder.copy(alpha = 0.45f))
+        Text(
+            text = item.amount,
+            style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = amountColor
+        )
+    }
 
-            Spacer(modifier = Modifier.height(10.dp))
+    HorizontalDivider(
+        color = OutlineVariant,
+        thickness = 0.5.dp,
+        modifier = Modifier.padding(horizontal = 20.dp)
+    )
+}
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+@Composable
+private fun PaymentDetailDialog(
+    detail: PaymentDetailResponse,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("닫기")
+            }
+        },
+        title = {
+            Text(
+                text = "결제 상세",
+                style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold)
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
-                    text = item.balanceLabel,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = OnBackground.copy(alpha = 0.48f)
-                )
-                Text(
-                    text = item.balanceAfter,
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = TradePrimary
-                )
+                DetailRow("결제 금액", "${"%,d".format(detail.amount)}원")
+                DetailRow("결제 방식", detail.authMethod.toPaymentMethodLabel())
+                DetailRow("결제 시간", detail.createdAt?.formatCreatedAt() ?: "-")
+                DetailRow("결제 번호", detail.ssafyTransactionId ?: detail.paymentId.toString())
+                DetailRow("결제 장소", detail.storeId.toString())
             }
         }
+    )
+}
+
+private fun String?.toPaymentMethodLabel(): String {
+    return when (this?.uppercase()) {
+        "FACE" -> "얼굴인증"
+        "PIN" -> "PIN"
+        else -> this ?: "-"
+    }
+}
+
+@Composable
+private fun DetailRow(
+    label: String,
+    value: String
+) {
+    Column {
+        Text(
+            text = label,
+            style = NaedaTypography.labelSmall,
+            color = OnSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = value,
+            style = NaedaTypography.bodyMedium,
+            color = OnBackground
+        )
     }
 }

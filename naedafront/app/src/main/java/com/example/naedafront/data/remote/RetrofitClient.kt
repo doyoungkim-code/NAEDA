@@ -1,6 +1,7 @@
 package com.example.naedafront.data.remote
 
 import com.example.naedafront.BuildConfig
+import com.example.naedafront.data.remote.api.CardApi
 import com.example.naedafront.data.remote.api.NaverGeocodingApi
 import com.example.naedafront.data.remote.api.OrderApi
 import com.example.naedafront.data.remote.api.UserApi
@@ -51,6 +52,10 @@ object RetrofitClient {
 
     val orderApi: OrderApi by lazy {
         backendRetrofit.create(OrderApi::class.java)
+    }
+
+    val cardApi: CardApi by lazy {
+        backendRetrofit.create(CardApi::class.java)
     }
 
     val naverGeocodingApi: NaverGeocodingApi by lazy {
