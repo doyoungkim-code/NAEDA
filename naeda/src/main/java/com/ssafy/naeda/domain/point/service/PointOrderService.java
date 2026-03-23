@@ -92,4 +92,15 @@ public class PointOrderService {
                 })
                 .toList();
     }
+
+    @Transactional(readOnly = true)
+    public PointOrderResponse getOrder(Long orderId) {
+        PointOrder order = pointOrderRepository.findById(orderId)
+                .orElseThrow(() -> new NotFoundException("주문을 찾을 수 없습니다. id=" + orderId));
+
+        PointProduct product = pointProductRepository.findById(order.getProductId())
+                .orElseThrow(() -> new NotFoundException("포인트 상품을 찾을 수 없습니다. id=" + order.getProductId()));
+
+        return PointOrderResponse.from(product, order);
+    }
 }

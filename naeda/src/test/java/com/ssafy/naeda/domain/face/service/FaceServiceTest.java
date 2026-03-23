@@ -2,6 +2,7 @@ package com.ssafy.naeda.domain.face.service;
 
 import com.ssafy.naeda.domain.face.client.AiClient;
 import com.ssafy.naeda.domain.face.client.dto.AiEmbeddingResult;
+import com.ssafy.naeda.domain.face.dto.response.EnrollCommitResponse;
 import com.ssafy.naeda.domain.face.dto.response.EnrollResponse;
 import com.ssafy.naeda.domain.face.dto.response.FaceMatchStatus;
 import com.ssafy.naeda.domain.face.dto.response.SearchResponse;
@@ -33,6 +34,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class FaceServiceTest {
@@ -195,6 +197,22 @@ class FaceServiceTest {
         assertThatThrownBy(() -> faceService.enroll("user-1", "front2", mockImage()))
                 .isInstanceOf(FaceException.class)
                 .hasMessage("기준 얼굴과 일치하지 않습니다. 같은 사람이 다시 촬영해주세요.");
+    }
+
+    @Test
+    @DisplayName("commitEnrollmentForTest: 세션 임베딩을 DB에 저장하고 사용자 등록 상태를 갱신한다")
+    void commitEnrollmentForTest_persistsPendingEmbeddings() {
+        given(userRepository.findByUserId("user-1"))
+                .willReturn(Optional.of(User.builder().userId("user-1").faceRegistered(false).build()));
+
+        EnrollCommitResponse response = faceService.commitEnrollmentForTest("user-1");
+
+        verify(faceRegistrationSessionService).persistPendingEmbeddings("user-1");
+        verify(faceRegistrationSessionService).clearSession("user-1");
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getUserId()).isEqualTo("user-1");
+        assertThat(response.getSavedCount()).isEqualTo(7);
+        assertThat(response.getPoses()).containsExactly("front1", "front2", "front3", "left", "right", "up", "down");
     }
 
     private static AiEmbeddingResult aiResult(float[] embedding) {

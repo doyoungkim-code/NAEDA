@@ -1,6 +1,7 @@
 package com.ssafy.naeda.domain.face.controller;
 
 import com.ssafy.naeda.domain.face.dto.response.EnrollResponse;
+import com.ssafy.naeda.domain.face.dto.response.EnrollCommitResponse;
 import com.ssafy.naeda.domain.face.dto.response.HeadPoseCheckResponse;
 import com.ssafy.naeda.domain.face.dto.response.SearchResponse;
 import com.ssafy.naeda.domain.face.service.FaceService;
@@ -59,6 +60,21 @@ public class FaceController {
             @RequestPart("image") MultipartFile image,
             Principal principal) {
         return ResponseEntity.ok(faceService.enroll(principal.getName(), pose, image));
+    }
+
+    /**
+     * 테스트용 얼굴 등록 커밋
+     * POST /api/v1/face/enroll/commit
+     */
+    @PostMapping("/enroll/commit")
+    @Operation(summary = "얼굴 등록 커밋(테스트용)", description = "세션에 임시 저장된 얼굴 포즈들을 face_embeddings 테이블에 즉시 저장합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "커밋 성공"),
+            @ApiResponse(responseCode = "400", description = "등록 미완료", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "사용자 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<EnrollCommitResponse> commitEnrollment(Principal principal) {
+        return ResponseEntity.ok(faceService.commitEnrollmentForTest(principal.getName()));
     }
 
     /**
