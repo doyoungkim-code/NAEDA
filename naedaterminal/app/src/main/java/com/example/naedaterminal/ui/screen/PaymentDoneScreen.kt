@@ -32,6 +32,7 @@ fun PaymentDoneScreen(
     amount: Long,
     merchant: String,
     method: String,
+    userName: String?,
     onDone: () -> Unit
 ) {
     Box(
@@ -126,6 +127,30 @@ fun PaymentDoneScreen(
                     .padding(horizontal = 20.dp, vertical = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                userName?.takeIf { it.isNotBlank() }?.let { name ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "결제 사용자",
+                            color = TextPrimary.copy(alpha = 0.55f),
+                            fontSize = 14.sp,
+                            fontFamily = NaedaFontFamily
+                        )
+                        Text(
+                            text = name,
+                            color = TextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = NaedaFontFamily
+                        )
+                    }
+
+                    HorizontalDivider(color = Primary.copy(alpha = 0.12f))
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
