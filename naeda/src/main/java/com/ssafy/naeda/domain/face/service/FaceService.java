@@ -4,6 +4,7 @@ import com.ssafy.naeda.domain.face.client.AiClient;
 import com.ssafy.naeda.domain.face.client.dto.AiEmbeddingResult;
 import com.ssafy.naeda.domain.face.dto.response.AiProcessingInfo;
 import com.ssafy.naeda.domain.face.dto.response.CandidateDto;
+import com.ssafy.naeda.domain.face.dto.response.EnrollCommitResponse;
 import com.ssafy.naeda.domain.face.dto.response.EnrollResponse;
 import com.ssafy.naeda.domain.face.dto.response.FaceMatchStatus;
 import com.ssafy.naeda.domain.face.dto.response.HeadPoseCheckResponse;
@@ -14,7 +15,10 @@ import com.ssafy.naeda.domain.face.exception.FaceException;
 import com.ssafy.naeda.domain.face.repository.FaceEmbeddingRepository;
 import com.ssafy.naeda.domain.rba.dto.RbaResult;
 import com.ssafy.naeda.domain.rba.service.RbaEngine;
+import com.ssafy.naeda.domain.user.entity.User;
 import com.ssafy.naeda.domain.user.repository.UserRepository;
+import com.ssafy.naeda.global.exception.NotFoundException;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -59,6 +63,26 @@ public class FaceService {
         EnrollResponse response = faceRegistrationSessionService.registerPose(userId, pose, embeddingResult);
         log.info("얼굴 등록 세션 업데이트 완료: userId={}, pose={}", userId, pose);
         return response;
+    }
+
+    @Transactional
+    public EnrollCommitResponse commitEnrollmentForTest(String userId) {
+        faceRegistrationSessionService.persistPendingEmbeddings(userId);
+
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
+        user.registerFace();
+        faceRegistrationSessionService.clearSession(userId);
+
+        List<String> savedPoses = List.of("front1", "front2", "front3", "left", "right", "up", "down");
+        return EnrollCommitResponse.builder()
+                .success(true)
+                .userId(userId)
+                .poses(savedPoses)
+                .savedCount(savedPoses.size())
+                .savedAt(LocalDateTime.now())
+                .message("테스트용 얼굴 등록이 DB에 저장되었습니다.")
+                .build();
     }
 
     /**

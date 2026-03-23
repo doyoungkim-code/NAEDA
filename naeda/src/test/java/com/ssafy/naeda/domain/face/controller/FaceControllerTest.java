@@ -1,5 +1,6 @@
 package com.ssafy.naeda.domain.face.controller;
 
+import com.ssafy.naeda.domain.face.dto.response.EnrollCommitResponse;
 import com.ssafy.naeda.domain.face.dto.response.SearchResponse;
 import com.ssafy.naeda.domain.face.service.FaceService;
 import org.junit.jupiter.api.DisplayName;
@@ -72,5 +73,18 @@ class FaceControllerTest {
         faceController.enroll("front1", image, principal);
 
         then(faceService).should().enroll(eq("auth-user"), eq("front1"), any());
+    }
+
+    @Test
+    @DisplayName("commitEnrollment: 인증 사용자 ID로 FaceService를 호출한다")
+    void commitEnrollment_usesAuthenticatedUserId() {
+        given(principal.getName()).willReturn("auth-user");
+        given(faceService.commitEnrollmentForTest("auth-user"))
+                .willReturn(EnrollCommitResponse.builder().success(true).userId("auth-user").build());
+
+        ResponseEntity<EnrollCommitResponse> response = faceController.commitEnrollment(principal);
+
+        then(faceService).should().commitEnrollmentForTest("auth-user");
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
     }
 }
