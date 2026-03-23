@@ -124,7 +124,7 @@ public class Store {
     }
 
     public void updateEnrichment(String imageUrl, String description, Double rating, LocalDateTime enrichedAt) {
-        if (imageUrl != null) {
+        if (imageUrl != null || isDefaultPlaceholderImage(this.imageUrl)) {
             this.imageUrl = imageUrl;
         }
         if (description != null) {
@@ -132,6 +132,10 @@ public class Store {
         }
         this.rating = rating == null ? this.rating : rating;
         this.lastEnrichedAt = enrichedAt;
+    }
+
+    private boolean isDefaultPlaceholderImage(String imageUrl) {
+        return imageUrl != null && imageUrl.startsWith("/images/store/default-");
     }
 
     public void deactivate() {
