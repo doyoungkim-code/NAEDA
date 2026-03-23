@@ -27,7 +27,9 @@ import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Face
 import androidx.compose.material.icons.outlined.LockReset
+import androidx.compose.material.icons.outlined.LocalShipping
 import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
@@ -64,6 +66,7 @@ fun MyPageScreen(
     onFaceReRegisterClick: () -> Unit = {},
     onPinChangeClick: () -> Unit = {},
     onDeliveryAddressClick: () -> Unit = {},
+    onOrderHistoryClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
     onFabClick: () -> Unit = {},
 ) {
@@ -147,6 +150,12 @@ fun MyPageScreen(
                     }
                 )
 
+                Spacer(modifier = Modifier.height(16.dp))
+
+                QuickOrderDeliveryCard(
+                    onClick = onOrderHistoryClick
+                )
+
                 if (uiState.errorMessage != null) {
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
@@ -193,10 +202,18 @@ fun MyPageScreen(
                             iconBg = Color(0xFFEEF4FF),
                             iconTint = Color(0xFF2F6FED),
                             onClick = onDeliveryAddressClick
+                        ),
+                        MyPageMenuItemData(
+                            title = "주문 조회",
+                            icon = Icons.Outlined.ReceiptLong,
+                            iconBg = Color(0xFFFFF4E5),
+                            iconTint = Color(0xFFF59E0B),
+                            onClick = onOrderHistoryClick
                         )
                     )
                 )
 
+                Spacer(modifier = Modifier.height(24.dp))
             }
 
             if (uiState.isLoading) {
@@ -207,6 +224,69 @@ fun MyPageScreen(
                     CircularProgressIndicator()
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun QuickOrderDeliveryCard(
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        color = Color.White,
+        shape = RoundedCornerShape(24.dp),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xFFE8F7F1)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.LocalShipping,
+                    contentDescription = "주문 배송 조회",
+                    tint = Color(0xFF16A36A),
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = "주문 배송 조회",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF1F2937)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "주문 내역과 배송 상태를 확인하세요",
+                    fontSize = 13.sp,
+                    color = Color(0xFF7B8494)
+                )
+            }
+
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "이동",
+                tint = Color(0xFFB8BEC8),
+                modifier = Modifier.size(22.dp)
+            )
         }
     }
 }
