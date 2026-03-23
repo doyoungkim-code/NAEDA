@@ -99,6 +99,8 @@ private const val MAX_SCAN_DURATION_MS = 30_000L
 private const val ANALYSIS_INTERVAL_MS = 100L
 private const val SERVER_REQUEST_INTERVAL_MS = 700L
 private const val CANDIDATE_STALE_MS = 1_500L
+private const val AMBIGUOUS_HOLD_MS = 2_000L
+private const val AMBIGUOUS_CONTINUITY_GAP_MS = 1_500L
 private const val MIN_BRIGHTNESS = 40f
 private const val FRAME_EDGE_MARGIN_RATIO = 0.02f
 private const val MIN_FACE_WIDTH_RATIO = 0.12f
@@ -184,6 +186,15 @@ fun FacePayAuthScreen(
     var scanResolved by remember { mutableStateOf(false) }
     var isSending by remember { mutableStateOf(false) }
     var remainingSeconds by remember { mutableStateOf((MAX_SCAN_DURATION_MS / 1_000L).toInt()) }
+    var ambiguousStartedAt by remember { mutableStateOf<Long?>(null) }
+    var ambiguousLastSeenAt by remember { mutableStateOf<Long?>(null) }
+    var ambiguousBestUserId by remember { mutableStateOf<String?>(null) }
+
+    fun resetAmbiguousHold() {
+        ambiguousStartedAt = null
+        ambiguousLastSeenAt = null
+        ambiguousBestUserId = null
+    }
 
     val permLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -223,9 +234,17 @@ fun FacePayAuthScreen(
 
         val startedAt = SystemClock.elapsedRealtime()
         while (!scanResolved) {
-            val elapsed = SystemClock.elapsedRealtime() - startedAt
+            val loopNow = SystemClock.elapsedRealtime()
+            val elapsed = loopNow - startedAt
             val remaining = (MAX_SCAN_DURATION_MS - elapsed).coerceAtLeast(0L)
             remainingSeconds = kotlin.math.ceil(remaining / 1_000.0).toInt().coerceAtLeast(0)
+
+            if (ambiguousStartedAt != null &&
+                ambiguousLastSeenAt != null &&
+                loopNow - ambiguousLastSeenAt!! > AMBIGUOUS_CONTINUITY_GAP_MS
+            ) {
+                resetAmbiguousHold()
+            }
 
             if (remaining <= 0L) {
                 scanResolved = true
@@ -258,26 +277,60 @@ fun FacePayAuthScreen(
                     val isAmbiguous = response.status.equals("AMBIGUOUS", ignoreCase = true) ||
                             response.nextAction == "REQUIRE_SECOND_FACTOR"
                     val hasBestUser = !response.bestUserId.isNullOrBlank()
+                    val isMatched = response.matched && hasBestUser
+                    val responseAt = SystemClock.elapsedRealtime()
                     when {
                         response.blocked -> {
+                            resetAmbiguousHold()
                             scanResolved = true
                             onNotMatched(response.rbaReason ?: "결제가 차단되었습니다.")
                             return@LaunchedEffect
                         }
 
-                        hasBestUser && (response.matched || isAmbiguous) -> {
+                        isMatched -> {
+                            resetAmbiguousHold()
                             scanResolved = true
                             onResolved(response)
                             return@LaunchedEffect
                         }
 
+                        hasBestUser && isAmbiguous -> {
+                            val shouldContinueHold = ambiguousStartedAt != null &&
+                                    ambiguousLastSeenAt != null &&
+                                    ambiguousBestUserId == response.bestUserId &&
+                                    responseAt - ambiguousLastSeenAt!! <= AMBIGUOUS_CONTINUITY_GAP_MS
+
+                            if (!shouldContinueHold) {
+                                ambiguousStartedAt = responseAt
+                                ambiguousBestUserId = response.bestUserId
+                            }
+                            ambiguousLastSeenAt = responseAt
+
+                            val holdStartedAt = ambiguousStartedAt ?: responseAt
+                            val heldDuration = responseAt - holdStartedAt
+                            if (heldDuration >= AMBIGUOUS_HOLD_MS) {
+                                resetAmbiguousHold()
+                                scanResolved = true
+                                onResolved(response)
+                                return@LaunchedEffect
+                            }
+
+                            val remainingHoldMs = (AMBIGUOUS_HOLD_MS - heldDuration).coerceAtLeast(0L)
+                            val remainingHoldSeconds = kotlin.math.ceil(remainingHoldMs / 1_000.0)
+                                .toInt()
+                                .coerceAtLeast(1)
+                            statusText = "인식이 애매합니다. 얼굴을 ${remainingHoldSeconds}초 더 유지해주세요."
+                        }
+
                         else -> {
+                            resetAmbiguousHold()
                             statusText = guideState.messageWithCountdown(remainingSeconds)
                         }
                     }
                 }
 
                 result.onFailure { error ->
+                    resetAmbiguousHold()
                     statusText = "네트워크 오류가 발생했습니다. 다시 시도합니다."
                     android.util.Log.e("FacePay", "얼굴 검색 실패: ${error.message}", error)
                 }
