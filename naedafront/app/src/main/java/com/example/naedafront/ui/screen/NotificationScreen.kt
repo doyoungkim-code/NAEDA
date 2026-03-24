@@ -341,31 +341,42 @@ private fun NotificationRow(notification: NotificationResponse) {
 // ─────────────────────────────────────────────
 
 private fun String.formatSentTime(): String {
-    return try {
-        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
-        }
-        val date = inputFormat.parse(this) ?: return this
-        val cal = Calendar.getInstance().apply { time = date }
-        val now = Calendar.getInstance()
+    val inputPatterns = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSSSS" to false,
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" to true,
+        "yyyy-MM-dd'T'HH:mm:ss.SSS" to false,
+        "yyyy-MM-dd'T'HH:mm:ss" to false,
+        "yyyy-MM-dd HH:mm:ss" to false
+    )
 
-        val diffMs = now.timeInMillis - cal.timeInMillis
-        val diffMin = diffMs / (1000 * 60)
-        val diffHour = diffMin / 60
-        val diffDay = diffHour / 24
-
-        when {
-            diffMin < 1 -> "방금"
-            diffMin < 60 -> "${diffMin}분 전"
-            diffHour < 24 -> "${diffHour}시간 전"
-            diffDay < 7 -> "${diffDay}일 전"
-            else -> {
-                val month = cal.get(Calendar.MONTH) + 1
-                val day = cal.get(Calendar.DAY_OF_MONTH)
-                "${month}월 ${day}일"
+    for ((pattern, isUtc) in inputPatterns) {
+        try {
+            val inputFormat = SimpleDateFormat(pattern, Locale.getDefault()).apply {
+                timeZone = if (isUtc) TimeZone.getTimeZone("UTC") else TimeZone.getDefault()
             }
+            val date = inputFormat.parse(this) ?: continue
+
+            val outputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).apply {
+                timeZone = TimeZone.getDefault()
+            }
+            val formatted = outputFormat.format(date)
+
+            val now = Calendar.getInstance()
+            val cal = Calendar.getInstance().apply { time = date }
+            val diffMs = now.timeInMillis - cal.timeInMillis
+            val diffMin = diffMs / (1000 * 60)
+            val diffHour = diffMin / 60
+            val diffDay = diffHour / 24
+
+            return when {
+                diffMin < 1 -> "방금"
+                diffMin < 60 -> "${diffMin}분 전"
+                diffHour < 24 -> "${diffHour}시간 전"
+                else -> formatted
+            }
+        } catch (_: Exception) {
+            continue
         }
-    } catch (e: Exception) {
-        this
     }
+    return this
 }
