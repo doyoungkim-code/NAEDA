@@ -22,7 +22,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.FaceRegistrationRepository
+import com.example.naedafront.data.repository.AddressRepository
 import com.example.naedafront.data.repository.OrderRepository
+import com.example.naedafront.data.repository.ProductRepository
+import com.example.naedafront.data.repository.UserRepository
 import com.example.naedafront.ui.screen.LoginScreen
 import com.example.naedafront.ui.screen.NotificationScreen
 import com.example.naedafront.ui.screen.WelcomeScreen
@@ -66,9 +69,7 @@ import com.example.naedafront.ui.screen.store.OrderHistoryViewModel
 import com.example.naedafront.ui.screen.store.PointHistoryScreen
 import com.example.naedafront.ui.screen.store.PointStoreScreen
 import com.example.naedafront.ui.screen.store.StoreOrderDraftStore
-import com.example.naedafront.data.repository.AddressRepository
-import com.example.naedafront.data.repository.ProductRepository
-import com.example.naedafront.data.repository.UserRepository
+
 @Composable
 fun NaedaNavGraph(
     navController: NavHostController,
@@ -362,18 +363,15 @@ fun NaedaNavGraph(
                 onBack = { navController.popBackStack() },
                 onAccountClick = { account ->
                     navController.navigate(
-                        Screen.Transaction.createRoute(
-                            assetType = Screen.Transaction.ASSET_TYPE_ACCOUNT,
-                            paymentMethodId = account.paymentMethodId
+                        Screen.AccountDetail.createRoute(
+                            accountId = account.accountId,
+                            accountNo = account.accountNumber
                         )
                     )
                 },
                 onCardClick = { card ->
                     navController.navigate(
-                        Screen.Transaction.createRoute(
-                            assetType = Screen.Transaction.ASSET_TYPE_CARD,
-                            paymentMethodId = card.paymentMethodId
-                        )
+                        Screen.CardDetail.createRoute(card.id)
                     )
                 },
                 onDeleteAccount = { },
@@ -438,16 +436,7 @@ fun NaedaNavGraph(
                     defaultValue = ""
                 }
             )
-        ) { backStackEntry ->
-            val assetType = backStackEntry.arguments
-                ?.getString(Screen.Transaction.ASSET_TYPE_ARG)
-                .orEmpty()
-                .ifBlank { null }
-            val paymentMethodId = backStackEntry.arguments
-                ?.getString(Screen.Transaction.PAYMENT_METHOD_ID_ARG)
-                .orEmpty()
-                .toLongOrNull()
-
+        ) {
             TradeReportScreen(
                 onBackClick = { navController.popBackStack() }
             )
@@ -668,18 +657,15 @@ private fun AssetTabContent(
         showBackButton = false,
         onAccountClick = { account ->
             navController.navigate(
-                Screen.Transaction.createRoute(
-                    assetType = Screen.Transaction.ASSET_TYPE_ACCOUNT,
-                    paymentMethodId = account.paymentMethodId
+                Screen.AccountDetail.createRoute(
+                    accountId = account.accountId,
+                    accountNo = account.accountNumber
                 )
             )
         },
         onCardClick = { card ->
             navController.navigate(
-                Screen.Transaction.createRoute(
-                    assetType = Screen.Transaction.ASSET_TYPE_CARD,
-                    paymentMethodId = card.paymentMethodId
-                )
+                Screen.CardDetail.createRoute(card.id)
             )
         },
         onDeleteAccount = { },
