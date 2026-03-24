@@ -12,7 +12,6 @@ import com.example.naedafront.data.remote.AssetPayMethodResponse
 import com.example.naedafront.data.remote.AssetRepository
 import com.example.naedafront.data.remote.PaymentResponse
 import com.example.naedafront.data.repository.NoticeRepository
-import com.example.naedafront.data.repository.ReportRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,7 +24,6 @@ import java.util.TimeZone
 
 class HomeViewModel : ViewModel() {
 
-    private val reportRepository = ReportRepository()
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -55,6 +53,7 @@ class HomeViewModel : ViewModel() {
                     spendingCategories = emptyList(),
                     topSpendingCategory = null,
                     topSpendingAmount = 0L,
+                    spendingInsight = null,
                     facePayEnabled = false,
                     facePayMethodId = null,
                     defaultPaymentMethodId = null,
@@ -66,7 +65,7 @@ class HomeViewModel : ViewModel() {
 
         viewModelScope.launch { loadWalletSummary(userNo) }
         viewModelScope.launch { loadRecentTransactions(userNo) }
-        viewModelScope.launch { loadSpendingReport(userNo) }
+        viewModelScope.launch { loadCurrentMonthSpendingAnalysis(userNo) }
         viewModelScope.launch { loadNotices() }
     }
 
@@ -209,21 +208,27 @@ class HomeViewModel : ViewModel() {
         _uiState.update { it.copy(notices = sorted.take(3)) }
     }
 
-    private suspend fun loadSpendingReport(userNo: Long) {
-        reportRepository.getLatestMonthlyReport(userNo)
-            .onSuccess { latestReport ->
-                if (latestReport.categoryBreakdown.isEmpty() || latestReport.totalSpending <= 0L) {
+    private suspend fun loadCurrentMonthSpendingAnalysis(userNo: Long) {
+        AssetRepository.getCurrentMonthSpendingAnalysis(userNo)
+            .onSuccess { analysis ->
+                val totalSpending = analysis.totalSpending ?: 0L
+                val sortedCategories = analysis.categoryBreakdown.entries
+                    .filter { it.value > 0L }
+                    .sortedByDescending { it.value }
+
+                if (sortedCategories.isEmpty() || totalSpending <= 0L) {
                     _uiState.update {
                         it.copy(
                             spendingCategories = emptyList(),
                             topSpendingCategory = null,
-                            topSpendingAmount = 0L
+                            topSpendingAmount = 0L,
+                            spendingInsight = analysis.insights.firstOrNull()
                         )
                     }
                     return@onSuccess
                 }
 
-                val total = latestReport.totalSpending.toFloat()
+                val total = totalSpending.toFloat()
                 val categoryColors = listOf(
                     Color(0xFFFF6B35),
                     Color(0xFF4A90D9),
@@ -232,9 +237,6 @@ class HomeViewModel : ViewModel() {
                     Color(0xFFFFB300),
                     Color(0xFFBDBDBD)
                 )
-
-                val sortedCategories = latestReport.categoryBreakdown.entries
-                    .sortedByDescending { it.value }
 
                 val mappedCategories = sortedCategories.mapIndexed { index, entry ->
                     val ratio = (entry.value / total).coerceIn(0f, 1f)
@@ -248,17 +250,20 @@ class HomeViewModel : ViewModel() {
                 _uiState.update {
                     it.copy(
                         spendingCategories = mappedCategories,
-                        topSpendingCategory = sortedCategories.firstOrNull()?.key,
-                        topSpendingAmount = sortedCategories.firstOrNull()?.value ?: 0L
+                        topSpendingCategory = analysis.topCategory ?: sortedCategories.firstOrNull()?.key,
+                        topSpendingAmount = analysis.topAmount ?: sortedCategories.firstOrNull()?.value ?: 0L,
+                        spendingInsight = analysis.insights.firstOrNull()
                     )
                 }
             }
-            .onFailure {
+            .onFailure { e ->
+                Log.e("HomeViewModel", "❌ 이번 달 소비 분석 로드 실패: ${e.message}", e)
                 _uiState.update {
                     it.copy(
                         spendingCategories = emptyList(),
                         topSpendingCategory = null,
-                        topSpendingAmount = 0L
+                        topSpendingAmount = 0L,
+                        spendingInsight = null
                     )
                 }
             }
@@ -267,19 +272,22 @@ class HomeViewModel : ViewModel() {
 
 private fun PaymentResponse.toTransactionItem(): TransactionItem {
     val isSuccess = status?.uppercase() in listOf("APPROVED", "SUCCESS", "COMPLETED")
+    val storeLabel = storeName?.takeIf { it.isNotBlank() }
+        ?: if (isSuccess) "매장 정보 없음" else "결제 실패"
+    val subtitle = listOfNotNull(
+        categoryName?.takeIf { it.isNotBlank() },
+        createdAt?.formatDateTime()?.takeIf { it.isNotBlank() }
+    ).joinToString(" · ")
+    val isFacePayTransaction = facePay == true || authLevel?.equals("FACE_PAY", ignoreCase = true) == true
 
     return TransactionItem(
-        title = when {
-            !isSuccess -> "결제 실패"
-            authMethod?.uppercase() == "FACE" -> "내다페이 (얼굴인증)"
-            authMethod?.uppercase() == "PIN" -> "내다페이 (PIN인증)"
-            else -> "내다페이 결제"
-        },
-        subTitle = createdAt?.formatDateTime() ?: "",
+        title = storeLabel,
+        subTitle = subtitle.ifBlank { createdAt?.formatDateTime().orEmpty() },
         amount = if (isSuccess) "-₩${"%,d".format(amount ?: 0L)}" else "실패",
         isIncome = false,
         iconBg = if (isSuccess) Color(0xFFDCEBFF) else Color(0xFFFFEBEE),
-        icon = Icons.Default.ShoppingBag
+        icon = Icons.Default.ShoppingBag,
+        badgeText = if (isSuccess && isFacePayTransaction) "FacePay" else null
     )
 }
 
