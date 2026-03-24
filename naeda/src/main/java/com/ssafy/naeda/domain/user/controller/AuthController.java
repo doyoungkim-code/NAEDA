@@ -7,6 +7,7 @@ import com.ssafy.naeda.domain.user.dto.response.LoginResponse;
 import com.ssafy.naeda.domain.user.dto.response.SignupResponse;
 import com.ssafy.naeda.domain.user.service.AuthService;
 import com.ssafy.naeda.global.exception.AuthenticationFailedException;
+import com.ssafy.naeda.global.exception.DuplicateException;
 import com.ssafy.naeda.global.exception.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -41,6 +42,34 @@ public class AuthController {
     public ResponseEntity<SignupResponse> signup(@Valid @RequestBody SignupRequest request) {
         SignupResponse response = authService.signup(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/check-email")
+    @Operation(summary = "이메일 중복 확인", description = "이미 등록된 이메일(아이디)인지 확인합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "사용 가능한 이메일"),
+            @ApiResponse(responseCode = "409", description = "이미 등록된 이메일",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<Void> checkEmail(@RequestParam String email) {
+        if (authService.isUserIdDuplicate(email)) {
+            throw new DuplicateException("이미 사용 중인 이메일입니다.");
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/check-phone")
+    @Operation(summary = "전화번호 중복 확인", description = "이미 등록된 전화번호인지 확인합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "사용 가능한 전화번호"),
+            @ApiResponse(responseCode = "409", description = "이미 등록된 전화번호",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<Void> checkPhone(@RequestParam String phone) {
+        if (authService.isPhoneDuplicate(phone)) {
+            throw new DuplicateException("이미 등록된 전화번호입니다.");
+        }
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/login")

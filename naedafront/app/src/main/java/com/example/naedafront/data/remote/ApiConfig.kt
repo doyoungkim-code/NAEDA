@@ -156,14 +156,18 @@ object ApiConfig {
         val path = request.url.encodedPath
         return path != "/api/auth/login" &&
             path != "/api/auth/signup" &&
-            path != "/api/auth/refresh"
+            path != "/api/auth/refresh" &&
+            path != "/api/auth/check-email" &&
+            path != "/api/auth/check-phone"
     }
 
     private fun shouldAttemptTokenRefresh(request: Request, responseCode: Int): Boolean {
         val path = request.url.encodedPath
         val isAuthEndpoint = path == "/api/auth/login" ||
             path == "/api/auth/signup" ||
-            path == "/api/auth/refresh"
+            path == "/api/auth/refresh" ||
+            path == "/api/auth/check-email" ||
+            path == "/api/auth/check-phone"
         return !isAuthEndpoint && (responseCode == 401 || responseCode == 403)
     }
 }

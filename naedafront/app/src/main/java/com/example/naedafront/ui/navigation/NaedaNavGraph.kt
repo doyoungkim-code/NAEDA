@@ -480,8 +480,7 @@ fun NaedaNavGraph(
                         popUpTo(Screen.Welcome.route) { inclusive = true }
                         launchSingleTop = true
                     }
-                },
-                onWithdrawClick = { }
+                }
             )
         }
 
@@ -689,8 +688,7 @@ private fun SettingsTabContent(
                 popUpTo(Screen.Welcome.route) { inclusive = true }
                 launchSingleTop = true
             }
-        },
-        onWithdrawClick = { }
+        }
     )
 }
 

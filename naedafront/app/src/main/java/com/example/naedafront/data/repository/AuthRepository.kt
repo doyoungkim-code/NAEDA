@@ -13,4 +13,12 @@ class AuthRepository {
     suspend fun signUp(request: SignUpRequest): Response<SignUpResponse> {
         return authApi.signUp(request)
     }
+
+    suspend fun checkEmail(email: String): Response<Unit> {
+        return authApi.checkEmail(email)
+    }
+
+    suspend fun checkPhone(phone: String): Response<Unit> {
+        return authApi.checkPhone(phone)
+    }
 }
