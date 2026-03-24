@@ -8,24 +8,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.ui.res.painterResource
-import com.example.naedafront.R
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -34,36 +17,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.naedafront.ui.theme.Background
-import com.example.naedafront.ui.theme.Mint100
-import com.example.naedafront.ui.theme.Mint900
-import com.example.naedafront.ui.theme.OnBackground
-import com.example.naedafront.ui.theme.Surface
+import com.example.naedafront.R
+import com.example.naedafront.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,55 +51,70 @@ fun ChatScreen(
         }
     }
 
-    Column(
+    // Scaffold를 사용하여 전체 구조를 잡되, 최상단 여백을 강제로 제거합니다.
+    Scaffold(
         modifier = Modifier
             .fillMaxSize()
             .background(Background)
-            .imePadding()
-    ) {
-        // 상단 바
-        TopAppBar(
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(Mint100.copy(alpha = 0.3f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Image(
+            .imePadding(), // 키보드 올라올 때만 반응
+        topBar = {
+            TopAppBar(
+                // 🔥 [핵심] 시스템 상태바(Status Bar)가 주는 기본 패딩을 0으로 초기화해서 천장에 붙입니다.
+                windowInsets = WindowInsets(0, 0, 0, 0),
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(Mint100.copy(alpha = 0.3f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
                                 painter = painterResource(id = R.drawable.chatbot_image),
                                 contentDescription = "내다봇",
                                 modifier = Modifier.size(32.dp)
                             )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(
-                            text = "내다봇",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "내다봇",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    lineHeight = 16.sp
+                                )
                             )
-                        )
-                        Text(
-                            text = "구미 맛집·축제 추천",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = OnBackground.copy(alpha = 0.5f)
-                        )
+                            Text(
+                                text = "구미 맛집·축제 추천",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = OnBackground.copy(alpha = 0.5f)
+                            )
+                        }
                     }
-                }
-            },
-            navigationIcon = {
-                IconButton(onClick = onBackClick) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
-        )
-
-        // 메시지 목록
-        LazyColumn(
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Surface,
+                    titleContentColor = OnBackground,
+                    navigationIconContentColor = OnBackground
+                )
+            )
+        }
+    ) { innerPadding ->
+        // Scaffold의 innerPadding을 무시하거나 적절히 조절하여 상단바 바로 밑에 붙입니다.
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = innerPadding.calculateTopPadding()) // 상단바 높이만큼만 정확히 띄움
+                .background(Background)
+        ) {
+            // 메시지 목록
+            LazyColumn(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
@@ -139,11 +122,8 @@ fun ChatScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // 환영 메시지
                 if (uiState.messages.isEmpty()) {
-                    item {
-                        WelcomeMessage()
-                    }
+                    item { WelcomeMessage() }
                 }
 
                 items(uiState.messages) { message ->
@@ -156,14 +136,15 @@ fun ChatScreen(
                 text = inputText,
                 onTextChange = { inputText = it },
                 onSend = {
-                    if (userNo != null && userNo > 0L && inputText.isNotBlank() && !uiState.isLoading) {
-                        viewModel.sendMessage(userNo, inputText)
+                    if (canSendMessage) {
+                        viewModel.sendMessage(userNo!!, inputText)
                         inputText = ""
                     }
                 },
                 isLoading = uiState.isLoading,
                 isEnabled = canSendMessage
             )
+        }
     }
 }
 
@@ -183,31 +164,24 @@ private fun WelcomeMessage() {
             contentAlignment = Alignment.Center
         ) {
             Image(
-                    painter = painterResource(id = R.drawable.chatbot_image),
-                    contentDescription = "내다봇",
-                    modifier = Modifier.size(64.dp)
-                )
+                painter = painterResource(id = R.drawable.chatbot_image),
+                contentDescription = "내다봇",
+                modifier = Modifier.size(64.dp)
+            )
         }
-
         Spacer(modifier = Modifier.height(12.dp))
-
         Text(
             text = "안녕하세요! 내다봇이에요",
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
             color = OnBackground
         )
-
         Spacer(modifier = Modifier.height(4.dp))
-
         Text(
             text = "구미 맛집, 카페, 축제 추천을 도와드려요!",
             style = MaterialTheme.typography.bodySmall,
             color = OnBackground.copy(alpha = 0.5f)
         )
-
         Spacer(modifier = Modifier.height(16.dp))
-
-        // 추천 질문 칩
         val suggestions = listOf("구미 맛집 추천해줘", "카페 어디 좋아?", "요즘 축제 있어?")
         Column(
             verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -234,7 +208,6 @@ private fun WelcomeMessage() {
 @Composable
 private fun ChatBubble(message: ChatMessage) {
     val isUser = message.role == "user"
-
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
@@ -255,7 +228,6 @@ private fun ChatBubble(message: ChatMessage) {
             }
             Spacer(modifier = Modifier.width(6.dp))
         }
-
         Box(
             modifier = Modifier
                 .widthIn(max = 280.dp)
@@ -267,9 +239,7 @@ private fun ChatBubble(message: ChatMessage) {
                         bottomEnd = if (isUser) 4.dp else 16.dp
                     )
                 )
-                .background(
-                    if (isUser) Mint900 else Surface
-                )
+                .background(if (isUser) Mint900 else Surface)
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
             if (message.isLoading) {
@@ -298,7 +268,6 @@ private fun TypingIndicator() {
         ),
         label = "dot"
     )
-
     Row(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -309,11 +278,7 @@ private fun TypingIndicator() {
                 modifier = Modifier
                     .size(8.dp)
                     .clip(CircleShape)
-                    .background(
-                        OnBackground.copy(
-                            alpha = alpha * (1f - index * 0.2f)
-                        )
-                    )
+                    .background(OnBackground.copy(alpha = alpha * (1f - index * 0.2f)))
             )
         }
     }
@@ -330,10 +295,12 @@ private fun ChatInputBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Surface)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            // .drawBehind { ... }  <-- 선을 그리는 이 코드를 제거합니다!
+            .background(Surface) // 전체 배경색
+            .padding(vertical = 8.dp, horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // TextField (입력 영역)
         TextField(
             value = text,
             onValueChange = onTextChange,
@@ -342,38 +309,39 @@ private fun ChatInputBar(
                 Text(
                     "메시지를 입력하세요",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = OnBackground.copy(alpha = 0.35f)
+                    color = Mint900.copy(alpha = 0.4f)
                 )
             },
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = Background,
-                unfocusedContainerColor = Background,
+                focusedContainerColor = Mint900.copy(alpha = 0.08f),
+                unfocusedContainerColor = Mint900.copy(alpha = 0.08f),
                 focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
+                unfocusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent,
+                focusedTextColor = Mint900,
+                unfocusedTextColor = Mint900
             ),
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(50.dp),
             singleLine = false,
-            maxLines = 4
+            maxLines = 4,
+            textStyle = MaterialTheme.typography.bodyMedium.copy(color = Mint900)
         )
 
         Spacer(modifier = Modifier.width(8.dp))
 
+        // 전송 버튼
         IconButton(
             onClick = onSend,
             enabled = isEnabled,
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(
-                    if (isEnabled) Mint900
-                    else OnBackground.copy(alpha = 0.1f)
-                )
+                .background(if (isEnabled) Mint900 else OnBackground.copy(alpha = 0.1f))
         ) {
             Icon(
                 Icons.AutoMirrored.Filled.Send,
                 contentDescription = "보내기",
-                tint = if (isEnabled) Color.White
-                else OnBackground.copy(alpha = 0.3f),
+                tint = if (isEnabled) Color.White else OnBackground.copy(alpha = 0.3f),
                 modifier = Modifier.size(20.dp)
             )
         }
