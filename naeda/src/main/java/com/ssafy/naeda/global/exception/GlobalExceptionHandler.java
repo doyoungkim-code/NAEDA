@@ -15,6 +15,10 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.RestClientException;
+import org.springframework.dao.DataIntegrityViolationException;
+
+
+import java.util.Map;
 
 @Slf4j
 @RestControllerAdvice
@@ -62,12 +66,26 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException e) {
-        log.warn("DataIntegrityViolation: {}", e.getMostSpecificCause() != null
+        String detail = e.getMostSpecificCause() != null
                 ? e.getMostSpecificCause().getMessage()
-                : e.getMessage());
+                : e.getMessage();
+        log.warn("DataIntegrityViolation: {}", detail);
+
+        // unique constraint 위반 (중복)
+        if (detail != null && detail.contains("phone")) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ErrorResponse("DUPLICATE", "이미 등록된 전화번호입니다."));
+        }
+        if (detail != null && detail.contains("user_id")) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ErrorResponse("DUPLICATE", "이미 존재하는 아이디입니다."));
+        }
+
+        // 기존: FK 참조 위반 등
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("INVALID_REFERENCE", "유효하지 않은 참조값입니다. userId를 확인해주세요."));
     }
+
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException e) {
@@ -157,4 +175,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("BAD_REQUEST", e.getMessage()));
     }
+
+
 }
