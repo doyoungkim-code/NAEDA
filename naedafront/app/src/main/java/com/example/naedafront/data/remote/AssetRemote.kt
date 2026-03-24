@@ -107,11 +107,14 @@ data class PaymentResponse(
     val paymentId: Long?,
     val userNo: Long?,
     val storeId: Long?,
+    val storeName: String?,
+    val categoryName: String?,
     val paymentMethodId: Long?,
     val amount: Long?,
     val status: String?,
     val authMethod: String?,
     val authLevel: String?,
+    val facePay: Boolean?,
     val faceDistance: Double?,
     val livenessPass: Boolean?,
     val pinVerified: Boolean?,
@@ -122,6 +125,17 @@ data class PaymentResponse(
     val failureReason: String?,
     val createdAt: String?
 )
+data class CurrentMonthSpendingAnalysisResponse(
+    val periodStart: String?,
+    val periodEnd: String?,
+    val totalSpending: Long?,
+    val transactionCount: Int?,
+    val topCategory: String?,
+    val topAmount: Long?,
+    val categoryBreakdown: Map<String, Long>,
+    val insights: List<String>
+)
+
 
 interface AssetApi {
     @GET("api/accounts")
@@ -191,6 +205,11 @@ interface PayApi {
         @Query("from") from: String? = null,
         @Query("to") to: String? = null
     ): List<PaymentResponse>
+
+    @GET("api/pay/analysis/current-month")
+    suspend fun getCurrentMonthSpendingAnalysis(
+        @Header("X-User-No") userNo: Long
+    ): CurrentMonthSpendingAnalysisResponse
 }
 
 object AssetRepository {
@@ -296,6 +315,12 @@ object AssetRepository {
         payApi.getPayments(userNo = userNo, from = from, to = to)
     }
 
+    suspend fun getCurrentMonthSpendingAnalysis(
+        userNo: Long
+    ): Result<CurrentMonthSpendingAnalysisResponse> = runCatching {
+        payApi.getCurrentMonthSpendingAnalysis(userNo = userNo)
+    }
+
     private fun toReadableException(throwable: Throwable, fallback: String): Throwable {
         if (throwable !is HttpException) return throwable
 
@@ -316,3 +341,5 @@ object AssetRepository {
         )
     }
 }
+
+

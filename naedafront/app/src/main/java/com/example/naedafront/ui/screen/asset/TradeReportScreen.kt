@@ -106,7 +106,8 @@ data class TradeReportItem(
     val balanceAfter: String,
     val balanceLabel: String = "적립 포인트",
     val icon: ImageVector,
-    val iconBg: Color
+    val iconBg: Color,
+    val badgeText: String? = null
 )
 
 data class TradeReportUiState(
@@ -323,21 +324,24 @@ private fun PaymentResponse.toUiItem(): TradeReportItem {
         ?.takeIf { it > 0 }
         ?.let { "${"%,d".format(it)}P 적립" }
         ?: "—"
+    val storeLabel = storeName?.takeIf { it.isNotBlank() }
+        ?: if (isSuccess) "매장 정보 없음" else "결제 실패"
+    val subtitle = listOfNotNull(
+        categoryName?.takeIf { it.isNotBlank() },
+        createdAt?.formatCreatedAt()?.takeIf { it.isNotBlank() }
+    ).joinToString(" · ")
+    val isFacePayTransaction = facePay == true || authLevel?.equals("FACE_PAY", ignoreCase = true) == true
 
     return TradeReportItem(
-        title = when {
-            !isSuccess -> "결제 실패"
-            authMethod?.uppercase() == "FACE" -> "내다페이 (얼굴인증)"
-            authMethod?.uppercase() == "PIN" -> "내다페이 (PIN인증)"
-            else -> "내다페이 결제"
-        },
-        subTitle = createdAt?.formatCreatedAt() ?: "",
+        title = storeLabel,
+        subTitle = subtitle.ifBlank { createdAt?.formatCreatedAt().orEmpty() },
         amount = if (isSuccess) "-₩${"%,d".format(amount ?: 0L)}" else "실패",
         isIncome = false,
         balanceAfter = pointsText,
         balanceLabel = "적립 포인트",
         icon = Icons.Default.ShoppingBag,
-        iconBg = if (isSuccess) Color(0xFFDCEBFF) else Color(0xFFFFEBEE)
+        iconBg = if (isSuccess) Color(0xFFDCEBFF) else Color(0xFFFFEBEE),
+        badgeText = if (isSuccess && isFacePayTransaction) "FacePay" else null
     )
 }
 
@@ -733,13 +737,35 @@ private fun TradeReportRow(item: TradeReportItem) {
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.title,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = OnBackground
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = item.title,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = OnBackground,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        item.badgeText?.let { badgeText ->
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(TradeChipBg)
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = badgeText,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = TradePrimary
+                                )
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(3.dp))
                     Text(
                         text = item.subTitle,

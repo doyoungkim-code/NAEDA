@@ -95,8 +95,10 @@ data class TransactionItem(
     val amount: String,
     val isIncome: Boolean,
     val iconBg: Color,
-    val icon: ImageVector
+    val icon: ImageVector,
+    val badgeText: String? = null
 )
+
 
 data class SpendingCategory(
     val label: String,
@@ -122,6 +124,7 @@ data class HomeUiState(
     val spendingCategories: List<SpendingCategory> = emptyList(),
     val topSpendingCategory: String? = null,
     val topSpendingAmount: Long = 0L,
+    val spendingInsight: String? = null,
     val notices: List<NoticeItem> = emptyList(),
 
     val account: AssetAccountResponse? = null,
@@ -215,7 +218,8 @@ fun HomeScreen(
             SpendingAnalysisCard(
                 topCategory = uiState.topSpendingCategory,
                 topAmount = uiState.topSpendingAmount,
-                categories = uiState.spendingCategories
+                categories = uiState.spendingCategories,
+                insight = uiState.spendingInsight
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -991,7 +995,8 @@ private fun NoticeRow(notice: NoticeItem, onClick: () -> Unit = {}) {
 private fun SpendingAnalysisCard(
     topCategory: String?,
     topAmount: Long,
-    categories: List<SpendingCategory>
+    categories: List<SpendingCategory>,
+    insight: String?
 ) {
     Card(
         modifier = Modifier
@@ -1020,11 +1025,12 @@ private fun SpendingAnalysisCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "소비 기록이 없습니다.",
+                        text = insight ?: "이번 달 결제 기록이 없습니다.",
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Medium
                         ),
-                        color = OnBackground.copy(alpha = 0.5f)
+                        color = OnBackground.copy(alpha = 0.5f),
+                        textAlign = TextAlign.Center
                     )
                 }
             } else {
@@ -1085,6 +1091,26 @@ private fun SpendingAnalysisCard(
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
+                    }
+                }
+
+                if (!insight.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Mint100.copy(alpha = 0.6f))
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = insight,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontWeight = FontWeight.Medium,
+                                lineHeight = 18.sp
+                            ),
+                            color = OnBackground
+                        )
                     }
                 }
             }
@@ -1203,18 +1229,45 @@ private fun TransactionRow(item: TransactionItem) {
         Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontWeight = FontWeight.SemiBold
-                ),
-                color = OnBackground
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = OnBackground,
+                    modifier = Modifier.weight(1f, fill = false),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                item.badgeText?.let { badgeText ->
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(Mint100)
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = badgeText,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = Mint900
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = item.subTitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = OnBackground.copy(alpha = 0.45f)
+                color = OnBackground.copy(alpha = 0.45f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
 
