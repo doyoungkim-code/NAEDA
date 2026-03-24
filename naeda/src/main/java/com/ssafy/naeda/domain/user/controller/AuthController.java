@@ -7,6 +7,7 @@ import com.ssafy.naeda.domain.user.dto.response.LoginResponse;
 import com.ssafy.naeda.domain.user.dto.response.SignupResponse;
 import com.ssafy.naeda.domain.user.service.AuthService;
 import com.ssafy.naeda.global.exception.AuthenticationFailedException;
+import com.ssafy.naeda.global.exception.DuplicateException;
 import com.ssafy.naeda.global.exception.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
