@@ -120,7 +120,7 @@ fun SignUpEmailScreen(
                 .padding(innerPadding)
         ) {
             SignUpProgressBar(
-                currentStep = 5,
+                currentStep = 4,
                 modifier = Modifier.padding(horizontal = 24.dp)
             )
 
