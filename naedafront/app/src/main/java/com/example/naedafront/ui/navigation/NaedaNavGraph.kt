@@ -28,7 +28,7 @@ import com.example.naedafront.ui.screen.NotificationScreen
 import com.example.naedafront.ui.screen.WelcomeScreen
 import com.example.naedafront.ui.screen.asset.AccountDetailRoute
 import com.example.naedafront.ui.screen.asset.AccountListRoute
-import com.example.naedafront.ui.screen.asset.CardDetailScreen
+import com.example.naedafront.ui.screen.asset.CardDetailRoute
 import com.example.naedafront.ui.screen.asset.RegisterAssetDialog
 import com.example.naedafront.ui.screen.asset.TradeReportScreen
 import com.example.naedafront.ui.screen.chat.ChatScreen
@@ -414,13 +414,9 @@ fun NaedaNavGraph(
             )
         }
 
-        composable(
-            route = Screen.CardDetail.route,
-            arguments = listOf(navArgument("cardId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val cardId = backStackEntry.arguments?.getString("cardId") ?: ""
-
-            CardDetailScreen(
+        composable("card_detail/{cardId}") { backStackEntry ->
+            val cardId = backStackEntry.arguments?.getString("cardId")?.toLongOrNull()
+            CardDetailRoute(
                 cardId = cardId,
                 onBack = { navController.popBackStack() }
             )
