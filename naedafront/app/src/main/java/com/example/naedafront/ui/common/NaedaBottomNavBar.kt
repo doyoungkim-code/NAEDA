@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import com.example.naedafront.ui.navigation.Screen
 import com.example.naedafront.ui.theme.Background
@@ -59,12 +60,13 @@ fun NaedaBottomNavBar(
                 selected = isSelected,
                 onClick = {
                     if (selectedRoute != item.route) {
+                        val isHome = item == BottomNavItem.HOME
                         navController.navigate(item.route) {
-                            popUpTo(Screen.Home.route) {
-                                saveState = true
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = !isHome
                             }
                             launchSingleTop = true
-                            restoreState = true
+                            restoreState = !isHome
                         }
                     }
                 },
