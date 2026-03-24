@@ -449,8 +449,6 @@ fun NaedaNavGraph(
                 .toLongOrNull()
 
             TradeReportScreen(
-                targetType = assetType,
-                paymentMethodId = paymentMethodId,
                 onBackClick = { navController.popBackStack() }
             )
         }
