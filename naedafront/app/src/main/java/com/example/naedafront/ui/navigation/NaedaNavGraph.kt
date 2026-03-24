@@ -1,3 +1,4 @@
+// File: app/src/main/java/com/example/naedafront/ui/navigation/NaedaNavGraph.kt
 package com.example.naedafront.ui.navigation
 
 import androidx.compose.foundation.layout.Box
@@ -370,9 +371,11 @@ fun NaedaNavGraph(
                     )
                 },
                 onCardClick = { card ->
-                    navController.navigate(
-                        Screen.CardDetail.createRoute(card.id)
-                    )
+                    card.cardId?.let { realCardId ->
+                        navController.navigate(
+                            Screen.CardDetail.createRoute(realCardId)
+                        )
+                    }
                 },
                 onDeleteAccount = { },
                 onSetPrimary = { },
@@ -664,9 +667,11 @@ private fun AssetTabContent(
             )
         },
         onCardClick = { card ->
-            navController.navigate(
-                Screen.CardDetail.createRoute(card.id)
-            )
+            card.cardId?.let { realCardId ->
+                navController.navigate(
+                    Screen.CardDetail.createRoute(realCardId)
+                )
+            }
         },
         onDeleteAccount = { },
         onSetPrimary = { },
