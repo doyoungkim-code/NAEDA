@@ -43,6 +43,34 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @GetMapping("/check-email")
+    @Operation(summary = "이메일 중복 확인", description = "이미 등록된 이메일(아이디)인지 확인합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "사용 가능한 이메일"),
+            @ApiResponse(responseCode = "409", description = "이미 등록된 이메일",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<Void> checkEmail(@RequestParam String email) {
+        if (authService.isUserIdDuplicate(email)) {
+            throw new DuplicateException("이미 사용 중인 이메일입니다.");
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/check-phone")
+    @Operation(summary = "전화번호 중복 확인", description = "이미 등록된 전화번호인지 확인합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "사용 가능한 전화번호"),
+            @ApiResponse(responseCode = "409", description = "이미 등록된 전화번호",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<Void> checkPhone(@RequestParam String phone) {
+        if (authService.isPhoneDuplicate(phone)) {
+            throw new DuplicateException("이미 등록된 전화번호입니다.");
+        }
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/login")
     @Operation(summary = "로그인", description = "아이디와 비밀번호로 로그인합니다.")
     @ApiResponses({

@@ -99,11 +99,24 @@ public class AuthService {
         }
     }
 
+    public boolean isUserIdDuplicate(String userId) {
+        return userRepository.findByUserId(userId).isPresent();
+    }
+
+    public boolean isPhoneDuplicate(String phone) {
+        return userRepository.findByPhone(phone).isPresent();
+    }
+
     @Transactional
     public SignupResponse signup(SignupRequest request) {
         // 1. 아이디 중복 검증
         if (userRepository.findByUserId(request.getUserId()).isPresent()) {
             throw new DuplicateException("이미 존재하는 아이디입니다.");
+        }
+
+        // 1-1. 전화번호 중복 검증
+        if (userRepository.findByPhone(request.getPhone()).isPresent()) {
+            throw new DuplicateException("이미 등록된 전화번호입니다.");
         }
 
         // 2. 자체 회원가입 (userKey 없이 먼저 저장)
