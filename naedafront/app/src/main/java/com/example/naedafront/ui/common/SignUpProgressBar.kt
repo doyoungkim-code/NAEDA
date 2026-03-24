@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun SignUpProgressBar(
     currentStep: Int,
-    totalSteps: Int = 8,
+    totalSteps: Int = 7,
     modifier: Modifier = Modifier
 ) {
     val progress by animateFloatAsState(
