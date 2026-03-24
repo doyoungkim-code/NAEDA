@@ -62,8 +62,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.naedafront.AuthPrefs
+import com.example.naedafront.data.remote.AssetAccountResponse
+import com.example.naedafront.data.remote.AssetCardResponse
+import com.example.naedafront.data.remote.AssetPayMethodResponse
 import com.example.naedafront.data.remote.AssetRepository
 import com.example.naedafront.data.remote.PaymentResponse
+import com.example.naedafront.data.remote.WalletAssetsResponse
+import com.example.naedafront.ui.navigation.Screen
 import com.example.naedafront.ui.theme.Background
 import com.example.naedafront.ui.theme.OnBackground
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -105,9 +110,11 @@ data class TradeReportItem(
 )
 
 data class TradeReportUiState(
-    val accountName: String = "",
-    val accountNumber: String = "",
-    val balance: Long = 0L,
+    val headerName: String = "",
+    val headerNumber: String = "",
+    val summaryAmount: Long = 0L,
+    val summaryLabel: String = "현재 잔액",
+    val summaryIcon: ImageVector = Icons.Default.AccountBalance,
     val transactions: List<TradeReportItem> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null
@@ -122,49 +129,187 @@ class TradeReportViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(TradeReportUiState())
     val uiState: StateFlow<TradeReportUiState> = _uiState.asStateFlow()
 
-    fun loadData(context: Context, year: Int, month: Int) {
-        val userNo = AuthPrefs.getUserNo(context) ?: return
+    fun loadData(
+        context: Context,
+        year: Int,
+        month: Int,
+        targetType: String? = null,
+        paymentMethodId: Long? = null
+    ) {
+        val userNo = AuthPrefs.getUserNo(context)
+        if (userNo == null) {
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    error = "로그인 정보가 없어 거래내역을 불러올 수 없습니다."
+                )
+            }
+            return
+        }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            // 계좌 정보 로드
             runCatching {
-                AssetRepository.getWalletAssets(userNo).accounts.firstOrNull()
-            }.onSuccess { account ->
+                val walletAssets = AssetRepository.getWalletAssets(userNo)
+                val yearMonth = YearMonth.of(year, month)
+                val formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
+                val from = yearMonth.atDay(1).atStartOfDay().format(formatter)
+                val to = yearMonth.atEndOfMonth().atTime(23, 59, 59).format(formatter)
+                val payments = AssetRepository.getPayments(userNo, from, to).getOrElse { throwable ->
+                    throw throwable
+                }
+
+                resolveTradeReportUiState(
+                    walletAssets = walletAssets,
+                    payments = payments,
+                    targetType = targetType,
+                    paymentMethodId = paymentMethodId
+                )
+            }.onSuccess { resolvedState ->
+                _uiState.value = resolvedState.copy(isLoading = false, error = null)
+            }.onFailure { e ->
                 _uiState.update {
                     it.copy(
-                        accountName = account?.accountName ?: "대표계좌",
-                        accountNumber = account?.accountNo ?: "",
-                        balance = account?.accountBalance ?: 0L
+                        isLoading = false,
+                        error = e.message
                     )
                 }
             }
-
-            // 결제내역 로드
-            val yearMonth = YearMonth.of(year, month)
-            val formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
-            val from = yearMonth.atDay(1).atStartOfDay().format(formatter)
-            val to = yearMonth.atEndOfMonth().atTime(23, 59, 59).format(formatter)
-
-            AssetRepository.getPayments(userNo, from, to)
-                .onSuccess { payments ->
-                    _uiState.update {
-                        it.copy(
-                            transactions = payments.map { it.toUiItem() },
-                            isLoading = false
-                        )
-                    }
-                }
-                .onFailure { e ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = e.message
-                        )
-                    }
-                }
         }
+    }
+}
+
+private val successfulPaymentStatuses = setOf("APPROVED", "SUCCESS", "COMPLETED")
+
+private fun resolveTradeReportUiState(
+    walletAssets: WalletAssetsResponse,
+    payments: List<PaymentResponse>,
+    targetType: String?,
+    paymentMethodId: Long?
+): TradeReportUiState {
+    return when (targetType?.lowercase()) {
+        Screen.Transaction.ASSET_TYPE_ACCOUNT -> {
+            buildAccountTradeReportUiState(walletAssets, payments, paymentMethodId)
+        }
+
+        Screen.Transaction.ASSET_TYPE_CARD -> {
+            buildCardTradeReportUiState(walletAssets, payments, paymentMethodId)
+        }
+
+        else -> {
+            buildDefaultTradeReportUiState(walletAssets, payments)
+        }
+    }
+}
+
+private fun buildDefaultTradeReportUiState(
+    walletAssets: WalletAssetsResponse,
+    payments: List<PaymentResponse>
+): TradeReportUiState {
+    val primaryAccount = walletAssets.accounts.firstOrNull()
+    return TradeReportUiState(
+        headerName = primaryAccount.displayTradeReportName(defaultName = "대표계좌"),
+        headerNumber = primaryAccount?.accountNo.orEmpty(),
+        summaryAmount = primaryAccount?.accountBalance ?: 0L,
+        summaryLabel = "현재 잔액",
+        summaryIcon = Icons.Default.AccountBalance,
+        transactions = payments.map { it.toUiItem() }
+    )
+}
+
+private fun buildAccountTradeReportUiState(
+    walletAssets: WalletAssetsResponse,
+    payments: List<PaymentResponse>,
+    paymentMethodId: Long?
+): TradeReportUiState {
+    val payMethod = walletAssets.payMethods.firstOrNull { method ->
+        method.paymentMethodId == paymentMethodId &&
+            method.isActive != false &&
+            method.methodType == "ACCOUNT"
+    } ?: throw IllegalArgumentException("선택한 계좌 정보를 찾을 수 없습니다.")
+
+    val account = walletAssets.accounts.firstOrNull { account ->
+        account.accountId != null && account.accountId == payMethod.accountId
+    } ?: throw IllegalArgumentException("선택한 계좌 정보를 찾을 수 없습니다.")
+
+    val filteredPayments = payments.filterByPaymentMethod(paymentMethodId)
+
+    return TradeReportUiState(
+        headerName = account.displayTradeReportName(defaultName = "계좌"),
+        headerNumber = account.accountNo.orEmpty(),
+        summaryAmount = account.accountBalance ?: 0L,
+        summaryLabel = "현재 잔액",
+        summaryIcon = Icons.Default.AccountBalance,
+        transactions = filteredPayments.map { it.toUiItem() }
+    )
+}
+
+private fun buildCardTradeReportUiState(
+    walletAssets: WalletAssetsResponse,
+    payments: List<PaymentResponse>,
+    paymentMethodId: Long?
+): TradeReportUiState {
+    val payMethod = walletAssets.payMethods.firstOrNull { method ->
+        method.paymentMethodId == paymentMethodId &&
+            method.isActive != false &&
+            (method.methodType == "DEBIT_CARD" || method.methodType == "CREDIT_CARD")
+    } ?: throw IllegalArgumentException("선택한 카드 정보를 찾을 수 없습니다.")
+
+    val cardId = when (payMethod.methodType) {
+        "CREDIT_CARD" -> payMethod.creditCardId
+        else -> payMethod.debitCardId
+    }
+    val card = walletAssets.cards.firstOrNull { item ->
+        item.cardId != null && item.cardId == cardId
+    } ?: throw IllegalArgumentException("선택한 카드 정보를 찾을 수 없습니다.")
+
+    val filteredPayments = payments.filterByPaymentMethod(paymentMethodId)
+    val monthlyTotal = filteredPayments
+        .filter { it.isSuccessfulPayment() }
+        .sumOf { it.amount ?: 0L }
+
+    return TradeReportUiState(
+        headerName = card.displayTradeReportName(),
+        headerNumber = formatTradeReportCardNumber(card.cardNo),
+        summaryAmount = monthlyTotal,
+        summaryLabel = "이번달 결제금액",
+        summaryIcon = Icons.Default.ShoppingBag,
+        transactions = filteredPayments.map { it.toUiItem() }
+    )
+}
+
+private fun List<PaymentResponse>.filterByPaymentMethod(paymentMethodId: Long?): List<PaymentResponse> {
+    if (paymentMethodId == null) {
+        return this
+    }
+    return filter { payment -> payment.paymentMethodId == paymentMethodId }
+}
+
+private fun PaymentResponse.isSuccessfulPayment(): Boolean =
+    status?.uppercase() in successfulPaymentStatuses
+
+private fun AssetAccountResponse?.displayTradeReportName(defaultName: String): String {
+    if (this == null) return defaultName
+    return accountName.orEmpty()
+        .ifBlank { bankName.orEmpty() }
+        .ifBlank { defaultName }
+}
+
+private fun AssetCardResponse.displayTradeReportName(): String =
+    cardName.orEmpty()
+        .ifBlank { cardIssuerName.orEmpty() }
+        .ifBlank { "카드" }
+
+private fun formatTradeReportCardNumber(raw: String?): String {
+    val value = raw.orEmpty().trim()
+    if (value.isBlank()) return "카드번호 없음"
+
+    val normalized = value.replace("-", "")
+    return if (normalized.length >= 16 && normalized.all { it.isDigit() || it == '*' }) {
+        normalized.chunked(4).joinToString("-")
+    } else {
+        value
     }
 }
 
@@ -216,6 +361,8 @@ private fun String.formatCreatedAt(): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TradeReportScreen(
+    targetType: String? = null,
+    paymentMethodId: Long? = null,
     onBackClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -226,8 +373,14 @@ fun TradeReportScreen(
     var selectedYear by remember { mutableIntStateOf(today.year) }
     var selectedMonth by remember { mutableIntStateOf(today.monthValue) }
 
-    LaunchedEffect(selectedYear, selectedMonth) {
-        viewModel.loadData(context, selectedYear, selectedMonth)
+    LaunchedEffect(selectedYear, selectedMonth, targetType, paymentMethodId) {
+        viewModel.loadData(
+            context = context,
+            year = selectedYear,
+            month = selectedMonth,
+            targetType = targetType,
+            paymentMethodId = paymentMethodId
+        )
     }
 
     Scaffold(
@@ -265,9 +418,11 @@ fun TradeReportScreen(
                 .padding(innerPadding)
         ) {
             TradeReportAccountSummaryCard(
-                accountName = uiState.accountName.ifBlank { "대표계좌" },
-                accountNumber = uiState.accountNumber,
-                balance = uiState.balance
+                headerName = uiState.headerName.ifBlank { "대표계좌" },
+                headerNumber = uiState.headerNumber,
+                summaryAmount = uiState.summaryAmount,
+                summaryLabel = uiState.summaryLabel,
+                summaryIcon = uiState.summaryIcon
             )
 
             Spacer(modifier = Modifier.height(18.dp))
@@ -354,9 +509,11 @@ fun TradeReportScreen(
 
 @Composable
 private fun TradeReportAccountSummaryCard(
-    accountName: String,
-    accountNumber: String,
-    balance: Long
+    headerName: String,
+    headerNumber: String,
+    summaryAmount: Long,
+    summaryLabel: String,
+    summaryIcon: ImageVector
 ) {
     Card(
         modifier = Modifier
@@ -376,7 +533,7 @@ private fun TradeReportAccountSummaryCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.AccountBalance,
+                        imageVector = summaryIcon,
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
@@ -387,7 +544,7 @@ private fun TradeReportAccountSummaryCard(
 
                 Column {
                     Text(
-                        text = accountName,
+                        text = headerName,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold
                         ),
@@ -395,7 +552,7 @@ private fun TradeReportAccountSummaryCard(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = accountNumber,
+                        text = headerNumber,
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.78f)
                     )
@@ -405,7 +562,7 @@ private fun TradeReportAccountSummaryCard(
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = "현재 잔액",
+                text = summaryLabel,
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.White.copy(alpha = 0.76f)
             )
@@ -413,7 +570,7 @@ private fun TradeReportAccountSummaryCard(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "₩${"%,d".format(balance)}",
+                text = "₩${"%,d".format(summaryAmount)}",
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 28.sp

@@ -66,7 +66,20 @@ sealed class Screen(val route: String) {
     }
 
     object Transfer : Screen("transfer")
-    object Transaction : Screen("transaction")
+    object Transaction : Screen("transaction") {
+        const val ASSET_TYPE_ARG = "assetType"
+        const val PAYMENT_METHOD_ID_ARG = "paymentMethodId"
+        const val ASSET_TYPE_ACCOUNT = "account"
+        const val ASSET_TYPE_CARD = "card"
+        val routeWithArgs = "$route?$ASSET_TYPE_ARG={$ASSET_TYPE_ARG}&$PAYMENT_METHOD_ID_ARG={$PAYMENT_METHOD_ID_ARG}"
+
+        fun createRoute(assetType: String? = null, paymentMethodId: Long? = null): String =
+            if (assetType.isNullOrBlank() || paymentMethodId == null || paymentMethodId <= 0L) {
+                route
+            } else {
+                "$route?$ASSET_TYPE_ARG=$assetType&$PAYMENT_METHOD_ID_ARG=$paymentMethodId"
+            }
+    }
     object Report : Screen("report")
 
     object Coupon : Screen("coupon")

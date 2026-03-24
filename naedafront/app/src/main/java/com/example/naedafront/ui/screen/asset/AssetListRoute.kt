@@ -46,6 +46,7 @@ private sealed interface AssetListUiState {
 fun AccountListRoute(
     initialTab: Int = 0,
     onBack: () -> Unit = {},
+    showBackButton: Boolean = true,
     onRegisterNewAccount: () -> Unit = {},
     onRegisterNewCard: () -> Unit = {},
     onAccountClick: (AccountItem) -> Unit = {},
@@ -153,6 +154,7 @@ fun AccountListRoute(
                 accounts = state.accounts,
                 cards = state.cards,
                 onBack = onBack,
+                showBackButton = showBackButton,
                 onRegisterNewAccount = handleRegisterAccount,
                 onRegisterNewCard = handleRegisterCard,
                 onAccountClick = onAccountClick,
