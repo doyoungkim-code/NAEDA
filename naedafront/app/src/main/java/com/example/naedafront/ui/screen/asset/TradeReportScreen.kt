@@ -240,6 +240,13 @@ private fun PaymentResponse.toUiItem(): TradeReportItem {
         ?.takeIf { it > 0 }
         ?.let { "${"%,d".format(it)}P 적립" }
         ?: "—"
+    val storeLabel = storeName?.takeIf { it.isNotBlank() }
+        ?: if (isSuccess) "매장 정보 없음" else "결제 실패"
+    val subtitle = listOfNotNull(
+        categoryName?.takeIf { it.isNotBlank() },
+        createdAt?.formatCreatedAt()?.takeIf { it.isNotBlank() }
+    ).joinToString(" · ")
+    val isFacePayTransaction = facePay == true || authLevel?.equals("FACE_PAY", ignoreCase = true) == true
 
     val rawAmount = amount ?: 0L
 

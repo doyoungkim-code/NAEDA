@@ -140,11 +140,30 @@ class SignUpViewModel : ViewModel() {
                         "submitSignUp failed | code=${response.code()}, body=$errorBody"
                     )
 
+                    val message = when (response.code()) {
+                        409 -> {
+                            when {
+                                errorBody?.contains("userId", ignoreCase = true) == true ||
+                                errorBody?.contains("이메일", ignoreCase = true) == true ||
+                                errorBody?.contains("아이디", ignoreCase = true) == true ->
+                                    "이미 사용 중인 이메일입니다."
+                                errorBody?.contains("phone", ignoreCase = true) == true ||
+                                errorBody?.contains("전화", ignoreCase = true) == true ||
+                                errorBody?.contains("휴대폰", ignoreCase = true) == true ->
+                                    "이미 등록된 전화번호입니다."
+                                else -> "이미 가입된 정보입니다."
+                            }
+                        }
+                        400 -> "입력 정보를 확인해주세요."
+                        500, 502 -> "이미 등록된 전화번호이거나 서버에 문제가 발생했습니다.\n정보를 확인 후 다시 시도해주세요."
+                        else -> "회원가입에 실패했습니다. (${response.code()})"
+                    }
+
                     _uiState.update { currentState ->
                         currentState.copy(
                             isLoading = false,
                             isSignUpSuccess = false,
-                            errorMessage = "회원가입에 실패했습니다. (${response.code()})"
+                            errorMessage = message
                         )
                     }
                 }
