@@ -1,8 +1,8 @@
+// File: app/src/main/java/com/example/naedafront/data/repository/CardRepository.kt
 package com.example.naedafront.data.repository
 
 import android.util.Log
 import com.example.naedafront.data.remote.RetrofitClient
-import com.example.naedafront.data.remote.api.CardApi
 import com.example.naedafront.data.remote.response.CardResponse
 import com.example.naedafront.data.remote.response.CardTransactionResponse
 import java.text.SimpleDateFormat
@@ -18,11 +18,16 @@ data class CardTransactionItemData(
     val transactedAt: String
 )
 
+data class CardTransactionQuery(
+    val startDate: String,
+    val endDate: String
+)
+
 object CardRepository {
 
     private const val TAG = "CardRepository"
 
-    private val api: CardApi by lazy {
+    private val api by lazy {
         RetrofitClient.cardApi
     }
 
@@ -58,13 +63,14 @@ object CardRepository {
 
             Log.d(
                 TAG,
-                "getCardTransactions start | userNo=$userNo | cardId=$cardId | query=$query"
+                "getCardTransactions start | userNo=$userNo | cardId=$cardId | startDate=${query.startDate} | endDate=${query.endDate}"
             )
 
             val response = api.getCardTransactions(
                 cardId = cardId,
                 userNo = userNo,
-                request = query
+                startDate = query.startDate,
+                endDate = query.endDate
             )
             val errorBody = response.errorBody()?.string()
 
@@ -83,8 +89,9 @@ object CardRepository {
         }
     }
 
-    private fun buildTransactionQuery(period: String): Map<String, String> {
+    private fun buildTransactionQuery(period: String): CardTransactionQuery {
         val format = SimpleDateFormat("yyyyMMdd", Locale.KOREA)
+
         val end = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 23)
             set(Calendar.MINUTE, 59)
@@ -107,9 +114,9 @@ object CardRepository {
             set(Calendar.MILLISECOND, 0)
         }
 
-        return mapOf(
-            "startDate" to format.format(start.time),
-            "endDate" to format.format(end.time)
+        return CardTransactionQuery(
+            startDate = format.format(start.time),
+            endDate = format.format(end.time)
         )
     }
 
@@ -120,15 +127,13 @@ object CardRepository {
             else -> "기타"
         }
 
-        val transacted = buildString {
-            if (!transactionDate.isNullOrBlank()) append(transactionDate.trim())
-            if (!transactionTime.isNullOrBlank()) {
-                if (isNotBlank()) append(" ")
-                append(transactionTime.trim())
-            }
-        }
+        val date = transactionDate?.trim().orEmpty()
+        val time = transactionTime?.trim().orEmpty()
+        val transacted = listOf(date, time)
+            .filter { it.isNotBlank() }
+            .joinToString(" ")
 
-        val canceled = when (cardStatus?.uppercase()) {
+        val canceled = when (cardStatus?.trim()?.uppercase()) {
             "CANCELED", "CANCELLED", "CANCEL", "승인취소", "취소" -> true
             else -> false
         }

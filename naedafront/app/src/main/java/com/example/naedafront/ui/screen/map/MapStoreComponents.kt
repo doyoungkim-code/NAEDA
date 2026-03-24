@@ -43,10 +43,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import com.example.naedafront.R
 import com.example.naedafront.data.remote.MapStoreResponseDto
 import com.example.naedafront.ui.theme.Mint50
 import com.example.naedafront.ui.theme.Mint500
@@ -173,7 +176,6 @@ fun StoreDetailBottomSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // 수정: modifier.offset(y = (-6).dp)를 제거하여 하단에 밀착시킴
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
@@ -205,7 +207,7 @@ fun StoreDetailBottomSheet(
 
             StoreImageHero(
                 imageUrl = store.imageUrl,
-                categoryName = store.categoryName,
+                categoryName = toMapCategoryLabel(store.categoryName),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(180.dp)
@@ -226,8 +228,8 @@ fun StoreDetailBottomSheet(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (store.categoryName != null) {
-                    StoreMetaChip(store.categoryName)
+                toMapCategoryLabel(store.categoryName)?.let { categoryName ->
+                    StoreMetaChip(categoryName)
                 }
                 if (store.facePayEnabled) {
                     StoreMetaChip("FACE PAY", background = Color(0xFFE8F0FF), content = Color(0xFF4F74FF))
@@ -256,6 +258,18 @@ fun StoreDetailBottomSheet(
                 "평점",
                 if (store.rating > 0.0) String.format("%.1f", store.rating) else "평점 없음"
             )
+
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                StoreMetaChip(
+                    text = "닫기",
+                    background = Color(0xFF152341),
+                    content = Color.White,
+                    modifier = Modifier.clickable(onClick = onDismiss)
+                )
+            }
         }
     }
 }
@@ -274,7 +288,7 @@ private fun StoreMapListRow(
         Row(verticalAlignment = Alignment.Top) {
             StoreThumbnail(
                 imageUrl = store.imageUrl,
-                categoryName = store.categoryName,
+                categoryName = toMapCategoryLabel(store.categoryName),
                 modifier = Modifier.size(width = 96.dp, height = 96.dp)
             )
 
@@ -307,7 +321,7 @@ private fun StoreMapListRow(
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF475569)
                     )
-                    store.categoryName?.takeIf { it.isNotBlank() }?.let {
+                    toMapCategoryLabel(store.categoryName)?.let {
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "· $it",
@@ -367,7 +381,8 @@ private fun StoreImageHero(
     categoryName: String?,
     modifier: Modifier = Modifier
 ) {
-    val imageBitmap by rememberNetworkImage(url = imageUrl)
+    val resolvedImageUrl = toUsableMapImageUrl(imageUrl)
+    val imageBitmap by rememberNetworkImage(url = resolvedImageUrl)
 
     Box(
         modifier = modifier
@@ -382,6 +397,8 @@ private fun StoreImageHero(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
+        } else if (resolvedImageUrl == null) {
+            StoreNoImageFallback()
         } else {
             PlaceholderStoreGraphic(categoryName = categoryName)
         }
@@ -394,23 +411,38 @@ private fun StoreThumbnail(
     categoryName: String?,
     modifier: Modifier = Modifier
 ) {
+    val resolvedImageUrl = toUsableMapImageUrl(imageUrl)
+    val imageBitmap by rememberNetworkImage(url = resolvedImageUrl)
+
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
             .background(Color(0xFFE8E2D9)),
         contentAlignment = Alignment.Center
     ) {
-        if (!imageUrl.isNullOrBlank()) {
-            AsyncImage(
-                model = imageUrl,
+        if (imageBitmap != null) {
+            Image(
+                bitmap = imageBitmap!!,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
+        } else if (resolvedImageUrl == null) {
+            StoreNoImageFallback()
         } else {
             PlaceholderStoreGraphic(categoryName = categoryName)
         }
     }
+}
+
+@Composable
+private fun StoreNoImageFallback() {
+    Image(
+        painter = painterResource(id = R.drawable.no_image),
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier.fillMaxSize()
+    )
 }
 
 @Composable

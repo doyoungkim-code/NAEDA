@@ -1,3 +1,4 @@
+// File: app/src/main/java/com/example/naedafront/ui/navigation/Screen.kt
 package com.example.naedafront.ui.navigation
 
 sealed class Screen(val route: String) {
@@ -62,16 +63,19 @@ sealed class Screen(val route: String) {
     }
 
     object CardDetail : Screen("card_detail/{cardId}") {
-        fun createRoute(cardId: String) = "card_detail/$cardId"
+        fun createRoute(cardId: Long) = "card_detail/$cardId"
     }
 
     object Transfer : Screen("transfer")
+
     object Transaction : Screen("transaction") {
         const val ASSET_TYPE_ARG = "assetType"
         const val PAYMENT_METHOD_ID_ARG = "paymentMethodId"
         const val ASSET_TYPE_ACCOUNT = "account"
         const val ASSET_TYPE_CARD = "card"
-        val routeWithArgs = "$route?$ASSET_TYPE_ARG={$ASSET_TYPE_ARG}&$PAYMENT_METHOD_ID_ARG={$PAYMENT_METHOD_ID_ARG}"
+
+        val routeWithArgs =
+            "$route?$ASSET_TYPE_ARG={$ASSET_TYPE_ARG}&$PAYMENT_METHOD_ID_ARG={$PAYMENT_METHOD_ID_ARG}"
 
         fun createRoute(assetType: String? = null, paymentMethodId: Long? = null): String =
             if (assetType.isNullOrBlank() || paymentMethodId == null || paymentMethodId <= 0L) {
@@ -80,11 +84,10 @@ sealed class Screen(val route: String) {
                 "$route?$ASSET_TYPE_ARG=$assetType&$PAYMENT_METHOD_ID_ARG=$paymentMethodId"
             }
     }
-    object Report : Screen("report")
 
+    object Report : Screen("report")
     object Coupon : Screen("coupon")
     object Donation : Screen("donation")
-
     object Chat : Screen("chat")
 
     object MyPage : Screen("mypage")

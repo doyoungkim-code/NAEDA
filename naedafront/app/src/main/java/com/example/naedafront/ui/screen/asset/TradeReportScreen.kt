@@ -1,3 +1,4 @@
+// File: app/src/main/java/com/example/naedafront/ui/screen/asset/TradeReportScreen.kt
 package com.example.naedafront.ui.screen.asset
 
 import android.content.Context
@@ -15,7 +16,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -83,6 +86,7 @@ data class TradeReportItem(
     val paymentId: Long,
     val title: String,
     val subTitle: String,
+    val category: String = "",
     val amount: String,
     val amountValue: Long,
     val isIncome: Boolean,
@@ -109,8 +113,23 @@ data class TradeReportUiState(
     val selectedPaymentDetail: PaymentDetailResponse? = null,
     val isDetailLoading: Boolean = false,
     val detailError: String? = null,
-    val selectedPeriod: String = "전체"
-)
+    val selectedPeriod: String = "전체",
+    val selectedCategory: String = "전체"
+) {
+    val categoryList: List<String>
+        get() = listOf("전체") + transactions
+            .map { it.category.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sorted()
+
+    val filteredTransactions: List<TradeReportItem>
+        get() = if (selectedCategory == "전체") {
+            transactions
+        } else {
+            transactions.filter { it.category == selectedCategory }
+        }
+}
 
 class TradeReportViewModel : ViewModel() {
 
@@ -118,7 +137,16 @@ class TradeReportViewModel : ViewModel() {
     val uiState: StateFlow<TradeReportUiState> = _uiState.asStateFlow()
 
     fun updatePeriod(period: String) {
-        _uiState.update { it.copy(selectedPeriod = period) }
+        _uiState.update {
+            it.copy(
+                selectedPeriod = period,
+                selectedCategory = "전체"
+            )
+        }
+    }
+
+    fun selectCategory(category: String) {
+        _uiState.update { it.copy(selectedCategory = category) }
     }
 
     fun loadPaymentDetail(context: Context, paymentId: Long) {
@@ -167,7 +195,14 @@ class TradeReportViewModel : ViewModel() {
         val userNo = AuthPrefs.getUserNo(context) ?: return
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    error = null,
+                    transactions = emptyList(),
+                    selectedCategory = "전체"
+                )
+            }
 
             runCatching {
                 AssetRepository.getWalletAssets(userNo).accounts.firstOrNull()
@@ -240,15 +275,9 @@ private fun PaymentResponse.toUiItem(): TradeReportItem {
         ?.takeIf { it > 0 }
         ?.let { "${"%,d".format(it)}P 적립" }
         ?: "—"
-    val storeLabel = storeName?.takeIf { it.isNotBlank() }
-        ?: if (isSuccess) "매장 정보 없음" else "결제 실패"
-    val subtitle = listOfNotNull(
-        categoryName?.takeIf { it.isNotBlank() },
-        createdAt?.formatCreatedAt()?.takeIf { it.isNotBlank() }
-    ).joinToString(" · ")
-    val isFacePayTransaction = facePay == true || authLevel?.equals("FACE_PAY", ignoreCase = true) == true
 
     val rawAmount = amount ?: 0L
+    val rawCategory = categoryName?.trim().orEmpty()
 
     return TradeReportItem(
         paymentId = paymentId ?: -1L,
@@ -259,6 +288,7 @@ private fun PaymentResponse.toUiItem(): TradeReportItem {
             else -> "내다페이 결제"
         },
         subTitle = createdAt?.formatCreatedAt() ?: "",
+        category = rawCategory,
         amount = if (isSuccess) "-${"%,d".format(rawAmount)}원" else "실패",
         amountValue = rawAmount,
         isIncome = false,
@@ -371,6 +401,7 @@ private fun TradeReportItem.matches(query: String): Boolean {
     return listOf(
         title,
         subTitle,
+        category,
         amount,
         balanceAfter,
         balanceLabel,
@@ -395,8 +426,8 @@ fun TradeReportScreen(
         viewModel.loadData(context, uiState.selectedPeriod)
     }
 
-    val filteredTransactions = remember(uiState.transactions, searchQuery) {
-        uiState.transactions.filter { it.matches(searchQuery) }
+    val filteredTransactions = remember(uiState.filteredTransactions, searchQuery) {
+        uiState.filteredTransactions.filter { it.matches(searchQuery) }
     }
 
     val groupedTransactions = remember(filteredTransactions) {
@@ -444,6 +475,16 @@ fun TradeReportScreen(
                     selectedPeriod = uiState.selectedPeriod,
                     onPeriodClick = { showPeriodDialog = true }
                 )
+            }
+
+            if (uiState.categoryList.size > 1) {
+                item {
+                    TradeCategoryFilterRow(
+                        categories = uiState.categoryList,
+                        selected = uiState.selectedCategory,
+                        onSelect = { viewModel.selectCategory(it) }
+                    )
+                }
             }
 
             when {
@@ -739,12 +780,48 @@ private fun TradeFilterRow(
 }
 
 @Composable
+private fun TradeCategoryFilterRow(
+    categories: List<String>,
+    selected: String,
+    onSelect: (String) -> Unit
+) {
+    LazyRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(SurfaceColor)
+            .padding(bottom = 12.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(categories) { category ->
+            val isSelected = selected == category
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(if (isSelected) Mint900 else SurfaceVariant)
+                    .clickable { onSelect(category) }
+                    .padding(horizontal = 14.dp, vertical = 7.dp)
+            ) {
+                Text(
+                    text = category,
+                    style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = if (isSelected) Color.White else OnSurfaceVariant
+                )
+            }
+        }
+    }
+
+    HorizontalDivider(color = OutlineVariant, thickness = 1.dp)
+}
+
+@Composable
 private fun TradePeriodPickerDialog(
     selected: String,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val periods = listOf("전체","1주일", "1개월", "3개월", "6개월")
+    val periods = listOf("전체", "1주일", "1개월", "3개월", "6개월")
 
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -838,6 +915,7 @@ private fun TradeTransactionRow(
 
     val subtitle = listOfNotNull(
         item.time.takeIf { it.isNotBlank() },
+        item.category.takeIf { it.isNotBlank() },
         item.balanceAfter.takeIf { it.isNotBlank() && it != "—" }
     ).joinToString(" · ")
 

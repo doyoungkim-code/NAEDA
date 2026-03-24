@@ -1,4 +1,6 @@
+// File: app/src/main/java/com/example/naedafront/ui/navigation/NaedaNavGraph.kt
 package com.example.naedafront.ui.navigation
+
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,7 +28,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.FaceRegistrationRepository
+import com.example.naedafront.data.repository.AddressRepository
 import com.example.naedafront.data.repository.OrderRepository
+import com.example.naedafront.data.repository.ProductRepository
+import com.example.naedafront.data.repository.UserRepository
 import com.example.naedafront.ui.screen.LoginScreen
 import com.example.naedafront.ui.screen.NotificationScreen
 import com.example.naedafront.ui.screen.WelcomeScreen
@@ -60,6 +65,7 @@ import com.example.naedafront.ui.screen.signup.SignUpPasswordScreen
 import com.example.naedafront.ui.screen.signup.SignUpPhoneScreen
 import com.example.naedafront.ui.screen.signup.SignUpPinScreen
 import com.example.naedafront.ui.screen.signup.SignUpRrnScreen
+import com.example.naedafront.ui.screen.signup.SignUpVerifyScreen
 import com.example.naedafront.ui.screen.signup.SignUpViewModel
 import com.example.naedafront.ui.screen.store.DeliveryAddressScreen
 import com.example.naedafront.ui.screen.store.OrderCompleteScreen
@@ -70,9 +76,7 @@ import com.example.naedafront.ui.screen.store.OrderHistoryViewModel
 import com.example.naedafront.ui.screen.store.PointHistoryScreen
 import com.example.naedafront.ui.screen.store.PointStoreScreen
 import com.example.naedafront.ui.screen.store.StoreOrderDraftStore
-import com.example.naedafront.data.repository.AddressRepository
-import com.example.naedafront.data.repository.ProductRepository
-import com.example.naedafront.data.repository.UserRepository
+
 @Composable
 fun NaedaNavGraph(
     navController: NavHostController,
@@ -126,8 +130,30 @@ fun NaedaNavGraph(
                 signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
                 onConfirmClick = {
-                    navController.navigate(Screen.SignUpEmail.route)
+                    val phone = signUpViewModel.uiState.value.phone
+                    navController.navigate(Screen.SignUpVerify.createRoute(phone))
                 }
+            )
+        }
+
+        composable(
+            route = Screen.SignUpVerify.route,
+            arguments = listOf(
+                navArgument("phone") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = ""
+                }
+            )
+        ) { backStackEntry ->
+            val phone = backStackEntry.arguments?.getString("phone") ?: ""
+
+            SignUpVerifyScreen(
+                signUpViewModel = signUpViewModel,
+                phoneNumber = phone,
+                onBackClick = { navController.popBackStack() },
+                onConfirmClick = { navController.navigate(Screen.SignUpEmail.route) },
+                onResendClick = { }
             )
         }
 
@@ -346,9 +372,9 @@ fun NaedaNavGraph(
                 onBack = { navController.popBackStack() },
                 onAccountClick = { account ->
                     navController.navigate(
-                        Screen.Transaction.createRoute(
-                            assetType = Screen.Transaction.ASSET_TYPE_ACCOUNT,
-                            paymentMethodId = account.paymentMethodId
+                        Screen.AccountDetail.createRoute(
+                            accountId = account.accountId,
+                            accountNo = account.accountNumber
                         )
                     )
                 },
@@ -360,6 +386,29 @@ fun NaedaNavGraph(
                 onSetPrimaryCard = { },
                 onDeleteCard = { },
                 useRegisterDialog = true
+            )
+        }
+
+        composable("card_detail/{cardId}") { backStackEntry ->
+            val cardId = backStackEntry.arguments?.getString("cardId")?.toLongOrNull()
+
+            val cardName = navController
+                .previousBackStackEntry
+                ?.savedStateHandle
+                ?.get<String>("cardName")
+                .orEmpty()
+
+            val cardNo = navController
+                .previousBackStackEntry
+                ?.savedStateHandle
+                ?.get<String>("cardNo")
+                .orEmpty()
+
+            CardDetailRoute(
+                cardId = cardId,
+                cardName = cardName,
+                cardNo = cardNo,
+                onBack = { navController.popBackStack() }
             )
         }
 
@@ -402,6 +451,8 @@ fun NaedaNavGraph(
             val cardId = backStackEntry.arguments?.getLong("cardId")
             CardDetailRoute(
                 cardId = cardId,
+                cardName = cardName,
+                cardNo = cardNo,
                 onBack = { navController.popBackStack() }
             )
         }
@@ -422,16 +473,7 @@ fun NaedaNavGraph(
                     defaultValue = ""
                 }
             )
-        ) { backStackEntry ->
-            val assetType = backStackEntry.arguments
-                ?.getString(Screen.Transaction.ASSET_TYPE_ARG)
-                .orEmpty()
-                .ifBlank { null }
-            val paymentMethodId = backStackEntry.arguments
-                ?.getString(Screen.Transaction.PAYMENT_METHOD_ID_ARG)
-                .orEmpty()
-                .toLongOrNull()
-
+        ) {
             TradeReportScreen(
                 onBackClick = { navController.popBackStack() }
             )
@@ -443,6 +485,7 @@ fun NaedaNavGraph(
 
         composable(Screen.Chat.route) {
             val userNo = remember(context) { AuthPrefs.getUserNo(context) }
+
             ChatScreen(
                 userNo = userNo,
                 onBackClick = { navController.popBackStack() }
@@ -666,9 +709,9 @@ private fun AssetTabContent(
         onRegisterNewCard = { navController.navigate(Screen.RegisterAsset.createRoute(1)) },
         onAccountClick = { account ->
             navController.navigate(
-                Screen.Transaction.createRoute(
-                    assetType = Screen.Transaction.ASSET_TYPE_ACCOUNT,
-                    paymentMethodId = account.paymentMethodId
+                Screen.AccountDetail.createRoute(
+                    accountId = account.accountId,
+                    accountNo = account.accountNumber
                 )
             )
         },
