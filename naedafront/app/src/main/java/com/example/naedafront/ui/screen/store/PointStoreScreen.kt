@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import com.example.naedafront.ui.theme.Background
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 
 private data class StoreCategory(
     val id: String,
@@ -489,38 +491,14 @@ private fun ProductCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column {
-            Box(
+            ProductImage(
+                imageUrl = item.imageUrl,
+                thumbnailLabel = item.thumbnailLabel,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(162.dp)
-                    .background(Color(0xFFF2F4F7)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = item.thumbnailLabel,
-                    color = Color(0xFF98A2B3),
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                item.badge?.let { badge ->
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(8.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFE6F7F2))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = badge,
-                            color = Color(0xFF0A8F72),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
+                    .height(162.dp),
+                badge = item.badge
+            )
 
             Column(
                 modifier = Modifier
@@ -555,6 +533,54 @@ private fun ProductCard(
                     color = Color(0xFF006B60),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.ExtraBold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProductImage(
+    imageUrl: String,
+    thumbnailLabel: String,
+    modifier: Modifier = Modifier,
+    badge: String? = null
+) {
+    Box(
+        modifier = modifier
+            .background(Color(0xFFF2F4F7)),
+        contentAlignment = Alignment.Center
+    ) {
+        if (imageUrl.isNotBlank()) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = thumbnailLabel,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Text(
+                text = thumbnailLabel,
+                color = Color(0xFF98A2B3),
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        badge?.let { badgeText ->
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(8.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFFE6F7F2))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = badgeText,
+                    color = Color(0xFF0A8F72),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
@@ -601,21 +627,14 @@ private fun StoreItemDetailDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Box(
+                ProductImage(
+                    imageUrl = item.imageUrl,
+                    thumbnailLabel = item.thumbnailLabel,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(180.dp)
                         .clip(RoundedCornerShape(18.dp))
-                        .background(Color(0xFFF2F4F7)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = item.thumbnailLabel,
-                        color = Color(0xFF98A2B3),
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
