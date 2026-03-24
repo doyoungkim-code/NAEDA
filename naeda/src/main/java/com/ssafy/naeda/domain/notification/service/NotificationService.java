@@ -31,6 +31,12 @@ public class NotificationService {
         notification.markAsRead();
     }
 
+    @Transactional
+    public void markAllAsRead(Long userNo) {
+        notificationRepository.findByUserNoAndIsReadFalseOrderBySentDesc(userNo)
+                .forEach(Notification::markAsRead);
+    }
+
     public long getUnreadCount(Long userNo) {
         return notificationRepository.countByUserNoAndIsReadFalse(userNo);
     }
