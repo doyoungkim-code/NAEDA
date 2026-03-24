@@ -11,20 +11,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -33,17 +34,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.naedafront.ui.common.SignUpProgressBar
 import com.example.naedafront.ui.theme.Background
+import com.example.naedafront.ui.theme.Mint500
 import com.example.naedafront.ui.theme.Mint900
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,9 +54,9 @@ fun SignUpPasswordScreen(
     signUpViewModel: SignUpViewModel,
     onBackClick: () -> Unit = {},
     onConfirmClick: () -> Unit = {},
-
 ) {
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
     var showInvalidPasswordDialog by remember { mutableStateOf(false) }
 
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -104,7 +106,7 @@ fun SignUpPasswordScreen(
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "뒤로가기",
                             tint = MaterialTheme.colorScheme.onSurface
                         )
@@ -153,25 +155,35 @@ fun SignUpPasswordScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                TextField(
+                OutlinedTextField(
                     value = password,
-                    onValueChange = { newValue ->
-                        password = newValue
-                    },
+                    onValueChange = { password = it },
                     modifier = Modifier.fillMaxWidth(),
-                    visualTransformation = PasswordVisualTransformation(),
-                    textStyle = LocalTextStyle.current.copy(
-                        fontSize = 20.sp,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        letterSpacing = 4.sp
-                    ),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
-                        cursorColor = MaterialTheme.colorScheme.primary
-                    ),
+                    label = { Text("비밀번호") },
+                    visualTransformation = if (passwordVisible) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(
+                                imageVector = if (passwordVisible) {
+                                    Icons.Default.Visibility
+                                } else {
+                                    Icons.Default.VisibilityOff
+                                },
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    supportingText = {
+                        Text(
+                            text = "영문 + 숫자 조합 / 대소문자 구분 없음",
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    },
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Done
@@ -179,15 +191,13 @@ fun SignUpPasswordScreen(
                     keyboardActions = KeyboardActions(
                         onDone = { handleConfirm() }
                     ),
-                    singleLine = true
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "영문 + 숫자 조합 / 대소문자 구분 없음",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.outline
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Mint500,
+                        focusedLabelColor = Mint500,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        cursorColor = Mint500
+                    )
                 )
 
                 Spacer(modifier = Modifier.weight(1f))

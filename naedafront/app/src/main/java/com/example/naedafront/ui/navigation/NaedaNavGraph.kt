@@ -28,7 +28,7 @@ import com.example.naedafront.ui.screen.NotificationScreen
 import com.example.naedafront.ui.screen.WelcomeScreen
 import com.example.naedafront.ui.screen.asset.AccountDetailRoute
 import com.example.naedafront.ui.screen.asset.AccountListRoute
-import com.example.naedafront.ui.screen.asset.CardDetailScreen
+import com.example.naedafront.ui.screen.asset.CardDetailRoute
 import com.example.naedafront.ui.screen.asset.RegisterAssetDialog
 import com.example.naedafront.ui.screen.asset.TradeReportScreen
 import com.example.naedafront.ui.screen.chat.ChatScreen
@@ -171,7 +171,7 @@ fun NaedaNavGraph(
                     AuthPrefs.setLoggedIn(context, false)
                     AuthPrefs.setFaceRegistered(context, false)
                     navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                        popUpTo(Screen.Welcome.route) { inclusive = false }
                         launchSingleTop = true
                     }
                 }
@@ -414,13 +414,9 @@ fun NaedaNavGraph(
             )
         }
 
-        composable(
-            route = Screen.CardDetail.route,
-            arguments = listOf(navArgument("cardId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val cardId = backStackEntry.arguments?.getString("cardId") ?: ""
-
-            CardDetailScreen(
+        composable("card_detail/{cardId}") { backStackEntry ->
+            val cardId = backStackEntry.arguments?.getString("cardId")?.toLongOrNull()
+            CardDetailRoute(
                 cardId = cardId,
                 onBack = { navController.popBackStack() }
             )
@@ -453,8 +449,6 @@ fun NaedaNavGraph(
                 .toLongOrNull()
 
             TradeReportScreen(
-                targetType = assetType,
-                paymentMethodId = paymentMethodId,
                 onBackClick = { navController.popBackStack() }
             )
         }
@@ -625,7 +619,6 @@ private fun HomeTabContent(
         onAlarmClick = { navController.navigate(Screen.Notification.route) },
         onProfileClick = { navController.navigate(Screen.MyPage.route) },
         onSecretFaceMatchTestClick = { navController.navigate(Screen.FaceMatchRecognize.route) },
-        onChatClick = { navController.navigate(Screen.Chat.route) },
         onRegisterCardClick = { navController.navigate(Screen.Asset.route) },
         onNoticeItemClick = { item ->
             navController.navigate(Screen.NoticeDetail.createRoute(item.type, item.id))

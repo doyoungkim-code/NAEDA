@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -25,10 +24,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -74,7 +76,7 @@ data class TransactionItem(
     val time: String get() = if (transacted.length >= 16) transacted.takeLast(5) else ""
 }
 
-private val periodList = listOf("1주일", "1개월", "3개월", "6개월", "직접 설정")
+private val periodList = listOf("전체", "1주일", "1개월", "3개월", "6개월")
 
 @Composable
 fun AccountDetailScreen(
@@ -83,9 +85,11 @@ fun AccountDetailScreen(
     transactions: List<TransactionItem>,
     onBack: () -> Unit = {},
 ) {
-    var selectedPeriod by rememberSaveable { mutableStateOf("1개월") }
+    var selectedPeriod by rememberSaveable { mutableStateOf("전체") }
     var selectedCategory by rememberSaveable { mutableStateOf("전체") }
     var showPeriodDialog by remember { mutableStateOf(false) }
+    var isSearchMode by rememberSaveable { mutableStateOf(false) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
 
     val availableCategories = remember(transactions) {
         listOf("전체") + transactions.map { it.category }.filter { it.isNotBlank() }.distinct()
@@ -100,13 +104,23 @@ fun AccountDetailScreen(
     val periodFiltered = remember(transactions, selectedPeriod) {
         filterTransactionsByPeriod(transactions, selectedPeriod)
     }
-    val filteredTransactions = remember(periodFiltered, selectedCategory) {
+
+    val categoryFiltered = remember(periodFiltered, selectedCategory) {
         if (selectedCategory == "전체") {
             periodFiltered
         } else {
             periodFiltered.filter { it.category == selectedCategory }
         }
     }
+
+    val filteredTransactions = remember(categoryFiltered, searchQuery) {
+        if (searchQuery.isBlank()) {
+            categoryFiltered
+        } else {
+            categoryFiltered.filter { it.matches(searchQuery) }
+        }
+    }
+
     val groupedTransactions = remember(filteredTransactions) {
         filteredTransactions.groupBy { it.date }.toSortedMap(reverseOrder())
     }
@@ -123,8 +137,26 @@ fun AccountDetailScreen(
                     accountName = account.accountName,
                     accountNumber = account.accountNumber,
                     balance = balance,
-                    onBack = onBack
+                    onBack = onBack,
+                    isSearchMode = isSearchMode,
+                    onSearchToggle = {
+                        if (isSearchMode) {
+                            searchQuery = ""
+                            isSearchMode = false
+                        } else {
+                            isSearchMode = true
+                        }
+                    }
                 )
+            }
+
+            if (isSearchMode) {
+                item {
+                    AccountSearchBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it }
+                    )
+                }
             }
 
             item {
@@ -153,7 +185,7 @@ fun AccountDetailScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "거래내역이 없어요",
+                            text = if (searchQuery.isBlank()) "거래내역이 없어요" else "검색 결과가 없습니다.",
                             style = NaedaTypography.bodyMedium,
                             color = OnSurfaceVariant
                         )
@@ -193,6 +225,8 @@ private fun AccountDetailHeader(
     accountNumber: String,
     balance: Long,
     onBack: () -> Unit,
+    isSearchMode: Boolean,
+    onSearchToggle: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -219,10 +253,11 @@ private fun AccountDetailHeader(
                         tint = Color.White
                     )
                 }
-                IconButton(onClick = {}) {
+
+                IconButton(onClick = onSearchToggle) {
                     Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "더보기",
+                        imageVector = if (isSearchMode) Icons.Default.Close else Icons.Default.Search,
+                        contentDescription = if (isSearchMode) "검색 닫기" else "검색",
                         tint = Color.White
                     )
                 }
@@ -261,6 +296,55 @@ private fun AccountDetailHeader(
             }
         }
     }
+}
+
+@Composable
+private fun AccountSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        singleLine = true,
+        placeholder = {
+            Text(
+                text = "결제내역 검색",
+                color = OnSurfaceVariant
+            )
+        },
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                tint = Mint900
+            )
+        },
+        trailingIcon = {
+            if (query.isNotBlank()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "검색어 지우기",
+                        tint = OnSurfaceVariant
+                    )
+                }
+            }
+        },
+        shape = RoundedCornerShape(14.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Mint900,
+            unfocusedBorderColor = OutlineVariant,
+            focusedTextColor = OnBackground,
+            unfocusedTextColor = OnBackground,
+            cursorColor = Mint900,
+            focusedContainerColor = SurfaceColor,
+            unfocusedContainerColor = SurfaceColor
+        )
+    )
 }
 
 @Composable
@@ -356,13 +440,16 @@ private fun TransactionDateHeader(date: String) {
 @Composable
 private fun TransactionRow(item: TransactionItem) {
     val isDeposit = item.transactionType.equals("DEPOSIT", ignoreCase = true)
-    val title = item.counterpart.ifBlank {
-        item.memo.ifBlank { item.category.ifBlank { "거래내역" } }
+
+    val title = when {
+        item.counterpart.isNotBlank() -> item.counterpart
+        item.memo.isNotBlank() -> item.memo
+        else -> "계좌 거래"
     }
+
     val subtitle = listOfNotNull(
-        item.category.takeIf { it.isNotBlank() },
         item.time.takeIf { it.isNotBlank() },
-        item.memo.takeIf { it.isNotBlank() && it != title }
+        item.category.takeIf { it.isNotBlank() }
     ).joinToString(" · ")
 
     Row(
@@ -376,7 +463,9 @@ private fun TransactionRow(item: TransactionItem) {
             modifier = Modifier
                 .size(42.dp)
                 .clip(CircleShape)
-                .background(if (isDeposit) Color(0xFFDFF7E8) else Color(0xFFDCEBFF)),
+                .background(
+                    if (isDeposit) Color(0xFFDFF7E8) else Color(0xFFDCEBFF)
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -396,6 +485,7 @@ private fun TransactionRow(item: TransactionItem) {
                 color = OnBackground,
                 maxLines = 1
             )
+
             if (subtitle.isNotBlank()) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
@@ -405,6 +495,7 @@ private fun TransactionRow(item: TransactionItem) {
                     maxLines = 1
                 )
             }
+
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = "잔액 ${"%,d".format(item.balanceAfter)}원",
@@ -509,6 +600,7 @@ private fun filterTransactionsByPeriod(
     val now = LocalDateTime.now()
     val formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm")
     val threshold = when (selectedPeriod) {
+        "전체" -> null
         "1주일" -> now.minusWeeks(1)
         "1개월" -> now.minusMonths(1)
         "3개월" -> now.minusMonths(3)
@@ -526,4 +618,21 @@ private fun filterTransactionsByPeriod(
             ?.let { !it.isBefore(threshold) }
             ?: true
     }
+}
+
+private fun TransactionItem.matches(query: String): Boolean {
+    if (query.isBlank()) return true
+    val keyword = query.trim().lowercase()
+
+    return listOf(
+        id,
+        transactionType,
+        counterpart,
+        memo,
+        category,
+        amount.toString(),
+        balanceAfter.toString(),
+        date,
+        time
+    ).any { it.lowercase().contains(keyword) }
 }

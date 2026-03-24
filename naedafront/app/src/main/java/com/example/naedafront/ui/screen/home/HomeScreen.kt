@@ -2,7 +2,6 @@ package com.example.naedafront.ui.screen.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import com.example.naedafront.R
@@ -43,7 +42,6 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingBag
-import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -54,7 +52,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -149,7 +146,6 @@ fun HomeScreen(
     onAlarmClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     onSecretFaceMatchTestClick: () -> Unit = {},
-    onChatClick: () -> Unit = {},
     onRegisterCardClick: () -> Unit = {},
     onNoticeItemClick: (NoticeItem) -> Unit = {},
     onNoticeMoreClick: () -> Unit = {}
@@ -161,9 +157,6 @@ fun HomeScreen(
                 onAlarmClick = onAlarmClick,
                 onProfileClick = onProfileClick
             )
-        },
-        floatingActionButton = {
-            ChatFloatingButton(onClick = onChatClick)
         },
         containerColor = Background,
         contentWindowInsets = WindowInsets(0)
@@ -310,7 +303,7 @@ private fun GreetingSection(
             }
     ) {
         Text(
-            text = "안녕하세요, ${userName}님",
+            text = "반가워요, ${userName}님 👋",  // 여기만 바꾸면 됨
             style = MaterialTheme.typography.headlineSmall.copy(
                 fontWeight = FontWeight.Bold
             ),
@@ -1224,23 +1217,6 @@ private fun TransactionRow(item: TransactionItem) {
                 fontWeight = FontWeight.Bold
             ),
             color = if (item.isIncome) Success else OnBackground
-        )
-    }
-}
-
-@Composable
-private fun ChatFloatingButton(onClick: () -> Unit) {
-    FloatingActionButton(
-        onClick = onClick,
-        containerColor = Mint900,
-        contentColor = Color.White,
-        shape = CircleShape,
-        modifier = Modifier.size(56.dp)
-    ) {
-        Icon(
-            Icons.Default.SmartToy,
-            contentDescription = "챗봇",
-            modifier = Modifier.size(28.dp)
         )
     }
 }
