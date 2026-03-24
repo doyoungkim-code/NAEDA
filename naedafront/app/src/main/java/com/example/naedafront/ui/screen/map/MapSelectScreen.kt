@@ -1803,8 +1803,10 @@ private fun PopularRestaurantMapTab(
 
         val transformableState = rememberTransformableState { zoomChange, panChange, _ ->
             scale = (scale * zoomChange).coerceIn(1f, 4f)
-            panOffsetX += panChange.x
-            panOffsetY += panChange.y
+            val maxX = (scale - 1f) * boxSize.width / 2f
+            val maxY = (scale - 1f) * boxSize.height / 2f
+            panOffsetX = (panOffsetX + panChange.x).coerceIn(-maxX, maxX)
+            panOffsetY = (panOffsetY + panChange.y).coerceIn(-maxY, maxY)
         }
 
         Box(
