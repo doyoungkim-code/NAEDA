@@ -27,7 +27,6 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.HeadsetMic
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.NotificationsNone
-import androidx.compose.material.icons.outlined.PersonOff
 import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
@@ -55,8 +54,7 @@ fun SettingsScreen(
     onTermsClick: () -> Unit = {},
     onPrivacyClick: () -> Unit = {},
     onSupportClick: () -> Unit = {},
-    onLogoutClick: () -> Unit = {},
-    onWithdrawClick: () -> Unit = {}
+    onLogoutClick: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
 
@@ -129,20 +127,6 @@ fun SettingsScreen(
                     icon = Icons.Outlined.HeadsetMic,
                     title = "고객센터",
                     onClick = onSupportClick
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            SectionTitle(title = "기타")
-            Spacer(modifier = Modifier.height(14.dp))
-
-            SettingsCard {
-                SettingsArrowRow(
-                    icon = Icons.Outlined.PersonOff,
-                    title = "회원 탈퇴",
-                    titleColor = Color(0xFFE25858),
-                    onClick = onWithdrawClick
                 )
             }
 

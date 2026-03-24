@@ -367,6 +367,29 @@ public class PayFacadeService {
             cvc = card.getCvc();
         }
 
+        //체크카드 잔액 사전 검증
+        //체크카드는 연결계좌에서 즉시 출금되므로, 결제 전 잔액 확인
+        //신용카드는 신용한도 사용이라 검증 불필요
+        if(paymentMethod.getMethodType() == MethodType.DEBIT_CARD && paymentMethod.getAccountId() != null){
+            try{
+                Account debitAccount = accountRepository.findById(paymentMethod.getAccountId())
+                        .orElse(null);
+                if(debitAccount != null){
+                    long currentBalance = getBalanceAfter(user.getUserKey(),debitAccount.getAccountNo());
+                    if(currentBalance < amount){
+                        transaction.markFailed("잔액 부족");
+                        payDbService.save(transaction);
+                        payRequestRedisService.transition(requestId,PayRequestStatus.FAILED);
+                        throw new BadRequestException("잔액이 부족합니다. (현재 잔액 : "+ currentBalance + "원, 결제 금액 : " + amount + "원)");
+                    }
+                }
+            }catch(BadRequestException e){
+                throw e;
+            }catch(Exception e){
+                log.warn("[Pay] 체크카드 잔액 조회 실패, SSAFY API에 위임: requestId:{}", requestId, e);
+            }
+        }
+
         // SSAFY merchantId
         Long ssafyMerchantId = store.resolveSsafyMerchantId();
         if (ssafyMerchantId == null) {
