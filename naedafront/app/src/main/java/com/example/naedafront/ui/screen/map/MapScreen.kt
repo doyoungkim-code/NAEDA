@@ -50,6 +50,8 @@ private data class StoreMarkerCluster(
     val position: LatLng
 )
 
+private const val MARKER_CLUSTER_EXPANSION_FACTOR = 1.25f
+
 @Composable
 fun NaverRestaurantMapScreen(
     stores: List<MapStoreResponseDto>,
@@ -225,13 +227,14 @@ private fun buildVisibleClusters(
     stores: List<MapStoreResponseDto>
 ): List<StoreMarkerCluster> {
     val zoom = naverMap.cameraPosition.zoom
-    val cellSizePx = when {
+    val baseCellSizePx = when {
         zoom >= 17.0 -> 46f
         zoom >= 15.0 -> 60f
         zoom >= 13.0 -> 78f
         zoom >= 11.0 -> 96f
         else -> 118f
     }
+    val cellSizePx = baseCellSizePx * MARKER_CLUSTER_EXPANSION_FACTOR
 
     val buckets = linkedMapOf<Pair<Int, Int>, MutableList<MapStoreResponseDto>>()
     val width = mapView.width.toFloat()

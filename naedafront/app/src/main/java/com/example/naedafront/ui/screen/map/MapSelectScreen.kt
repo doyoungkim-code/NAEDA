@@ -247,6 +247,7 @@ private fun pointInPolygon(point: Offset, polygon: List<Offset>): Boolean {
 fun MapSelectScreen(
     onBack: () -> Unit,
     onRestaurantClick: (region: MapRegion, restaurantName: String) -> Unit,
+    showBackButton: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -454,6 +455,7 @@ fun MapSelectScreen(
 
         TopMapHeader(
             selectedTabIndex = selectedTabIndex,
+            showBackButton = showBackButton,
             onBack = onBack,
             onTabSelected = { selectedTabIndex = it },
             modifier = Modifier
@@ -508,6 +510,7 @@ fun MapSelectScreen(
 @Composable
 private fun TopMapHeader(
     selectedTabIndex: Int,
+    showBackButton: Boolean,
     onBack: () -> Unit,
     onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier
@@ -517,20 +520,24 @@ private fun TopMapHeader(
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Surface(
-            onClick = onBack,
-            modifier = Modifier.size(40.dp),
-            shape = CircleShape,
-            color = Color.White,
-            shadowElevation = 6.dp
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "뒤로가기",
-                    tint = Color(0xFF30384A)
-                )
+        if (showBackButton) {
+            Surface(
+                onClick = onBack,
+                modifier = Modifier.size(40.dp),
+                shape = CircleShape,
+                color = Color.White,
+                shadowElevation = 6.dp
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "뒤로가기",
+                        tint = Color(0xFF30384A)
+                    )
+                }
             }
+        } else {
+            Spacer(modifier = Modifier.size(40.dp))
         }
 
         Spacer(modifier = Modifier.weight(1f))
@@ -802,6 +809,12 @@ private fun StoreMapFilterDialog(
 ) {
     var selectedCategory by remember(currentState) { mutableStateOf(currentState.selectedCategory) }
     var facePayOnly by remember(currentState) { mutableStateOf(currentState.facePayOnly) }
+    val pendingState = StoreMapFilterState(
+        selectedCategory = selectedCategory,
+        facePayOnly = facePayOnly
+    )
+    val selectedCategoryLabel = selectedCategory ?: "전체"
+    val facePayFilterLabel = if (facePayOnly) "페이스페이 가능 매장만" else "전체 매장"
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -814,96 +827,162 @@ private fun StoreMapFilterDialog(
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp, vertical = 24.dp)
             ) {
-                Text(
-                    text = "지도 필터",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Navy900
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "지도 필터",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Navy900
+                        )
+                        Text(
+                            text = "적용할 조건을 고르고 우측 상단 확인으로 반영하세요.",
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp,
+                            color = OnSurfaceVariant
+                        )
+                    }
+                    Surface(
+                        onClick = { onApply(pendingState) },
+                        shape = RoundedCornerShape(16.dp),
+                        color = Mint500
+                    ) {
+                        Text(
+                            text = "확인",
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(18.dp))
-
-                Text(
-                    text = "카테고리",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = OnBackground
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
 
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilterChip(
-                        selected = selectedCategory == null,
-                        onClick = { selectedCategory = null },
-                        label = { Text("전체") }
+                        selected = true,
+                        onClick = { },
+                        label = { Text("카테고리: $selectedCategoryLabel") }
                     )
-                    categories.forEach { category ->
-                        FilterChip(
-                            selected = selectedCategory == category,
-                            onClick = { selectedCategory = category },
-                            label = { Text(category) }
-                        )
+                    FilterChip(
+                        selected = true,
+                        onClick = { },
+                        label = { Text(facePayFilterLabel) }
+                    )
+                    if (pendingState != StoreMapFilterState()) {
+                        Surface(
+                            onClick = onReset,
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White
+                        ) {
+                            Text(
+                                text = "초기화",
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                color = Navy900,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
-                HorizontalDivider(color = OutlineVariant, thickness = 1.dp)
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = Color.White
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp, vertical = 18.dp)
+                    ) {
                         Text(
-                            text = "페이스페이 가능 매장만 보기",
+                            text = "카테고리",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = OnBackground
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
                         Text(
-                            text = "페이스페이 결제가 가능한 매장만 지도에 표시합니다.",
+                            text = "현재 선택: $selectedCategoryLabel",
                             fontSize = 13.sp,
-                            lineHeight = 18.sp,
                             color = OnSurfaceVariant
                         )
-                    }
 
-                    Switch(
-                        checked = facePayOnly,
-                        onCheckedChange = { facePayOnly = it }
-                    )
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FilterChip(
+                                selected = selectedCategory == null,
+                                onClick = { selectedCategory = null },
+                                label = { Text("전체") }
+                            )
+                            categories.forEach { category ->
+                                FilterChip(
+                                    selected = selectedCategory == category,
+                                    onClick = { selectedCategory = category },
+                                    label = { Text(category) }
+                                )
+                            }
+                        }
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = Color.White
                 ) {
-                    NaedaButton(
-                        text = "초기화",
-                        onClick = onReset,
-                        type = NaedaButtonType.OUTLINED,
-                        modifier = Modifier.weight(1f)
-                    )
-                    NaedaButton(
-                        text = "적용",
-                        onClick = {
-                            onApply(
-                                StoreMapFilterState(
-                                    selectedCategory = selectedCategory,
-                                    facePayOnly = facePayOnly
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp, vertical = 18.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "페이스페이 가능 매장만 보기",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = OnBackground
                                 )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (facePayOnly) {
+                                        "페이스페이 결제가 가능한 매장만 지도에 표시합니다."
+                                    } else {
+                                        "모든 매장을 표시합니다."
+                                    },
+                                    fontSize = 13.sp,
+                                    lineHeight = 18.sp,
+                                    color = OnSurfaceVariant
+                                )
+                            }
+
+                            Switch(
+                                checked = facePayOnly,
+                                onCheckedChange = { facePayOnly = it }
                             )
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
+                        }
+                    }
                 }
             }
         }
