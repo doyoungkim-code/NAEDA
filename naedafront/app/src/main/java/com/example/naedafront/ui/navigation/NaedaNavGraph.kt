@@ -1,6 +1,7 @@
 // File: app/src/main/java/com/example/naedafront/ui/navigation/NaedaNavGraph.kt
 package com.example.naedafront.ui.navigation
 
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
@@ -59,6 +60,7 @@ import com.example.naedafront.ui.screen.signup.SignUpPasswordScreen
 import com.example.naedafront.ui.screen.signup.SignUpPhoneScreen
 import com.example.naedafront.ui.screen.signup.SignUpPinScreen
 import com.example.naedafront.ui.screen.signup.SignUpRrnScreen
+import com.example.naedafront.ui.screen.signup.SignUpVerifyScreen
 import com.example.naedafront.ui.screen.signup.SignUpViewModel
 import com.example.naedafront.ui.screen.store.DeliveryAddressScreen
 import com.example.naedafront.ui.screen.store.OrderCompleteScreen
@@ -123,8 +125,30 @@ fun NaedaNavGraph(
                 signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
                 onConfirmClick = {
-                    navController.navigate(Screen.SignUpEmail.route)
+                    val phone = signUpViewModel.uiState.value.phone
+                    navController.navigate(Screen.SignUpVerify.createRoute(phone))
                 }
+            )
+        }
+
+        composable(
+            route = Screen.SignUpVerify.route,
+            arguments = listOf(
+                navArgument("phone") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = ""
+                }
+            )
+        ) { backStackEntry ->
+            val phone = backStackEntry.arguments?.getString("phone") ?: ""
+
+            SignUpVerifyScreen(
+                signUpViewModel = signUpViewModel,
+                phoneNumber = phone,
+                onBackClick = { navController.popBackStack() },
+                onConfirmClick = { navController.navigate(Screen.SignUpEmail.route) },
+                onResendClick = { }
             )
         }
 
@@ -351,6 +375,14 @@ fun NaedaNavGraph(
                 },
                 onCardClick = { card ->
                     card.cardId?.let { realCardId ->
+                        navController.currentBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("cardName", card.cardName)
+
+                        navController.currentBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("cardNo", card.cardNumber)
+
                         navController.navigate(
                             Screen.CardDetail.createRoute(realCardId)
                         )
@@ -361,6 +393,29 @@ fun NaedaNavGraph(
                 onSetPrimaryCard = { },
                 onDeleteCard = { },
                 useRegisterDialog = true
+            )
+        }
+
+        composable("card_detail/{cardId}") { backStackEntry ->
+            val cardId = backStackEntry.arguments?.getString("cardId")?.toLongOrNull()
+
+            val cardName = navController
+                .previousBackStackEntry
+                ?.savedStateHandle
+                ?.get<String>("cardName")
+                .orEmpty()
+
+            val cardNo = navController
+                .previousBackStackEntry
+                ?.savedStateHandle
+                ?.get<String>("cardNo")
+                .orEmpty()
+
+            CardDetailRoute(
+                cardId = cardId,
+                cardName = cardName,
+                cardNo = cardNo,
+                onBack = { navController.popBackStack() }
             )
         }
 
@@ -396,8 +451,23 @@ fun NaedaNavGraph(
 
         composable("card_detail/{cardId}") { backStackEntry ->
             val cardId = backStackEntry.arguments?.getString("cardId")?.toLongOrNull()
+
+            val cardName = navController
+                .previousBackStackEntry
+                ?.savedStateHandle
+                ?.get<String>("cardName")
+                .orEmpty()
+
+            val cardNo = navController
+                .previousBackStackEntry
+                ?.savedStateHandle
+                ?.get<String>("cardNo")
+                .orEmpty()
+
             CardDetailRoute(
                 cardId = cardId,
+                cardName = cardName,
+                cardNo = cardNo,
                 onBack = { navController.popBackStack() }
             )
         }
@@ -430,6 +500,7 @@ fun NaedaNavGraph(
 
         composable(Screen.Chat.route) {
             val userNo = remember(context) { AuthPrefs.getUserNo(context) }
+
             ChatScreen(
                 userNo = userNo,
                 onBackClick = { navController.popBackStack() }
@@ -647,6 +718,14 @@ private fun AssetTabContent(
         },
         onCardClick = { card ->
             card.cardId?.let { realCardId ->
+                navController.currentBackStackEntry
+                    ?.savedStateHandle
+                    ?.set("cardName", card.cardName)
+
+                navController.currentBackStackEntry
+                    ?.savedStateHandle
+                    ?.set("cardNo", card.cardNumber)
+
                 navController.navigate(
                     Screen.CardDetail.createRoute(realCardId)
                 )

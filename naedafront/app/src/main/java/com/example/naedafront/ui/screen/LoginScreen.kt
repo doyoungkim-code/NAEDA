@@ -115,6 +115,8 @@ fun LoginScreen(
                         faceRegistered = result.response.faceRegistered,
                         secondaryAuthEnabled = result.response.secondaryAuthEnabled
                     )
+                    RetrofitClient.setAccessToken(result.response.accessToken)
+
                     com.example.naedafront.fcm.NaedaFirebaseMessagingService
                         .registerCurrentToken(context)
 
