@@ -51,7 +51,7 @@ class StoreEnrichmentServiceTest {
                 .build();
 
         given(storeRepository.findIncompleteStoresForEnrichment(any(StoreSourceType.class), any(Pageable.class)))
-                .willReturn(List.of(store));
+                .willReturn(List.of(store), List.of());
         given(naverStoreEnrichmentClient.enrich(store))
                 .willReturn(Optional.of(new StoreEnrichmentData(
                         "https://example.com/store.jpg",
@@ -86,7 +86,7 @@ class StoreEnrichmentServiceTest {
                 .build();
 
         given(storeRepository.findIncompleteStoresForEnrichment(any(StoreSourceType.class), any(Pageable.class)))
-                .willReturn(List.of(store));
+                .willReturn(List.of(store), List.of());
         given(naverStoreEnrichmentClient.enrich(store)).willReturn(Optional.empty());
 
         int result = storeEnrichmentService.retryIncompleteStores();
@@ -115,7 +115,7 @@ class StoreEnrichmentServiceTest {
                 .build();
 
         given(storeRepository.findIncompleteStoresForEnrichment(any(StoreSourceType.class), any(Pageable.class)))
-                .willReturn(List.of(store));
+                .willReturn(List.of(store), List.of());
         given(naverStoreEnrichmentClient.enrich(store))
                 .willReturn(Optional.of(new StoreEnrichmentData(
                         "https://search.pstatic.net/common/?autoRotate=true&type=f640_380&src=https%3A%2F%2Fldb-phinf.pstatic.net%2Fimage.jpg",
@@ -151,7 +151,7 @@ class StoreEnrichmentServiceTest {
                 .build();
 
         given(storeRepository.findIncompleteStoresForEnrichment(any(StoreSourceType.class), any(Pageable.class)))
-                .willReturn(List.of(store));
+                .willReturn(List.of(store), List.of());
         given(naverStoreEnrichmentClient.enrich(store))
                 .willReturn(Optional.of(new StoreEnrichmentData(
                         null,
