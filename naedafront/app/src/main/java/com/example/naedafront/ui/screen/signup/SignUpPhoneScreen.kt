@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -23,6 +24,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -50,18 +52,47 @@ fun SignUpPhoneScreen(
     onConfirmClick: (String) -> Unit = {}
 ) {
     var phoneDigits by remember { mutableStateOf("") }
+    var showDuplicatePhoneDialog by remember { mutableStateOf(false) }
+    var duplicatePhoneMessage by remember { mutableStateOf("") }
+    var isChecking by remember { mutableStateOf(false) }
 
     val formattedPhone = formatPhone(phoneDigits)
     val isValid = phoneDigits.length == 11
 
     fun handleConfirm() {
-        if (!isValid) return
+        if (!isValid || isChecking) return
 
-        // API 스펙에 맞게 하이픈 없는 숫자만 저장
-        signUpViewModel.updatePhone(phoneDigits)
+        isChecking = true
+        signUpViewModel.checkPhoneDuplicate(phoneDigits) { isDuplicate, message ->
+            isChecking = false
+            if (isDuplicate) {
+                duplicatePhoneMessage = message ?: "이미 등록된 전화번호입니다."
+                showDuplicatePhoneDialog = true
+            } else {
+                // API 스펙에 맞게 하이픈 없는 숫자만 저장
+                signUpViewModel.updatePhone(phoneDigits)
 
-        // 다음 화면으로 실제 전화번호 전달
-        onConfirmClick(phoneDigits)
+                // 다음 화면으로 실제 전화번호 전달
+                onConfirmClick(phoneDigits)
+            }
+        }
+    }
+
+    if (showDuplicatePhoneDialog) {
+        AlertDialog(
+            onDismissRequest = { showDuplicatePhoneDialog = false },
+            confirmButton = {
+                TextButton(onClick = { showDuplicatePhoneDialog = false }) {
+                    Text("확인")
+                }
+            },
+            title = {
+                Text("전화번호 중복")
+            },
+            text = {
+                Text(duplicatePhoneMessage)
+            }
+        )
     }
 
     Scaffold(
@@ -153,7 +184,7 @@ fun SignUpPhoneScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = isValid,
+                enabled = isValid && !isChecking,
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Mint900,
