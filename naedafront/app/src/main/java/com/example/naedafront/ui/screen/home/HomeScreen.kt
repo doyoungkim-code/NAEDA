@@ -69,6 +69,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -117,6 +118,7 @@ data class NoticeItem(
 data class HomeUiState(
     val userName: String = "사용자",
     val isFaceRegistered: Boolean = false,
+    val unreadNotificationCount: Long = 0L,
     val recentTransactions: List<TransactionItem> = emptyList(),
     val spendingCategories: List<SpendingCategory> = emptyList(),
     val topSpendingCategory: String? = null,
@@ -158,7 +160,8 @@ fun HomeScreen(
             NaedaHomeTopBar(
                 onSearchClick = onSearchClick,
                 onAlarmClick = onAlarmClick,
-                onProfileClick = onProfileClick
+                onProfileClick = onProfileClick,
+                unreadNotificationCount = uiState.unreadNotificationCount
             )
         },
         containerColor = Background,
@@ -232,7 +235,8 @@ fun HomeScreen(
 private fun NaedaHomeTopBar(
     onSearchClick: () -> Unit,
     onAlarmClick: () -> Unit,
-    onProfileClick: () -> Unit
+    onProfileClick: () -> Unit,
+    unreadNotificationCount: Long
 ) {
     TopAppBar(
         title = {
@@ -248,8 +252,45 @@ private fun NaedaHomeTopBar(
             )
         },
         actions = {
-            IconButton(onClick = onAlarmClick) {
-                Icon(Icons.Outlined.Notifications, contentDescription = "알림", tint = OnBackground)
+            Box {
+                IconButton(onClick = onAlarmClick) {
+                    Icon(Icons.Outlined.Notifications, contentDescription = "알림", tint = OnBackground)
+                }
+                if (unreadNotificationCount > 0L) {
+                    val badgeText = if (unreadNotificationCount > 99L) "99+" else unreadNotificationCount.toString()
+                    val badgeSize = when {
+                        unreadNotificationCount > 99L -> 22.dp
+                        unreadNotificationCount > 9L -> 18.dp
+                        else -> 16.dp
+                    }
+                    val badgeFontSize = when {
+                        unreadNotificationCount > 99L -> 6.sp
+                        unreadNotificationCount > 9L -> 8.sp
+                        else -> 9.sp
+                    }
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 6.dp, end = 4.dp)
+                            .size(badgeSize)
+                            .clip(CircleShape)
+                            .background(Color(0xFFE53935)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = badgeText,
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = badgeFontSize,
+                                lineHeight = badgeFontSize,
+                                fontWeight = FontWeight.Bold,
+                                platformStyle = PlatformTextStyle(includeFontPadding = false)
+                            ),
+                            textAlign = TextAlign.Center,
+                            maxLines = 1
+                        )
+                    }
+                }
             }
             IconButton(onClick = onProfileClick) {
                 Box(

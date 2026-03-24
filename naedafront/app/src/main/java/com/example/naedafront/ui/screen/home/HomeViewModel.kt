@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.AssetPayMethodResponse
 import com.example.naedafront.data.remote.AssetRepository
+import com.example.naedafront.data.remote.NotificationRepository
 import com.example.naedafront.data.remote.PaymentResponse
 import com.example.naedafront.data.repository.NoticeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,6 +55,7 @@ class HomeViewModel : ViewModel() {
                     topSpendingCategory = null,
                     topSpendingAmount = 0L,
                     spendingInsight = null,
+                    unreadNotificationCount = 0L,
                     facePayEnabled = false,
                     facePayMethodId = null,
                     defaultPaymentMethodId = null,
@@ -67,6 +69,12 @@ class HomeViewModel : ViewModel() {
         viewModelScope.launch { loadRecentTransactions(userNo) }
         viewModelScope.launch { loadCurrentMonthSpendingAnalysis(userNo) }
         viewModelScope.launch { loadNotices() }
+        viewModelScope.launch { loadUnreadNotificationCount(userNo) }
+    }
+
+    fun refreshUnreadNotificationCount(context: Context) {
+        val userNo = AuthPrefs.getUserNo(context) ?: return
+        viewModelScope.launch { loadUnreadNotificationCount(userNo) }
     }
 
     fun toggleFacePay(context: Context) {
@@ -266,6 +274,17 @@ class HomeViewModel : ViewModel() {
                         spendingInsight = null
                     )
                 }
+            }
+    }
+
+    private suspend fun loadUnreadNotificationCount(userNo: Long) {
+        NotificationRepository.getUnreadCount(userNo)
+            .onSuccess { count ->
+                _uiState.update { it.copy(unreadNotificationCount = count) }
+            }
+            .onFailure { e ->
+                Log.e("HomeViewModel", "❌ 안 읽은 알림 수 로드 실패: ${e.message}", e)
+                _uiState.update { it.copy(unreadNotificationCount = 0L) }
             }
     }
 }
