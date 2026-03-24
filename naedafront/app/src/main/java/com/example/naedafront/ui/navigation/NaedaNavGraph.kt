@@ -59,7 +59,6 @@ import com.example.naedafront.ui.screen.signup.SignUpPasswordScreen
 import com.example.naedafront.ui.screen.signup.SignUpPhoneScreen
 import com.example.naedafront.ui.screen.signup.SignUpPinScreen
 import com.example.naedafront.ui.screen.signup.SignUpRrnScreen
-import com.example.naedafront.ui.screen.signup.SignUpVerifyScreen
 import com.example.naedafront.ui.screen.signup.SignUpViewModel
 import com.example.naedafront.ui.screen.store.DeliveryAddressScreen
 import com.example.naedafront.ui.screen.store.OrderCompleteScreen
@@ -123,29 +122,9 @@ fun NaedaNavGraph(
             SignUpPhoneScreen(
                 signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { phone ->
-                    navController.navigate(Screen.SignUpVerify.createRoute(phone))
+                onConfirmClick = {
+                    navController.navigate(Screen.SignUpEmail.route)
                 }
-            )
-        }
-
-        composable(
-            route = Screen.SignUpVerify.route,
-            arguments = listOf(
-                navArgument("phone") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = ""
-                }
-            )
-        ) { backStackEntry ->
-            val phone = backStackEntry.arguments?.getString("phone") ?: ""
-            SignUpVerifyScreen(
-                signUpViewModel = signUpViewModel,
-                phoneNumber = phone,
-                onBackClick = { navController.popBackStack() },
-                onConfirmClick = { navController.navigate(Screen.SignUpEmail.route) },
-                onResendClick = { }
             )
         }
 

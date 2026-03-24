@@ -48,18 +48,38 @@ public class NaverStoreEnrichmentClient {
 
     public Optional<StoreEnrichmentData> enrich(Store store) {
         try {
-            StoreEnrichmentData mapData = findFromNaverMap(store).orElse(StoreEnrichmentData.empty());
-            JsonNode bestLocalItem = isConfigured() ? findBestLocalItem(store).orElse(null) : null;
+            // 1단계: 네이버 지도 크롤링 시도 (실패해도 계속 진행)
+            StoreEnrichmentData mapData;
+            try {
+                mapData = findFromNaverMap(store).orElse(StoreEnrichmentData.empty());
+            } catch (Exception e) {
+                log.debug("[StoreEnrichment] 네이버 지도 크롤링 실패, API 검색으로 대체: storeId={}", store.getStoreId());
+                mapData = StoreEnrichmentData.empty();
+            }
+
+            // 2단계: 네이버 오픈 API 검색 (크롤링 실패해도 여기서 이미지/설명 가져옴)
+            JsonNode bestLocalItem = null;
+            try {
+                bestLocalItem = isConfigured() ? findBestLocalItem(store).orElse(null) : null;
+            } catch (Exception e) {
+                log.debug("[StoreEnrichment] 네이버 로컬 검색 실패: storeId={}", store.getStoreId());
+            }
 
             String description = firstNonBlank(
                     mapData.description(),
                     extractDescription(bestLocalItem),
                     fallbackDescription(store)
             );
-            String imageUrl = firstNonBlank(
-                    mapData.imageUrl(),
-                    isConfigured() ? findImageUrl(store).orElse(null) : null
-            );
+
+            // 3단계: 이미지 URL (크롤링 결과 없으면 이미지 검색 API로 대체)
+            String imageUrl = mapData.imageUrl();
+            if (!hasText(imageUrl)) {
+                try {
+                    imageUrl = isConfigured() ? findImageUrl(store).orElse(null) : null;
+                } catch (Exception e) {
+                    log.debug("[StoreEnrichment] 네이버 이미지 검색 실패: storeId={}", store.getStoreId());
+                }
+            }
 
             return Optional.of(new StoreEnrichmentData(
                     trimToNull(imageUrl),
