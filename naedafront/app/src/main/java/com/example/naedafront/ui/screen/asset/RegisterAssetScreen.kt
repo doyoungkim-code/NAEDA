@@ -40,7 +40,55 @@ import com.example.naedafront.ui.theme.SurfaceVariant
 import kotlinx.coroutines.launch
 
 // ─────────────────────────────────────────────
-// 메인 Dialog
+// 전체 화면 버전 (네비게이션 라우트용)
+// ─────────────────────────────────────────────
+
+@Composable
+fun RegisterAssetScreen(
+    initialTab: Int = 0,
+    onDismiss: () -> Unit = {},
+    onRegisterComplete: () -> Unit = {}
+) {
+    val title = if (initialTab == 0) "계좌 안내" else "카드 등록"
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Surface)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "닫기",
+                    tint = OnSurfaceVariant
+                )
+            }
+            Text(
+                text = title,
+                style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = OnBackground,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        HorizontalDivider(color = OutlineVariant, thickness = 0.5.dp)
+
+        if (initialTab == 0) {
+            AccountInfoContent()
+        } else {
+            CardRegisterForm(onRegisterComplete = onRegisterComplete)
+        }
+    }
+}
+
+// ─────────────────────────────────────────────
+// 메인 Dialog (인라인 팝업용으로 유지)
 // ─────────────────────────────────────────────
 
 @Composable

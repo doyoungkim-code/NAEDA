@@ -30,6 +30,7 @@ import com.example.naedafront.ui.screen.asset.AccountDetailRoute
 import com.example.naedafront.ui.screen.asset.AccountListRoute
 import com.example.naedafront.ui.screen.asset.CardDetailRoute
 import com.example.naedafront.ui.screen.asset.RegisterAssetDialog
+import com.example.naedafront.ui.screen.asset.RegisterAssetScreen
 import com.example.naedafront.ui.screen.asset.TradeReportScreen
 import com.example.naedafront.ui.screen.chat.ChatScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchRecognizeScreen
@@ -369,7 +370,7 @@ fun NaedaNavGraph(
         ) { backStackEntry ->
             val tab = backStackEntry.arguments?.getInt("tab") ?: 0
 
-            RegisterAssetDialog(
+            RegisterAssetScreen(
                 initialTab = tab,
                 onDismiss = { navController.popBackStack() },
                 onRegisterComplete = { navController.popBackStack() }
@@ -644,6 +645,8 @@ private fun AssetTabContent(
         initialTab = 0,
         onBack = { },
         showBackButton = false,
+        onRegisterNewAccount = { navController.navigate(Screen.RegisterAsset.createRoute(0)) },
+        onRegisterNewCard = { navController.navigate(Screen.RegisterAsset.createRoute(1)) },
         onAccountClick = { account ->
             navController.navigate(
                 Screen.Transaction.createRoute(
@@ -664,7 +667,7 @@ private fun AssetTabContent(
         onSetPrimary = { },
         onSetPrimaryCard = { },
         onDeleteCard = { },
-        useRegisterDialog = true
+        useRegisterDialog = false
     )
 }
 
