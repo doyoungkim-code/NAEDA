@@ -103,6 +103,11 @@ services:
       INTERNAL_SERVICE_TOKEN: ${AI_SERVICE_TOKEN}
       RESIDENT_OCR_PROVIDER: ${RESIDENT_OCR_PROVIDER:-paddleocr}
       RESIDENT_OCR_PADDLE_HOME: /app/.paddle
+      # DB - Docker 내부에서는 서비스명으로 접근
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      # OpenAI (챗봇)
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
     volumes:
       - ../AI/.paddle:/app/.paddle
     ports:
