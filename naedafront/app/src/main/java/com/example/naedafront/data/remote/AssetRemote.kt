@@ -321,6 +321,12 @@ object AssetRepository {
         payApi.getPayments(userNo = userNo, from = from, to = to)
     }
 
+    suspend fun getCurrentMonthSpendingAnalysis(
+        userNo: Long
+    ): Result<CurrentMonthSpendingAnalysisResponse> = runCatching {
+        payApi.getCurrentMonthSpendingAnalysis(userNo = userNo)
+    }
+
     suspend fun getPaymentDetail(
         userNo: Long,
         paymentId: Long
