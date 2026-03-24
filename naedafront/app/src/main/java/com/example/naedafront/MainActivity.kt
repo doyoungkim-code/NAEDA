@@ -15,18 +15,27 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.naedafront.data.remote.ApiConfig
 import com.example.naedafront.ui.common.NaedaBottomNavBar
 import com.example.naedafront.ui.navigation.NaedaNavGraph
 import com.example.naedafront.ui.navigation.Screen
+import com.example.naedafront.ui.theme.Mint900
 import com.example.naedafront.ui.theme.NaedaTheme
 
 class MainActivity : ComponentActivity() {
@@ -105,6 +114,23 @@ fun NaedaApp() {
                     navController = navController,
                     currentRoute = currentRoute
                 )
+            }
+        },
+        floatingActionButton = {
+            if (currentRoute == Screen.Home.route) {
+                FloatingActionButton(
+                    onClick = { navController.navigate(Screen.Chat.route) },
+                    containerColor = Mint900,
+                    contentColor = Color.White,
+                    shape = CircleShape,
+                    modifier = Modifier.size(56.dp)
+                ) {
+                    Icon(
+                        Icons.Default.SmartToy,
+                        contentDescription = "챗봇",
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
             }
         }
     ) { innerPadding ->

@@ -625,7 +625,6 @@ private fun HomeTabContent(
         onAlarmClick = { navController.navigate(Screen.Notification.route) },
         onProfileClick = { navController.navigate(Screen.MyPage.route) },
         onSecretFaceMatchTestClick = { navController.navigate(Screen.FaceMatchRecognize.route) },
-        onChatClick = { navController.navigate(Screen.Chat.route) },
         onRegisterCardClick = { navController.navigate(Screen.Asset.route) },
         onNoticeItemClick = { item ->
             navController.navigate(Screen.NoticeDetail.createRoute(item.type, item.id))
