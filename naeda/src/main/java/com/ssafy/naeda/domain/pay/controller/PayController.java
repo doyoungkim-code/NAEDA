@@ -1,7 +1,7 @@
 package com.ssafy.naeda.domain.pay.controller;
 
+import com.ssafy.naeda.domain.pay.dto.response.CurrentMonthSpendingAnalysisResponse;
 import com.ssafy.naeda.domain.pay.dto.response.PayTransactionResponse;
-import com.ssafy.naeda.domain.pay.entity.PayTransaction;
 import com.ssafy.naeda.domain.pay.service.PayFacadeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/pay")
@@ -32,13 +31,7 @@ public class PayController {
             @RequestParam(required = false) LocalDateTime from,
             @Parameter(description = "조회 종료 일시 (ISO 8601)")
             @RequestParam(required = false) LocalDateTime to) {
-
-        List<PayTransactionResponse> responses = payFacadeService.getPayments(userNo, from, to)
-                .stream()
-                .map(PayTransactionResponse::from)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(responses);
+        return ResponseEntity.ok(payFacadeService.getPaymentResponses(userNo, from, to));
     }
 
     @GetMapping("/{id}")
@@ -48,8 +41,17 @@ public class PayController {
             @Parameter(description = "사용자 번호", required = true)
             @RequestHeader("X-User-No") Long userNo,
             @Parameter(description = "결제 트랜잭션 ID") @PathVariable Long id) {
+        return ResponseEntity.ok(payFacadeService.getPaymentResponse(userNo, id));
+    }
 
-        PayTransaction tx = payFacadeService.getPayment(userNo, id);
-        return ResponseEntity.ok(PayTransactionResponse.from(tx));
+    @GetMapping("/analysis/current-month")
+    @Operation(
+            summary = "이번 달 소비 분석 조회",
+            description = "해당 사용자의 이번 달 성공 결제 내역을 카테고리별로 집계하고 분석 문구를 반환합니다."
+    )
+    public ResponseEntity<CurrentMonthSpendingAnalysisResponse> getCurrentMonthSpendingAnalysis(
+            @Parameter(description = "사용자 번호", required = true)
+            @RequestHeader("X-User-No") Long userNo) {
+        return ResponseEntity.ok(payFacadeService.getCurrentMonthSpendingAnalysis(userNo));
     }
 }

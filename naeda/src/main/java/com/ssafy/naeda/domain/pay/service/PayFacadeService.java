@@ -4,10 +4,13 @@ import com.ssafy.naeda.domain.account.entity.Account;
 import com.ssafy.naeda.domain.account.repository.AccountRepository;
 import com.ssafy.naeda.domain.card.repository.CreditCardRepository;
 import com.ssafy.naeda.domain.card.repository.DebitCardRepository;
+import com.ssafy.naeda.domain.consumption.client.ConsumptionMonthlyInsightAiClient;
 import com.ssafy.naeda.domain.fds.dto.request.FdsEvaluationRequest;
 import com.ssafy.naeda.domain.fds.dto.response.FdsEvaluationResult;
 import com.ssafy.naeda.domain.fds.entity.FdsAction;
 import com.ssafy.naeda.domain.fds.service.FdsRuleService;
+import com.ssafy.naeda.domain.pay.dto.response.CurrentMonthSpendingAnalysisResponse;
+import com.ssafy.naeda.domain.pay.dto.response.PayTransactionResponse;
 import com.ssafy.naeda.domain.pay.entity.MethodType;
 import com.ssafy.naeda.domain.pay.entity.PayMethod;
 import com.ssafy.naeda.domain.pay.entity.PayRequestStatus;
@@ -35,13 +38,20 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -65,6 +75,7 @@ public class PayFacadeService {
     private final PasswordEncoder passwordEncoder;
     private final FcmService fcmService;
     private final PayLimitService payLimitService;
+    private final ConsumptionMonthlyInsightAiClient consumptionMonthlyInsightAiClient;
 
 
     private static final String CREDIT_CARD_API = "/edu/creditCard/createCreditCardTransaction";
@@ -445,11 +456,92 @@ public class PayFacadeService {
         return tx;
     }
 
+    public PayTransactionResponse getPaymentResponse(Long userNo, Long paymentId) {
+        PayTransaction payment = getPayment(userNo, paymentId);
+        Store store = payment.getStoreId() == null
+                ? null
+                : storeRepository.findById(payment.getStoreId()).orElse(null);
+        return PayTransactionResponse.from(
+                payment,
+                store == null ? null : store.getStoreName(),
+                store == null ? null : store.getCategoryName()
+        );
+    }
+
     public List<PayTransaction> getPayments(Long userNo, LocalDateTime from, LocalDateTime to) {
         if (from != null && to != null) {
             return payDbService.findByUserNoAndPeriod(userNo, from, to);
         }
         return payDbService.findByUserNo(userNo);
+    }
+
+    public List<PayTransactionResponse> getPaymentResponses(Long userNo, LocalDateTime from, LocalDateTime to) {
+        List<PayTransaction> payments = getPayments(userNo, from, to);
+        Map<Long, Store> storeMap = buildStoreMap(payments);
+        return payments.stream()
+                .map(payment -> {
+                    Store store = payment.getStoreId() == null ? null : storeMap.get(payment.getStoreId());
+                    return PayTransactionResponse.from(
+                            payment,
+                            store == null ? null : store.getStoreName(),
+                            store == null ? null : store.getCategoryName()
+                    );
+                })
+                .toList();
+    }
+
+    public CurrentMonthSpendingAnalysisResponse getCurrentMonthSpendingAnalysis(Long userNo) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime periodStart = now.toLocalDate().withDayOfMonth(1).atStartOfDay();
+
+        List<PayTransaction> currentMonthTransactions = payDbService.findByUserNoAndPeriod(userNo, periodStart, now)
+                .stream()
+                .filter(transaction -> transaction.getStatus() == PayStatus.SUCCESS)
+                .toList();
+
+        Map<Long, Store> storeMap = buildStoreMap(currentMonthTransactions);
+        LinkedHashMap<String, Long> categoryBreakdown = currentMonthTransactions.stream()
+                .collect(Collectors.groupingBy(
+                        transaction -> resolveCategoryName(transaction, storeMap),
+                        LinkedHashMap::new,
+                        Collectors.summingLong(transaction -> transaction.getAmount() == null ? 0L : transaction.getAmount())
+                ))
+                .entrySet()
+                .stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue(Comparator.reverseOrder()))
+                .collect(
+                        LinkedHashMap::new,
+                        (map, entry) -> map.put(entry.getKey(), entry.getValue()),
+                        LinkedHashMap::putAll
+                );
+
+        long totalSpending = currentMonthTransactions.stream()
+                .map(PayTransaction::getAmount)
+                .filter(Objects::nonNull)
+                .mapToLong(Long::longValue)
+                .sum();
+
+        Map.Entry<String, Long> topEntry = categoryBreakdown.entrySet().stream()
+                .findFirst()
+                .orElse(null);
+
+        return CurrentMonthSpendingAnalysisResponse.builder()
+                .periodStart(periodStart)
+                .periodEnd(now)
+                .totalSpending(totalSpending)
+                .transactionCount(currentMonthTransactions.size())
+                .topCategory(topEntry == null ? null : topEntry.getKey())
+                .topAmount(topEntry == null ? 0L : topEntry.getValue())
+                .categoryBreakdown(categoryBreakdown)
+                .insights(consumptionMonthlyInsightAiClient.generateMonthlyInsights(
+                        periodStart.toLocalDate(),
+                        now.toLocalDate(),
+                        totalSpending,
+                        categoryBreakdown,
+                        null,
+                        null
+                ))
+                .build();
     }
 
     // ============================================================
@@ -475,6 +567,33 @@ public class PayFacadeService {
                 .build();
 
         return fdsRuleService.evaluate(request);
+    }
+
+    private Map<Long, Store> buildStoreMap(List<PayTransaction> transactions) {
+        Set<Long> storeIds = transactions.stream()
+                .map(PayTransaction::getStoreId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        if (storeIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return storeRepository.findAllById(storeIds).stream()
+                .collect(Collectors.toMap(Store::getStoreId, Function.identity()));
+    }
+
+    private String resolveCategoryName(PayTransaction transaction, Map<Long, Store> storeMap) {
+        if (transaction.getStoreId() == null) {
+            return "기타";
+        }
+
+        Store store = storeMap.get(transaction.getStoreId());
+        if (store == null || store.getCategoryName() == null || store.getCategoryName().isBlank()) {
+            return "기타";
+        }
+
+        return store.getCategoryName();
     }
 
     private String extractTransactionNo(List<Map<String, Object>> recList) {
