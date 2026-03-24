@@ -126,7 +126,7 @@ fun SignUpPasswordScreen(
                 .padding(innerPadding)
         ) {
             SignUpProgressBar(
-                currentStep = 6,
+                currentStep = 5,
                 modifier = Modifier.padding(horizontal = 24.dp)
             )
 

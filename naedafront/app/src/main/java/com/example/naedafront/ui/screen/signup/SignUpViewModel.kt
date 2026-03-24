@@ -80,18 +80,25 @@ class SignUpViewModel : ViewModel() {
     }
 
     private fun parseSignUpError(code: Int, errorBody: String?): String {
-        if (code == 409 || code == 400) {
-            val body = errorBody?.lowercase() ?: ""
-            return when {
-                body.contains("email") || body.contains("userid") ->
+        val body = errorBody ?: ""
+        return when (code) {
+            409 -> when {
+                body.contains("userId", ignoreCase = true) ||
+                body.contains("email", ignoreCase = true) ||
+                body.contains("이메일", ignoreCase = true) ||
+                body.contains("아이디", ignoreCase = true) ->
                     "이미 사용 중인 이메일입니다.\n다른 이메일을 입력해주세요."
-                body.contains("phone") ->
+                body.contains("phone", ignoreCase = true) ||
+                body.contains("전화", ignoreCase = true) ||
+                body.contains("휴대폰", ignoreCase = true) ->
                     "이미 등록된 전화번호입니다.\n다른 전화번호를 입력해주세요."
                 else ->
                     "이미 등록된 정보입니다.\n이메일 또는 전화번호를 확인해주세요."
             }
+            400 -> "입력 정보를 확인해주세요."
+            500, 502 -> "이미 등록된 전화번호이거나 서버에 문제가 발생했습니다.\n정보를 확인 후 다시 시도해주세요."
+            else -> "회원가입에 실패했습니다. (오류코드: $code)"
         }
-        return "회원가입에 실패했습니다. (오류코드: $code)"
     }
 
     fun checkEmailDuplicate(email: String, onResult: (Boolean, String?) -> Unit) {

@@ -49,7 +49,7 @@ import com.example.naedafront.ui.theme.Mint900
 fun SignUpPhoneScreen(
     signUpViewModel: SignUpViewModel,
     onBackClick: () -> Unit = {},
-    onConfirmClick: (String) -> Unit = {}
+    onConfirmClick: () -> Unit = {}
 ) {
     var phoneDigits by remember { mutableStateOf("") }
     var showDuplicatePhoneDialog by remember { mutableStateOf(false) }
@@ -72,8 +72,8 @@ fun SignUpPhoneScreen(
                 // API 스펙에 맞게 하이픈 없는 숫자만 저장
                 signUpViewModel.updatePhone(phoneDigits)
 
-                // 다음 화면으로 실제 전화번호 전달
-                onConfirmClick(phoneDigits)
+                // 다음 화면으로 이동
+                onConfirmClick()
             }
         }
     }

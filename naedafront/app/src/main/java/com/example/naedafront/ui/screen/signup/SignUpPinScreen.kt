@@ -71,7 +71,7 @@ fun SignUpPinScreen(
     var hasPinMismatchError by remember { mutableStateOf(false) }
 
     val currentPin = if (isConfirming) confirmPin else firstPin
-    val currentStep = if (isConfirming) 8 else 7
+    val currentStep = if (isConfirming) 7 else 6
 
     LaunchedEffect(hasPinMismatchError) {
         if (hasPinMismatchError) {
