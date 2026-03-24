@@ -2,6 +2,7 @@ package com.example.naedafront.data.remote
 
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
@@ -47,6 +48,16 @@ interface NotificationApi {
         @Query("userNo") userNo: Long
     ): Map<String, Long>
 
+    @PATCH("api/notifications/{notificationId}/read")
+    suspend fun markAsRead(
+        @Path("notificationId") notificationId: Long
+    )
+
+    @PATCH("api/notifications/read-all")
+    suspend fun markAllAsRead(
+        @Query("userNo") userNo: Long
+    )
+
     @GET("api/notification-settings/{userNo}")
     suspend fun getNotificationSettings(
         @Path("userNo") userNo: Long
@@ -73,6 +84,14 @@ object NotificationRepository {
 
     suspend fun getUnreadCount(userNo: Long): Result<Long> = runCatching {
         api.getUnreadCount(userNo).values.firstOrNull() ?: 0L
+    }
+
+    suspend fun markAsRead(notificationId: Long): Result<Unit> = runCatching {
+        api.markAsRead(notificationId)
+    }
+
+    suspend fun markAllAsRead(userNo: Long): Result<Unit> = runCatching {
+        api.markAllAsRead(userNo)
     }
 
     suspend fun getNotificationSettings(userNo: Long): Result<NotificationSettingResponse> = runCatching {

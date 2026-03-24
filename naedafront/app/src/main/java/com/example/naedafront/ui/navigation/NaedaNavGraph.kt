@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -16,6 +17,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -35,6 +39,7 @@ import com.example.naedafront.ui.screen.asset.AccountDetailRoute
 import com.example.naedafront.ui.screen.asset.AccountListRoute
 import com.example.naedafront.ui.screen.asset.CardDetailRoute
 import com.example.naedafront.ui.screen.asset.RegisterAssetDialog
+import com.example.naedafront.ui.screen.asset.RegisterAssetScreen
 import com.example.naedafront.ui.screen.asset.TradeReportScreen
 import com.example.naedafront.ui.screen.chat.ChatScreen
 import com.example.naedafront.ui.screen.facepay.FaceMatchRecognizeScreen
@@ -425,7 +430,7 @@ fun NaedaNavGraph(
         ) { backStackEntry ->
             val tab = backStackEntry.arguments?.getInt("tab") ?: 0
 
-            RegisterAssetDialog(
+            RegisterAssetScreen(
                 initialTab = tab,
                 onDismiss = { navController.popBackStack() },
                 onRegisterComplete = { navController.popBackStack() }
@@ -542,8 +547,7 @@ fun NaedaNavGraph(
                         popUpTo(Screen.Welcome.route) { inclusive = true }
                         launchSingleTop = true
                     }
-                },
-                onWithdrawClick = { }
+                }
             )
         }
 
@@ -616,6 +620,7 @@ private fun HomeTabContent(
     navController: NavHostController
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val displayName = AuthPrefs.getUsername(context)
         ?.takeUnless { it.isBlank() }
         ?: "사용자"
@@ -649,6 +654,18 @@ private fun HomeTabContent(
                     isFaceRegistered = isFaceRegistered
                 )
             }
+    }
+
+    DisposableEffect(lifecycleOwner, context, homeViewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                homeViewModel.refreshUnreadNotificationCount(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     HomeScreen(
@@ -708,6 +725,8 @@ private fun AssetTabContent(
         initialTab = 0,
         onBack = { },
         showBackButton = false,
+        onRegisterNewAccount = { navController.navigate(Screen.RegisterAsset.createRoute(0)) },
+        onRegisterNewCard = { navController.navigate(Screen.RegisterAsset.createRoute(1)) },
         onAccountClick = { account ->
             navController.navigate(
                 Screen.AccountDetail.createRoute(
@@ -735,7 +754,7 @@ private fun AssetTabContent(
         onSetPrimary = { },
         onSetPrimaryCard = { },
         onDeleteCard = { },
-        useRegisterDialog = true
+        useRegisterDialog = false
     )
 }
 
@@ -756,8 +775,7 @@ private fun SettingsTabContent(
                 popUpTo(Screen.Welcome.route) { inclusive = true }
                 launchSingleTop = true
             }
-        },
-        onWithdrawClick = { }
+        }
     )
 }
 

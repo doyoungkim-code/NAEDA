@@ -2,6 +2,7 @@ package com.example.naedafront.ui.screen
 
 import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -59,10 +61,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
-import java.util.TimeZone
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 // ─────────────────────────────────────────────
 // UiState
@@ -92,14 +94,17 @@ class NotificationViewModel : ViewModel() {
 
             // 알림 목록 + 안읽은 수 병렬 로드
             launch {
-                NotificationRepository.getNotifications(userNo)
-                    .onSuccess { notifications ->
-                        _uiState.update {
-                            it.copy(
-                                notifications = notifications.sortedByDescending { it.sent },
-                                isLoading = false
-                            )
-                        }
+                    NotificationRepository.getNotifications(userNo)
+                        .onSuccess { notifications ->
+                            val unreadNotifications = notifications
+                                .filter { notification -> notification.isRead != true }
+                                .sortedByDescending { notification -> notification.sent }
+                            _uiState.update {
+                                it.copy(
+                                    notifications = unreadNotifications,
+                                    isLoading = false
+                                )
+                            }
                     }
                     .onFailure { e ->
                         _uiState.update {
@@ -114,6 +119,48 @@ class NotificationViewModel : ViewModel() {
                         _uiState.update { it.copy(unreadCount = count) }
                     }
             }
+        }
+    }
+
+    fun markAsRead(notificationId: Long?) {
+        if (notificationId == null) return
+        if (_uiState.value.notifications.firstOrNull { it.notificationId == notificationId }?.isRead == true) return
+
+        viewModelScope.launch {
+            NotificationRepository.markAsRead(notificationId)
+                .onSuccess {
+                    _uiState.update { state ->
+                        state.copy(
+                            notifications = state.notifications.filterNot { notification ->
+                                notification.notificationId == notificationId
+                            },
+                            unreadCount = (state.unreadCount - 1L).coerceAtLeast(0L)
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _uiState.update { it.copy(error = error.message ?: "알림 읽음 처리에 실패했습니다.") }
+                }
+        }
+    }
+
+    fun markAllAsRead(context: Context) {
+        val userNo = AuthPrefs.getUserNo(context) ?: return
+        if (_uiState.value.unreadCount <= 0L) return
+
+        viewModelScope.launch {
+            NotificationRepository.markAllAsRead(userNo)
+                .onSuccess {
+                    _uiState.update { state ->
+                        state.copy(
+                            notifications = emptyList(),
+                            unreadCount = 0L
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _uiState.update { it.copy(error = error.message ?: "알림 전체 읽음 처리에 실패했습니다.") }
+                }
         }
     }
 }
@@ -156,29 +203,15 @@ fun NotificationScreen(
                     }
                 },
                 actions = {
-                    // 안읽은 알림 수 뱃지
-                    if (uiState.unreadCount > 0) {
-                        Box(
-                            modifier = Modifier.padding(end = 16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .background(Mint900)
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = if (uiState.unreadCount > 99) "99+" else "${uiState.unreadCount}",
-                                    style = NaedaTypography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold
-                                    ),
-                                    color = Color.White,
-                                    fontSize = 11.sp
-                                )
-                            }
-                        }
+                    TextButton(
+                        onClick = { viewModel.markAllAsRead(context) },
+                        enabled = uiState.unreadCount > 0L
+                    ) {
+                        Text(
+                            text = "모두 읽음",
+                            color = if (uiState.unreadCount > 0L) Mint900 else OnSurfaceVariant,
+                            style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -223,7 +256,7 @@ fun NotificationScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "알림이 없습니다.",
+                        text = "읽지 않은 알림이 없습니다.",
                         style = NaedaTypography.bodyMedium,
                         color = OnSurfaceVariant
                     )
@@ -237,7 +270,10 @@ fun NotificationScreen(
                         .padding(innerPadding)
                 ) {
                     items(uiState.notifications) { notification ->
-                        NotificationRow(notification = notification)
+                        NotificationRow(
+                            notification = notification,
+                            onClick = { viewModel.markAsRead(notification.notificationId) }
+                        )
                     }
                 }
             }
@@ -250,13 +286,17 @@ fun NotificationScreen(
 // ─────────────────────────────────────────────
 
 @Composable
-private fun NotificationRow(notification: NotificationResponse) {
+private fun NotificationRow(
+    notification: NotificationResponse,
+    onClick: () -> Unit
+) {
     val isRead = notification.isRead == true
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(if (isRead) Background else Surface)
+            .clickable(enabled = !isRead, onClick = onClick)
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.Top
     ) {
@@ -341,31 +381,11 @@ private fun NotificationRow(notification: NotificationResponse) {
 // ─────────────────────────────────────────────
 
 private fun String.formatSentTime(): String {
-    return try {
-        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
-        }
-        val date = inputFormat.parse(this) ?: return this
-        val cal = Calendar.getInstance().apply { time = date }
-        val now = Calendar.getInstance()
+    val dateTime = runCatching {
+        OffsetDateTime.parse(this).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime()
+    }.getOrElse {
+        runCatching { LocalDateTime.parse(this, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.getOrNull()
+    } ?: return this
 
-        val diffMs = now.timeInMillis - cal.timeInMillis
-        val diffMin = diffMs / (1000 * 60)
-        val diffHour = diffMin / 60
-        val diffDay = diffHour / 24
-
-        when {
-            diffMin < 1 -> "방금"
-            diffMin < 60 -> "${diffMin}분 전"
-            diffHour < 24 -> "${diffHour}시간 전"
-            diffDay < 7 -> "${diffDay}일 전"
-            else -> {
-                val month = cal.get(Calendar.MONTH) + 1
-                val day = cal.get(Calendar.DAY_OF_MONTH)
-                "${month}월 ${day}일"
-            }
-        }
-    } catch (e: Exception) {
-        this
-    }
+    return dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
 }

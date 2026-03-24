@@ -79,6 +79,68 @@ class SignUpViewModel : ViewModel() {
         logState("updatePin")
     }
 
+    private fun parseSignUpError(code: Int, errorBody: String?): String {
+        val body = errorBody ?: ""
+        return when (code) {
+            409 -> when {
+                body.contains("userId", ignoreCase = true) ||
+                body.contains("email", ignoreCase = true) ||
+                body.contains("이메일", ignoreCase = true) ||
+                body.contains("아이디", ignoreCase = true) ->
+                    "이미 사용 중인 이메일입니다.\n다른 이메일을 입력해주세요."
+                body.contains("phone", ignoreCase = true) ||
+                body.contains("전화", ignoreCase = true) ||
+                body.contains("휴대폰", ignoreCase = true) ->
+                    "이미 등록된 전화번호입니다.\n다른 전화번호를 입력해주세요."
+                else ->
+                    "이미 등록된 정보입니다.\n이메일 또는 전화번호를 확인해주세요."
+            }
+            400 -> "입력 정보를 확인해주세요."
+            500, 502 -> "이미 등록된 전화번호이거나 서버에 문제가 발생했습니다.\n정보를 확인 후 다시 시도해주세요."
+            else -> "회원가입에 실패했습니다. (오류코드: $code)"
+        }
+    }
+
+    fun checkEmailDuplicate(email: String, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val response = authRepository.checkEmail(email)
+                Log.d(TAG, "checkEmail response | code=${response.code()}")
+                if (response.isSuccessful) {
+                    onResult(false, null) // 중복 아님
+                } else if (response.code() == 409) {
+                    onResult(true, "이미 사용 중인 이메일입니다.\n다른 이메일을 입력해주세요.")
+                } else {
+                    Log.w(TAG, "checkEmail unexpected code=${response.code()}")
+                    onResult(false, null) // 409가 아닌 에러는 통과 (signup에서 최종 검증)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "checkEmailDuplicate exception", e)
+                onResult(false, null) // 네트워크 오류 시 일단 통과
+            }
+        }
+    }
+
+    fun checkPhoneDuplicate(phone: String, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val response = authRepository.checkPhone(phone)
+                Log.d(TAG, "checkPhone response | code=${response.code()}")
+                if (response.isSuccessful) {
+                    onResult(false, null) // 중복 아님
+                } else if (response.code() == 409) {
+                    onResult(true, "이미 등록된 전화번호입니다.\n다른 전화번호를 입력해주세요.")
+                } else {
+                    Log.w(TAG, "checkPhone unexpected code=${response.code()}")
+                    onResult(false, null) // 409가 아닌 에러는 통과
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "checkPhoneDuplicate exception", e)
+                onResult(false, null) // 네트워크 오류 시 일단 통과
+            }
+        }
+    }
+
     fun clearError() {
         _uiState.update { currentState ->
             currentState.copy(errorMessage = null)
@@ -140,30 +202,13 @@ class SignUpViewModel : ViewModel() {
                         "submitSignUp failed | code=${response.code()}, body=$errorBody"
                     )
 
-                    val message = when (response.code()) {
-                        409 -> {
-                            when {
-                                errorBody?.contains("userId", ignoreCase = true) == true ||
-                                errorBody?.contains("이메일", ignoreCase = true) == true ||
-                                errorBody?.contains("아이디", ignoreCase = true) == true ->
-                                    "이미 사용 중인 이메일입니다."
-                                errorBody?.contains("phone", ignoreCase = true) == true ||
-                                errorBody?.contains("전화", ignoreCase = true) == true ||
-                                errorBody?.contains("휴대폰", ignoreCase = true) == true ->
-                                    "이미 등록된 전화번호입니다."
-                                else -> "이미 가입된 정보입니다."
-                            }
-                        }
-                        400 -> "입력 정보를 확인해주세요."
-                        500, 502 -> "이미 등록된 전화번호이거나 서버에 문제가 발생했습니다.\n정보를 확인 후 다시 시도해주세요."
-                        else -> "회원가입에 실패했습니다. (${response.code()})"
-                    }
+                    val errorMsg = parseSignUpError(response.code(), errorBody)
 
                     _uiState.update { currentState ->
                         currentState.copy(
                             isLoading = false,
                             isSignUpSuccess = false,
-                            errorMessage = message
+                            errorMessage = errorMsg
                         )
                     }
                 }

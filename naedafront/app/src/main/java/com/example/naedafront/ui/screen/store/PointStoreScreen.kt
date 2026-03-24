@@ -147,10 +147,7 @@ fun PointStoreScreen(
                 walletStatus = uiState.walletStatus,
                 point = uiState.pointBalance,
                 errorMessage = uiState.errorMessage,
-                onHistoryClick = onHistoryClick,
-                onCreateWalletClick = {
-                    viewModel.createWallet(context)
-                }
+                onHistoryClick = onHistoryClick
             )
 
             Row(
@@ -260,8 +257,7 @@ private fun PointStoreHeader(
     walletStatus: PointWalletStatus,
     point: Long,
     errorMessage: String?,
-    onHistoryClick: () -> Unit,
-    onCreateWalletClick: () -> Unit
+    onHistoryClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -419,49 +415,6 @@ private fun PointStoreHeader(
                                     color = Color(0xFF667085),
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                    }
-
-                    PointWalletStatus.NOT_CREATED -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 22.dp, vertical = 22.dp)
-                        ) {
-                            Text(
-                                text = "포인트 지갑이 아직 없습니다.",
-                                color = Color(0xFF101828),
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Text(
-                                text = "포인트를 적립하고 사용하려면 먼저 포인트 지갑을 생성해야 합니다.",
-                                color = Color(0xFF667085),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                lineHeight = 22.sp
-                            )
-
-                            Spacer(modifier = Modifier.height(18.dp))
-
-                            Button(
-                                onClick = onCreateWalletClick,
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF006B60),
-                                    contentColor = Color.White
-                                )
-                            ) {
-                                Text(
-                                    text = "포인트 지갑 생성하기",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }

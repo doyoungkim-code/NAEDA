@@ -77,6 +77,10 @@ public class Store {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "is_recommended", nullable = false)
+    @Builder.Default
+    private Boolean isRecommended = false;
+
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;

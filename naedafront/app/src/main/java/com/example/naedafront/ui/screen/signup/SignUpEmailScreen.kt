@@ -54,6 +54,9 @@ fun SignUpEmailScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var showInvalidEmailDialog by remember { mutableStateOf(false) }
+    var showDuplicateEmailDialog by remember { mutableStateOf(false) }
+    var duplicateEmailMessage by remember { mutableStateOf("") }
+    var isChecking by remember { mutableStateOf(false) }
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val trimmedEmail = email.trim()
@@ -65,15 +68,24 @@ fun SignUpEmailScreen(
     fun handleConfirm() {
         keyboardController?.hide()
 
-        if (!isEmailNotBlank) return
+        if (!isEmailNotBlank || isChecking) return
 
         if (!isEmailValid) {
             showInvalidEmailDialog = true
             return
         }
 
-        signUpViewModel.updateUserId(trimmedEmail)
-        onConfirmClick()
+        isChecking = true
+        signUpViewModel.checkEmailDuplicate(trimmedEmail) { isDuplicate, message ->
+            isChecking = false
+            if (isDuplicate) {
+                duplicateEmailMessage = message ?: "이미 사용 중인 이메일입니다."
+                showDuplicateEmailDialog = true
+            } else {
+                signUpViewModel.updateUserId(trimmedEmail)
+                onConfirmClick()
+            }
+        }
     }
 
     if (showInvalidEmailDialog) {
@@ -89,6 +101,23 @@ fun SignUpEmailScreen(
             },
             text = {
                 Text("올바른 이메일 형식으로 입력해주세요.")
+            }
+        )
+    }
+
+    if (showDuplicateEmailDialog) {
+        AlertDialog(
+            onDismissRequest = { showDuplicateEmailDialog = false },
+            confirmButton = {
+                TextButton(onClick = { showDuplicateEmailDialog = false }) {
+                    Text("확인")
+                }
+            },
+            title = {
+                Text("이메일 중복")
+            },
+            text = {
+                Text(duplicateEmailMessage)
             }
         )
     }
@@ -183,7 +212,7 @@ fun SignUpEmailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    enabled = isEmailNotBlank,
+                    enabled = isEmailNotBlank && !isChecking,
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Mint900,
