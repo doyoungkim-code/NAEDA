@@ -184,6 +184,7 @@ fun AccountListScreen(
     accounts: List<AccountItem> = sampleAccounts,
     cards: List<CardItem> = sampleCards,
     onBack: () -> Unit = {},
+    showBackButton: Boolean = true,
     onRegisterNewAccount: () -> Unit = {},
     onRegisterNewCard: () -> Unit = {},
     onAccountClick: (AccountItem) -> Unit = {},
@@ -209,12 +210,14 @@ fun AccountListScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "뒤로가기",
-                            tint = OnBackground
-                        )
+                    if (showBackButton) {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "뒤로가기",
+                                tint = OnBackground
+                            )
+                        }
                     }
                 },
 

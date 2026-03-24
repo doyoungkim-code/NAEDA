@@ -68,13 +68,14 @@ import com.example.naedafront.ui.theme.Surface
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
-    userNo: Long,
+    userNo: Long?,
     onBackClick: () -> Unit,
     viewModel: ChatViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val canSendMessage = userNo != null && userNo > 0L && inputText.isNotBlank() && !uiState.isLoading
 
     LaunchedEffect(uiState.messages.size) {
         if (uiState.messages.isNotEmpty()) {
@@ -155,12 +156,13 @@ fun ChatScreen(
                 text = inputText,
                 onTextChange = { inputText = it },
                 onSend = {
-                    if (inputText.isNotBlank() && !uiState.isLoading) {
+                    if (userNo != null && userNo > 0L && inputText.isNotBlank() && !uiState.isLoading) {
                         viewModel.sendMessage(userNo, inputText)
                         inputText = ""
                     }
                 },
-                isLoading = uiState.isLoading
+                isLoading = uiState.isLoading,
+                isEnabled = canSendMessage
             )
     }
 }
@@ -322,7 +324,8 @@ private fun ChatInputBar(
     text: String,
     onTextChange: (String) -> Unit,
     onSend: () -> Unit,
-    isLoading: Boolean
+    isLoading: Boolean,
+    isEnabled: Boolean
 ) {
     Row(
         modifier = Modifier
@@ -357,19 +360,19 @@ private fun ChatInputBar(
 
         IconButton(
             onClick = onSend,
-            enabled = text.isNotBlank() && !isLoading,
+            enabled = isEnabled,
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
                 .background(
-                    if (text.isNotBlank() && !isLoading) Mint900
+                    if (isEnabled) Mint900
                     else OnBackground.copy(alpha = 0.1f)
                 )
         ) {
             Icon(
                 Icons.AutoMirrored.Filled.Send,
                 contentDescription = "보내기",
-                tint = if (text.isNotBlank() && !isLoading) Color.White
+                tint = if (isEnabled) Color.White
                 else OnBackground.copy(alpha = 0.3f),
                 modifier = Modifier.size(20.dp)
             )
