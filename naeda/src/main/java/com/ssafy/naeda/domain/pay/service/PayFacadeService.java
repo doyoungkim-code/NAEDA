@@ -19,6 +19,8 @@ import com.ssafy.naeda.domain.pay.entity.PayTransaction;
 import com.ssafy.naeda.domain.pay.lock.PayDistributedLock;
 import com.ssafy.naeda.domain.pay.lock.PayRateLimiter;
 import com.ssafy.naeda.domain.pay.repository.PayMethodRepository;
+import com.ssafy.naeda.domain.point.dto.request.PointEarnRequest;
+import com.ssafy.naeda.domain.point.service.PointService;
 import com.ssafy.naeda.domain.store.entity.Store;
 import com.ssafy.naeda.domain.store.repository.StoreRepository;
 import com.ssafy.naeda.domain.transaction.entity.TransactionLog;
@@ -27,6 +29,7 @@ import com.ssafy.naeda.domain.transaction.repository.TransactionLogRepository;
 import com.ssafy.naeda.domain.user.entity.User;
 import com.ssafy.naeda.domain.user.repository.UserRepository;
 import com.ssafy.naeda.global.exception.BadRequestException;
+import com.ssafy.naeda.global.exception.DuplicateException;
 import com.ssafy.naeda.global.exception.NotFoundException;
 import com.ssafy.naeda.global.ssafy.SsafyApiClient;
 import com.ssafy.naeda.global.ssafy.SsafyHeaderFactory;
@@ -64,6 +67,7 @@ public class PayFacadeService {
     private final PayRateLimiter rateLimiter;
     private final FdsRuleService fdsRuleService;
     private final PayMethodRepository payMethodRepository;
+    private final PointService pointService;
     private final AccountRepository accountRepository;
     private final StoreRepository storeRepository;
     private final UserRepository userRepository;
@@ -250,10 +254,13 @@ public class PayFacadeService {
             transaction = payDbService.save(transaction);
             fdsRuleService.saveLog(transaction.getId(), user.getUserNo(), fdsResult);
 
-            // 16. Redis 상태 갱신
+            // 16. 포인트 적립
+            accumulateEarnedPoints(user.getUserNo(), transaction.getId(), earnedPoints);
+
+            // 17. Redis 상태 갱신
             updateRedisSuccess(requestId, transaction.getId(), ssafyTransactionId);
 
-            // 17. FCM 결제 완료 알림 (비동기, 실패해도 결제 결과에 영향 없음)
+            // 18. FCM 결제 완료 알림 (비동기, 실패해도 결제 결과에 영향 없음)
             try {
                 sendPaymentNotification(user.getUserNo(), transaction.getId(), store.getStoreId(), amount, earnedPoints);
             } catch (Exception fcmEx) {
@@ -292,6 +299,41 @@ public class PayFacadeService {
 
         fcmService.sendToUser(userNo, title, body, NotificationType.PAYMENT, transactionId, ReferenceType.PAYMENT, data);
         log.info("[Pay] FCM 결제 알림 발송: userNo={}, amount={}", userNo, amount);
+    }
+
+    private void accumulateEarnedPoints(Long userNo, Long transactionId, Long earnedPoints) {
+        if (earnedPoints == null || earnedPoints <= 0) {
+            return;
+        }
+
+        PointEarnRequest earnRequest = PointEarnRequest.builder()
+                .amount(earnedPoints)
+                .description("결제 적립")
+                .paymentId(transactionId)
+                .build();
+
+        try {
+            pointService.earnPoints(userNo, earnRequest);
+            log.info("[Pay] 포인트 적립 완료: userNo={}, transactionId={}, points={}",
+                    userNo, transactionId, earnedPoints);
+        } catch (NotFoundException e) {
+            log.info("[Pay] 포인트 지갑이 없어 생성 후 적립 재시도: userNo={}", userNo);
+            try {
+                pointService.createWallet(userNo);
+            } catch (DuplicateException duplicateException) {
+                log.info("[Pay] 포인트 지갑이 이미 생성됨: userNo={}", userNo);
+            }
+
+            try {
+                pointService.earnPoints(userNo, earnRequest);
+                log.info("[Pay] 포인트 적립 재시도 성공: userNo={}, transactionId={}, points={}",
+                        userNo, transactionId, earnedPoints);
+            } catch (Exception retryEx) {
+                log.error("[Pay] 포인트 적립 재시도 실패: transactionId={}", transactionId, retryEx);
+            }
+        } catch (Exception e) {
+            log.error("[Pay] 포인트 적립 실패: transactionId={}", transactionId, e);
+        }
     }
 
     // ============================================================
