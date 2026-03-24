@@ -15,7 +15,6 @@ import kotlinx.coroutines.launch
 enum class PointWalletStatus {
     LOADING,
     EXISTS,
-    NOT_CREATED,
     CREATING,
     ERROR
 }
@@ -59,53 +58,12 @@ class StoreViewModel : ViewModel() {
                 )
             }
 
-            loadPointBalance(userNo)
+            ensurePointWallet(userNo)
             loadProducts()
         }
     }
 
-    fun createWallet(context: Context) {
-        val userNo = AuthPrefs.getUserNo(context) ?: 0L
-
-        if (userNo <= 0L) {
-            _uiState.update {
-                it.copy(
-                    walletStatus = PointWalletStatus.ERROR,
-                    errorMessage = "사용자 정보가 없습니다."
-                )
-            }
-            return
-        }
-
-        viewModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    walletStatus = PointWalletStatus.CREATING,
-                    errorMessage = null
-                )
-            }
-
-            pointRepository.createPointWallet(userNo)
-                .onSuccess { wallet ->
-                    _uiState.update {
-                        it.copy(
-                            pointBalance = wallet.balance,
-                            walletStatus = PointWalletStatus.EXISTS
-                        )
-                    }
-                }
-                .onFailure { throwable ->
-                    _uiState.update {
-                        it.copy(
-                            walletStatus = PointWalletStatus.ERROR,
-                            errorMessage = throwable.message ?: "포인트 지갑 생성에 실패했습니다."
-                        )
-                    }
-                }
-        }
-    }
-
-    private suspend fun loadPointBalance(userNo: Long) {
+    private suspend fun ensurePointWallet(userNo: Long) {
         pointRepository.getPointWallet(userNo)
             .onSuccess { wallet ->
                 _uiState.update {
@@ -119,12 +77,7 @@ class StoreViewModel : ViewModel() {
                 val message = throwable.message.orEmpty()
 
                 if (message.contains("404")) {
-                    _uiState.update {
-                        it.copy(
-                            pointBalance = 0L,
-                            walletStatus = PointWalletStatus.NOT_CREATED
-                        )
-                    }
+                    createWallet(userNo)
                 } else {
                     _uiState.update {
                         it.copy(
@@ -135,6 +88,58 @@ class StoreViewModel : ViewModel() {
                             } else {
                                 "포인트 지갑을 불러오지 못했습니다."
                             }
+                        )
+                    }
+                }
+            }
+    }
+
+    private suspend fun createWallet(userNo: Long) {
+        _uiState.update {
+            it.copy(
+                walletStatus = PointWalletStatus.CREATING,
+                errorMessage = null
+            )
+        }
+
+        pointRepository.createPointWallet(userNo)
+            .onSuccess { wallet ->
+                _uiState.update {
+                    it.copy(
+                        pointBalance = wallet.balance,
+                        walletStatus = PointWalletStatus.EXISTS
+                    )
+                }
+            }
+            .onFailure { throwable ->
+                val message = throwable.message.orEmpty()
+
+                if (message.contains("409")) {
+                    pointRepository.getPointWallet(userNo)
+                        .onSuccess { wallet ->
+                            _uiState.update {
+                                it.copy(
+                                    pointBalance = wallet.balance,
+                                    walletStatus = PointWalletStatus.EXISTS
+                                )
+                            }
+                        }
+                        .onFailure { fallbackThrowable ->
+                            _uiState.update {
+                                it.copy(
+                                    pointBalance = 0L,
+                                    walletStatus = PointWalletStatus.ERROR,
+                                    errorMessage = fallbackThrowable.message
+                                        ?: "포인트 지갑을 불러오지 못했습니다."
+                                )
+                            }
+                        }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            pointBalance = 0L,
+                            walletStatus = PointWalletStatus.ERROR,
+                            errorMessage = throwable.message ?: "포인트 지갑 생성에 실패했습니다."
                         )
                     }
                 }
