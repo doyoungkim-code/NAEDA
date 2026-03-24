@@ -1,3 +1,4 @@
+// File: app/src/main/java/com/example/naedafront/ui/screen/asset/AccountListScreen.kt
 package com.example.naedafront.ui.screen.asset
 
 import androidx.compose.foundation.background
@@ -78,6 +79,7 @@ data class AccountItem(
 
 data class CardItem(
     val id: String,
+    val cardId: Long? = null,
     val paymentMethodId: Long? = null,
     val cardType: String,
     val cardIssuerName: String,
@@ -640,63 +642,34 @@ private fun CardListItem(
                         ) {
                             Text(
                                 text = "대표",
-                                style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                style = NaedaTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                 color = textPrimary
                             )
                         }
                     }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(badgeBg)
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                    ) {
-                        Text(
-                            text = if (card.cardType == "CREDIT") "신용" else "체크",
-                            style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = textPrimary
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
+
+                if (card.paymentMethodId != null) {
                     Box {
-                        IconButton(
-                            onClick = onMenuToggle,
-                            modifier = Modifier.size(28.dp)
-                        ) {
+                        IconButton(onClick = onMenuToggle) {
                             Icon(
                                 imageVector = Icons.Default.MoreVert,
                                 contentDescription = "더보기",
-                                tint = textPrimary,
-                                modifier = Modifier.size(18.dp)
+                                tint = textPrimary
                             )
                         }
                         DropdownMenu(
                             expanded = isMenuExpanded,
-                            onDismissRequest = onMenuToggle,
-                            modifier = Modifier.background(Surface)
+                            onDismissRequest = onMenuToggle
                         ) {
-                            if (!card.isPrimary && card.paymentMethodId != null) {
+                            if (!card.isPrimary) {
                                 DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            "대표 카드로 설정",
-                                            style = NaedaTypography.bodyMedium,
-                                            color = OnBackground
-                                        )
-                                    },
+                                    text = { Text("대표카드 변경") },
                                     onClick = onSetPrimary
                                 )
                             }
                             DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        "삭제",
-                                        style = NaedaTypography.bodyMedium,
-                                        color = Error
-                                    )
-                                },
+                                text = { Text("삭제", color = Error) },
                                 onClick = onDeleteRequest
                             )
                         }
@@ -704,27 +677,34 @@ private fun CardListItem(
                 }
             }
 
-            Text(
-                text = card.cardName,
-                style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Medium),
-                color = textBody,
-                maxLines = 1
-            )
-
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column {
                 Text(
-                    text = card.cardNumber,
-                    style = NaedaTypography.bodyMedium.copy(
-                        fontWeight = FontWeight.Medium,
-                        letterSpacing = 2.sp
-                    ),
+                    text = card.cardName,
+                    style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = textPrimary
                 )
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "~ ${card.cardExpiryDate}",
-                    style = NaedaTypography.bodySmall,
-                    color = textSecondary
+                    text = card.cardNumber,
+                    style = NaedaTypography.bodyLarge,
+                    color = textBody
                 )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = card.cardType,
+                        style = NaedaTypography.labelMedium,
+                        color = textSecondary
+                    )
+                    Text(
+                        text = card.cardExpiryDate,
+                        style = NaedaTypography.labelMedium,
+                        color = textSecondary
+                    )
+                }
             }
         }
     }
@@ -739,56 +719,34 @@ private fun AccountDeleteDialog(
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = Surface,
-            shadowElevation = 8.dp
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+            Column(modifier = Modifier.padding(24.dp)) {
                 Text(
-                    text = "계좌를 삭제하시겠습니까?",
-                    style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    text = "계좌를 목록에서 삭제할까요?",
+                    style = NaedaTypography.titleMedium,
                     color = OnBackground
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "삭제 시 해당 계좌의 정보가\n앱에서 제거됩니다.",
+                    text = "삭제 후에도 실제 계좌는 해지되지 않아요.",
                     style = NaedaTypography.bodyMedium,
-                    color = OnSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 22.sp
+                    color = OnSurfaceVariant
                 )
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.End
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Outline),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = OnSurfaceVariant
-                        )
+                        border = ButtonDefaults.outlinedButtonBorder.copy(width = 1.dp)
                     ) {
-                        Text(text = "취소", style = NaedaTypography.labelLarge)
+                        Text("취소")
                     }
-                    Button(
-                        onClick = onConfirm,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Mint900)
-                    ) {
-                        Text(
-                            text = "삭제하기",
-                            style = NaedaTypography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                            color = Color.White
-                        )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(onClick = onConfirm) {
+                        Text("삭제")
                     }
                 }
             }
@@ -805,56 +763,34 @@ private fun CardDeleteDialog(
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = Surface,
-            shadowElevation = 8.dp
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+            Column(modifier = Modifier.padding(24.dp)) {
                 Text(
-                    text = "카드를 삭제하시겠습니까?",
-                    style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    text = "카드를 목록에서 삭제할까요?",
+                    style = NaedaTypography.titleMedium,
                     color = OnBackground
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "삭제 시 해당 카드의 정보가\n앱에서 제거됩니다.",
+                    text = "삭제 후에도 실제 카드는 해지되지 않아요.",
                     style = NaedaTypography.bodyMedium,
-                    color = OnSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 22.sp
+                    color = OnSurfaceVariant
                 )
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.End
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Outline),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = OnSurfaceVariant
-                        )
+                        border = ButtonDefaults.outlinedButtonBorder.copy(width = 1.dp)
                     ) {
-                        Text(text = "취소", style = NaedaTypography.labelLarge)
+                        Text("취소")
                     }
-                    Button(
-                        onClick = onConfirm,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Mint900)
-                    ) {
-                        Text(
-                            text = "삭제하기",
-                            style = NaedaTypography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                            color = Color.White
-                        )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(onClick = onConfirm) {
+                        Text("삭제")
                     }
                 }
             }
