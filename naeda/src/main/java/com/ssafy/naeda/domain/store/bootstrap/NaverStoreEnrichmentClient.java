@@ -149,7 +149,7 @@ public class NaverStoreEnrichmentClient {
                         .fromUriString("https://map.naver.com/p/api/search/allSearch")
                         .queryParam("query", query)
                         .queryParam("type", "all")
-                        .build(true)
+                        .build()
                         .toUri();
 
                 String response = crawlClient().get()
@@ -277,7 +277,7 @@ public class NaverStoreEnrichmentClient {
                 URI uri = UriComponentsBuilder
                         .fromUriString("https://search.naver.com/search.naver")
                         .queryParam("query", query)
-                        .build(true)
+                        .build()
                         .toUri();
 
                 String html = crawlClient().get()
@@ -467,7 +467,7 @@ public class NaverStoreEnrichmentClient {
                     .queryParam("query", query)
                     .queryParam("display", 5)
                     .queryParam("start", 1)
-                    .build(true)
+                    .build()
                     .toUri();
 
             String response = apiClient().get()

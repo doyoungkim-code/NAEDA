@@ -1,5 +1,7 @@
 package com.example.naedafront.data.remote
 
+import com.example.naedafront.data.remote.api.PaymentApi
+import com.example.naedafront.data.remote.response.PaymentDetailResponse
 import com.google.gson.Gson
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -215,6 +217,7 @@ interface PayApi {
 object AssetRepository {
     private val api = ApiConfig.retrofit.create(AssetApi::class.java)
     private val payApi = ApiConfig.retrofit.create(PayApi::class.java)
+    private val paymentDetailApi = ApiConfig.retrofit.create(PaymentApi::class.java)
     private val gson = Gson()
 
     suspend fun getWalletAssets(userNo: Long): WalletAssetsResponse = coroutineScope {
@@ -287,7 +290,10 @@ object AssetRepository {
                 enabled = enabled
             )
         }.getOrElse { throwable ->
-            throw toReadableException(throwable, if (enabled) "페이스페이 사용 설정에 실패했습니다." else "페이스페이 사용 해제에 실패했습니다.")
+            throw toReadableException(
+                throwable,
+                if (enabled) "페이스페이 사용 설정에 실패했습니다." else "페이스페이 사용 해제에 실패했습니다."
+            )
         }
     }
 
@@ -315,10 +321,20 @@ object AssetRepository {
         payApi.getPayments(userNo = userNo, from = from, to = to)
     }
 
-    suspend fun getCurrentMonthSpendingAnalysis(
-        userNo: Long
-    ): Result<CurrentMonthSpendingAnalysisResponse> = runCatching {
-        payApi.getCurrentMonthSpendingAnalysis(userNo = userNo)
+    suspend fun getPaymentDetail(
+        userNo: Long,
+        paymentId: Long
+    ): Result<PaymentDetailResponse> = runCatching {
+        val response = paymentDetailApi.getPaymentDetail(
+            userNo = userNo,
+            id = paymentId
+        )
+
+        if (!response.isSuccessful || response.body() == null) {
+            throw Exception("결제 상세 조회 실패: ${response.code()}")
+        }
+
+        response.body()!!
     }
 
     private fun toReadableException(throwable: Throwable, fallback: String): Throwable {

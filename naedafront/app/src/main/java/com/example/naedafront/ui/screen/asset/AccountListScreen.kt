@@ -2,7 +2,20 @@ package com.example.naedafront.ui.screen.asset
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -11,10 +24,25 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.SwapVert
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,155 +62,40 @@ import com.example.naedafront.ui.theme.OnSurfaceVariant
 import com.example.naedafront.ui.theme.Outline
 import com.example.naedafront.ui.theme.Surface
 
-// ─────────────────────────────────────────────
-// 데이터 모델
-// ─────────────────────────────────────────────
-
 data class AccountItem(
-    val id: String,           // account_id
+    val id: String,
     val accountId: Long? = null,
     val paymentMethodId: Long? = null,
-    val bankCode: String,     // bank_code (SSAFY 은행코드)
-    val bankName: String,     // bank_name
-    val accountName: String,  // account_name (SSAFY 계좌명 = 자산 별칭)
-    val accountNumber: String,// account_no
+    val bankCode: String,
+    val bankName: String,
+    val accountName: String,
+    val accountNumber: String,
     val accountBalance: Long? = null,
     val isPrimary: Boolean = false,
-    // UI 전용 (서버에서 bankCode 기반으로 결정)
     val bankColor: Color,
     val bankInitials: String
 )
 
-// ─────────────────────────────────────────────
-// 카드 데이터 모델
-// ─────────────────────────────────────────────
-
 data class CardItem(
-    val id: String,               // debit/credit card id
+    val id: String,
     val paymentMethodId: Long? = null,
-    val cardType: String,         // "CREDIT" or "DEBIT"
-    val cardIssuerName: String,   // card_issuer_name
-    val cardName: String,         // card_name (상품명)
-    val cardNumber: String,       // card_no (마스킹 표시용)
-    val cardExpiryDate: String,   // card_expiry_date
+    val cardType: String,
+    val cardIssuerName: String,
+    val cardName: String,
+    val cardNumber: String,
+    val cardExpiryDate: String,
     val isPrimary: Boolean = false,
     val isActive: Boolean = true,
     val cardGradientStart: Color,
     val cardGradientEnd: Color
 )
 
-val sampleCards = listOf(
-    CardItem(
-        id = "1",
-        cardType = "CREDIT",
-        cardIssuerName = "신한카드",
-        cardName = "신한 Deep Dream 카드",
-        cardNumber = "1234-****-****-5678",
-        cardExpiryDate = "26/08",
-        isPrimary = true,
-        cardGradientStart = Color(0xFF0046FF),
-        cardGradientEnd = Color(0xFF0088FF)
-    ),
-    CardItem(
-        id = "2",
-        cardType = "DEBIT",
-        cardIssuerName = "삼성카드",
-        cardName = "삼성 taptap O카드",
-        cardNumber = "9876-****-****-4321",
-        cardExpiryDate = "25/12",
-        cardGradientStart = Color(0xFF1A1A2E),
-        cardGradientEnd = Color(0xFF16213E)
-    ),
-    CardItem(
-        id = "3",
-        cardType = "CREDIT",
-        cardIssuerName = "현대카드",
-        cardName = "현대카드 ZERO Edition3",
-        cardNumber = "5555-****-****-1111",
-        cardExpiryDate = "27/03",
-        cardGradientStart = Color(0xFF2D2D2D),
-        cardGradientEnd = Color(0xFF555555)
-    ),
-    CardItem(
-        id = "4",
-        cardType = "CREDIT",
-        cardIssuerName = "KB국민카드",
-        cardName = "KB 청춘대로 톡톡카드",
-        cardNumber = "4444-****-****-2222",
-        cardExpiryDate = "26/05",
-        cardGradientStart = Color(0xFFFFB800),
-        cardGradientEnd = Color(0xFFFF8C00)
-    ),
-    CardItem(
-        id = "5",
-        cardType = "DEBIT",
-        cardIssuerName = "카카오뱅크",
-        cardName = "카카오뱅크 체크카드",
-        cardNumber = "3333-****-****-9999",
-        cardExpiryDate = "28/01",
-        cardGradientStart = Color(0xFFFFE400),
-        cardGradientEnd = Color(0xFFFFC000)
-    )
-)
-
-val sampleAccounts = listOf(
-    AccountItem(
-        id = "1",
-        accountId = 1L,
-        bankCode = "004",
-        bankName = "KB국민은행",
-        accountName = "생활비 통장",
-        accountNumber = "123-45-67890",
-        accountBalance = 1_250_000L,
-        isPrimary = true,
-        bankColor = Color(0xFFFFB800),
-        bankInitials = "KB"
-    ),
-    AccountItem(
-        id = "2",
-        accountId = 2L,
-        bankCode = "088",
-        bankName = "신한은행",
-        accountName = "신한 카드",
-        accountNumber = "987-65-43210",
-        accountBalance = 850_000L,
-        bankColor = Color(0xFF0046FF),
-        bankInitials = "SH"
-    ),
-    AccountItem(
-        id = "3",
-        accountId = 3L,
-        bankCode = "090",
-        bankName = "카카오뱅크",
-        accountName = "입출금통장",
-        accountNumber = "3333-01-23456",
-        accountBalance = 420_000L,
-        bankColor = Color(0xFFFFE400),
-        bankInitials = "KA"
-    ),
-    AccountItem(
-        id = "4",
-        accountId = 4L,
-        bankCode = "092",
-        bankName = "토스뱅크",
-        accountName = "토스뱅크 통장",
-        accountNumber = "1000-432-1234",
-        accountBalance = 2_150_000L,
-        bankColor = Color(0xFF0064FF),
-        bankInitials = "TO"
-    )
-)
-
-// ─────────────────────────────────────────────
-// 메인 화면
-// ─────────────────────────────────────────────
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountListScreen(
     initialTab: Int = 0,
-    accounts: List<AccountItem> = sampleAccounts,
-    cards: List<CardItem> = sampleCards,
+    accounts: List<AccountItem>,
+    cards: List<CardItem>,
     onBack: () -> Unit = {},
     showBackButton: Boolean = true,
     onRegisterNewAccount: () -> Unit = {},
@@ -197,6 +110,8 @@ fun AccountListScreen(
     var selectedTab by rememberSaveable { mutableStateOf(initialTab) }
     val tabs = listOf("계좌", "카드")
     var expandedMenuId by remember { mutableStateOf<String?>(null) }
+    var showAccountDeleteDialog by remember { mutableStateOf(false) }
+    var targetAccount by remember { mutableStateOf<AccountItem?>(null) }
 
     Scaffold(
         containerColor = Background,
@@ -220,7 +135,6 @@ fun AccountListScreen(
                         }
                     }
                 },
-
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface),
                 windowInsets = WindowInsets(0)
             )
@@ -250,6 +164,11 @@ fun AccountListScreen(
                         expandedMenuId = null
                         onSetPrimary(account)
                     },
+                    onDeleteRequest = { account ->
+                        expandedMenuId = null
+                        targetAccount = account
+                        showAccountDeleteDialog = true
+                    },
                     onRegisterNew = onRegisterNewAccount
                 )
             } else {
@@ -263,11 +182,21 @@ fun AccountListScreen(
             }
         }
     }
-}
 
-// ─────────────────────────────────────────────
-// 탭 바
-// ─────────────────────────────────────────────
+    if (showAccountDeleteDialog && targetAccount != null) {
+        AccountDeleteDialog(
+            onDismiss = {
+                showAccountDeleteDialog = false
+                targetAccount = null
+            },
+            onConfirm = {
+                targetAccount?.let { onDeleteAccount(it) }
+                showAccountDeleteDialog = false
+                targetAccount = null
+            }
+        )
+    }
+}
 
 @Composable
 private fun AccountTabRow(
@@ -311,10 +240,6 @@ private fun AccountTabRow(
     }
 }
 
-// ─────────────────────────────────────────────
-// 계좌 목록 콘텐츠
-// ─────────────────────────────────────────────
-
 @Composable
 private fun AccountListContent(
     accounts: List<AccountItem>,
@@ -322,6 +247,7 @@ private fun AccountListContent(
     onMenuToggle: (String) -> Unit,
     onAccountClick: (AccountItem) -> Unit,
     onSetPrimary: (AccountItem) -> Unit,
+    onDeleteRequest: (AccountItem) -> Unit,
     onRegisterNew: () -> Unit
 ) {
     LazyColumn(
@@ -336,17 +262,14 @@ private fun AccountListContent(
                 isMenuExpanded = expandedMenuId == account.id,
                 onMenuToggle = { onMenuToggle(account.id) },
                 onAccountClick = { onAccountClick(account) },
-                onSetPrimary = { onSetPrimary(account) }
+                onSetPrimary = { onSetPrimary(account) },
+                onDeleteRequest = { onDeleteRequest(account) }
             )
         }
 
         item { AccountInfoNotice() }
     }
 }
-
-// ─────────────────────────────────────────────
-// 계좌 수 헤더
-// ─────────────────────────────────────────────
 
 @Composable
 private fun AccountListHeader(count: Int, onRegisterNew: () -> Unit) {
@@ -389,17 +312,14 @@ private fun AccountListHeader(count: Int, onRegisterNew: () -> Unit) {
     }
 }
 
-// ─────────────────────────────────────────────
-// 계좌 아이템
-// ─────────────────────────────────────────────
-
 @Composable
 private fun AccountListItem(
     account: AccountItem,
     isMenuExpanded: Boolean,
     onMenuToggle: () -> Unit,
     onAccountClick: () -> Unit,
-    onSetPrimary: () -> Unit
+    onSetPrimary: () -> Unit,
+    onDeleteRequest: () -> Unit
 ) {
     Surface(
         modifier = Modifier
@@ -449,7 +369,7 @@ private fun AccountListItem(
                 )
             }
 
-            if (!account.isPrimary && account.paymentMethodId != null) {
+            if (account.paymentMethodId != null) {
                 Box {
                     IconButton(
                         onClick = onMenuToggle,
@@ -467,15 +387,27 @@ private fun AccountListItem(
                         onDismissRequest = onMenuToggle,
                         modifier = Modifier.background(Surface)
                     ) {
+                        if (!account.isPrimary) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        "대표계좌 변경",
+                                        style = NaedaTypography.bodyMedium,
+                                        color = OnBackground
+                                    )
+                                },
+                                onClick = onSetPrimary
+                            )
+                        }
                         DropdownMenuItem(
                             text = {
                                 Text(
-                                    "대표계좌 변경",
+                                    "삭제",
                                     style = NaedaTypography.bodyMedium,
-                                    color = OnBackground
+                                    color = Error
                                 )
                             },
-                            onClick = onSetPrimary
+                            onClick = onDeleteRequest
                         )
                     }
                 }
@@ -483,10 +415,6 @@ private fun AccountListItem(
         }
     }
 }
-
-// ─────────────────────────────────────────────
-// 은행 이니셜 아이콘
-// ─────────────────────────────────────────────
 
 @Composable
 private fun BankIcon(initials: String, color: Color) {
@@ -508,10 +436,6 @@ private fun BankIcon(initials: String, color: Color) {
     }
 }
 
-// ─────────────────────────────────────────────
-// 안내 문구
-// ─────────────────────────────────────────────
-
 @Composable
 private fun AccountInfoNotice() {
     Row(
@@ -530,10 +454,6 @@ private fun AccountInfoNotice() {
     }
 }
 
-// ─────────────────────────────────────────────
-// 카드 목록 콘텐츠
-// ─────────────────────────────────────────────
-
 @Composable
 private fun CardListContent(
     cards: List<CardItem>,
@@ -545,6 +465,7 @@ private fun CardListContent(
     var expandedMenuId by remember { mutableStateOf<String?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var targetCard by remember { mutableStateOf<CardItem?>(null) }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp)
@@ -629,7 +550,10 @@ private fun CardListContent(
 
     if (showDeleteDialog && targetCard != null) {
         CardDeleteDialog(
-            onDismiss = { showDeleteDialog = false; targetCard = null },
+            onDismiss = {
+                showDeleteDialog = false
+                targetCard = null
+            },
             onConfirm = {
                 targetCard?.let { onDeleteCard(it) }
                 showDeleteDialog = false
@@ -638,10 +562,6 @@ private fun CardListContent(
         )
     }
 }
-
-// ─────────────────────────────────────────────
-// 카드 아이템 (실제 카드 모양)
-// ─────────────────────────────────────────────
 
 private fun isLightColor(color: Color): Boolean {
     val luminance = 0.299 * color.red + 0.587 * color.green + 0.114 * color.blue
@@ -678,7 +598,6 @@ private fun CardListItem(
                 )
             )
     ) {
-        // 배경 원형 장식
         Box(
             modifier = Modifier
                 .size(180.dp)
@@ -700,7 +619,6 @@ private fun CardListItem(
                 .padding(24.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // 상단: 카드사명 + 카드 타입 + ... 메뉴
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -786,7 +704,6 @@ private fun CardListItem(
                 }
             }
 
-            // 중단: 카드 상품명
             Text(
                 text = card.cardName,
                 style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Medium),
@@ -794,7 +711,6 @@ private fun CardListItem(
                 maxLines = 1
             )
 
-            // 하단: 카드번호 + 유효기간
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = card.cardNumber,
@@ -813,10 +729,6 @@ private fun CardListItem(
         }
     }
 }
-
-// ─────────────────────────────────────────────
-// 삭제 확인 다이얼로그
-// ─────────────────────────────────────────────
 
 @Composable
 private fun AccountDeleteDialog(
@@ -883,10 +795,6 @@ private fun AccountDeleteDialog(
         }
     }
 }
-
-// ─────────────────────────────────────────────
-// 카드 삭제 확인 다이얼로그
-// ─────────────────────────────────────────────
 
 @Composable
 private fun CardDeleteDialog(
