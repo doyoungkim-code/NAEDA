@@ -407,7 +407,7 @@ fun FaceRegisterFlowScreen(
 
                     is RegisterStage.IdScanning -> IdCardScanningStageContent(
                         onExtracted = { extracted -> stage = RegisterStage.IdConfirm(extracted) },
-                        onError = { globalError = it }
+                        onError = { }
                     )
 
                     is RegisterStage.IdConfirm -> IdConfirmStageContent(
@@ -460,15 +460,6 @@ fun FaceRegisterFlowScreen(
                 }
             }
 
-            globalError?.let { message ->
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(16.dp)
-                ) {
-                    ErrorBanner(message)
-                }
-            }
         }
     }
 }
