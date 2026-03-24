@@ -171,7 +171,7 @@ fun NaedaNavGraph(
                     AuthPrefs.setLoggedIn(context, false)
                     AuthPrefs.setFaceRegistered(context, false)
                     navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                        popUpTo(Screen.Welcome.route) { inclusive = false }
                         launchSingleTop = true
                     }
                 }
