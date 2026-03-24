@@ -600,7 +600,7 @@ fun MapSelectScreen(
             )
         }
 
-        if (selectedTabIndex == 0 && selectedStoreCluster.isNotEmpty()) {
+        if (selectedTabIndex == 0 && selectedStoreCluster.isNotEmpty() && selectedStoreDetail == null) {
             StoreClusterBottomSheet(
                 stores = selectedStoreCluster,
                 expanded = isStoreSheetExpanded,
@@ -674,9 +674,12 @@ fun MapSelectScreen(
         }
 
         selectedStoreDetail?.let { store ->
-            StoreDetailDialog(
+            StoreDetailBottomSheet(
                 store = store,
-                onDismiss = { selectedStoreDetail = null }
+                onDismiss = { selectedStoreDetail = null },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
             )
         }
     }
@@ -1922,9 +1925,12 @@ private fun PopularRestaurantMapTab(
         }
 
         selectedStoreDetail?.let { store ->
-            StoreDetailDialog(
+            StoreDetailBottomSheet(
                 store = store,
-                onDismiss = { selectedStoreDetail = null }
+                onDismiss = { selectedStoreDetail = null },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
             )
         }
     }
