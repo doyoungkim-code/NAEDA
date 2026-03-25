@@ -26,6 +26,7 @@ public class StoreResponse {
     private Double rating;
     private String imageUrl;
     private String description;
+    private Boolean isRecommended;
     private StoreSourceType sourceType;
     private Boolean isActive;
 
@@ -51,6 +52,7 @@ public class StoreResponse {
                 .rating(store.getRating())
                 .imageUrl(store.getImageUrl())
                 .description(store.getDescription())
+                .isRecommended(store.getIsRecommended() == null ? false : store.getIsRecommended())
                 .sourceType(store.getSourceType() == null ? StoreSourceType.SSAFY : store.getSourceType())
                 .isActive(store.getIsActive() == null ? true : store.getIsActive())
                 .build();
