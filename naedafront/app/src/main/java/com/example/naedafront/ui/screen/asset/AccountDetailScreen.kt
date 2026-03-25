@@ -26,6 +26,8 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,6 +42,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -47,9 +50,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.example.naedafront.AuthPrefs
+import com.example.naedafront.data.remote.AssetRepository
+import com.example.naedafront.data.remote.response.PaymentDetailResponse
 import com.example.naedafront.ui.theme.Background
 import com.example.naedafront.ui.theme.Mint500
 import com.example.naedafront.ui.theme.Mint900
@@ -59,8 +66,13 @@ import com.example.naedafront.ui.theme.OnSurfaceVariant
 import com.example.naedafront.ui.theme.OutlineVariant
 import com.example.naedafront.ui.theme.Surface as SurfaceColor
 import com.example.naedafront.ui.theme.SurfaceVariant
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Calendar
+import java.util.Locale
+import java.util.TimeZone
 
 data class TransactionItem(
     val id: String,
@@ -70,6 +82,7 @@ data class TransactionItem(
     val category: String,
     val amount: Long,
     val balanceAfter: Long,
+    val ssafyTransactionId: String = "",
     val transacted: String,
 ) {
     val date: String get() = transacted.take(10)
@@ -85,11 +98,17 @@ fun AccountDetailScreen(
     transactions: List<TransactionItem>,
     onBack: () -> Unit = {},
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var selectedPeriod by rememberSaveable { mutableStateOf("전체") }
     var selectedCategory by rememberSaveable { mutableStateOf("전체") }
     var showPeriodDialog by remember { mutableStateOf(false) }
     var isSearchMode by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
+    var selectedTransaction by remember { mutableStateOf<TransactionItem?>(null) }
+    var selectedPaymentDetail by remember { mutableStateOf<PaymentDetailResponse?>(null) }
+    var isDetailLoading by remember { mutableStateOf(false) }
+    var detailError by remember { mutableStateOf<String?>(null) }
 
     val availableCategories = remember(transactions) {
         listOf("전체") + transactions.map { it.category }.filter { it.isNotBlank() }.distinct()
@@ -198,7 +217,41 @@ fun AccountDetailScreen(
                     TransactionDateHeader(date = date)
                 }
                 items(txList, key = { it.id }) { tx ->
-                    TransactionRow(item = tx)
+                    TransactionRow(
+                        item = tx,
+                        onClick = {
+                            selectedTransaction = tx
+                            selectedPaymentDetail = null
+                            detailError = null
+
+                            val userNo = AuthPrefs.getUserNo(context)
+                            if (userNo == null || tx.ssafyTransactionId.isBlank()) {
+                                isDetailLoading = false
+                            } else {
+                                isDetailLoading = true
+                                coroutineScope.launch {
+                                    val matchedPaymentId = AssetRepository.getPayments(userNo)
+                                        .getOrNull()
+                                        ?.firstOrNull { payment ->
+                                            payment.ssafyTransactionId == tx.ssafyTransactionId
+                                        }
+                                        ?.paymentId
+
+                                    if (matchedPaymentId != null && matchedPaymentId > 0L) {
+                                        AssetRepository.getPaymentDetail(userNo, matchedPaymentId)
+                                            .onSuccess { detail ->
+                                                selectedPaymentDetail = detail
+                                            }
+                                            .onFailure { throwable ->
+                                                detailError = throwable.message
+                                            }
+                                    }
+
+                                    isDetailLoading = false
+                                }
+                            }
+                        }
+                    )
                 }
             }
 
@@ -215,6 +268,78 @@ fun AccountDetailScreen(
             },
             onDismiss = { showPeriodDialog = false }
         )
+    }
+
+    if (isDetailLoading) {
+        AlertDialog(
+            onDismissRequest = {
+                selectedTransaction = null
+                selectedPaymentDetail = null
+                isDetailLoading = false
+                detailError = null
+            },
+            confirmButton = {},
+            title = { Text("결제 상세 조회 중") },
+            text = {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Mint900)
+                }
+            }
+        )
+    }
+
+    detailError?.let { message ->
+        AlertDialog(
+            onDismissRequest = {
+                selectedTransaction = null
+                selectedPaymentDetail = null
+                isDetailLoading = false
+                detailError = null
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        selectedTransaction = null
+                        selectedPaymentDetail = null
+                        isDetailLoading = false
+                        detailError = null
+                    }
+                ) {
+                    Text("확인")
+                }
+            },
+            title = { Text("오류") },
+            text = { Text(message) }
+        )
+    }
+
+    selectedPaymentDetail?.let { detail ->
+        PaymentDetailDialog(
+            detail = detail,
+            onDismiss = {
+                selectedTransaction = null
+                selectedPaymentDetail = null
+                isDetailLoading = false
+                detailError = null
+            }
+        )
+    }
+
+    if (!isDetailLoading && detailError == null && selectedPaymentDetail == null) {
+        selectedTransaction?.let { transaction ->
+            AccountTransactionDetailDialog(
+                transaction = transaction,
+                onDismiss = {
+                    selectedTransaction = null
+                    selectedPaymentDetail = null
+                    isDetailLoading = false
+                    detailError = null
+                }
+            )
+        }
     }
 }
 
@@ -271,7 +396,7 @@ private fun AccountDetailHeader(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = accountNumber,
+                    text = accountNumber.maskAccountNumber(),
                     style = NaedaTypography.labelSmall,
                     color = Color.White.copy(alpha = 0.65f)
                 )
@@ -438,7 +563,10 @@ private fun TransactionDateHeader(date: String) {
 }
 
 @Composable
-private fun TransactionRow(item: TransactionItem) {
+private fun TransactionRow(
+    item: TransactionItem,
+    onClick: () -> Unit,
+) {
     val isDeposit = item.transactionType.equals("DEPOSIT", ignoreCase = true)
 
     val title = when {
@@ -456,6 +584,7 @@ private fun TransactionRow(item: TransactionItem) {
         modifier = Modifier
             .fillMaxWidth()
             .background(SurfaceColor)
+            .clickable { onClick() }
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -516,6 +645,91 @@ private fun TransactionRow(item: TransactionItem) {
         thickness = 0.5.dp,
         modifier = Modifier.padding(horizontal = 20.dp)
     )
+}
+
+@Composable
+private fun AccountTransactionDetailDialog(
+    transaction: TransactionItem,
+    onDismiss: () -> Unit,
+) {
+    val isDeposit = transaction.transactionType.equals("DEPOSIT", ignoreCase = true)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("닫기")
+            }
+        },
+        title = {
+            Text(
+                text = "거래 상세",
+                style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold)
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                DetailRow("거래 유형", if (isDeposit) "입금" else "출금")
+                DetailRow("거래 금액", "${"%,d".format(transaction.amount)}원")
+                DetailRow("거래 시간", transaction.transacted)
+                DetailRow("거래 상대", transaction.counterpart.ifBlank { "-" })
+                DetailRow("메모", transaction.memo.ifBlank { "-" })
+                DetailRow("카테고리", transaction.category.ifBlank { "-" })
+                DetailRow("거래 후 잔액", "${"%,d".format(transaction.balanceAfter)}원")
+                DetailRow("거래 번호", transaction.ssafyTransactionId.ifBlank { transaction.id })
+            }
+        }
+    )
+}
+
+@Composable
+private fun PaymentDetailDialog(
+    detail: PaymentDetailResponse,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("닫기")
+            }
+        },
+        title = {
+            Text(
+                text = "결제 상세",
+                style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold)
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                DetailRow("결제 금액", "${"%,d".format(detail.amount)}원")
+                DetailRow("결제 방식", detail.authMethod.toPaymentMethodLabel())
+                DetailRow("결제 시간", detail.createdAt?.formatCreatedAt() ?: "-")
+                DetailRow("결제 번호", detail.ssafyTransactionId ?: detail.paymentId.toString())
+                DetailRow("결제 장소", detail.storeId.toString())
+            }
+        }
+    )
+}
+
+@Composable
+private fun DetailRow(
+    label: String,
+    value: String,
+) {
+    Column {
+        Text(
+            text = label,
+            style = NaedaTypography.labelSmall,
+            color = OnSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = value,
+            style = NaedaTypography.bodyMedium,
+            color = OnBackground
+        )
+    }
 }
 
 @Composable
@@ -635,4 +849,59 @@ private fun TransactionItem.matches(query: String): Boolean {
         date,
         time
     ).any { it.lowercase().contains(keyword) }
+}
+
+private fun String?.toPaymentMethodLabel(): String {
+    return when (this?.uppercase()) {
+        "FACE" -> "얼굴인증"
+        "PIN" -> "PIN"
+        else -> this ?: "-"
+    }
+}
+
+private fun String.formatCreatedAt(): String {
+    val parsePatterns = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSX",
+        "yyyy-MM-dd'T'HH:mm:ssX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss"
+    )
+
+    for (pattern in parsePatterns) {
+        try {
+            val parser = SimpleDateFormat(pattern, Locale.KOREA)
+            if (pattern.contains("X") || pattern.contains("'Z'")) {
+                parser.timeZone = TimeZone.getTimeZone("UTC")
+            }
+
+            val date = parser.parse(this) ?: continue
+            val calendar = Calendar.getInstance().apply { time = date }
+
+            val hour24 = calendar.get(Calendar.HOUR_OF_DAY)
+            val minute = calendar.get(Calendar.MINUTE)
+            val month = calendar.get(Calendar.MONTH) + 1
+            val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+            val ampm = if (hour24 < 12) "오전" else "오후"
+            val hour12 = when (hour24 % 12) {
+                0 -> 12
+                else -> hour24 % 12
+            }
+
+            return "${month}월 ${day}일 $ampm $hour12:${"%02d".format(minute)}"
+        } catch (_: Exception) {
+        }
+    }
+
+    return this
+}
+
+private fun String.maskAccountNumber(): String {
+    val digits = replace("-", "").replace(" ", "")
+    return when {
+        digits.isBlank() -> "-"
+        digits.length <= 7 -> this
+        else -> "${digits.take(3)}${"*".repeat(digits.length - 7)}${digits.takeLast(4)}"
+    }
 }
