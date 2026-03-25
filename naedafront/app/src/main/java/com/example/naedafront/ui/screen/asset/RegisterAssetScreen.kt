@@ -262,10 +262,16 @@ private fun CardRegisterForm(onRegisterComplete: () -> Unit) {
         // 카드 상품 선택
         FieldLabel(text = "카드 상품")
         Spacer(modifier = Modifier.height(8.dp))
-        DropdownSelector(
+        InlineDropdown(
             value = selectedProduct?.let { "${it.cardIssuerName} ${it.cardName}" } ?: "",
             placeholder = "카드를 선택해주세요",
-            onClick = { showProductPicker = true }
+            expanded = showProductPicker,
+            onExpandChange = { showProductPicker = it },
+            items = cardProducts.map { "${it.cardIssuerName ?: ""} ${it.cardName ?: ""}" },
+            onSelect = { index ->
+                selectedProduct = cardProducts[index]
+                showProductPicker = false
+            }
         )
 
         if (selectedProduct != null) {
@@ -282,10 +288,16 @@ private fun CardRegisterForm(onRegisterComplete: () -> Unit) {
         // 출금 계좌 선택
         FieldLabel(text = "출금 계좌")
         Spacer(modifier = Modifier.height(8.dp))
-        DropdownSelector(
+        InlineDropdown(
             value = selectedAccount?.let { "${it.bankName} ${it.accountNo}" } ?: "",
             placeholder = "출금 계좌를 선택해주세요",
-            onClick = { showAccountPicker = true }
+            expanded = showAccountPicker,
+            onExpandChange = { showAccountPicker = it },
+            items = accounts.map { "${it.bankName ?: ""} ${it.accountNo ?: ""}" },
+            onSelect = { index ->
+                selectedAccount = accounts[index]
+                showAccountPicker = false
+            }
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -293,10 +305,16 @@ private fun CardRegisterForm(onRegisterComplete: () -> Unit) {
         // 결제일 선택
         FieldLabel(text = "결제일")
         Spacer(modifier = Modifier.height(8.dp))
-        DropdownSelector(
+        InlineDropdown(
             value = if (selectedWithdrawalDate.isNotEmpty()) "매월 ${selectedWithdrawalDate.trimStart('0')}일" else "",
             placeholder = "결제일을 선택해주세요",
-            onClick = { showDatePicker = true }
+            expanded = showDatePicker,
+            onExpandChange = { showDatePicker = it },
+            items = (1..7).map { "매월 ${it}일" },
+            onSelect = { index ->
+                selectedWithdrawalDate = String.format("%02d", index + 1)
+                showDatePicker = false
+            }
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -360,44 +378,6 @@ private fun CardRegisterForm(onRegisterComplete: () -> Unit) {
         Spacer(modifier = Modifier.height(16.dp))
     }
 
-    // 카드 상품 선택 다이얼로그
-    if (showProductPicker) {
-        ListPickerDialog(
-            title = "카드 상품 선택",
-            items = cardProducts.map { "${it.cardIssuerName ?: ""} ${it.cardName ?: ""}" },
-            onSelect = { index ->
-                selectedProduct = cardProducts[index]
-                showProductPicker = false
-            },
-            onDismiss = { showProductPicker = false }
-        )
-    }
-
-    // 출금 계좌 선택 다이얼로그
-    if (showAccountPicker) {
-        ListPickerDialog(
-            title = "출금 계좌 선택",
-            items = accounts.map { "${it.bankName ?: ""} ${it.accountNo ?: ""}" },
-            onSelect = { index ->
-                selectedAccount = accounts[index]
-                showAccountPicker = false
-            },
-            onDismiss = { showAccountPicker = false }
-        )
-    }
-
-    // 결제일 선택 다이얼로그
-    if (showDatePicker) {
-        ListPickerDialog(
-            title = "결제일 선택",
-            items = listOf("01", "05", "10", "15", "20", "25").map { "매월 ${it.trimStart('0')}일" },
-            onSelect = { index ->
-                selectedWithdrawalDate = listOf("01", "05", "10", "15", "20", "25")[index]
-                showDatePicker = false
-            },
-            onDismiss = { showDatePicker = false }
-        )
-    }
 }
 
 // ─────────────────────────────────────────────
@@ -414,35 +394,68 @@ private fun FieldLabel(text: String) {
 }
 
 @Composable
-private fun DropdownSelector(
+private fun InlineDropdown(
     value: String,
     placeholder: String,
-    onClick: () -> Unit
+    expanded: Boolean,
+    onExpandChange: (Boolean) -> Unit,
+    items: List<String>,
+    onSelect: (Int) -> Unit
 ) {
     val isEmpty = value.isEmpty()
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(52.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(SurfaceVariant)
-            .border(1.dp, if (isEmpty) OutlineVariant else Mint900, RoundedCornerShape(12.dp))
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = if (isEmpty) placeholder else value,
-            style = NaedaTypography.bodyMedium,
-            color = if (isEmpty) OnSurfaceVariant else OnBackground,
-            modifier = Modifier.weight(1f)
-        )
-        Icon(
-            imageVector = Icons.Default.ArrowDropDown,
-            contentDescription = null,
-            tint = OnSurfaceVariant
-        )
+    Box {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(SurfaceVariant)
+                .border(1.dp, if (expanded) Mint900 else if (isEmpty) OutlineVariant else Mint900, RoundedCornerShape(12.dp))
+                .clickable { onExpandChange(!expanded) }
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = if (isEmpty) placeholder else value,
+                style = NaedaTypography.bodyMedium,
+                color = if (isEmpty) OnSurfaceVariant else OnBackground,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                imageVector = Icons.Default.ArrowDropDown,
+                contentDescription = null,
+                tint = OnSurfaceVariant
+            )
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { onExpandChange(false) },
+            modifier = Modifier
+                .fillMaxWidth(0.85f)
+                .background(Surface)
+        ) {
+            items.forEachIndexed { index, item ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = item,
+                            style = NaedaTypography.bodyMedium,
+                            color = OnBackground
+                        )
+                    },
+                    onClick = { onSelect(index) }
+                )
+                if (index < items.lastIndex) {
+                    HorizontalDivider(
+                        color = OutlineVariant,
+                        thickness = 0.5.dp,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -470,73 +483,3 @@ private fun InfoBox(text: String) {
     }
 }
 
-// ─────────────────────────────────────────────
-// 목록 선택 다이얼로그
-// ─────────────────────────────────────────────
-
-@Composable
-private fun ListPickerDialog(
-    title: String,
-    items: List<String>,
-    onSelect: (Int) -> Unit,
-    onDismiss: () -> Unit
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = Surface,
-            shadowElevation = 8.dp,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(vertical = 20.dp)) {
-                Text(
-                    text = title,
-                    style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = OnBackground,
-                    modifier = Modifier.padding(horizontal = 24.dp)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Column(
-                    modifier = Modifier
-                        .heightIn(max = 400.dp)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    items.forEachIndexed { index, item ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSelect(index) }
-                                .padding(horizontal = 24.dp, vertical = 14.dp)
-                        ) {
-                            Text(
-                                text = item,
-                                style = NaedaTypography.bodyMedium,
-                                color = OnBackground
-                            )
-                        }
-                        if (index < items.lastIndex) {
-                            HorizontalDivider(
-                                color = OutlineVariant,
-                                thickness = 0.5.dp,
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                ) {
-                    Text(
-                        text = "취소",
-                        style = NaedaTypography.labelLarge,
-                        color = OnSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
-}
