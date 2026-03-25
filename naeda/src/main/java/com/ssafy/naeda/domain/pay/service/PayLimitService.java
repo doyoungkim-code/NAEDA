@@ -84,7 +84,13 @@ public class PayLimitService {
 
         //1회 결제 한도 검증
         if(amount > singleLimit){
-            throw new BadRequestException("1회 결제 한도를 초과했습니다. (한도 :" + singleLimit + ")");
+            throw new BadRequestException("1회 결제 한도 초과입니다.");
+        }
+        if(todaySum + amount > dailyLimit){
+            throw new BadRequestException("1일 결제 한도 초과입니다.");
+        }
+        if(monthSum + amount > monthlyLimit){
+            throw new BadRequestException("월 결제 한도 초과입니다.");
         }
     }
 }

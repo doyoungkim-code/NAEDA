@@ -42,12 +42,15 @@ fun PaymentProcessingScreen(
     requestId: Long,
     userNo: Long?,
     pin: String?,
+    phoneMiddleDigits: String?,
+    faceStatus: String?,
+    selectedAuthMethod: String?,
+    signatureConfirmed: Boolean,
     amount: Long,
     merchant: String,
     onSuccess: (PaymentResult) -> Unit,
     onFailure: (String) -> Unit
 ) {
-    val ctx = LocalContext.current
     val client = remember { OkHttpClient() }
 
     val transition = rememberInfiniteTransition(label = "processing")
@@ -60,10 +63,20 @@ fun PaymentProcessingScreen(
     // 결제 API 호출
     LaunchedEffect(requestId) {
         val result = withContext(Dispatchers.IO) {
-            processPaymentRequest(client, apiBaseUrl, requestId, userNo, pin)
+            processPaymentRequest(
+                client = client,
+                apiBaseUrl = apiBaseUrl,
+                requestId = requestId,
+                userNo = userNo,
+                pin = pin,
+                phoneMiddleDigits = phoneMiddleDigits,
+                faceStatus = faceStatus,
+                selectedAuthMethod = selectedAuthMethod,
+                signatureConfirmed = signatureConfirmed
+            )
         }
         android.util.Log.d("PayProcess", "result=$result")
-        if (result != null && result.status != "FAILED" && result.status != "BLOCKED") {
+        if (result != null && result.status == "SUCCESS") {
             onSuccess(result)
         } else {
             onFailure(result?.failureReason ?: "결제 처리에 실패했습니다")
@@ -126,13 +139,21 @@ private fun processPaymentRequest(
     apiBaseUrl: String,
     requestId: Long,
     userNo: Long?,
-    pin: String?
+    pin: String?,
+    phoneMiddleDigits: String?,
+    faceStatus: String?,
+    selectedAuthMethod: String?,
+    signatureConfirmed: Boolean
 ): PaymentResult? {
     return runCatching {
         val requestJson = JSONObject().apply {
             put("userNo", userNo)
             put("idempotencyKey", UUID.randomUUID().toString())
             if (!pin.isNullOrBlank()) put("pin", pin)
+            if (!phoneMiddleDigits.isNullOrBlank()) put("phoneMiddleDigits", phoneMiddleDigits)
+            if (!faceStatus.isNullOrBlank()) put("faceStatus", faceStatus)
+            if (!selectedAuthMethod.isNullOrBlank()) put("selectedAuthMethod", selectedAuthMethod)
+            put("signatureConfirmed", signatureConfirmed)
         }
 
         val req = Request.Builder()
