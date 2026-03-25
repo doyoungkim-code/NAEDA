@@ -131,8 +131,7 @@ fun NaedaNavGraph(
                 signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
                 onConfirmClick = {
-                    val phone = signUpViewModel.uiState.value.phone
-                    navController.navigate(Screen.SignUpVerify.createRoute(phone))
+                    navController.navigate(Screen.SignUpEmail.route)
                 }
             )
         }
