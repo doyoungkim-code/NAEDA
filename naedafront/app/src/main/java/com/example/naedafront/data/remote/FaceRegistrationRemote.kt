@@ -58,8 +58,17 @@ data class UpdatePinRequestBody(
     val newPin: String
 )
 
+data class VerifyPinRequestBody(
+    val pin: String
+)
+
 data class PinUpdateResponseDto(
     val pinSet: Boolean,
+    val message: String? = null
+)
+
+data class PinVerifyResponseDto(
+    val verified: Boolean,
     val message: String? = null
 )
 
@@ -121,6 +130,11 @@ private interface FaceRegistrationApiService {
     suspend fun updatePin(
         @Body request: UpdatePinRequestBody
     ): PinUpdateResponseDto
+
+    @POST("api/users/me/pin/verify")
+    suspend fun verifyPin(
+        @Body request: VerifyPinRequestBody
+    ): PinVerifyResponseDto
 
     @GET("api/users/me/face-pay-settings")
     suspend fun getFacePaySettings(): FacePaySettingsResponseDto
@@ -208,6 +222,15 @@ object FaceRegistrationRepository {
         }.getOrElse { throwable ->
             android.util.Log.e("PinChange", "updatePin failed", throwable)
             throw toReadableException(throwable, "PIN 설정에 실패했습니다.")
+        }
+    }
+
+    suspend fun verifyPin(pin: String): PinVerifyResponseDto {
+        val body = VerifyPinRequestBody(pin = pin.trim())
+        return runCatching {
+            service.verifyPin(body)
+        }.getOrElse { throwable ->
+            throw toReadableException(throwable, "현재 PIN 확인에 실패했습니다.")
         }
     }
 
