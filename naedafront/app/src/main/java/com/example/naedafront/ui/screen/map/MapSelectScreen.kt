@@ -15,6 +15,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -42,6 +43,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -52,7 +54,8 @@ import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -77,6 +80,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
@@ -447,13 +451,13 @@ fun MapSelectScreen(
 
     val availableCategories = remember(mapStores) {
         mapStores.mapNotNull { store ->
-            store.categoryName?.takeIf { category -> category.isNotBlank() }
+            toMapCategoryLabel(store.categoryName)
         }.distinct().sorted()
     }
     val filteredMapStores = remember(mapStores, storeFilterState) {
         mapStores.filter { store ->
             val categoryMatches = storeFilterState.selectedCategory == null ||
-                store.categoryName == storeFilterState.selectedCategory
+                toMapCategoryLabel(store.categoryName) == storeFilterState.selectedCategory
             val facePayMatches = !storeFilterState.facePayOnly || store.facePayEnabled
             categoryMatches && facePayMatches
         }
@@ -1008,186 +1012,298 @@ private fun StoreMapFilterDialog(
     onApply: (StoreMapFilterState) -> Unit,
     onReset: () -> Unit
 ) {
+    val density = LocalDensity.current
     var selectedCategory by remember(currentState) { mutableStateOf(currentState.selectedCategory) }
     var facePayOnly by remember(currentState) { mutableStateOf(currentState.facePayOnly) }
+    var categoryDropdownExpanded by remember { mutableStateOf(false) }
+    var categoryFieldWidth by remember { mutableIntStateOf(0) }
+
     val pendingState = StoreMapFilterState(
         selectedCategory = selectedCategory,
         facePayOnly = facePayOnly
     )
-    val selectedCategoryLabel = selectedCategory ?: "전체"
+    val selectedCategoryLabel = toMapCategoryLabel(selectedCategory) ?: "전체"
     val facePayFilterLabel = if (facePayOnly) "페이스페이 가능 매장만" else "전체 매장"
 
     Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(28.dp),
-            color = Background,
-            shadowElevation = 16.dp
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Column(
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 24.dp)
+                    .heightIn(max = maxHeight * 0.92f),
+                shape = RoundedCornerShape(28.dp),
+                color = Background,
+                shadowElevation = 16.dp
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "지도 필터",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Navy900
-                        )
-                        Text(
-                            text = "적용할 조건을 고르고 우측 상단 확인으로 반영하세요.",
-                            fontSize = 14.sp,
-                            lineHeight = 20.sp,
-                            color = OnSurfaceVariant
-                        )
-                    }
-                    Surface(
-                        onClick = { onApply(pendingState) },
-                        shape = RoundedCornerShape(16.dp),
-                        color = Mint500
-                    ) {
-                        Text(
-                            text = "확인",
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        selected = true,
-                        onClick = { },
-                        label = { Text("카테고리: $selectedCategoryLabel") }
-                    )
-                    FilterChip(
-                        selected = true,
-                        onClick = { },
-                        label = { Text(facePayFilterLabel) }
-                    )
-                    if (pendingState != StoreMapFilterState()) {
-                        Surface(
-                            onClick = onReset,
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color.White
-                        ) {
-                            Text(
-                                text = "초기화",
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                color = Navy900,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                Surface(
-                    shape = RoundedCornerShape(22.dp),
-                    color = Color.White
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 18.dp, vertical = 18.dp)
-                    ) {
-                        Text(
-                            text = "카테고리",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = OnBackground
-                        )
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        Text(
-                            text = "현재 선택: $selectedCategoryLabel",
-                            fontSize = 13.sp,
-                            color = OnSurfaceVariant
-                        )
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            FilterChip(
-                                selected = selectedCategory == null,
-                                onClick = { selectedCategory = null },
-                                label = { Text("전체") }
-                            )
-                            categories.forEach { category ->
-                                FilterChip(
-                                    selected = selectedCategory == category,
-                                    onClick = { selectedCategory = category },
-                                    label = { Text(category) }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Surface(
-                    shape = RoundedCornerShape(22.dp),
-                    color = Color.White
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 18.dp, vertical = 18.dp)
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 24.dp, vertical = 24.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "페이스페이 가능 매장만 보기",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = OnBackground
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = if (facePayOnly) {
-                                        "페이스페이 결제가 가능한 매장만 지도에 표시합니다."
-                                    } else {
-                                        "모든 매장을 표시합니다."
-                                    },
-                                    fontSize = 13.sp,
-                                    lineHeight = 18.sp,
-                                    color = OnSurfaceVariant
+                                    text = "지도 필터",
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Navy900
                                 )
                             }
+                            Surface(
+                                onClick = { onApply(pendingState) },
+                                shape = RoundedCornerShape(16.dp),
+                                color = Mint500
+                            ) {
+                                Text(
+                                    text = "확인",
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                    color = Color.White,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
 
-                            Switch(
-                                checked = facePayOnly,
-                                onCheckedChange = { facePayOnly = it }
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            StoreMapFilterSummaryChip(
+                                text = "카테고리 · $selectedCategoryLabel",
+                                background = Color(0xFFF3F4FF),
+                                contentColor = Color(0xFF4C51BF)
                             )
+                            StoreMapFilterSummaryChip(
+                                text = facePayFilterLabel,
+                                background = if (facePayOnly) Color(0xFFE7F6EF) else Color(0xFFF8FAFC),
+                                contentColor = if (facePayOnly) Mint500 else Navy900
+                            )
+                            if (pendingState != StoreMapFilterState()) {
+                                StoreMapFilterActionChip(
+                                    text = "초기화",
+                                    onClick = onReset
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Surface(
+                            shape = RoundedCornerShape(22.dp),
+                            color = Color.White
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 16.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "카테고리",
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = OnBackground
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Box(modifier = Modifier.fillMaxWidth()) {
+                                    Surface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .onSizeChanged { categoryFieldWidth = it.width },
+                                        onClick = { categoryDropdownExpanded = !categoryDropdownExpanded },
+                                        shape = RoundedCornerShape(18.dp),
+                                        color = Color.White,
+                                        border = BorderStroke(1.dp, Mint500)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "카테고리 선택",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = OnSurfaceVariant
+                                                )
+                                                Spacer(modifier = Modifier.height(3.dp))
+                                                Text(
+                                                    text = selectedCategoryLabel,
+                                                    fontSize = 15.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = Navy900
+                                                )
+                                            }
+
+                                            Text(
+                                                text = if (categoryDropdownExpanded) "▴" else "▾",
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Mint500
+                                            )
+                                        }
+                                    }
+
+                                    DropdownMenu(
+                                        expanded = categoryDropdownExpanded,
+                                        onDismissRequest = { categoryDropdownExpanded = false },
+                                        modifier = Modifier
+                                            .heightIn(max = 288.dp)
+                                            .width(with(density) { categoryFieldWidth.toDp() })
+                                            .background(Color.White)
+                                    ) {
+                                        StoreMapFilterDropdownItem(
+                                            label = "전체",
+                                            selected = selectedCategory == null,
+                                            onClick = {
+                                                selectedCategory = null
+                                                categoryDropdownExpanded = false
+                                            }
+                                        )
+                                        categories.forEach { category ->
+                                            StoreMapFilterDropdownItem(
+                                                label = category,
+                                                selected = selectedCategory == category,
+                                                onClick = {
+                                                    selectedCategory = category
+                                                    categoryDropdownExpanded = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Surface(
+                            shape = RoundedCornerShape(22.dp),
+                            color = Color.White
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 18.dp, vertical = 18.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "페이스페이 매장만 보기",
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = OnBackground
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                    }
+
+                                    Switch(
+                                        checked = facePayOnly,
+                                        onCheckedChange = { facePayOnly = it }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun StoreMapFilterSummaryChip(
+    text: String,
+    background: Color,
+    contentColor: Color
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(background)
+            .padding(horizontal = 12.dp, vertical = 7.dp)
+    ) {
+        Text(
+            text = text,
+            color = contentColor,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+private fun StoreMapFilterActionChip(
+    text: String,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.White)
+            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 7.dp)
+    ) {
+        Text(
+            text = text,
+            color = Navy900,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+private fun StoreMapFilterDropdownItem(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    DropdownMenuItem(
+        modifier = Modifier.background(if (selected) Mint50 else Color.White),
+        text = {
+            Text(
+                text = label,
+                color = if (selected) Mint500 else Navy900,
+                fontSize = 14.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+            )
+        },
+        onClick = onClick
+    )
 }
 
 @Composable
@@ -1337,12 +1453,12 @@ private fun RecommendBottomSheet(
     var selectedCategory by remember { mutableStateOf<String?>(null) }
 
     val categories = remember(stores) {
-        stores.mapNotNull { it.categoryName }.distinct()
+        stores.mapNotNull { toMapCategoryLabel(it.categoryName) }.distinct()
     }
 
     val filteredStores = remember(stores, selectedCategory) {
         if (selectedCategory == null) stores
-        else stores.filter { it.categoryName == selectedCategory }
+        else stores.filter { toMapCategoryLabel(it.categoryName) == selectedCategory }
     }
 
     Surface(
@@ -1517,6 +1633,8 @@ private fun RecommendStoreRow(
     store: RecommendResponseDto,
     onClick: () -> Unit
 ) {
+    val resolvedImageUrl = toUsableMapImageUrl(store.imageUrl)
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1533,24 +1651,19 @@ private fun RecommendStoreRow(
                     .background(Color(0xFFE8E2D9)),
                 contentAlignment = Alignment.Center
             ) {
-                if (!store.imageUrl.isNullOrBlank()) {
+                if (resolvedImageUrl != null) {
                     coil.compose.AsyncImage(
-                        model = store.imageUrl,
+                        model = resolvedImageUrl,
                         contentDescription = store.storeName,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
                     Image(
-                        painter = painterResource(id = R.drawable.gumi_map_select),
+                        painter = painterResource(id = R.drawable.no_image),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color(0xFFB8A48B).copy(alpha = 0.35f))
                     )
                 }
             }
@@ -1589,7 +1702,7 @@ private fun RecommendStoreRow(
                     if (!store.categoryName.isNullOrBlank()) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "· ${store.categoryName}",
+                            text = "· ${toMapCategoryLabel(store.categoryName)}",
                             fontSize = 14.sp,
                             color = Color(0xFF64748B)
                         )
