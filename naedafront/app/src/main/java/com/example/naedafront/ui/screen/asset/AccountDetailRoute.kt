@@ -147,6 +147,7 @@ private fun AssetTransactionResponse.toUi(index: Int): TransactionItem {
         },
         amount = amount ?: 0L,
         balanceAfter = balanceAfter ?: 0L,
+        ssafyTransactionId = ssafyTransactionId.orEmpty(),
         transacted = formatTransactionDateTime(transacted)
     )
 }

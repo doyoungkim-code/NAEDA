@@ -951,12 +951,12 @@ private fun String.toDateKey(): String {
 
 private fun String.toTimeOnly(): String {
     val parsed = parseFlexibleDate(this) ?: return ""
-    return SimpleDateFormat("HH:mm", Locale.KOREA).format(parsed)
+    return SimpleDateFormat("yyyy년 M월 d일 HH시 mm분", Locale.KOREA).format(parsed)
 }
 
 private fun String.toDisplayDateTime(): String {
     val parsed = parseFlexibleDate(this) ?: return this
-    return SimpleDateFormat("yyyy.MM.dd HH:mm", Locale.KOREA).format(parsed)
+    return SimpleDateFormat("yyyy년 M월 d일 HH시 mm분", Locale.KOREA).format(parsed)
 }
 
 private fun parseFlexibleDate(raw: String): java.util.Date? {
