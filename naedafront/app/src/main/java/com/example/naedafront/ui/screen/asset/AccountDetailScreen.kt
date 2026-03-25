@@ -641,7 +641,7 @@ private fun String.maskAccountNumber(): String {
     val digits = replace("-", "").replace(" ", "")
     return when {
         digits.isBlank() -> "-"
-        digits.length <= 4 -> digits
-        else -> "*".repeat(digits.length - 4) + digits.takeLast(4)
+        digits.length <= 7 -> this
+        else -> "${digits.take(3)}${"*".repeat(digits.length - 7)}${digits.takeLast(4)}"
     }
 }

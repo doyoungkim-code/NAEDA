@@ -94,8 +94,8 @@ fun NaedaNavGraph(
     ) {
         composable(Screen.Welcome.route) {
             WelcomeScreen(
-                onStartClick = { navController.navigate(Screen.SignUp.route) },
-                onLoginClick = { navController.navigate(Screen.Login.route) }
+                onStartClick = { navController.navigateSingleTop(Screen.SignUp.route) },
+                onLoginClick = { navController.navigateSingleTop(Screen.Login.route) }
             )
         }
 
@@ -114,7 +114,7 @@ fun NaedaNavGraph(
             SignUpNameScreen(
                 signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { navController.navigate(Screen.SignUpRrn.route) }
+                onConfirmClick = { navController.navigateSingleTop(Screen.SignUpRrn.route) }
             )
         }
 
@@ -122,7 +122,7 @@ fun NaedaNavGraph(
             SignUpRrnScreen(
                 signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { navController.navigate(Screen.SignUpPhone.route) }
+                onConfirmClick = { navController.navigateSingleTop(Screen.SignUpPhone.route) }
             )
         }
 
@@ -131,7 +131,7 @@ fun NaedaNavGraph(
                 signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
                 onConfirmClick = {
-                    navController.navigate(Screen.SignUpEmail.route)
+                    navController.navigateSingleTop(Screen.SignUpEmail.route)
                 }
             )
         }
@@ -152,7 +152,7 @@ fun NaedaNavGraph(
                 signUpViewModel = signUpViewModel,
                 phoneNumber = phone,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { navController.navigate(Screen.SignUpEmail.route) },
+                onConfirmClick = { navController.navigateSingleTop(Screen.SignUpEmail.route) },
                 onResendClick = { }
             )
         }
@@ -161,7 +161,7 @@ fun NaedaNavGraph(
             SignUpEmailScreen(
                 signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { navController.navigate(Screen.SignUpPassword.route) }
+                onConfirmClick = { navController.navigateSingleTop(Screen.SignUpPassword.route) }
             )
         }
 
@@ -169,7 +169,7 @@ fun NaedaNavGraph(
             SignUpPasswordScreen(
                 signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { navController.navigate(Screen.SignUpPin.route) }
+                onConfirmClick = { navController.navigateSingleTop(Screen.SignUpPin.route) }
             )
         }
 
@@ -209,7 +209,7 @@ fun NaedaNavGraph(
                 onSearchPostCodeClick = { },
                 onRequestClick = { },
                 onAddressSelected = {
-                    navController.navigate(Screen.OrderComplete.route)
+                    navController.navigateSingleTop(Screen.OrderComplete.route)
                 }
             )
         }
@@ -229,13 +229,13 @@ fun NaedaNavGraph(
                 OrderCompleteScreen(
                     orderInfo = orderInfo,
                     onCloseClick = {
-                        navController.navigate(Screen.Home.route)
+                        navController.navigateSingleTop(Screen.Home.route)
                     },
                     onOrderHistoryClick = {
-                        navController.navigate(Screen.OrderHistory.route)
+                        navController.navigateSingleTop(Screen.OrderHistory.route)
                     },
                     onHomeClick = {
-                        navController.navigate(Screen.Home.route)
+                        navController.navigateSingleTop(Screen.Home.route)
                     }
                 )
             }
@@ -254,7 +254,7 @@ fun NaedaNavGraph(
                 viewModel = orderHistoryViewModel,
                 onBackClick = { navController.popBackStack() },
                 onOrderClick = { orderId ->
-                    navController.navigate(Screen.OrderDetail.createRoute(orderId))
+                    navController.navigateSingleTop(Screen.OrderDetail.createRoute(orderId))
                 }
             )
         }
@@ -310,7 +310,7 @@ fun NaedaNavGraph(
         composable(Screen.FaceMatchRecognize.route) {
             FaceMatchRecognizeScreen(
                 onBack = { navController.popBackStack() },
-                onShowResult = { navController.navigate(Screen.FaceMatchResult.route) }
+                onShowResult = { navController.navigateSingleTop(Screen.FaceMatchResult.route) }
             )
         }
 
@@ -572,7 +572,7 @@ fun NaedaNavGraph(
             NoticeListScreen(
                 onBackClick = { navController.popBackStack() },
                 onItemClick = { type, id ->
-                    navController.navigate(Screen.NoticeDetail.createRoute(type, id))
+                    navController.navigateSingleTop(Screen.NoticeDetail.createRoute(type, id))
                 }
             )
         }
