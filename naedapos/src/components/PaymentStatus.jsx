@@ -28,8 +28,15 @@ const STATUS_CONFIG = {
   BLOCKED: {
     icon: 'X',
     title: '결제 차단',
-    message: '얼굴 인증 실패로 결제가 차단되었습니다.',
+    message: '이상거래 탐지로 결제가 차단되었습니다.',
     color: '#e74c3c',
+  },
+  PAUSED: {
+    icon: '⏸',
+    title: 'FDS 심사 보류',
+    message: '이상거래 심사 중입니다. 잠시 후 재시도됩니다.',
+    color: '#f59e0b',
+    showSpinner: true,
   },
   EXPIRED: {
     icon: '-',
@@ -64,11 +71,17 @@ export default function PaymentStatus({ payment, onClose }) {
           {formattedAmount}<span style={{ fontSize: '18px', color: '#bbb' }}> 원</span>
         </div>
 
-        {payment.status === 'SUCCESS' && payment.paymentId && (
-          <p className="status-detail">결제 번호: {payment.paymentId}</p>
+        {payment.status === 'SUCCESS' && payment.transactionId && (
+          <p className="status-detail">거래 번호: {payment.transactionId}</p>
         )}
 
-        {!isTerminal && (
+        {payment.status === 'PAUSED' && (
+          <p className="pulse" style={{ color: '#f59e0b', fontSize: '13px', marginBottom: '16px' }}>
+            FDS 이상거래 심사 대기 중...
+          </p>
+        )}
+
+        {!isTerminal && payment.status !== 'PAUSED' && (
           <p className="pulse" style={{ color: '#bbb', fontSize: '13px', marginBottom: '16px' }}>
             고객 얼굴 인증 대기 중...
           </p>

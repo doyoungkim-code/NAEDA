@@ -77,6 +77,18 @@ export async function logout(refreshTokenStr) {
   return request('POST', '/auth/logout', { refreshToken: refreshTokenStr })
 }
 
+export async function checkEmail(email) {
+  return request('GET', `/auth/check-email?email=${encodeURIComponent(email)}`)
+}
+
+export async function checkPhone(phone) {
+  return request('GET', `/auth/check-phone?phone=${encodeURIComponent(phone)}`)
+}
+
+export async function withdraw() {
+  return request('DELETE', '/auth/withdraw')
+}
+
 // ── Users ──
 export async function getUser(userNo) {
   return request('GET', `/users/me?userNo=${userNo}`)
@@ -86,8 +98,8 @@ export async function updateFcmToken(userNo, fcmToken) {
   return request('PUT', `/users/me/fcm-token?userNo=${userNo}`, { fcmToken })
 }
 
-export async function updatePin(body) {
-  return request('PUT', '/users/me/pin', body)
+export async function updatePin(currentPin, newPin) {
+  return request('PUT', '/users/me/pin', { currentPin, newPin })
 }
 
 export async function getFacePaySettings() {
@@ -113,6 +125,10 @@ export async function createTransfer(userNo, body) {
 }
 
 // ── Cards ──
+export async function getCardProducts(userNo) {
+  return request('GET', `/cards/products?userNo=${userNo}`)
+}
+
 export async function getCards(userNo) {
   return request('GET', `/cards?userNo=${userNo}`)
 }
@@ -125,54 +141,68 @@ export async function deleteCard(cardId, userNo, cardType) {
   return request('DELETE', `/cards/${cardId}?userNo=${userNo}&cardType=${cardType}`)
 }
 
-export async function getCardTransactions(cardId, userNo, userKey, startDate, endDate) {
-  let path = `/cards/${cardId}/transactions?userNo=${userNo}&userKey=${userKey}`
-  if (startDate) path += `&startDate=${startDate}`
-  if (endDate) path += `&endDate=${endDate}`
+export async function getCardTransactions(cardId, userNo, startDate, endDate) {
+  let path = `/cards/${cardId}/transactions?userNo=${userNo}&startDate=${startDate}&endDate=${endDate}`
   return request('GET', path)
 }
 
-// ── Payments ──
-export async function createPayment(formData) {
-  return request('POST', '/payments', formData, { multipart: true })
+// ── Pay (결제 처리 — 현재 활성 시스템) ──
+export async function getPayList(userNo, from, to) {
+  let path = '/pay'
+  const params = []
+  if (from) params.push(`from=${from}`)
+  if (to) params.push(`to=${to}`)
+  if (params.length) path += '?' + params.join('&')
+  return request('GET', path, null, { headers: { 'X-User-No': userNo } })
 }
 
-export async function getPayments(userNo, from, to, size) {
-  let path = `/payments?userNo=${userNo}`
-  if (from) path += `&from=${from}`
-  if (to) path += `&to=${to}`
-  if (size) path += `&size=${size}`
-  return request('GET', path)
+export async function getPayDetail(userNo, id) {
+  return request('GET', `/pay/${id}`, null, { headers: { 'X-User-No': userNo } })
 }
 
-export async function getPaymentDetail(paymentId, userNo) {
-  return request('GET', `/payments/${paymentId}?userNo=${userNo}`)
+export async function getPayAnalysis(userNo) {
+  return request('GET', '/pay/analysis/current-month', null, { headers: { 'X-User-No': userNo } })
 }
 
-// ── Payment Requests ──
-export async function createPaymentRequest(storeId, amount) {
-  return request('POST', '/payment-requests', { storeId, amount })
+// ── Pay Requests (POS 결제 요청) ──
+export async function createPayRequest(body) {
+  return request('POST', '/pay-requests', body)
 }
 
-export async function getPaymentRequest(requestId) {
-  return request('GET', `/payment-requests/${requestId}`)
+export async function getPayRequest(id) {
+  return request('GET', `/pay-requests/${id}`)
 }
 
-export async function processPaymentRequest(requestId, formData) {
-  return request('POST', `/payment-requests/${requestId}/process`, formData, { multipart: true })
+export async function processPayRequest(id, body) {
+  return request('POST', `/pay-requests/${id}/process`, body)
 }
 
-export async function getStorePaymentRequests(storeId) {
-  return request('GET', `/payment-requests?storeId=${storeId}`)
+export async function getPayRequestsByStore(storeId) {
+  return request('GET', `/pay-requests?storeId=${storeId}`)
 }
 
-// ── Payment Methods ──
-export async function getPaymentMethods(userNo) {
-  return request('GET', `/payment-methods?userNo=${userNo}`)
+// ── Pay Methods ──
+export async function getPayMethods(userNo) {
+  return request('GET', `/pay-methods?userNo=${userNo}`)
 }
 
-export async function setFacePayMethod(paymentMethodId, userNo) {
-  return request('PATCH', `/payment-methods/${paymentMethodId}/face-pay?userNo=${userNo}`)
+export async function setPayDefault(id, userNo) {
+  return request('PATCH', `/pay-methods/${id}/default?userNo=${userNo}`)
+}
+
+export async function setPayFacePay(id, userNo, enabled) {
+  let path = `/pay-methods/${id}/face-pay?userNo=${userNo}`
+  if (enabled !== undefined) path += `&enabled=${enabled}`
+  return request('PATCH', path)
+}
+
+// ── Pay Limits ──
+export async function getPayLimit(userNo) {
+  return request('GET', `/pay/limit?userNo=${userNo}`)
+}
+
+export async function updatePayLimit(userNo, body) {
+  return request('PUT', `/pay/limit?userNo=${userNo}`, body)
 }
 
 // ── Stores ──
@@ -195,6 +225,14 @@ export async function getStore(storeId) {
 
 export async function createStore(body) {
   return request('POST', '/stores', body)
+}
+
+export async function createPublicStore(body) {
+  return request('POST', '/stores/public', body)
+}
+
+export async function registerMerchants(limit) {
+  return request('POST', `/stores/register-merchants?limit=${limit || 50}`)
 }
 
 // ── Points ──
@@ -260,6 +298,10 @@ export async function getOrders(userNo, size) {
   let path = `/orders?userNo=${userNo}`
   if (size) path += `&size=${size}`
   return request('GET', path)
+}
+
+export async function getOrder(orderId) {
+  return request('GET', `/orders/${orderId}`)
 }
 
 // ── Transactions ──
@@ -362,41 +404,8 @@ export async function headPoseCheck(formData) {
   return request('POST', '/v1/face/liveness/headpose/check', formData, { multipart: true })
 }
 
-// ── Pay (new system) ──
-export async function createPay(userNo, formData) {
-  return request('POST', '/pay', formData, { multipart: true, headers: { 'X-User-No': userNo } })
-}
-
-export async function getPayList(userNo) {
-  return request('GET', '/pay', null, { headers: { 'X-User-No': userNo } })
-}
-
-export async function getPayDetail(id) {
-  return request('GET', `/pay/${id}`)
-}
-
-export async function getPayMethods(userNo) {
-  return request('GET', `/pay-methods?userNo=${userNo}`)
-}
-
-export async function setPayFacePay(id, userNo) {
-  return request('PATCH', `/pay-methods/${id}/face-pay?userNo=${userNo}`)
-}
-
-export async function createPayRequest(body) {
-  return request('POST', '/pay-requests', body)
-}
-
-export async function getPayRequest(id) {
-  return request('GET', `/pay-requests/${id}`)
-}
-
-export async function processPayRequest(id, formData) {
-  return request('POST', `/pay-requests/${id}/process`, formData, { multipart: true })
-}
-
-export async function getPayRequestsByStore(storeId) {
-  return request('GET', `/pay-requests?storeId=${storeId}`)
+export async function faceEnrollCommit() {
+  return request('POST', '/v1/face/enroll/commit')
 }
 
 // ── Identity ──
@@ -406,6 +415,89 @@ export async function extractResidentId(formData) {
 
 export async function confirmResidentId(body) {
   return request('POST', '/v1/identity/id-card/confirm', body)
+}
+
+// ── Addresses ──
+export async function getAddresses(userNo) {
+  return request('GET', `/addresses/${userNo}`)
+}
+
+export async function getAddress(userNo, addressId) {
+  return request('GET', `/addresses/${userNo}/${addressId}`)
+}
+
+export async function createAddress(userNo, body) {
+  return request('POST', `/addresses/${userNo}`, body)
+}
+
+export async function updateAddress(userNo, addressId, body) {
+  return request('PUT', `/addresses/${userNo}/${addressId}`, body)
+}
+
+export async function deleteAddress(userNo, addressId) {
+  return request('DELETE', `/addresses/${userNo}/${addressId}`)
+}
+
+export async function setDefaultAddress(userNo, addressId) {
+  return request('PATCH', `/addresses/${userNo}/${addressId}/default`)
+}
+
+// ── Recommend ──
+export async function getRecommendStores(dong, category, sort) {
+  let path = '/recommend/stores'
+  const params = []
+  if (dong) params.push(`dong=${dong}`)
+  if (category) params.push(`category=${category}`)
+  if (sort) params.push(`sort=${sort}`)
+  if (params.length) path += '?' + params.join('&')
+  return request('GET', path)
+}
+
+export async function getRecommendDongs() {
+  return request('GET', '/recommend/dongs')
+}
+
+// ── Notices ──
+export async function getNotices() {
+  return request('GET', '/notices')
+}
+
+export async function getNotice(noticeId) {
+  return request('GET', `/notices/${noticeId}`)
+}
+
+export async function createNotice(body) {
+  return request('POST', '/notices', body)
+}
+
+export async function updateNotice(noticeId, body) {
+  return request('PUT', `/notices/${noticeId}`, body)
+}
+
+export async function deleteNotice(noticeId) {
+  return request('DELETE', `/notices/${noticeId}`)
+}
+
+export async function notifyNotice(noticeId) {
+  return request('POST', `/notices/${noticeId}/notify`)
+}
+
+// ── Notification Settings ──
+export async function getNotificationSettings(userNo) {
+  return request('GET', `/notification-settings/${userNo}`)
+}
+
+export async function createNotificationSettings(userNo) {
+  return request('POST', `/notification-settings/${userNo}`)
+}
+
+export async function updateNotificationSettings(userNo, body) {
+  return request('PUT', `/notification-settings/${userNo}`, body)
+}
+
+// ── Notifications (추가) ──
+export async function markAllNotificationsRead(userNo) {
+  return request('PATCH', `/notifications/read-all?userNo=${userNo}`)
 }
 
 // ── Internal ──
@@ -419,9 +511,4 @@ export async function getFdsVersion() {
 
 export async function getAiMonitoring() {
   return request('GET', '/internal/fds/monitoring/ai')
-}
-
-// ── Legacy (used by POS) ──
-export async function getMyStores() {
-  return request('GET', '/stores')
 }
