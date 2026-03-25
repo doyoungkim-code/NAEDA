@@ -380,48 +380,19 @@ fun NaedaNavGraph(
                     )
                 },
                 onCardClick = { card ->
-                    card.cardId?.let { realCardId ->
-                        navController.currentBackStackEntry
-                            ?.savedStateHandle
-                            ?.set("cardName", card.cardName)
-
-                        navController.currentBackStackEntry
-                            ?.savedStateHandle
-                            ?.set("cardNo", card.cardNumber)
-
-                        navController.navigate(
-                            Screen.CardDetail.createRoute(realCardId)
-                        )
-                    }
+                    navController.currentBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("cardName", card.cardName)
+                    navController.currentBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("cardNo", card.cardNumber)
+                    card.cardId?.let { navController.navigate(Screen.CardDetail.createRoute(it)) }
                 },
                 onDeleteAccount = { },
                 onSetPrimary = { },
                 onSetPrimaryCard = { },
                 onDeleteCard = { },
                 useRegisterDialog = true
-            )
-        }
-
-        composable("card_detail/{cardId}") { backStackEntry ->
-            val cardId = backStackEntry.arguments?.getString("cardId")?.toLongOrNull()
-
-            val cardName = navController
-                .previousBackStackEntry
-                ?.savedStateHandle
-                ?.get<String>("cardName")
-                .orEmpty()
-
-            val cardNo = navController
-                .previousBackStackEntry
-                ?.savedStateHandle
-                ?.get<String>("cardNo")
-                .orEmpty()
-
-            CardDetailRoute(
-                cardId = cardId,
-                cardName = cardName,
-                cardNo = cardNo,
-                onBack = { navController.popBackStack() }
             )
         }
 
@@ -455,15 +426,18 @@ fun NaedaNavGraph(
             )
         }
 
-        composable("card_detail/{cardId}") { backStackEntry ->
-            val cardId = backStackEntry.arguments?.getString("cardId")?.toLongOrNull()
-
+        composable(
+            route = Screen.CardDetail.route,
+            arguments = listOf(
+                navArgument("cardId") { type = NavType.LongType }
+            )
+        ) { backStackEntry ->
+            val cardId = backStackEntry.arguments?.getLong("cardId")
             val cardName = navController
                 .previousBackStackEntry
                 ?.savedStateHandle
                 ?.get<String>("cardName")
                 .orEmpty()
-
             val cardNo = navController
                 .previousBackStackEntry
                 ?.savedStateHandle
@@ -744,19 +718,13 @@ private fun AssetTabContent(
             )
         },
         onCardClick = { card ->
-            card.cardId?.let { realCardId ->
-                navController.currentBackStackEntry
-                    ?.savedStateHandle
-                    ?.set("cardName", card.cardName)
-
-                navController.currentBackStackEntry
-                    ?.savedStateHandle
-                    ?.set("cardNo", card.cardNumber)
-
-                navController.navigate(
-                    Screen.CardDetail.createRoute(realCardId)
-                )
-            }
+            navController.currentBackStackEntry
+                ?.savedStateHandle
+                ?.set("cardName", card.cardName)
+            navController.currentBackStackEntry
+                ?.savedStateHandle
+                ?.set("cardNo", card.cardNumber)
+            card.cardId?.let { navController.navigate(Screen.CardDetail.createRoute(it)) }
         },
         onDeleteAccount = { },
         onSetPrimary = { },
