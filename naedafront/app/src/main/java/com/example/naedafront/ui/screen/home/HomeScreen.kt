@@ -673,23 +673,30 @@ private fun CardInfoCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = "₩${"%,d".format(amount)}",
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 30.sp
-                ),
-                color = textPrimary
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Text(
+                    text = "₩${"%,d".format(amount)}",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 30.sp
+                    ),
+                    color = textPrimary
+                )
 
-            // 하단: 유효기간 + 거래내역 버튼
-            Column {
                 Text(
                     text = "유효기간 ${card.cardExpiryDate ?: ""}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = textSecondary
+                    color = textSecondary,
+                    modifier = Modifier.padding(bottom = 4.dp)
                 )
+            }
 
+            // 하단: 거래내역 버튼
+            Column {
                 Spacer(modifier = Modifier.height(10.dp))
 
                 OutlinedButton(
