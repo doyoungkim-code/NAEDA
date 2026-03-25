@@ -270,8 +270,8 @@ public class PayFacadeService {
             transaction = payDbService.save(transaction);
             fdsRuleService.saveLog(transaction.getId(), user.getUserNo(), fdsResult);
 
-            // 16. 포인트 적립
-            accumulateEarnedPoints(user.getUserNo(), transaction.getId(), earnedPoints);
+            // 16. 포인트 적립은 Kafka Consumer(pay-point-group)에서 처리
+            // accumulateEarnedPoints() 직접 호출 제거 — Consumer와 중복 적립 방지
 
             // 17. Redis 상태 갱신
             updateRedisSuccess(requestId, transaction.getId(), ssafyTransactionId);
