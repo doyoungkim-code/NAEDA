@@ -22,7 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Logout
-import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Face
@@ -32,7 +31,6 @@ import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -68,7 +66,6 @@ fun MyPageScreen(
     onDeliveryAddressClick: () -> Unit = {},
     onOrderHistoryClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
-    onFabClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -79,7 +76,6 @@ fun MyPageScreen(
     }
 
     val bgColor = Background
-    val fabColor = Color(0xFF0FA37F)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -90,14 +86,6 @@ fun MyPageScreen(
                 showBackButton = true,
                 onBackClick = onBackClick,
                 actions = {
-                    IconButton(onClick = onNotificationClick) {
-                        Icon(
-                            imageVector = Icons.Outlined.NotificationsNone,
-                            contentDescription = "알림",
-                            tint = Color(0xFF67707E)
-                        )
-                    }
-
                     IconButton(onClick = onSettingsClick) {
                         Icon(
                             imageVector = Icons.Outlined.Settings,
@@ -107,20 +95,6 @@ fun MyPageScreen(
                     }
                 }
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onFabClick,
-                containerColor = fabColor,
-                contentColor = Color.White,
-                shape = CircleShape
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Badge,
-                    contentDescription = "직원 호출",
-                    modifier = Modifier.size(24.dp)
-                )
-            }
         },
         contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
