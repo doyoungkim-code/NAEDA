@@ -73,7 +73,7 @@ data class TransactionItem(
     val transacted: String,
 ) {
     val date: String get() = transacted.take(10)
-    val time: String get() = if (transacted.length >= 16) transacted.takeLast(5) else ""
+    val time: String get() = if (transacted.length >= 16) transacted.substring(11, 16) else ""
 }
 
 private val periodList = listOf("전체", "1주일", "1개월", "3개월", "6개월")
