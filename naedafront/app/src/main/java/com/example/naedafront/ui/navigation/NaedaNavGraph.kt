@@ -653,6 +653,15 @@ private fun HomeTabContent(
     HomeScreen(
         uiState = homeUiState,
         onTransactionClick = { navController.navigate(Screen.Transaction.createRoute()) },
+        onCardTransactionClick = { card ->
+            navController.currentBackStackEntry
+                ?.savedStateHandle
+                ?.set("cardName", card.cardName.orEmpty())
+            navController.currentBackStackEntry
+                ?.savedStateHandle
+                ?.set("cardNo", card.cardNo.orEmpty())
+            card.cardId?.let { navController.navigate(Screen.CardDetail.createRoute(it)) }
+        },
         onFacePaySettingClick = { navController.navigate(Screen.FaceRegister.route) },
         onLinkAccountClick = { navController.navigate(Screen.AccountList.createRoute(0)) },
         onViewAllTransactionsClick = { navController.navigate(Screen.Transaction.createRoute()) },
