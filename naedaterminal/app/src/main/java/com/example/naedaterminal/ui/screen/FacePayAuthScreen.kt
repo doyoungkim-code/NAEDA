@@ -695,8 +695,8 @@ private fun evaluateGuideFrame(
 
     val message = when {
         !fullyVisible -> "얼굴 전체가 화면 안에 보이도록 맞춰주세요."
-        !largeEnough -> "얼굴을 원형 가이드 크기 정도로 더 가까이 보여주세요."
-        !centered -> "가능하면 얼굴을 가운데로 맞춰주세요."
+        !largeEnough -> "얼굴을 조금만 더 가까이 보여주세요."
+        !centered -> "얼굴을 조금 더 가운데로 맞춰주세요."
         else -> "좋아요. 얼굴을 그대로 유지해주세요."
     }
 
