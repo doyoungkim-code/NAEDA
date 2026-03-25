@@ -50,6 +50,22 @@ public class FcmService {
                     .build();
             notificationRepository.save(notification);
 
+            // 알림 설정 확인
+            boolean enabled = notificationSettingRepository.findByUserNo(user.getUserNo())
+                    .map(setting -> switch (type) {
+                        case PAYMENT -> setting.getPaymentEnabled();
+                        case FDS_ALERT -> setting.getFdsEnabled();
+                        case FESTIVAL -> setting.getFestivalEnabled();
+                        case POINT -> setting.getPointEnabled();
+                        case SYSTEM -> setting.getSystemEnabled();
+                    })
+                    .orElse(true);
+
+            if (!enabled) {
+                log.info("[FCM] 알림 비활성화 상태 (전체 발송 제외): userNo={}, type={}", user.getUserNo(), type);
+                continue;
+            }
+
             // FCM 발송
             if (sendFcm(user.getFcmToken(), title, body, null)) {
                 successCount++;
