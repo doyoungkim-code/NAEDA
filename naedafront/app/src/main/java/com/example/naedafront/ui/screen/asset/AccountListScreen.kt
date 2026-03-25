@@ -34,7 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Surface as MaterialSurface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -61,7 +61,7 @@ import com.example.naedafront.ui.theme.NaedaTypography
 import com.example.naedafront.ui.theme.OnBackground
 import com.example.naedafront.ui.theme.OnSurfaceVariant
 import com.example.naedafront.ui.theme.Outline
-import com.example.naedafront.ui.theme.Surface
+import com.example.naedafront.ui.theme.Surface as SurfaceColor
 
 data class AccountItem(
     val id: String,
@@ -137,7 +137,7 @@ fun AccountListScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceColor),
                 windowInsets = WindowInsets(0)
             )
         },
@@ -206,7 +206,7 @@ private fun AccountTabRow(
     tabs: List<String>,
     onTabSelected: (Int) -> Unit
 ) {
-    Surface(color = Surface, shadowElevation = 1.dp) {
+    MaterialSurface(color = SurfaceColor, shadowElevation = 1.dp) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -323,13 +323,13 @@ private fun AccountListItem(
     onSetPrimary: () -> Unit,
     onDeleteRequest: () -> Unit
 ) {
-    Surface(
+    MaterialSurface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
             .clickable { onAccountClick() },
         shape = RoundedCornerShape(14.dp),
-        color = Surface,
+        color = SurfaceColor,
         shadowElevation = 1.dp,
         tonalElevation = 0.dp
     ) {
@@ -387,7 +387,7 @@ private fun AccountListItem(
                     DropdownMenu(
                         expanded = isMenuExpanded,
                         onDismissRequest = onMenuToggle,
-                        modifier = Modifier.background(Surface)
+                        modifier = Modifier.background(SurfaceColor)
                     ) {
                         if (!account.isPrimary) {
                             DropdownMenuItem(
@@ -660,7 +660,8 @@ private fun CardListItem(
                         }
                         DropdownMenu(
                             expanded = isMenuExpanded,
-                            onDismissRequest = onMenuToggle
+                            onDismissRequest = onMenuToggle,
+                            modifier = Modifier.background(SurfaceColor)
                         ) {
                             if (!card.isPrimary) {
                                 DropdownMenuItem(
@@ -716,10 +717,10 @@ private fun AccountDeleteDialog(
     onConfirm: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        Surface(
+        MaterialSurface(
             shape = RoundedCornerShape(20.dp),
-            color = Surface,
-            modifier = Modifier.fillMaxWidth()
+            color = SurfaceColor,
+            shadowElevation = 8.dp
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Text(
@@ -760,10 +761,10 @@ private fun CardDeleteDialog(
     onConfirm: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        Surface(
+        MaterialSurface(
             shape = RoundedCornerShape(20.dp),
-            color = Surface,
-            modifier = Modifier.fillMaxWidth()
+            color = SurfaceColor,
+            shadowElevation = 8.dp
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Text(

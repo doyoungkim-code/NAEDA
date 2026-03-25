@@ -2,7 +2,8 @@
 package com.example.naedafront.data.repository
 
 import android.util.Log
-import com.example.naedafront.data.remote.RetrofitClient
+import com.example.naedafront.data.remote.ApiConfig
+import com.example.naedafront.data.remote.api.CardApi
 import com.example.naedafront.data.remote.response.CardResponse
 import com.example.naedafront.data.remote.response.CardTransactionResponse
 import java.text.SimpleDateFormat
@@ -15,10 +16,7 @@ data class CardTransactionItemData(
     val category: String,
     val amount: Long,
     val isCanceled: Boolean,
-    val transactedAt: String,
-    val approvalNumber: String?,
-    val cardNo: String?,
-    val installment: String?
+    val transactedAt: String
 )
 
 data class CardTransactionQuery(
@@ -31,7 +29,7 @@ object CardRepository {
     private const val TAG = "CardRepository"
 
     private val api by lazy {
-        RetrofitClient.cardApi
+        ApiConfig.retrofit.create(CardApi::class.java)
     }
 
     suspend fun getCards(userNo: Long): Result<List<CardResponse>> {
@@ -147,10 +145,7 @@ object CardRepository {
             category = resolvedCategory,
             amount = amount,
             isCanceled = canceled,
-            transactedAt = transacted,
-            approvalNumber = null,
-            cardNo = null,
-            installment = null
+            transactedAt = transacted
         )
     }
 }
