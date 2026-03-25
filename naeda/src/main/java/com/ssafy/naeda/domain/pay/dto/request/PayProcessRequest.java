@@ -1,5 +1,7 @@
 package com.ssafy.naeda.domain.pay.dto.request;
 
+import com.ssafy.naeda.domain.face.dto.response.FaceMatchStatus;
+import com.ssafy.naeda.domain.rba.dto.AuthMethod;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,4 +15,8 @@ public class PayProcessRequest {
     private String idempotencyKey;
 
     private String pin;              // 2차인증 PIN (6자리, 선택)
+    private String phoneMiddleDigits;
+    private FaceMatchStatus faceStatus;
+    private AuthMethod selectedAuthMethod;
+    private Boolean signatureConfirmed;
 }

@@ -71,7 +71,14 @@ public class PayRequestController {
             @Valid @RequestBody PayProcessRequest request) {
 
         PayTransaction tx = payFacadeService.processFacePayment(
-                id, request.getUserNo(), request.getIdempotencyKey(), request.getPin()
+                id,
+                request.getUserNo(),
+                request.getIdempotencyKey(),
+                request.getPin(),
+                request.getPhoneMiddleDigits(),
+                request.getFaceStatus(),
+                request.getSelectedAuthMethod(),
+                request.getSignatureConfirmed()
         );
 
         return ResponseEntity.ok(PayTransactionResponse.from(tx));

@@ -17,9 +17,9 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.example.naedaterminal.ui.screen.*
+import com.example.naedaterminal.ui.screen.payment.AmbiguousAuthChoiceScreen
 import com.example.naedaterminal.ui.screen.payment.RbaAuthContainer
 import com.example.naedaterminal.ui.screen.payment.RbaAuthType
 import com.example.naedaterminal.ui.theme.NaedaTheme
@@ -56,14 +56,18 @@ class MainActivity : ComponentActivity() {
                 var currentMethod by remember { mutableStateOf("페이스페이") }
                 var matchedUserInfo by remember { mutableStateOf<MatchedUserInfo?>(null) }
                 var rbaAuthSteps by remember { mutableStateOf<List<RbaAuthType>>(emptyList()) }
+                var postChoiceAuthSteps by remember { mutableStateOf<List<RbaAuthType>>(emptyList()) }
                 var enteredPin by remember { mutableStateOf<String?>(null) }
                 var enteredPhoneDigits by remember { mutableStateOf<String?>(null) }
+                var currentFaceStatus by remember { mutableStateOf<String?>(null) }
+                var selectedAuthMethod by remember { mutableStateOf<String?>(null) }
+                var signatureConfirmed by remember { mutableStateOf(false) }
                 var paymentFailureReason by remember { mutableStateOf<String?>(null) }
 
                 // 결제 진행 중 POS 취소 감지 폴링
                 val isInPaymentFlow = route in listOf(
                     Route.PaymentSelect, Route.FacePay,
-                    Route.Rba, Route.Processing
+                    Route.AuthChoice, Route.Rba, Route.Processing
                 )
                 LaunchedEffect(isInPaymentFlow, currentRequestId) {
                     if (!isInPaymentFlow || currentRequestId == 0L) return@LaunchedEffect
@@ -120,8 +124,12 @@ class MainActivity : ComponentActivity() {
                             paymentFailureReason = null
                             matchedUserInfo = null
                             rbaAuthSteps = emptyList()
+                            postChoiceAuthSteps = emptyList()
                             enteredPin = null
                             enteredPhoneDigits = null
+                            currentFaceStatus = null
+                            selectedAuthMethod = null
+                            signatureConfirmed = false
                             route = Route.FacePay
                         },
                         onLogout = {
@@ -152,41 +160,79 @@ class MainActivity : ComponentActivity() {
                         onBack = { route = Route.PaymentSelect },
                         onResolved = { faceResult ->
                             val methods = faceResult.requiredMethods
-                            // RBA 인증 단계 결정
-                            val steps = buildList {
-                                if ("PIN" in methods) add(RbaAuthType.Pin)
-                                if ("PHONE" in methods) add(RbaAuthType.PhoneMiddleFour)
+                            val isAmbiguous = faceResult.status == "AMBIGUOUS"
+                            val nonFaceMethods = methods - "FACE"
+                            val tailSteps = buildList {
+                                if ("SIGNATURE" in methods) add(RbaAuthType.Signature)
                             }
-                            // 유사도 애매한 경우 (ambiguous) 랜덤으로 PIN or 전화번호 요청
-                            val isAmbiguous = faceResult.nextAction == "REQUIRE_SECOND_FACTOR"
-                                    || faceResult.status == "AMBIGUOUS"
-                            val ambiguousSteps = if (isAmbiguous && steps.isEmpty()) {
-                                listOf(
-                                    if ((0..1).random() == 0) RbaAuthType.Pin
-                                    else RbaAuthType.PhoneMiddleFour
-                                )
-                            } else steps
+                            val directSteps = buildList {
+                                if ("PIN" in methods && !isAmbiguous) add(RbaAuthType.Pin)
+                                if ("PHONE" in methods && !isAmbiguous) add(RbaAuthType.PhoneMiddleFour)
+                                addAll(tailSteps)
+                            }
 
                             matchedUserInfo = MatchedUserInfo(
                                 userId = faceResult.bestUserId ?: "",
                                 userName = faceResult.username ?: faceResult.bestUserId ?: "알 수 없음",
                                 userNo = faceResult.userNo ?: faceResult.matchedUserNo,
-                                requiresAdditionalAuth = ambiguousSteps.isNotEmpty(),
+                                requiresAdditionalAuth = nonFaceMethods.isNotEmpty(),
                                 authReason = when {
                                     isAmbiguous -> "AMBIGUOUS"
-                                    methods.isNotEmpty() -> "USER_SETTING"
+                                    "PIN" in methods -> "USER_SETTING"
+                                    "SIGNATURE" in methods -> "HIGH_AMOUNT"
                                     else -> null
                                 }
                             )
 
-                            rbaAuthSteps = ambiguousSteps
+                            currentFaceStatus = faceResult.status
+                            selectedAuthMethod = null
                             enteredPin = null
                             enteredPhoneDigits = null
-                            route = if (ambiguousSteps.isEmpty()) Route.Processing else Route.Rba
+                            signatureConfirmed = false
+
+                            if (isAmbiguous && "PIN" in methods && "PHONE" in methods) {
+                                postChoiceAuthSteps = tailSteps
+                                rbaAuthSteps = emptyList()
+                                route = Route.AuthChoice
+                            } else {
+                                postChoiceAuthSteps = emptyList()
+                                rbaAuthSteps = directSteps
+                                route = if (directSteps.isEmpty()) Route.Processing else Route.Rba
+                            }
                         },
                         onNotMatched = { reason ->
                             paymentFailureReason = reason ?: "얼굴을 인식하지 못했습니다."
                             route = Route.PaymentFailed
+                        }
+                    )
+
+                    Route.AuthChoice -> AmbiguousAuthChoiceScreen(
+                        paymentAmount = currentAmount,
+                        merchantName = currentMerchant,
+                        onChoosePin = {
+                            selectedAuthMethod = "PIN"
+                            enteredPin = null
+                            enteredPhoneDigits = null
+                            rbaAuthSteps = buildList {
+                                add(RbaAuthType.Pin)
+                                addAll(postChoiceAuthSteps)
+                            }
+                            route = Route.Rba
+                        },
+                        onChoosePhone = {
+                            selectedAuthMethod = "PHONE"
+                            enteredPin = null
+                            enteredPhoneDigits = null
+                            rbaAuthSteps = buildList {
+                                add(RbaAuthType.PhoneMiddleFour)
+                                addAll(postChoiceAuthSteps)
+                            }
+                            route = Route.Rba
+                        },
+                        onCancel = {
+                            selectedAuthMethod = null
+                            signatureConfirmed = false
+                            route = Route.FacePay
                         }
                     )
 
@@ -197,9 +243,24 @@ class MainActivity : ComponentActivity() {
                         apiBaseUrl = apiBaseUrl,
                         userNo = matchedUserInfo?.userNo,
                         onAuthComplete = { route = Route.Processing },
-                        onAuthCancel = { route = Route.FacePay },
-                        onPinEntered = { pin -> enteredPin = pin },
-                        onPhoneEntered = { digits -> enteredPhoneDigits = digits }
+                        onAuthCancel = {
+                            enteredPin = null
+                            enteredPhoneDigits = null
+                            selectedAuthMethod = null
+                            signatureConfirmed = false
+                            route = Route.FacePay
+                        },
+                        onPinEntered = { pin ->
+                            enteredPin = pin
+                            selectedAuthMethod = "PIN"
+                        },
+                        onPhoneEntered = { digits ->
+                            enteredPhoneDigits = digits
+                            selectedAuthMethod = "PHONE"
+                        },
+                        onSignatureConfirmed = {
+                            signatureConfirmed = true
+                        }
                     )
 
                     Route.Processing -> PaymentProcessingScreen(
@@ -207,6 +268,10 @@ class MainActivity : ComponentActivity() {
                         requestId = currentRequestId,
                         userNo = matchedUserInfo?.userNo,
                         pin = enteredPin,
+                        phoneMiddleDigits = enteredPhoneDigits,
+                        faceStatus = currentFaceStatus,
+                        selectedAuthMethod = selectedAuthMethod,
+                        signatureConfirmed = signatureConfirmed,
                         amount = currentAmount,
                         merchant = currentMerchant,
                         onSuccess = { result ->
@@ -262,6 +327,7 @@ private sealed interface Route {
     data object Waiting : Route
     data object PaymentSelect : Route
     data object FacePay : Route
+    data object AuthChoice : Route
     data object Rba : Route
     data object Processing : Route
     data object PaymentDone : Route
