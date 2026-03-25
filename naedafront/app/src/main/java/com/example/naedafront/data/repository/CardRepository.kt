@@ -15,10 +15,7 @@ data class CardTransactionItemData(
     val category: String,
     val amount: Long,
     val isCanceled: Boolean,
-    val transactedAt: String,
-    val approvalNumber: String?,
-    val cardNo: String?,
-    val installment: String?
+    val transactedAt: String
 )
 
 object CardRepository {
@@ -54,8 +51,7 @@ object CardRepository {
     suspend fun getCardTransactions(
         userNo: Long,
         cardId: Long,
-        period: String,
-        transactionId: String? = null
+        period: String
     ): Result<List<CardTransactionItemData>> {
         return runCatching {
             val query = buildTransactionQuery(period)
@@ -83,11 +79,7 @@ object CardRepository {
                 )
             }
 
-            val items = response.body().orEmpty().map { it.toItemData() }
-
-            transactionId?.takeIf { it.isNotBlank() }?.let { targetId ->
-                items.filter { it.transactionId == targetId }
-            } ?: items
+            response.body().orEmpty().map { it.toItemData() }
         }
     }
 
@@ -147,10 +139,7 @@ object CardRepository {
             category = resolvedCategory,
             amount = amount,
             isCanceled = canceled,
-            transactedAt = transacted,
-            approvalNumber = null,
-            cardNo = null,
-            installment = null
+            transactedAt = transacted
         )
     }
 }

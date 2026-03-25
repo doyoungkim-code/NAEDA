@@ -353,12 +353,7 @@ fun NaedaNavGraph(
                     )
                 },
                 onCardClick = { card ->
-                    navController.navigate(
-                        Screen.Transaction.createRoute(
-                            assetType = Screen.Transaction.ASSET_TYPE_CARD,
-                            paymentMethodId = card.paymentMethodId
-                        )
-                    )
+                    card.cardId?.let { navController.navigate(Screen.CardDetail.createRoute(it.toString())) }
                 },
                 onDeleteAccount = { },
                 onSetPrimary = { },
@@ -398,8 +393,13 @@ fun NaedaNavGraph(
             )
         }
 
-        composable("card_detail/{cardId}") { backStackEntry ->
-            val cardId = backStackEntry.arguments?.getString("cardId")?.toLongOrNull()
+        composable(
+            route = Screen.CardDetail.route,
+            arguments = listOf(
+                navArgument("cardId") { type = NavType.LongType }
+            )
+        ) { backStackEntry ->
+            val cardId = backStackEntry.arguments?.getLong("cardId")
             CardDetailRoute(
                 cardId = cardId,
                 onBack = { navController.popBackStack() }
@@ -673,12 +673,7 @@ private fun AssetTabContent(
             )
         },
         onCardClick = { card ->
-            navController.navigate(
-                Screen.Transaction.createRoute(
-                    assetType = Screen.Transaction.ASSET_TYPE_CARD,
-                    paymentMethodId = card.paymentMethodId
-                )
-            )
+            card.cardId?.let { navController.navigate(Screen.CardDetail.createRoute(it.toString())) }
         },
         onDeleteAccount = { },
         onSetPrimary = { },

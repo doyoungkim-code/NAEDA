@@ -231,6 +231,7 @@ private fun AssetCardResponse.toUi(
 
     return CardItem(
         id = cardId?.toString() ?: cardUniqueNo.orEmpty().ifBlank { "card-$index" },
+        cardId = cardId,
         paymentMethodId = payMethod?.paymentMethodId,
         cardType = resolvedCardType,
         cardIssuerName = cardIssuerName.orEmpty().ifBlank { style.displayName },

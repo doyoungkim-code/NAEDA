@@ -36,7 +36,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Surface as MaterialSurface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -63,14 +63,12 @@ import com.example.naedafront.data.remote.response.CardResponse
 import com.example.naedafront.data.repository.CardRepository
 import com.example.naedafront.data.repository.CardTransactionItemData
 import com.example.naedafront.ui.theme.Background
-import com.example.naedafront.ui.theme.Mint50
-import com.example.naedafront.ui.theme.Mint700
 import com.example.naedafront.ui.theme.Mint900
 import com.example.naedafront.ui.theme.NaedaTypography
 import com.example.naedafront.ui.theme.OnBackground
 import com.example.naedafront.ui.theme.OnSurfaceVariant
 import com.example.naedafront.ui.theme.OutlineVariant
-import com.example.naedafront.ui.theme.Surface
+import com.example.naedafront.ui.theme.Surface as SurfaceColor
 import com.example.naedafront.ui.theme.SurfaceVariant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -86,11 +84,7 @@ data class CardTransactionItem(
     val category: String,
     val amount: Long,
     val isCanceled: Boolean = false,
-    val transacted: String,
-    val approvalNumber: String? = null,
-    val cardNo: String? = null,
-    val installment: String? = null,
-    val raw: CardTransactionItemData
+    val transacted: String
 ) {
     val date: String
         get() = transacted.toDateKey()
@@ -101,7 +95,6 @@ data class CardTransactionItem(
 
 data class CardDetailUiState(
     val isLoading: Boolean = false,
-    val isDetailLoading: Boolean = false,
     val error: String? = null,
     val cards: List<CardResponse> = emptyList(),
     val selectedCard: CardResponse? = null,
@@ -195,51 +188,11 @@ class CardDetailViewModel : ViewModel() {
     }
 
     fun clearSelectedTransaction() {
-        _uiState.update {
-            it.copy(
-                selectedTransaction = null,
-                isDetailLoading = false
-            )
-        }
+        _uiState.update { it.copy(selectedTransaction = null) }
     }
 
-    fun loadTransactionDetail(context: Context, transaction: CardTransactionItem) {
-        val userNo = AuthPrefs.getUserNo(context) ?: return
-        val cardId = _uiState.value.selectedCard?.cardId ?: return
-
-        viewModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    isDetailLoading = true,
-                    selectedTransaction = null
-                )
-            }
-
-            CardRepository.getCardTransactions(
-                userNo = userNo,
-                cardId = cardId,
-                period = _uiState.value.selectedPeriod,
-                transactionId = transaction.id
-            ).onSuccess { result ->
-                val detail = result.firstOrNull {
-                    it.transactionId == transaction.id
-                }?.toUiItem() ?: transaction
-
-                _uiState.update {
-                    it.copy(
-                        isDetailLoading = false,
-                        selectedTransaction = detail
-                    )
-                }
-            }.onFailure {
-                _uiState.update {
-                    it.copy(
-                        isDetailLoading = false,
-                        selectedTransaction = transaction
-                    )
-                }
-            }
-        }
+    fun selectTransaction(transaction: CardTransactionItem) {
+        _uiState.update { it.copy(selectedTransaction = transaction) }
     }
 
     private fun loadTransactions(
@@ -289,11 +242,7 @@ private fun CardTransactionItemData.toUiItem(): CardTransactionItem {
         category = category,
         amount = amount,
         isCanceled = isCanceled,
-        transacted = transactedAt,
-        approvalNumber = approvalNumber,
-        cardNo = cardNo,
-        installment = installment,
-        raw = this
+        transacted = transactedAt
     )
 }
 
@@ -344,7 +293,7 @@ fun CardDetailRoute(
         onBack = onBack,
         onPeriodClick = { showPeriodDialog = true },
         onCategorySelect = { viewModel.selectCategory(it) },
-        onTransactionClick = { viewModel.loadTransactionDetail(context, it) },
+        onTransactionClick = { viewModel.selectTransaction(it) },
         onDismissDetail = { viewModel.clearSelectedTransaction() }
     )
 
@@ -512,22 +461,6 @@ fun CardDetailScreen(
         }
     }
 
-    if (uiState.isDetailLoading) {
-        AlertDialog(
-            onDismissRequest = onDismissDetail,
-            confirmButton = {},
-            title = { Text("거래 상세 조회 중") },
-            text = {
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = Mint900)
-                }
-            }
-        )
-    }
-
     uiState.selectedTransaction?.let { tx ->
         CardTransactionDetailDialog(
             transaction = tx,
@@ -686,8 +619,8 @@ private fun CardSearchBar(
             focusedTextColor = OnBackground,
             unfocusedTextColor = OnBackground,
             cursorColor = Mint900,
-            focusedContainerColor = Surface,
-            unfocusedContainerColor = Surface
+            focusedContainerColor = SurfaceColor,
+            unfocusedContainerColor = SurfaceColor
         )
     )
 }
@@ -700,7 +633,7 @@ private fun CardPeriodFilterRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Surface)
+            .background(SurfaceColor)
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -744,7 +677,7 @@ private fun CardCategoryFilterRow(
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Surface)
+            .background(SurfaceColor)
             .padding(bottom = 12.dp),
         contentPadding = PaddingValues(horizontal = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -789,7 +722,7 @@ private fun CardTransactionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Surface)
+            .background(SurfaceColor)
             .clickable { onClick() }
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -874,14 +807,13 @@ private fun CardTransactionDetailDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                DetailRow("가맹점", transaction.merchantName)
+                DetailRow("가맹점", transaction.displayMerchantName())
                 DetailRow("결제 금액", "${"%,d".format(transaction.amount)}원")
                 DetailRow("거래 시간", transaction.transacted.toDisplayDateTime())
                 DetailRow("카테고리", transaction.category)
                 DetailRow("거래 상태", if (transaction.isCanceled) "취소" else "승인")
-                DetailRow("승인 번호", transaction.approvalNumber ?: "-")
-                DetailRow("카드 번호", transaction.cardNo ?: card?.cardNo?.maskCardNumber().orEmpty().ifBlank { "-" })
-                DetailRow("할부", transaction.installment ?: "일시불")
+                DetailRow("카드명", card?.cardName.orEmpty().ifBlank { "-" })
+                DetailRow("카드 번호", card?.cardNo?.maskCardNumber().orEmpty().ifBlank { "-" })
                 DetailRow("거래 ID", transaction.id)
             }
         }
@@ -917,9 +849,9 @@ private fun CardPeriodPickerDialog(
     val periods = listOf("전체", "1주일", "1개월", "3개월", "6개월")
 
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        Surface(
+        MaterialSurface(
             shape = RoundedCornerShape(20.dp),
-            color = Surface,
+            color = SurfaceColor,
             shadowElevation = 8.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -1034,6 +966,7 @@ private fun parseFlexibleDate(raw: String): java.util.Date? {
         "yyyy-MM-dd'T'HH:mm:ssX",
         "yyyy-MM-dd'T'HH:mm:ss",
         "yyyy-MM-dd HH:mm:ss",
+        "yyyy-MM-dd HH:mm",
         "yyyy.MM.dd HH:mm",
         "yyyy-MM-dd"
     )
@@ -1048,4 +981,8 @@ private fun parseFlexibleDate(raw: String): java.util.Date? {
 
 private fun currentYearMonth(): String {
     return SimpleDateFormat("yyyy.MM", Locale.KOREA).format(java.util.Date())
+}
+
+private fun CardTransactionItem.displayMerchantName(): String {
+    return merchantName.ifBlank { "가맹점 정보 없음" }
 }
