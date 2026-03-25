@@ -41,6 +41,7 @@ public class PayEventConsumer {
         try {
             PointEarnRequest earnRequest = PointEarnRequest.builder()
                     .amount(event.getEarnedPoints())
+                    .description("결제 적립")
                     .paymentId(event.getTransactionId())
                     .build();
 
