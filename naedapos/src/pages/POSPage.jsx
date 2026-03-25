@@ -158,6 +158,10 @@ export default function POSPage({ onGoAdmin }) {
 
   async function handleFacePay() {
     if (totalAmount <= 0) return
+    if (!getToken()) {
+      alert('JWT 토큰이 설정되지 않았습니다.\n설정 버튼에서 토큰을 먼저 입력해주세요.')
+      return
+    }
     setLoading(true)
     try {
       const data = await createPayRequest({ storeId: Number(storeId), amount: totalAmount })

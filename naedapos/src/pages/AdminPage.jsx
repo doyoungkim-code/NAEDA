@@ -90,6 +90,7 @@ function StatusBadge({ status }) {
     SUCCESS: '#10b981', COMPLETED: '#10b981', ACTIVE: '#10b981', EARN: '#10b981',
     PENDING: '#f59e0b', PROCESSING: '#3b82f6',
     FAILED: '#ef4444', BLOCKED: '#ef4444', INACTIVE: '#999', USE: '#ef4444',
+    PAUSED: '#f59e0b', CANCELLED: '#999', NONE: '#d1d5db', ALERT: '#f59e0b', PAUSE: '#f59e0b', BLOCK: '#ef4444',
     EXPIRED: '#999', DEPOSIT: '#10b981', WITHDRAW: '#f59e0b', TRANSFER: '#3b82f6',
     WEEKLY: '#8b5cf6', MONTHLY: '#3b82f6',
   }
@@ -118,7 +119,7 @@ function DashboardPanel({ g, onNavigate }) {
       const results = await Promise.allSettled([
         api.getAccounts(g.userNo),
         api.getPointWallet(g.userNo),
-        api.getPayments(g.userNo),
+        api.getPayList(g.userNo),
         api.getStores(),
       ])
       setStats({
@@ -246,7 +247,9 @@ function UserPanel({ g }) {
             <div className="info-item"><span className="info-label">User No</span><span>{user.userNo}</span></div>
             <div className="info-item"><span className="info-label">아이디</span><span>{user.userId}</span></div>
             <div className="info-item"><span className="info-label">이름</span><span>{user.username}</span></div>
-            <div className="info-item"><span className="info-label">FCM</span><span className="mono">{user.fcmToken || '(없음)'}</span></div>
+            <div className="info-item"><span className="info-label">전화번호</span><span>{user.phone || '(없음)'}</span></div>
+            <div className="info-item"><span className="info-label">얼굴등록</span><span>{user.faceRegistered ? '완료' : '미등록'}</span></div>
+            <div className="info-item"><span className="info-label">2차인증</span><span>{user.secondaryAuthEnabled ? '활성' : '비활성'}</span></div>
           </div>
         )}
         <JsonViewer data={user} />
@@ -348,7 +351,7 @@ function StorePanel({ g }) {
   const [stores, setStores] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [form, setForm] = useState({ userNo: '', accountId: '', storeName: '', categoryId: '', roadAddress: '', numberAddress: '', latitude: '', longitude: '', phone: '', facePayEnabled: 'true' })
+  const [form, setForm] = useState({ userNo: '', accountId: '', storeName: '', categoryId: '', categoryName: '', roadAddress: '', numberAddress: '', latitude: '', longitude: '', phone: '', facePayEnabled: 'true' })
   const [createResult, setCreateResult] = useState(null)
   const [detail, setDetail] = useState(null)
 
@@ -366,12 +369,13 @@ function StorePanel({ g }) {
         userNo: Number(form.userNo || g.userNo),
         accountId: Number(form.accountId),
         storeName: form.storeName,
-        categoryId: Number(form.categoryId),
+        categoryId: form.categoryId,
         roadAddress: form.roadAddress,
         numberAddress: form.numberAddress,
-        latitude: parseFloat(form.latitude),
-        longitude: parseFloat(form.longitude),
+        latitude: form.latitude ? parseFloat(form.latitude) : undefined,
+        longitude: form.longitude ? parseFloat(form.longitude) : undefined,
         phone: form.phone,
+        isLocalBusiness: true,
         facePayEnabled: form.facePayEnabled === 'true',
       })
       setCreateResult(res)
@@ -433,7 +437,7 @@ function StorePanel({ g }) {
           <div className="field"><label>사장님 UserNo</label><input type="number" value={form.userNo} onChange={e => setForm(p => ({ ...p, userNo: e.target.value }))} required /></div>
           <div className="field"><label>정산 계좌 ID</label><input type="number" value={form.accountId} onChange={e => setForm(p => ({ ...p, accountId: e.target.value }))} required /></div>
           <div className="field"><label>매장명</label><input value={form.storeName} onChange={e => setForm(p => ({ ...p, storeName: e.target.value }))} required /></div>
-          <div className="field"><label>카테고리 ID</label><input type="number" value={form.categoryId} onChange={e => setForm(p => ({ ...p, categoryId: e.target.value }))} required /></div>
+          <div className="field"><label>카테고리 ID</label><input value={form.categoryId} onChange={e => setForm(p => ({ ...p, categoryId: e.target.value }))} placeholder="CG-xxx 또는 PUBLIC_RESTAURANT" required /></div>
           <div className="field full"><label>도로명 주소</label><input value={form.roadAddress} onChange={e => setForm(p => ({ ...p, roadAddress: e.target.value }))} /></div>
           <div className="field full"><label>지번 주소</label><input value={form.numberAddress} onChange={e => setForm(p => ({ ...p, numberAddress: e.target.value }))} /></div>
           <div className="field"><label>위도</label><input value={form.latitude} onChange={e => setForm(p => ({ ...p, latitude: e.target.value }))} placeholder="36.1071" /></div>
@@ -473,7 +477,7 @@ function PaymentPanel({ g }) {
   async function loadPayments() {
     if (!g.userNo) return
     setLoading(true); setError('')
-    try { setPayments(await api.getPayments(g.userNo, dateRange.from || undefined, dateRange.to || undefined)) }
+    try { setPayments(await api.getPayList(g.userNo, dateRange.from || undefined, dateRange.to || undefined)) }
     catch (e) { setError(e.message) }
     setLoading(false)
   }
@@ -481,14 +485,14 @@ function PaymentPanel({ g }) {
   async function createReq(e) {
     e.preventDefault(); setError(''); setReqResult(null); setReqStatus(null)
     try {
-      const res = await api.createPaymentRequest(Number(reqForm.storeId), Number(reqForm.amount))
+      const res = await api.createPayRequest({ storeId: Number(reqForm.storeId), amount: Number(reqForm.amount) })
       setReqResult(res)
       // 폴링 시작
       const id = setInterval(async () => {
         try {
-          const st = await api.getPaymentRequest(res.requestId)
+          const st = await api.getPayRequest(res.requestId)
           setReqStatus(st)
-          if (['SUCCESS', 'FAILED', 'BLOCKED', 'EXPIRED'].includes(st.status)) {
+          if (['SUCCESS', 'FAILED', 'BLOCKED'].includes(st.status)) {
             clearInterval(id)
             setPollId(null)
           }
@@ -519,10 +523,11 @@ function PaymentPanel({ g }) {
         <DataTable
           columns={[
             { key: 'paymentId', label: 'ID' },
-            { key: 'storeId', label: '매장' },
+            { key: 'storeName', label: '매장' },
             { key: 'amount', label: '금액', render: v => <strong>{Number(v).toLocaleString()}원</strong> },
             { key: 'status', label: '상태', render: v => <StatusBadge status={v} /> },
             { key: 'authMethod', label: '인증방식' },
+            { key: 'fdsAction', label: 'FDS' },
             { key: 'earnedPoints', label: '적립포인트' },
           ]}
           data={payments}
@@ -536,8 +541,11 @@ function PaymentPanel({ g }) {
               <div className="info-item"><span className="info-label">상태</span><StatusBadge status={detail.status} /></div>
               <div className="info-item"><span className="info-label">인증방식</span><span>{detail.authMethod}</span></div>
               <div className="info-item"><span className="info-label">인증레벨</span><span>{detail.authLevel}</span></div>
-              <div className="info-item"><span className="info-label">유사도</span><span>{detail.similarity}</span></div>
+              <div className="info-item"><span className="info-label">얼굴거리</span><span>{detail.faceDistance}</span></div>
+              <div className="info-item"><span className="info-label">Liveness</span><span>{detail.livenessPass ? '통과' : '-'}</span></div>
+              <div className="info-item"><span className="info-label">PIN 인증</span><span>{detail.pinVerified ? '완료' : '-'}</span></div>
               <div className="info-item"><span className="info-label">FDS 점수</span><span>{detail.fdsScore}</span></div>
+              <div className="info-item"><span className="info-label">FDS 조치</span><span>{detail.fdsAction}</span></div>
               <div className="info-item"><span className="info-label">적립포인트</span><span>{detail.earnedPoints}</span></div>
               <div className="info-item"><span className="info-label">SSAFY TX</span><span className="mono">{detail.ssafyTransactionId}</span></div>
             </div>
@@ -557,7 +565,7 @@ function PaymentPanel({ g }) {
           <div className="result-inline">
             <span>Request ID: <strong className="mono">{reqResult.requestId}</strong></span>
             {reqStatus && <StatusBadge status={reqStatus.status} />}
-            {reqStatus?.status === 'PENDING' && <LoadingSpinner />}
+            {reqStatus && ['PENDING', 'PROCESSING', 'PAUSED'].includes(reqStatus.status) && <LoadingSpinner />}
             {reqStatus?.failureReason && <span className="error-text">{reqStatus.failureReason}</span>}
           </div>
         )}
@@ -997,11 +1005,20 @@ function NotificationPanel({ g }) {
     catch (e) { setError(e.message) }
   }
 
+  async function markAllRead() {
+    if (!g.userNo) return
+    try { await api.markAllNotificationsRead(g.userNo); loadNotifs(); toast.success('모두 읽음 처리 완료') }
+    catch (e) { setError(e.message) }
+  }
+
   return (
     <div className="panel">
       <div className="panel-header">
         <h3>알림 관리 {unread && <span className="badge-count">{unread.unreadCount}</span>}</h3>
-        <button className="btn-sm btn-primary" onClick={loadNotifs} disabled={!g.userNo}>알림 조회</button>
+        <div className="btn-group">
+          <button className="btn-sm btn-primary" onClick={loadNotifs} disabled={!g.userNo}>알림 조회</button>
+          <button className="btn-sm btn-outline" onClick={markAllRead} disabled={!g.userNo}>모두 읽음</button>
+        </div>
       </div>
       {error && <div className="error-msg">{error}</div>}
 
@@ -1021,7 +1038,7 @@ function NotificationPanel({ g }) {
           { key: 'body', label: '내용' },
           { key: 'type', label: '유형' },
           { key: 'isRead', label: '읽음', render: v => v ? '✅' : '❌' },
-          { key: 'createdAt', label: '일시', render: v => v ? new Date(v).toLocaleString('ko-KR') : '-' },
+          { key: 'sent', label: '일시', render: v => v ? new Date(v).toLocaleString('ko-KR') : '-' },
         ]}
         data={notifs}
         actions={row => !row.isRead ? (
@@ -1240,23 +1257,361 @@ function SettingsPanel({ g, setG }) {
 }
 
 
+function NoticePanel() {
+  const toast = useToast()
+  const [notices, setNotices] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [form, setForm] = useState({ title: '', content: '', category: '' })
+  const [editId, setEditId] = useState(null)
+
+  async function loadNotices() {
+    setLoading(true); setError('')
+    try { setNotices(await api.getNotices()) }
+    catch (e) { setError(e.message) }
+    setLoading(false)
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault(); setError('')
+    try {
+      if (editId) {
+        await api.updateNotice(editId, form)
+      } else {
+        await api.createNotice(form)
+      }
+      setForm({ title: '', content: '', category: '' })
+      setEditId(null)
+      loadNotices()
+    } catch (e) { setError(e.message) }
+  }
+
+  async function handleDelete(id) {
+    if (!confirm('공지사항을 삭제하시겠습니까?')) return
+    try { await api.deleteNotice(id); loadNotices() }
+    catch (e) { setError(e.message) }
+  }
+
+  async function handleNotify(id) {
+    try {
+      const res = await api.notifyNotice(id)
+      toast.success(`공지 알림 발송! 성공: ${res.successCount}건`)
+    } catch (e) { setError(e.message) }
+  }
+
+  return (
+    <div className="panel">
+      <div className="panel-header">
+        <h3>공지사항</h3>
+        <button className="btn-sm btn-primary" onClick={loadNotices} disabled={loading}>목록 조회</button>
+      </div>
+      {error && <div className="error-msg">{error}</div>}
+
+      <div className="sub-section">
+        <h4>{editId ? `공지 수정 (#${editId})` : '공지 작성'}</h4>
+        <form className="form-grid" onSubmit={handleSubmit}>
+          <div className="field full"><label>제목</label><input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required /></div>
+          <div className="field full"><label>내용</label><textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} rows={3} required /></div>
+          <div className="field"><label>카테고리</label><input value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} placeholder="선택" /></div>
+          <div className="field full btn-group">
+            <button type="submit" className="btn-sm btn-primary">{editId ? '수정' : '등록'}</button>
+            {editId && <button type="button" className="btn-sm btn-outline" onClick={() => { setEditId(null); setForm({ title: '', content: '', category: '' }) }}>취소</button>}
+          </div>
+        </form>
+      </div>
+
+      <DataTable
+        columns={[
+          { key: 'noticeId', label: 'ID' },
+          { key: 'title', label: '제목' },
+          { key: 'category', label: '카테고리' },
+          { key: 'createdAt', label: '작성일', render: v => v ? new Date(v).toLocaleString('ko-KR') : '-' },
+        ]}
+        data={notices}
+        actions={row => (
+          <>
+            <button className="btn-xs btn-outline" onClick={e => { e.stopPropagation(); setEditId(row.noticeId); setForm({ title: row.title, content: row.content || '', category: row.category || '' }) }}>수정</button>
+            <button className="btn-xs btn-primary" onClick={e => { e.stopPropagation(); handleNotify(row.noticeId) }}>알림</button>
+            <button className="btn-xs btn-danger" onClick={e => { e.stopPropagation(); handleDelete(row.noticeId) }}>삭제</button>
+          </>
+        )}
+      />
+    </div>
+  )
+}
+
+function AddressPanel({ g }) {
+  const toast = useToast()
+  const [addresses, setAddresses] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [form, setForm] = useState({ addressName: '', roadAddress: '', detailAddress: '', zipCode: '' })
+  const [editId, setEditId] = useState(null)
+
+  async function loadAddresses() {
+    if (!g.userNo) return
+    setLoading(true); setError('')
+    try { setAddresses(await api.getAddresses(g.userNo)) }
+    catch (e) { setError(e.message) }
+    setLoading(false)
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault(); setError('')
+    try {
+      if (editId) {
+        await api.updateAddress(g.userNo, editId, form)
+      } else {
+        await api.createAddress(g.userNo, form)
+      }
+      setForm({ addressName: '', roadAddress: '', detailAddress: '', zipCode: '' })
+      setEditId(null)
+      loadAddresses()
+    } catch (e) { setError(e.message) }
+  }
+
+  async function handleDelete(id) {
+    if (!confirm('주소를 삭제하시겠습니까?')) return
+    try { await api.deleteAddress(g.userNo, id); loadAddresses() }
+    catch (e) { setError(e.message) }
+  }
+
+  async function handleSetDefault(id) {
+    try { await api.setDefaultAddress(g.userNo, id); loadAddresses(); toast.success('기본 주소로 설정 완료') }
+    catch (e) { setError(e.message) }
+  }
+
+  return (
+    <div className="panel">
+      <div className="panel-header">
+        <h3>주소 관리</h3>
+        <button className="btn-sm btn-primary" onClick={loadAddresses} disabled={!g.userNo || loading}>주소 조회</button>
+      </div>
+      {error && <div className="error-msg">{error}</div>}
+      {!g.userNo && <p className="hint">UserNo를 설정하세요</p>}
+
+      <div className="sub-section">
+        <h4>{editId ? `주소 수정 (#${editId})` : '주소 등록'}</h4>
+        <form className="form-grid" onSubmit={handleSubmit}>
+          <div className="field"><label>주소명</label><input value={form.addressName} onChange={e => setForm(p => ({ ...p, addressName: e.target.value }))} placeholder="집, 회사 등" required /></div>
+          <div className="field"><label>우편번호</label><input value={form.zipCode} onChange={e => setForm(p => ({ ...p, zipCode: e.target.value }))} /></div>
+          <div className="field full"><label>도로명 주소</label><input value={form.roadAddress} onChange={e => setForm(p => ({ ...p, roadAddress: e.target.value }))} required /></div>
+          <div className="field full"><label>상세 주소</label><input value={form.detailAddress} onChange={e => setForm(p => ({ ...p, detailAddress: e.target.value }))} /></div>
+          <div className="field full btn-group">
+            <button type="submit" className="btn-sm btn-primary">{editId ? '수정' : '등록'}</button>
+            {editId && <button type="button" className="btn-sm btn-outline" onClick={() => { setEditId(null); setForm({ addressName: '', roadAddress: '', detailAddress: '', zipCode: '' }) }}>취소</button>}
+          </div>
+        </form>
+      </div>
+
+      <DataTable
+        columns={[
+          { key: 'addressId', label: 'ID' },
+          { key: 'addressName', label: '주소명' },
+          { key: 'roadAddress', label: '도로명 주소' },
+          { key: 'detailAddress', label: '상세 주소' },
+          { key: 'isDefault', label: '기본', render: v => v ? '✅' : '-' },
+        ]}
+        data={addresses}
+        actions={row => (
+          <>
+            {!row.isDefault && <button className="btn-xs btn-outline" onClick={e => { e.stopPropagation(); handleSetDefault(row.addressId) }}>기본</button>}
+            <button className="btn-xs btn-outline" onClick={e => { e.stopPropagation(); setEditId(row.addressId); setForm({ addressName: row.addressName || '', roadAddress: row.roadAddress || '', detailAddress: row.detailAddress || '', zipCode: row.zipCode || '' }) }}>수정</button>
+            <button className="btn-xs btn-danger" onClick={e => { e.stopPropagation(); handleDelete(row.addressId) }}>삭제</button>
+          </>
+        )}
+      />
+    </div>
+  )
+}
+
+function RecommendPanel() {
+  const [stores, setStores] = useState([])
+  const [dongs, setDongs] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [filter, setFilter] = useState({ dong: '', category: '', sort: '' })
+
+  async function loadDongs() {
+    try { setDongs(await api.getRecommendDongs()) }
+    catch (e) { setError(e.message) }
+  }
+
+  async function loadStores() {
+    setLoading(true); setError('')
+    try { setStores(await api.getRecommendStores(filter.dong || undefined, filter.category || undefined, filter.sort || undefined)) }
+    catch (e) { setError(e.message) }
+    setLoading(false)
+  }
+
+  useEffect(() => { loadDongs() }, [])
+
+  return (
+    <div className="panel">
+      <div className="panel-header"><h3>추천 매장</h3></div>
+      {error && <div className="error-msg">{error}</div>}
+      <div className="inline-form">
+        <div className="field compact">
+          <label>동</label>
+          <select value={filter.dong} onChange={e => setFilter(p => ({ ...p, dong: e.target.value }))}>
+            <option value="">전체</option>
+            {dongs.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </div>
+        <div className="field compact"><label>카테고리</label><input value={filter.category} onChange={e => setFilter(p => ({ ...p, category: e.target.value }))} placeholder="선택" /></div>
+        <div className="field compact">
+          <label>정렬</label>
+          <select value={filter.sort} onChange={e => setFilter(p => ({ ...p, sort: e.target.value }))}>
+            <option value="">기본</option>
+            <option value="rating">평점순</option>
+            <option value="distance">거리순</option>
+          </select>
+        </div>
+        <button className="btn-sm btn-primary" onClick={loadStores} disabled={loading}>조회</button>
+      </div>
+      <DataTable
+        columns={[
+          { key: 'storeId', label: 'ID' },
+          { key: 'storeName', label: '매장명' },
+          { key: 'categoryName', label: '카테고리' },
+          { key: 'roadAddress', label: '주소' },
+          { key: 'rating', label: '평점' },
+          { key: 'facePayEnabled', label: 'FacePay', render: v => v ? '✅' : '❌' },
+        ]}
+        data={stores}
+      />
+    </div>
+  )
+}
+
+function NotificationSettingPanel({ g }) {
+  const toast = useToast()
+  const [settings, setSettings] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  async function loadSettings() {
+    if (!g.userNo) return
+    setLoading(true); setError('')
+    try { setSettings(await api.getNotificationSettings(g.userNo)) }
+    catch (e) { setError(e.message); setSettings(null) }
+    setLoading(false)
+  }
+
+  async function createSettings() {
+    if (!g.userNo) return
+    setError('')
+    try { setSettings(await api.createNotificationSettings(g.userNo)); toast.success('알림 설정 생성 완료') }
+    catch (e) { setError(e.message) }
+  }
+
+  async function toggleSetting(key) {
+    if (!settings) return
+    const updated = { ...settings, [key]: !settings[key] }
+    setError('')
+    try { setSettings(await api.updateNotificationSettings(g.userNo, updated)); toast.success('설정 변경 완료') }
+    catch (e) { setError(e.message) }
+  }
+
+  return (
+    <div className="panel">
+      <div className="panel-header">
+        <h3>알림 설정</h3>
+        <div className="btn-group">
+          <button className="btn-sm btn-primary" onClick={loadSettings} disabled={!g.userNo || loading}>조회</button>
+          <button className="btn-sm btn-outline" onClick={createSettings} disabled={!g.userNo}>초기 생성</button>
+        </div>
+      </div>
+      {error && <div className="error-msg">{error}</div>}
+      {!g.userNo && <p className="hint">UserNo를 설정하세요</p>}
+
+      {settings && (
+        <div className="info-grid">
+          {Object.entries(settings).filter(([k]) => k !== 'userNo' && k !== 'settingId').map(([key, val]) => (
+            <div key={key} className="info-item" style={{ cursor: typeof val === 'boolean' ? 'pointer' : 'default' }} onClick={() => typeof val === 'boolean' && toggleSetting(key)}>
+              <span className="info-label">{key}</span>
+              <span>{typeof val === 'boolean' ? (val ? '✅ ON' : '❌ OFF') : String(val ?? '-')}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <JsonViewer data={settings} />
+    </div>
+  )
+}
+
 // ── 메인 Admin 컴포넌트 ──
-const MENU = [
-  { id: 'dashboard', label: '대시보드', icon: '📊' },
-  { id: 'settings', label: '로그인/설정', icon: '⚙️' },
-  { id: 'user', label: '회원 관리', icon: '👤' },
-  { id: 'account', label: '계좌/이체', icon: '🏦' },
-  { id: 'card', label: '카드', icon: '💳' },
-  { id: 'store', label: '매장 관리', icon: '🏪' },
-  { id: 'payment', label: '결제 관리', icon: '💰' },
-  { id: 'point', label: '포인트', icon: '⭐' },
-  { id: 'product', label: '포인트 상품', icon: '🎁' },
-  { id: 'transaction', label: '거래내역', icon: '📋' },
-  { id: 'report', label: '소비 리포트', icon: '📈' },
-  { id: 'notification', label: '알림', icon: '🔔' },
-  { id: 'festival', label: '축제/이벤트', icon: '🎉' },
-  { id: 'monitoring', label: '모니터링', icon: '🛡️' },
+const MENU_SECTIONS = [
+  {
+    label: 'OVERVIEW',
+    items: [
+      { id: 'dashboard', label: '대시보드', icon: '📊' },
+      { id: 'settings', label: '로그인/설정', icon: '⚙️' },
+    ],
+  },
+  {
+    label: '회원/금융',
+    items: [
+      { id: 'user', label: '회원 관리', icon: '👤' },
+      { id: 'account', label: '계좌/이체', icon: '🏦' },
+      { id: 'card', label: '카드', icon: '💳' },
+      { id: 'address', label: '주소 관리', icon: '📍' },
+    ],
+  },
+  {
+    label: '매장/결제',
+    items: [
+      { id: 'store', label: '매장 관리', icon: '🏪' },
+      { id: 'recommend', label: '추천 매장', icon: '🌟' },
+      { id: 'payment', label: '결제 관리', icon: '💰' },
+      { id: 'transaction', label: '거래내역', icon: '📋' },
+    ],
+  },
+  {
+    label: '포인트/혜택',
+    items: [
+      { id: 'point', label: '포인트', icon: '⭐' },
+      { id: 'product', label: '포인트 상품', icon: '🎁' },
+      { id: 'report', label: '소비 리포트', icon: '📈' },
+    ],
+  },
+  {
+    label: '소통/운영',
+    items: [
+      { id: 'notification', label: '알림', icon: '🔔' },
+      { id: 'notif-setting', label: '알림 설정', icon: '🔧' },
+      { id: 'notice', label: '공지사항', icon: '📢' },
+      { id: 'festival', label: '축제/이벤트', icon: '🎉' },
+    ],
+  },
+  {
+    label: '시스템',
+    items: [
+      { id: 'monitoring', label: '모니터링', icon: '🛡️' },
+    ],
+  },
 ]
+
+const PANEL_TITLES = {
+  dashboard: '대시보드',
+  settings: '로그인/설정',
+  user: '회원 관리',
+  account: '계좌/이체',
+  card: '카드 관리',
+  address: '주소 관리',
+  store: '매장 관리',
+  recommend: '추천 매장',
+  payment: '결제 관리',
+  transaction: '거래내역',
+  point: '포인트',
+  product: '포인트 상품',
+  report: '소비 리포트',
+  notification: '알림',
+  'notif-setting': '알림 설정',
+  notice: '공지사항',
+  festival: '축제/이벤트',
+  monitoring: '모니터링',
+}
 
 export default function AdminPage({ onGoPOS }) {
   const [active, setActive] = useState('dashboard')
@@ -1289,6 +1644,10 @@ export default function AdminPage({ onGoPOS }) {
       case 'transaction': return <TransactionPanel g={globals} />
       case 'report': return <ReportPanel g={globals} />
       case 'notification': return <NotificationPanel g={globals} />
+      case 'notif-setting': return <NotificationSettingPanel g={globals} />
+      case 'notice': return <NoticePanel />
+      case 'address': return <AddressPanel g={globals} />
+      case 'recommend': return <RecommendPanel />
       case 'festival': return <FestivalPanel />
       case 'monitoring': return <MonitoringPanel g={globals} />
       default: return null
@@ -1342,19 +1701,36 @@ export default function AdminPage({ onGoPOS }) {
             <button className="sidebar-toggle" onClick={() => setCollapsed(p => !p)}>
               {collapsed ? '▶' : '◀'}
             </button>
-            {MENU.map(m => (
-              <button
-                key={m.id}
-                className={`sidebar-item ${active === m.id ? 'active' : ''}`}
-                onClick={() => setActive(m.id)}
-                title={m.label}
-              >
-                <span className="sidebar-icon">{m.icon}</span>
-                {!collapsed && <span className="sidebar-label">{m.label}</span>}
-              </button>
-            ))}
+            <div className="sidebar-scroll">
+              {MENU_SECTIONS.map((section, si) => (
+                <div key={si} className="sidebar-section">
+                  {!collapsed && <div className="sidebar-section-label">{section.label}</div>}
+                  {section.items.map(m => (
+                    <button
+                      key={m.id}
+                      className={`sidebar-item ${active === m.id ? 'active' : ''}`}
+                      onClick={() => setActive(m.id)}
+                      title={m.label}
+                    >
+                      <span className="sidebar-icon">{m.icon}</span>
+                      {!collapsed && <span className="sidebar-label">{m.label}</span>}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
           </nav>
           <main className="admin-content" key={active}>
+            {active !== 'dashboard' && (
+              <div className="content-header">
+                <h2 className="content-title">{PANEL_TITLES[active] || active}</h2>
+                <div className="content-breadcrumb">
+                  <span onClick={() => setActive('dashboard')} className="breadcrumb-link">홈</span>
+                  <span className="breadcrumb-sep">/</span>
+                  <span>{PANEL_TITLES[active]}</span>
+                </div>
+              </div>
+            )}
             {renderPanel()}
           </main>
         </div>
