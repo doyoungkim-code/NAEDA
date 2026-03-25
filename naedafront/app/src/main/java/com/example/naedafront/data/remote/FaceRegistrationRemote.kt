@@ -62,12 +62,26 @@ data class VerifyPinRequestBody(
     val pin: String
 )
 
+data class VerifyPasswordRequestBody(
+    val password: String
+)
+
+data class ResetPinWithPasswordRequestBody(
+    val password: String,
+    val newPin: String
+)
+
 data class PinUpdateResponseDto(
     val pinSet: Boolean,
     val message: String? = null
 )
 
 data class PinVerifyResponseDto(
+    val verified: Boolean,
+    val message: String? = null
+)
+
+data class PasswordVerifyResponseDto(
     val verified: Boolean,
     val message: String? = null
 )
@@ -136,8 +150,18 @@ private interface FaceRegistrationApiService {
         @Body request: VerifyPinRequestBody
     ): PinVerifyResponseDto
 
+    @POST("api/users/me/pin/password-verify")
+    suspend fun verifyPasswordForPinReset(
+        @Body request: VerifyPasswordRequestBody
+    ): PasswordVerifyResponseDto
+
     @GET("api/users/me/face-pay-settings")
     suspend fun getFacePaySettings(): FacePaySettingsResponseDto
+
+    @PUT("api/users/me/pin/reset-with-password")
+    suspend fun resetPinWithPassword(
+        @Body request: ResetPinWithPasswordRequestBody
+    ): PinUpdateResponseDto
 
     @PUT("api/users/me/face-pay-settings")
     suspend fun updateFacePaySettings(
@@ -231,6 +255,27 @@ object FaceRegistrationRepository {
             service.verifyPin(body)
         }.getOrElse { throwable ->
             throw toReadableException(throwable, "현재 PIN 확인에 실패했습니다.")
+        }
+    }
+
+    suspend fun verifyPasswordForPinReset(password: String): PasswordVerifyResponseDto {
+        val body = VerifyPasswordRequestBody(password = password)
+        return runCatching {
+            service.verifyPasswordForPinReset(body)
+        }.getOrElse { throwable ->
+            throw toReadableException(throwable, "비밀번호 확인에 실패했습니다.")
+        }
+    }
+
+    suspend fun resetPinWithPassword(password: String, newPin: String): PinUpdateResponseDto {
+        val body = ResetPinWithPasswordRequestBody(
+            password = password,
+            newPin = newPin.trim()
+        )
+        return runCatching {
+            service.resetPinWithPassword(body)
+        }.getOrElse { throwable ->
+            throw toReadableException(throwable, "PIN 재설정에 실패했습니다.")
         }
     }
 

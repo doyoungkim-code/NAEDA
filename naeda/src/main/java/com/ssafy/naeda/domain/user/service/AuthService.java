@@ -328,6 +328,14 @@ public class AuthService {
                     TimeUnit.MILLISECONDS
             );
         }
+        // 5. FCM 토큰 제거 (로그아웃 후 푸시 알림 차단)
+        User user = userRepository.findByUserId(userId)
+                .orElse(null);
+        if (user != null) {
+            user.clearFcmToken();
+            userRepository.save(user);
+        }
+
 
         log.info("[AuthService] 로그아웃 완료: userId = {}", userId);
     }

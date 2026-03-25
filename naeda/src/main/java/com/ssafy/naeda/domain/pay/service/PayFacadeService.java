@@ -5,6 +5,7 @@ import com.ssafy.naeda.domain.account.repository.AccountRepository;
 import com.ssafy.naeda.domain.card.repository.CreditCardRepository;
 import com.ssafy.naeda.domain.card.repository.DebitCardRepository;
 import com.ssafy.naeda.domain.consumption.client.ConsumptionMonthlyInsightAiClient;
+import com.ssafy.naeda.domain.face.dto.response.FaceMatchStatus;
 import com.ssafy.naeda.domain.fds.dto.request.FdsEvaluationRequest;
 import com.ssafy.naeda.domain.fds.dto.response.FdsEvaluationResult;
 import com.ssafy.naeda.domain.fds.entity.FdsAction;
@@ -21,6 +22,8 @@ import com.ssafy.naeda.domain.pay.lock.PayRateLimiter;
 import com.ssafy.naeda.domain.pay.repository.PayMethodRepository;
 import com.ssafy.naeda.domain.point.dto.request.PointEarnRequest;
 import com.ssafy.naeda.domain.point.service.PointService;
+import com.ssafy.naeda.domain.rba.dto.AuthMethod;
+import com.ssafy.naeda.domain.rba.service.PhoneVerificationService;
 import com.ssafy.naeda.domain.store.entity.Store;
 import com.ssafy.naeda.domain.store.repository.StoreRepository;
 import com.ssafy.naeda.domain.transaction.entity.TransactionLog;
@@ -80,6 +83,7 @@ public class PayFacadeService {
     private final FcmService fcmService;
     private final PayLimitService payLimitService;
     private final ConsumptionMonthlyInsightAiClient consumptionMonthlyInsightAiClient;
+    private final PhoneVerificationService phoneVerificationService;
 
 
     private static final String CREDIT_CARD_API = "/edu/creditCard/createCreditCardTransaction";
@@ -88,6 +92,9 @@ public class PayFacadeService {
 
     @Value("${payment.point.rate:0.05}")
     private double pointRate;
+
+    @Value("${rba.high-amount:50000}")
+    private long highAmountThreshold;
 
     // ============================================================
     // 페이스페이 통합 결제 — POST /api/pay-requests/{id}/process
@@ -98,7 +105,13 @@ public class PayFacadeService {
 
     @SuppressWarnings("unchecked")
     public PayTransaction processFacePayment(Long requestId,
-                                             Long userNo, String idempotencyKey, String pin) {
+                                             Long userNo,
+                                             String idempotencyKey,
+                                             String pin,
+                                             String phoneMiddleDigits,
+                                             FaceMatchStatus faceStatus,
+                                             AuthMethod selectedAuthMethod,
+                                             Boolean signatureConfirmed) {
 
         // 1. 멱등성 체크
         if (payDbService.existsByIdempotencyKey(idempotencyKey)) {
@@ -175,17 +188,16 @@ public class PayFacadeService {
 
             payLimitService.validatePaymentLimit(user.getUserNo(),amount,todaySum,monthSum);
 
-            // 9. PIN 2차 인증 (pin이 전달된 경우 검증)
-            boolean pinVerified = false;
-            if (pin != null && !pin.isBlank()) {
-                if (user.getPinPassword() == null) {
-                    throw new BadRequestException("PIN이 설정되지 않았습니다.");
-                }
-                if (!passwordEncoder.matches(pin, user.getPinPassword())) {
-                    throw new BadRequestException("PIN이 일치하지 않습니다.");
-                }
-                pinVerified = true;
-            }
+            FaceAuthValidation authValidation = validateFaceAuth(
+                    user,
+                    amount,
+                    faceStatus,
+                    selectedAuthMethod,
+                    pin,
+                    phoneMiddleDigits,
+                    signatureConfirmed
+            );
+            boolean pinVerified = authValidation.pinVerified();
 
             // 10. FDS 평가
             FdsEvaluationResult fdsResult;
@@ -205,7 +217,7 @@ public class PayFacadeService {
                     .idempotencyKey(idempotencyKey)
                     .status(PayStatus.FAILED)
                     .authMethod(paymentMethod.getMethodType().name())
-                    .authLevel("FACE_PAY")
+                    .authLevel(authValidation.authLevel())
                     .livenessPass(true)
                     .pinVerified(pinVerified)
                     .fdsScore(fdsResult.getAnomalyScore())
@@ -273,11 +285,86 @@ public class PayFacadeService {
 
         } catch (Exception e) {
             log.error("[Pay] 결제 실패: requestId={}", requestId, e);
+            failRequest(requestId, e.getMessage());
             throw e;
         } finally {
             // ★ 반드시 락 해제
             distributedLock.release("request:" + requestId, lockOwner);
         }
+    }
+
+    private FaceAuthValidation validateFaceAuth(User user,
+                                                Long amount,
+                                                FaceMatchStatus faceStatus,
+                                                AuthMethod selectedAuthMethod,
+                                                String pin,
+                                                String phoneMiddleDigits,
+                                                Boolean signatureConfirmed) {
+        if (faceStatus == null || faceStatus == FaceMatchStatus.NO_MATCH) {
+            throw new BadRequestException("얼굴을 다시 인식해 주세요.");
+        }
+
+        boolean pinVerified = false;
+        String authLevel = "FACE_ONLY";
+
+        if (faceStatus == FaceMatchStatus.MATCH) {
+            if (Boolean.TRUE.equals(user.getSecondaryAuthEnabled())) {
+                if (selectedAuthMethod != AuthMethod.PIN) {
+                    throw new BadRequestException("PIN 번호를 입력해 주세요.");
+                }
+                verifyPin(user, pin);
+                pinVerified = true;
+                authLevel = "FACE_PIN";
+            }
+        } else if (faceStatus == FaceMatchStatus.AMBIGUOUS) {
+            if (selectedAuthMethod == AuthMethod.PIN) {
+                verifyPin(user, pin);
+                pinVerified = true;
+                authLevel = "FACE_PIN";
+            } else if (selectedAuthMethod == AuthMethod.PHONE) {
+                verifyPhone(user, phoneMiddleDigits);
+                authLevel = "FACE_PHONE";
+            } else {
+                throw new BadRequestException("PIN 번호 또는 전화번호 4자리 인증이 필요합니다.");
+            }
+        }
+
+        if (amount >= highAmountThreshold) {
+            if (!Boolean.TRUE.equals(signatureConfirmed)) {
+                throw new BadRequestException("5만원 이상 결제는 서명이 필요합니다.");
+            }
+            authLevel = switch (authLevel) {
+                case "FACE_PIN" -> "FACE_PIN_SIGNATURE";
+                case "FACE_PHONE" -> "FACE_PHONE_SIGNATURE";
+                default -> "FACE_SIGNATURE";
+            };
+        }
+
+        return new FaceAuthValidation(authLevel, pinVerified);
+    }
+
+    private void verifyPin(User user, String pin) {
+        if (pin == null || pin.isBlank()) {
+            throw new BadRequestException("PIN 번호를 입력해 주세요.");
+        }
+        if (user.getPinPassword() == null) {
+            throw new BadRequestException("PIN이 설정되지 않았습니다.");
+        }
+        if (!passwordEncoder.matches(pin, user.getPinPassword())) {
+            throw new BadRequestException("PIN이 일치하지 않습니다.");
+        }
+    }
+
+    private void verifyPhone(User user, String phoneMiddleDigits) {
+        if (phoneMiddleDigits == null || phoneMiddleDigits.isBlank()) {
+            throw new BadRequestException("전화번호 가운데 4자리를 입력해 주세요.");
+        }
+        if (!phoneVerificationService.verify(user.getUserNo(), phoneMiddleDigits)) {
+            throw new BadRequestException("전화번호 가운데 4자리가 일치하지 않습니다.");
+        }
+    }
+
+    private record FaceAuthValidation(String authLevel, boolean pinVerified) {
     }
 
     // ============================================================

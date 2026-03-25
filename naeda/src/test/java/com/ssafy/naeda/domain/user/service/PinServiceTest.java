@@ -1,7 +1,10 @@
 package com.ssafy.naeda.domain.user.service;
 
+import com.ssafy.naeda.domain.user.dto.request.ResetPinWithPasswordRequest;
 import com.ssafy.naeda.domain.user.dto.request.UpdatePinRequest;
+import com.ssafy.naeda.domain.user.dto.request.VerifyPasswordRequest;
 import com.ssafy.naeda.domain.user.dto.request.VerifyPinRequest;
+import com.ssafy.naeda.domain.user.dto.response.PasswordVerifyResponse;
 import com.ssafy.naeda.domain.user.dto.response.PinUpdateResponse;
 import com.ssafy.naeda.domain.user.dto.response.PinVerifyResponse;
 import com.ssafy.naeda.domain.user.entity.User;
@@ -32,6 +35,37 @@ class PinServiceTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Test
+    @DisplayName("로그인 비밀번호가 맞으면 검증을 통과한다")
+    void verifyAccountPassword_succeeds() {
+        User user = baseUser()
+                .password("encoded-password")
+                .pinPassword("encoded-old-pin")
+                .build();
+        given(userRepository.findByUserId("user-1")).willReturn(Optional.of(user));
+        given(passwordEncoder.matches("password1234!", "encoded-password")).willReturn(true);
+
+        PasswordVerifyResponse response = pinService.verifyAccountPassword("user-1", passwordRequest("password1234!"));
+
+        assertThat(response.isVerified()).isTrue();
+        assertThat(response.getMessage()).isEqualTo("비밀번호 확인이 완료되었습니다.");
+    }
+
+    @Test
+    @DisplayName("로그인 비밀번호가 다르면 검증에 실패한다")
+    void verifyAccountPassword_rejectsInvalidPassword() {
+        User user = baseUser()
+                .password("encoded-password")
+                .pinPassword("encoded-old-pin")
+                .build();
+        given(userRepository.findByUserId("user-1")).willReturn(Optional.of(user));
+        given(passwordEncoder.matches("wrong-password", "encoded-password")).willReturn(false);
+
+        assertThatThrownBy(() -> pinService.verifyAccountPassword("user-1", passwordRequest("wrong-password")))
+                .isInstanceOf(AuthenticationFailedException.class)
+                .hasMessage("비밀번호가 일치하지 않습니다.");
+    }
 
     @Test
     @DisplayName("현재 PIN이 맞으면 검증을 통과한다")
@@ -119,10 +153,56 @@ class PinServiceTest {
                 .hasMessage("현재 PIN이 일치하지 않습니다.");
     }
 
+    @Test
+    @DisplayName("비밀번호가 맞으면 기존 PIN과 무관하게 새 PIN으로 재설정한다")
+    void resetPinWithPassword_resetsPin() {
+        User user = baseUser()
+                .password("encoded-password")
+                .pinPassword("encoded-old-pin")
+                .build();
+        given(userRepository.findByUserId("user-1")).willReturn(Optional.of(user));
+        given(passwordEncoder.matches("password1234!", "encoded-password")).willReturn(true);
+        given(passwordEncoder.matches("654321", "encoded-old-pin")).willReturn(false);
+        given(passwordEncoder.encode("654321")).willReturn("encoded-new-pin");
+
+        PinUpdateResponse response = pinService.resetPinWithPassword("user-1", resetRequest("password1234!", "654321"));
+
+        assertThat(user.getPinPassword()).isEqualTo("encoded-new-pin");
+        assertThat(response.getMessage()).isEqualTo("PIN 재설정이 완료되었습니다.");
+    }
+
+    @Test
+    @DisplayName("비밀번호가 다르면 PIN을 재설정할 수 없다")
+    void resetPinWithPassword_rejectsInvalidPassword() {
+        User user = baseUser()
+                .password("encoded-password")
+                .pinPassword("encoded-old-pin")
+                .build();
+        given(userRepository.findByUserId("user-1")).willReturn(Optional.of(user));
+        given(passwordEncoder.matches("wrong-password", "encoded-password")).willReturn(false);
+
+        assertThatThrownBy(() -> pinService.resetPinWithPassword("user-1", resetRequest("wrong-password", "654321")))
+                .isInstanceOf(AuthenticationFailedException.class)
+                .hasMessage("비밀번호가 일치하지 않습니다.");
+    }
+
     private static UpdatePinRequest request(String currentPin, String newPin) {
         return UpdatePinRequest.builder()
                 .currentPin(currentPin)
                 .newPin(newPin)
+                .build();
+    }
+
+    private static ResetPinWithPasswordRequest resetRequest(String password, String newPin) {
+        return ResetPinWithPasswordRequest.builder()
+                .password(password)
+                .newPin(newPin)
+                .build();
+    }
+
+    private static VerifyPasswordRequest passwordRequest(String password) {
+        return VerifyPasswordRequest.builder()
+                .password(password)
                 .build();
     }
 
