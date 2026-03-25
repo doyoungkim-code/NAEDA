@@ -139,6 +139,7 @@ CREATE TABLE store (
     source_key        VARCHAR(120)   UNIQUE,                  -- 외부 데이터 고유 키
     image_url         VARCHAR(500),                           -- 대표 이미지 URL
     description       TEXT,                                   -- 매장 설명
+    is_recommended    BOOLEAN        NOT NULL DEFAULT FALSE,  -- 맛집 추천 여부
     is_active         BOOLEAN        NOT NULL DEFAULT TRUE,   -- 지도 노출 여부
     last_enriched_at  TIMESTAMP,                              -- 네이버 보강 시각
     created           TIMESTAMP      NOT NULL DEFAULT NOW()
