@@ -1,6 +1,7 @@
 package com.example.naedafront.ui.screen.mypage
 
 import android.widget.Toast
+import com.example.naedafront.AuthPrefs
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -47,7 +48,7 @@ private enum class PinChangeStep {
 }
 
 private const val MAX_PIN_ATTEMPTS = 5
-private const val LOCK_DURATION_MS = 30L * 60 * 1000 // 30분
+private const val LOCK_DURATION_MS = 30L * 1000 // 30초
 private const val PREFS_NAME = "pin_change_lock"
 private const val KEY_FAIL_COUNT = "fail_count"
 private const val KEY_LOCKED_UNTIL = "locked_until"
@@ -60,6 +61,17 @@ private fun formatPhone(digits: String): String {
     }
 }
 
+private fun formatLockDurationMessage(remainingSeconds: Long): String {
+    val min = remainingSeconds / 60
+    val sec = remainingSeconds % 60
+
+    return if (min > 0) {
+        "%d분 %02d초 후에 다시 시도해 주세요.".format(min, sec)
+    } else {
+        "${sec}초 후에 다시 시도해 주세요."
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PinChangeScreen(
@@ -68,6 +80,13 @@ fun PinChangeScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val prefs = remember { context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE) }
+    val pinLockScope = remember(context) {
+        AuthPrefs.getUserNo(context)?.toString()
+            ?: AuthPrefs.getUserId(context)
+            ?: "anonymous"
+    }
+    val failCountKey = remember(pinLockScope) { "${KEY_FAIL_COUNT}_$pinLockScope" }
+    val lockedUntilKey = remember(pinLockScope) { "${KEY_LOCKED_UNTIL}_$pinLockScope" }
 
     var step by remember { mutableStateOf(PinChangeStep.CURRENT_PIN) }
     var currentPin by remember { mutableStateOf("") }
@@ -75,8 +94,8 @@ fun PinChangeScreen(
     var isSaving by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    var failCount by remember { mutableIntStateOf(prefs.getInt(KEY_FAIL_COUNT, 0)) }
-    var lockedUntil by remember { mutableLongStateOf(prefs.getLong(KEY_LOCKED_UNTIL, 0L)) }
+    var failCount by remember(pinLockScope) { mutableIntStateOf(prefs.getInt(failCountKey, 0)) }
+    var lockedUntil by remember(pinLockScope) { mutableLongStateOf(prefs.getLong(lockedUntilKey, 0L)) }
     var remainingSeconds by remember { mutableLongStateOf(0L) }
     val isLocked = remainingSeconds > 0
 
@@ -99,7 +118,7 @@ fun PinChangeScreen(
             if (diff <= 0) {
                 remainingSeconds = 0
                 failCount = 0
-                prefs.edit().putInt(KEY_FAIL_COUNT, 0).putLong(KEY_LOCKED_UNTIL, 0L).apply()
+                prefs.edit().putInt(failCountKey, 0).putLong(lockedUntilKey, 0L).apply()
                 errorMessage = null
                 break
             }
@@ -148,10 +167,12 @@ fun PinChangeScreen(
             PinChangeStep.CURRENT_PIN -> onBackClick()
             PinChangeStep.NEW_PIN -> {
                 step = PinChangeStep.CURRENT_PIN
+                currentPin = ""
                 errorMessage = null
             }
             PinChangeStep.CONFIRM_PIN -> {
                 step = PinChangeStep.NEW_PIN
+                newPin = ""
                 errorMessage = null
             }
             PinChangeStep.RESET_PHONE -> {
@@ -474,9 +495,7 @@ fun PinChangeScreen(
 
                     val description = when {
                         isLocked && step == PinChangeStep.CURRENT_PIN -> {
-                            val min = remainingSeconds / 60
-                            val sec = remainingSeconds % 60
-                            "PIN 번호를 ${MAX_PIN_ATTEMPTS}회 잘못 입력하셨습니다.\n%d분 %02d초 후에 다시 시도해 주세요.".format(min, sec)
+                            "PIN 번호를 ${MAX_PIN_ATTEMPTS}회 잘못 입력하셨습니다.\n${formatLockDurationMessage(remainingSeconds)}"
                         }
                         else -> when (step) {
                             PinChangeStep.CURRENT_PIN -> "PIN 번호를 변경하려면\n현재 계정 PIN 확인이 필요합니다."
@@ -601,12 +620,52 @@ fun PinChangeScreen(
                                 if (pin.length == 6) {
                                     when (step) {
                                         PinChangeStep.CURRENT_PIN -> {
-                                            currentPin = pin
-                                            step = PinChangeStep.NEW_PIN
+                                            isSaving = true
+                                            scope.launch {
+                                                try {
+                                                    FaceRegistrationRepository.verifyPin(pin)
+                                                    currentPin = pin
+                                                    failCount = 0
+                                                    lockedUntil = 0L
+                                                    prefs.edit()
+                                                        .putInt(failCountKey, 0)
+                                                        .putLong(lockedUntilKey, 0L)
+                                                        .apply()
+                                                    errorMessage = null
+                                                    pinResetKey++
+                                                    step = PinChangeStep.NEW_PIN
+                                                } catch (e: Exception) {
+                                                    val nextFailCount = failCount + 1
+                                                    failCount = nextFailCount
+                                                    if (nextFailCount >= MAX_PIN_ATTEMPTS) {
+                                                        val until = System.currentTimeMillis() + LOCK_DURATION_MS
+                                                        lockedUntil = until
+                                                        remainingSeconds = LOCK_DURATION_MS / 1000
+                                                        prefs.edit()
+                                                            .putInt(failCountKey, nextFailCount)
+                                                            .putLong(lockedUntilKey, until)
+                                                            .apply()
+                                                    } else {
+                                                        prefs.edit().putInt(failCountKey, nextFailCount).apply()
+                                                        errorMessage = "현재 PIN 번호가 올바르지 않습니다.\n다시 입력해 주세요. (${nextFailCount}/${MAX_PIN_ATTEMPTS})"
+                                                    }
+                                                    currentPin = ""
+                                                    newPin = ""
+                                                    pinResetKey++
+                                                    step = PinChangeStep.CURRENT_PIN
+                                                } finally {
+                                                    isSaving = false
+                                                }
+                                            }
                                         }
                                         PinChangeStep.NEW_PIN -> {
-                                            newPin = pin
-                                            step = PinChangeStep.CONFIRM_PIN
+                                            if (pin == currentPin) {
+                                                errorMessage = "새 PIN 번호는 현재 PIN 번호와 다르게 입력해 주세요."
+                                                pinResetKey++
+                                            } else {
+                                                newPin = pin
+                                                step = PinChangeStep.CONFIRM_PIN
+                                            }
                                         }
                                         PinChangeStep.CONFIRM_PIN -> {
                                             if (pin == newPin) {
@@ -626,9 +685,9 @@ fun PinChangeScreen(
                                                             val until = System.currentTimeMillis() + LOCK_DURATION_MS
                                                             lockedUntil = until
                                                             remainingSeconds = LOCK_DURATION_MS / 1000
-                                                            prefs.edit().putInt(KEY_FAIL_COUNT, failCount).putLong(KEY_LOCKED_UNTIL, until).apply()
+                                                            prefs.edit().putInt(failCountKey, failCount).putLong(lockedUntilKey, until).apply()
                                                         } else {
-                                                            prefs.edit().putInt(KEY_FAIL_COUNT, failCount).apply()
+                                                            prefs.edit().putInt(failCountKey, failCount).apply()
                                                             errorMessage = "현재 PIN 번호가 올바르지 않습니다.\n다시 입력해 주세요. (${failCount}/${MAX_PIN_ATTEMPTS})"
                                                         }
                                                         currentPin = ""
@@ -638,7 +697,7 @@ fun PinChangeScreen(
                                                     }
                                                 }
                                             } else {
-                                                errorMessage = "PIN 번호가 일치하지 않습니다. 다시 입력해 주세요."
+                                                errorMessage = "처음 입력한 PIN 번호와 다릅니다.\n다시 입력해 주세요."
                                                 pinResetKey++
                                             }
                                         }
@@ -658,7 +717,7 @@ fun PinChangeScreen(
                                                         // 잠금 및 실패 횟수 초기화
                                                         failCount = 0
                                                         lockedUntil = 0L
-                                                        prefs.edit().putInt(KEY_FAIL_COUNT, 0).putLong(KEY_LOCKED_UNTIL, 0L).apply()
+                                                        prefs.edit().putInt(failCountKey, 0).putLong(lockedUntilKey, 0L).apply()
                                                         Toast.makeText(context, "PIN 번호가 변경되었습니다.", Toast.LENGTH_SHORT).show()
                                                         onBackClick()
                                                     } catch (e: Exception) {
@@ -667,7 +726,7 @@ fun PinChangeScreen(
                                                     }
                                                 }
                                             } else {
-                                                errorMessage = "PIN 번호가 일치하지 않습니다. 다시 입력해 주세요."
+                                                errorMessage = "처음 입력한 PIN 번호와 다릅니다.\n다시 입력해 주세요."
                                                 pinResetKey++
                                             }
                                         }

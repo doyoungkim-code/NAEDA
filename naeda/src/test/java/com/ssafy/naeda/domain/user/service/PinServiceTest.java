@@ -1,7 +1,9 @@
 package com.ssafy.naeda.domain.user.service;
 
 import com.ssafy.naeda.domain.user.dto.request.UpdatePinRequest;
+import com.ssafy.naeda.domain.user.dto.request.VerifyPinRequest;
 import com.ssafy.naeda.domain.user.dto.response.PinUpdateResponse;
+import com.ssafy.naeda.domain.user.dto.response.PinVerifyResponse;
 import com.ssafy.naeda.domain.user.entity.User;
 import com.ssafy.naeda.domain.user.repository.UserRepository;
 import com.ssafy.naeda.global.exception.AuthenticationFailedException;
@@ -30,6 +32,35 @@ class PinServiceTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Test
+    @DisplayName("현재 PIN이 맞으면 검증을 통과한다")
+    void verifyCurrentPin_succeeds() {
+        User user = baseUser()
+                .pinPassword("encoded-old-pin")
+                .build();
+        given(userRepository.findByUserId("user-1")).willReturn(Optional.of(user));
+        given(passwordEncoder.matches("123456", "encoded-old-pin")).willReturn(true);
+
+        PinVerifyResponse response = pinService.verifyCurrentPin("user-1", verifyRequest("123456"));
+
+        assertThat(response.isVerified()).isTrue();
+        assertThat(response.getMessage()).isEqualTo("현재 PIN 확인이 완료되었습니다.");
+    }
+
+    @Test
+    @DisplayName("현재 PIN이 다르면 검증에 실패한다")
+    void verifyCurrentPin_rejectsInvalidPin() {
+        User user = baseUser()
+                .pinPassword("encoded-old-pin")
+                .build();
+        given(userRepository.findByUserId("user-1")).willReturn(Optional.of(user));
+        given(passwordEncoder.matches("123456", "encoded-old-pin")).willReturn(false);
+
+        assertThatThrownBy(() -> pinService.verifyCurrentPin("user-1", verifyRequest("123456")))
+                .isInstanceOf(AuthenticationFailedException.class)
+                .hasMessage("현재 PIN이 일치하지 않습니다.");
+    }
 
     @Test
     @DisplayName("기존 PIN이 없으면 새 PIN을 설정한다")
@@ -92,6 +123,12 @@ class PinServiceTest {
         return UpdatePinRequest.builder()
                 .currentPin(currentPin)
                 .newPin(newPin)
+                .build();
+    }
+
+    private static VerifyPinRequest verifyRequest(String pin) {
+        return VerifyPinRequest.builder()
+                .pin(pin)
                 .build();
     }
 
