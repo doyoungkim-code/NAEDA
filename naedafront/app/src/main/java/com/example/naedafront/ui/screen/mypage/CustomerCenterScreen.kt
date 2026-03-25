@@ -42,7 +42,7 @@ private val faqList = listOf(
     ),
     FaqItem(
         question = "PIN 번호를 잊어버렸어요.",
-        answer = "마이페이지 > PIN 번호 변경에서 '비밀번호를 잊으셨나요?'를 누르면 휴대폰 본인 인증 후 새로운 PIN을 설정할 수 있습니다."
+        answer = "마이페이지 > PIN 번호 변경에서 'PIN 번호를 잊으셨나요?'를 누르면 로그인 비밀번호를 다시 입력한 뒤 새로운 PIN을 설정할 수 있습니다."
     ),
     FaqItem(
         question = "결제 한도는 어떻게 변경하나요?",

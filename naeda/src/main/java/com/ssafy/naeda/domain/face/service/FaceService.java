@@ -112,16 +112,22 @@ public class FaceService {
         CandidateDto best = candidates.isEmpty() ? null : candidates.get(0);
         float bestSimilarity = best != null ? best.getSimilarity() : 0f;
         FaceMatchStatus status = resolveStatus(bestSimilarity);
-        RbaResult rbaResult = rbaEngine.evaluate(amount, status, bestSimilarity);
+        ResolvedUser bestUser = status == FaceMatchStatus.NO_MATCH || best == null
+                ? null
+                : resolveUser(best.getUserId());
+        boolean secondaryAuthEnabled = status == FaceMatchStatus.MATCH &&
+                bestUser != null &&
+                bestUser.secondaryAuthEnabled();
+        RbaResult rbaResult = rbaEngine.evaluate(amount, status, bestSimilarity, secondaryAuthEnabled);
         boolean matched = status == FaceMatchStatus.MATCH;
-        String nextAction = switch (rbaResult.getAuthLevel()) {
+        String nextAction = switch (status) {
+            case NO_MATCH -> "RETRY";
+            default -> switch (rbaResult.getAuthLevel()) {
             case FACE_ONLY -> "PASS";
             case BLOCKED -> "BLOCK";
             default -> "REQUIRE_SECOND_FACTOR";
         };
-        ResolvedUser bestUser = status == FaceMatchStatus.NO_MATCH || best == null
-                ? null
-                : resolveUser(best.getUserId());
+        };
 
         return SearchResponse.builder()
                 .matched(matched)
@@ -155,7 +161,11 @@ public class FaceService {
 
     private ResolvedUser resolveUser(String userId) {
         return userRepository.findByUserId(userId)
-                .map(user -> new ResolvedUser(user.getUserNo(), user.getUsername()))
+                .map(user -> new ResolvedUser(
+                        user.getUserNo(),
+                        user.getUsername(),
+                        Boolean.TRUE.equals(user.getSecondaryAuthEnabled())
+                ))
                 .orElse(null);
     }
 
@@ -195,6 +205,6 @@ public class FaceService {
         return dot / (float) (Math.sqrt(normA) * Math.sqrt(normB));
     }
 
-    private record ResolvedUser(Long userNo, String username) {
+    private record ResolvedUser(Long userNo, String username, boolean secondaryAuthEnabled) {
     }
 }

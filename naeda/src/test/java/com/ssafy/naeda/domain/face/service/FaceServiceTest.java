@@ -31,6 +31,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
@@ -70,9 +71,11 @@ class FaceServiceTest {
     @DisplayName("search: similarity가 0.70 이상이면 MATCH와 PASS를 반환한다")
     void search_match() {
         given(aiClient.extractEmbedding(any())).willReturn(aiResult(unit(1f, 0f)));
-        given(userRepository.findByUserId("user-match")).willReturn(Optional.of(User.builder().userNo(11L).username("매치유저").build()));
+        given(userRepository.findByUserId("user-match")).willReturn(Optional.of(
+                User.builder().userNo(11L).username("매치유저").secondaryAuthEnabled(false).build()
+        ));
         given(userRepository.findByUserId("user-other")).willReturn(Optional.of(User.builder().userNo(22L).username("다른유저").build()));
-        given(rbaEngine.evaluate(anyLong(), any(), anyDouble())).willReturn(
+        given(rbaEngine.evaluate(anyLong(), any(), anyDouble(), anyBoolean())).willReturn(
                 RbaResult.builder()
                         .authLevel(AuthLevel.FACE_ONLY)
                         .requiredMethods(Set.of(AuthMethod.FACE))
@@ -107,12 +110,14 @@ class FaceServiceTest {
     @DisplayName("search: similarity가 0.65 이상 0.70 미만이면 AMBIGUOUS를 반환한다")
     void search_ambiguous() {
         given(aiClient.extractEmbedding(any())).willReturn(aiResult(unit(1f, 0f)));
-        given(userRepository.findByUserId("user-ambiguous")).willReturn(Optional.of(User.builder().userNo(33L).username("애매유저").build()));
+        given(userRepository.findByUserId("user-ambiguous")).willReturn(Optional.of(
+                User.builder().userNo(33L).username("애매유저").secondaryAuthEnabled(true).build()
+        ));
         given(userRepository.findByUserId("user-low")).willReturn(Optional.of(User.builder().userNo(44L).username("낮은유저").build()));
-        given(rbaEngine.evaluate(anyLong(), any(), anyDouble())).willReturn(
+        given(rbaEngine.evaluate(anyLong(), any(), anyDouble(), anyBoolean())).willReturn(
                 RbaResult.builder()
                         .authLevel(AuthLevel.FACE_PHONE)
-                        .requiredMethods(Set.of(AuthMethod.FACE, AuthMethod.PHONE))
+                        .requiredMethods(Set.of(AuthMethod.FACE, AuthMethod.PIN, AuthMethod.PHONE))
                         .blocked(false)
                         .reason("need second")
                         .build()
@@ -129,7 +134,7 @@ class FaceServiceTest {
         assertThat(response.getNextAction()).isEqualTo("REQUIRE_SECOND_FACTOR");
         assertThat(response.getAuthLevel()).isEqualTo(AuthLevel.FACE_PHONE);
         assertThat(response.isBlocked()).isFalse();
-        assertThat(response.getRequiredMethods()).contains(AuthMethod.FACE, AuthMethod.PHONE);
+        assertThat(response.getRequiredMethods()).contains(AuthMethod.FACE, AuthMethod.PIN, AuthMethod.PHONE);
         assertThat(response.getBestUserId()).isEqualTo("user-ambiguous");
         assertThat(response.getUsername()).isEqualTo("애매유저");
         assertThat(response.getUserNo()).isEqualTo(33L);
@@ -142,12 +147,12 @@ class FaceServiceTest {
     void search_noMatch() {
         given(aiClient.extractEmbedding(any())).willReturn(aiResult(unit(1f, 0f)));
         given(userRepository.findByUserId("user-low")).willReturn(Optional.of(User.builder().userNo(44L).username("낮은유저").build()));
-        given(rbaEngine.evaluate(anyLong(), any(), anyDouble())).willReturn(
+        given(rbaEngine.evaluate(anyLong(), any(), anyDouble(), anyBoolean())).willReturn(
                 RbaResult.builder()
-                        .authLevel(AuthLevel.BLOCKED)
+                        .authLevel(AuthLevel.RETRY)
                         .requiredMethods(Set.of())
-                        .blocked(true)
-                        .reason("blocked")
+                        .blocked(false)
+                        .reason("retry")
                         .build()
         );
         given(faceEmbeddingRepository.findAll()).willReturn(List.of(
@@ -158,9 +163,9 @@ class FaceServiceTest {
 
         assertThat(response.isMatched()).isFalse();
         assertThat(response.getStatus()).isEqualTo(FaceMatchStatus.NO_MATCH);
-        assertThat(response.getNextAction()).isEqualTo("BLOCK");
-        assertThat(response.getAuthLevel()).isEqualTo(AuthLevel.BLOCKED);
-        assertThat(response.isBlocked()).isTrue();
+        assertThat(response.getNextAction()).isEqualTo("RETRY");
+        assertThat(response.getAuthLevel()).isEqualTo(AuthLevel.RETRY);
+        assertThat(response.isBlocked()).isFalse();
         assertThat(response.getRequiredMethods()).isEmpty();
         assertThat(response.getBestUserId()).isNull();
         assertThat(response.getUsername()).isNull();

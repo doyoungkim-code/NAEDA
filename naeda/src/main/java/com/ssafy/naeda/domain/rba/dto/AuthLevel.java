@@ -1,6 +1,7 @@
 package com.ssafy.naeda.domain.rba.dto;
 
 public enum AuthLevel {
+    RETRY,
     FACE_ONLY,
     FACE_PHONE,
     FACE_PIN,
