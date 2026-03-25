@@ -1,7 +1,7 @@
 package com.ssafy.naeda.domain.pay.config;
 
 
-import com.fasterxml.jackson.databind.JsonSerializer;
+import org.springframework.kafka.support.serializer.JsonSerializer;
 import com.ssafy.naeda.domain.pay.event.PayEvent;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -30,7 +30,7 @@ public class PayKafkaConfig {
 
     @Bean
     public NewTopic paymentEventsTopic(){
-        return TopicBuilder.name("payment-servers")
+        return TopicBuilder.name("payment-events")
                 .partitions(3)
                 .replicas(1)
                 .build();

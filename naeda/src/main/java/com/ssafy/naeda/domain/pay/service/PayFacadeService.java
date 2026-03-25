@@ -17,6 +17,8 @@ import com.ssafy.naeda.domain.pay.entity.PayMethod;
 import com.ssafy.naeda.domain.pay.entity.PayRequestStatus;
 import com.ssafy.naeda.domain.pay.entity.PayStatus;
 import com.ssafy.naeda.domain.pay.entity.PayTransaction;
+import com.ssafy.naeda.domain.pay.event.PayEvent;
+import com.ssafy.naeda.domain.pay.event.PayEventPublisher;
 import com.ssafy.naeda.domain.pay.lock.PayDistributedLock;
 import com.ssafy.naeda.domain.pay.lock.PayRateLimiter;
 import com.ssafy.naeda.domain.pay.repository.PayMethodRepository;
@@ -84,6 +86,8 @@ public class PayFacadeService {
     private final PayLimitService payLimitService;
     private final ConsumptionMonthlyInsightAiClient consumptionMonthlyInsightAiClient;
     private final PhoneVerificationService phoneVerificationService;
+    private final PayEventPublisher eventPublisher;
+
 
 
     private static final String CREDIT_CARD_API = "/edu/creditCard/createCreditCardTransaction";
@@ -272,11 +276,24 @@ public class PayFacadeService {
             // 17. Redis 상태 갱신
             updateRedisSuccess(requestId, transaction.getId(), ssafyTransactionId);
 
-            // 18. FCM 결제 완료 알림 (비동기, 실패해도 결제 결과에 영향 없음)
+            // 18. Kafka 이벤트 발행 (포인트 적립 / FDS 알림 / 결제 알림 비동기 후처리)
+            // 결제 성공 시에만 발행하며, Consumer가 각각 독립적으로 처리
             try {
-                sendPaymentNotification(user.getUserNo(), transaction.getId(), store.getStoreId(), amount, earnedPoints);
-            } catch (Exception fcmEx) {
-                log.warn("[Pay] FCM 알림 발송 실패 (결제는 성공): requestId={}, error={}", requestId, fcmEx.getMessage());
+                PayEvent event = PayEvent.builder()
+                        .transactionId(transaction.getId())
+                        .userNo(user.getUserNo())
+                        .storeId(storeId)
+                        .amount(amount)
+                        .status(transaction.getStatus().name())
+                        .authMethod(paymentMethod.getMethodType().name())
+                        .fdsScore(fdsResult.getAnomalyScore())
+                        .fdsAction(fdsResult.getAction().name())
+                        .earnedPoints(earnedPoints)
+                        .ssafyTransactionId(ssafyTransactionId)
+                        .build();
+                eventPublisher.publish(event);
+            } catch (Exception e) {
+                log.warn("[Pay] Kafka 이벤트 발행 실패 (결제는 성공): requestId={}", requestId, e);
             }
 
             log.info("[Pay] 페이스페이 결제 성공: requestId={}, transactionId={}, method={}, amount={}",
@@ -365,27 +382,6 @@ public class PayFacadeService {
     }
 
     private record FaceAuthValidation(String authLevel, boolean pinVerified) {
-    }
-
-    // ============================================================
-    // FCM 결제 완료 알림 (Kafka 미사용, 직접 호출)
-    // ============================================================
-
-    private void sendPaymentNotification(Long userNo, Long transactionId, Long storeId, Long amount, Long earnedPoints) {
-        String formattedAmount = NumberFormat.getNumberInstance(Locale.KOREA).format(amount);
-        String title = "결제 완료";
-        String body = formattedAmount + "원 결제가 완료되었습니다.";
-
-        Map<String, String> data = new HashMap<>();
-        data.put("paymentId", String.valueOf(transactionId));
-        data.put("amount", String.valueOf(amount));
-        data.put("storeId", String.valueOf(storeId));
-        if (earnedPoints != null) {
-            data.put("earnedPoints", String.valueOf(earnedPoints));
-        }
-
-        fcmService.sendToUser(userNo, title, body, NotificationType.PAYMENT, transactionId, ReferenceType.PAYMENT, data);
-        log.info("[Pay] FCM 결제 알림 발송: userNo={}, amount={}", userNo, amount);
     }
 
     private void accumulateEarnedPoints(Long userNo, Long transactionId, Long earnedPoints) {
