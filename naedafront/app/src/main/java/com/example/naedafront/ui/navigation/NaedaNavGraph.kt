@@ -55,6 +55,7 @@ import com.example.naedafront.ui.screen.map.MapSelectScreen
 import com.example.naedafront.ui.screen.mypage.CustomerCenterScreen
 import com.example.naedafront.ui.screen.mypage.MyPageScreen
 import com.example.naedafront.ui.screen.mypage.MyPageViewModel
+import com.example.naedafront.ui.screen.mypage.SecondaryAuthPinScreen
 import com.example.naedafront.ui.screen.mypage.PinChangeScreen
 import com.example.naedafront.ui.screen.setting.NotificationSettingsScreen
 import com.example.naedafront.ui.screen.setting.PrivacyPolicyScreen
@@ -503,6 +504,7 @@ fun NaedaNavGraph(
                     }
                 },
                 onFaceReRegisterClick = { navController.navigate(Screen.FaceRegister.route) },
+                onSecondaryAuthClick = { navController.navigate(Screen.SecondaryAuthPin.route) },
                 onPinChangeClick = { navController.navigate(Screen.Security.route) },
                 onDeliveryAddressClick = { navController.navigate(Screen.DeliveryAddress.route) },
                 onOrderHistoryClick = { navController.navigate(Screen.OrderHistory.route) },
@@ -513,6 +515,18 @@ fun NaedaNavGraph(
                         launchSingleTop = true
                     }
                 }
+            )
+        }
+
+        composable(Screen.SecondaryAuthPin.route) {
+            val myPageEntry = remember(navController) {
+                navController.getBackStackEntry(Screen.MyPage.route)
+            }
+            val myPageViewModel: MyPageViewModel = viewModel(myPageEntry)
+
+            SecondaryAuthPinScreen(
+                viewModel = myPageViewModel,
+                onBackClick = { navController.popBackStack() }
             )
         }
 

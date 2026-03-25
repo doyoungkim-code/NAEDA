@@ -91,6 +91,7 @@ sealed class Screen(val route: String) {
     object Chat : Screen("chat")
 
     object MyPage : Screen("mypage")
+    object SecondaryAuthPin : Screen("secondary_auth_pin")
     object Settings : Screen("settings")
     object Notification : Screen("notification")
     object NotificationSettings : Screen("notification_settings")
