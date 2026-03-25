@@ -73,23 +73,40 @@ class MainActivity : ComponentActivity() {
                     if (!isInPaymentFlow || currentRequestId == 0L) return@LaunchedEffect
                     while (true) {
                         delay(2000)
-                        val cancelled = withContext(Dispatchers.IO) {
+                        val requestState = withContext(Dispatchers.IO) {
                             runCatching {
                                 val req = Request.Builder()
                                     .url("$apiBaseUrl/api/pay-requests/$currentRequestId")
                                     .get().build()
                                 pollClient.newCall(req).execute().use { res ->
-                                    if (!res.isSuccessful || res.code == 404) return@use true
+                                    if (!res.isSuccessful || res.code == 404) {
+                                        return@use PayRequestStateSnapshot(status = "MISSING", failureReason = null)
+                                    }
                                     val raw = res.body?.string().orEmpty()
-                                    val status = org.json.JSONObject(raw).optString("status")
-                                    // PENDING이 아니고 SUCCESS도 아니면 취소/만료/실패
-                                    status != "PENDING" && status != "PROCESSING" && status != "SUCCESS"
+                                    val json = org.json.JSONObject(raw)
+                                    PayRequestStateSnapshot(
+                                        status = json.optString("status"),
+                                        failureReason = json.optString("failureReason").takeIf { it.isNotBlank() }
+                                    )
                                 }
-                            }.getOrDefault(true) // 네트워크 에러 시에도 취소 처리
+                            }.getOrDefault(PayRequestStateSnapshot(status = "MISSING", failureReason = null))
                         }
-                        if (cancelled) {
-                            route = Route.Cancelled
-                            break
+                        when (requestState.status) {
+                            "PENDING", "PROCESSING", "SUCCESS" -> Unit
+                            "FAILED", "BLOCKED" -> {
+                                paymentFailureReason = requestState.failureReason ?: "결제에 실패했습니다."
+                                route = Route.PaymentFailed
+                                break
+                            }
+                            "PAUSED" -> {
+                                paymentFailureReason = requestState.failureReason ?: "결제가 보류되었습니다."
+                                route = Route.PaymentFailed
+                                break
+                            }
+                            else -> {
+                                route = Route.Cancelled
+                                break
+                            }
                         }
                     }
                 }
@@ -153,6 +170,7 @@ class MainActivity : ComponentActivity() {
                     )
 
                     Route.FacePay -> FacePayAuthScreen(
+                        requestId = currentRequestId,
                         amount = currentAmount,
                         merchant = currentMerchant,
                         apiBaseUrl = apiBaseUrl,
@@ -285,12 +303,18 @@ class MainActivity : ComponentActivity() {
                     )
 
                     Route.Cancelled -> PaymentCancelledScreen(
-                        onDone = { route = Route.Waiting }
+                        onDone = {
+                            currentRequestId = 0L
+                            route = Route.Waiting
+                        }
                     )
 
                     Route.PaymentFailed -> PaymentFailedScreen(
                         reason = paymentFailureReason,
-                        onDone = { route = Route.Waiting }
+                        onDone = {
+                            currentRequestId = 0L
+                            route = Route.Waiting
+                        }
                     )
 
                     Route.PaymentDone -> PaymentDoneScreen(
@@ -298,7 +322,10 @@ class MainActivity : ComponentActivity() {
                         merchant = currentMerchant,
                         method = currentMethod,
                         userName = matchedUserInfo?.userName,
-                        onDone = { route = Route.Waiting }
+                        onDone = {
+                            currentRequestId = 0L
+                            route = Route.Waiting
+                        }
                     )
                 }
                 } // Column 끝
@@ -321,6 +348,11 @@ private fun clearPosKey(context: Context) {
     context.getSharedPreferences("naeda_prefs", Context.MODE_PRIVATE)
         .edit().remove("pos_key").apply()
 }
+
+private data class PayRequestStateSnapshot(
+    val status: String,
+    val failureReason: String?
+)
 
 private sealed interface Route {
     data object PosKey : Route

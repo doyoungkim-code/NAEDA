@@ -14,6 +14,7 @@ public class PayRequestResponse {
     private Long storeId;
     private Long amount;
     private String transactionId;
+    private String failureReason;
 
     public static PayRequestResponse from(Long requestId, Map<Object, Object> data) {
         if (data == null) return null;
@@ -24,6 +25,7 @@ public class PayRequestResponse {
                 .storeId(parseLong(data.get("storeId")))
                 .amount(parseLong(data.get("amount")))
                 .transactionId((String) data.get("transactionId"))
+                .failureReason((String) data.get("failureReason"))
                 .build();
     }
 
