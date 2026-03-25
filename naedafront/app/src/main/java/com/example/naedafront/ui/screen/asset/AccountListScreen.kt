@@ -495,7 +495,7 @@ private fun AccountPassbookListItem(
                                 .padding(horizontal = 7.dp, vertical = 3.dp)
                         ) {
                             Text(
-                                text = "주계좌",
+                                text = "대표",
                                 style = NaedaTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                 color = textPrimary
                             )
@@ -536,7 +536,7 @@ private fun AccountPassbookListItem(
                                     DropdownMenuItem(
                                         text = {
                                             Text(
-                                                "주계좌로 설정",
+                                                "대표계좌로 설정",
                                                 style = NaedaTypography.bodyMedium,
                                                 color = OnBackground
                                             )
@@ -697,7 +697,7 @@ private fun AccountPassbookCardLikeListItem(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(start = 40.dp, end = 24.dp, top = 24.dp, bottom = 24.dp),
+                    .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
@@ -725,7 +725,7 @@ private fun AccountPassbookCardLikeListItem(
                                     .padding(horizontal = 7.dp, vertical = 3.dp)
                             ) {
                                 Text(
-                                    text = "주계좌",
+                                    text = "대표",
                                     style = NaedaTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                     color = textPrimary
                                 )
@@ -749,7 +749,7 @@ private fun AccountPassbookCardLikeListItem(
                             ) {
                                 if (!account.isPrimary) {
                                     DropdownMenuItem(
-                                        text = { Text("주계좌로 설정") },
+                                        text = { Text("대표계좌로 설정") },
                                         onClick = onSetPrimary
                                     )
                                 }

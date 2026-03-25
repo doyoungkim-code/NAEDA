@@ -371,21 +371,31 @@ fun NaedaNavGraph(
                 initialTab = tab,
                 onBack = { navController.popBackStack() },
                 onAccountClick = { account ->
-                    navController.navigate(
-                        Screen.AccountDetail.createRoute(
-                            accountId = account.accountId,
-                            accountNo = account.accountNumber
-                        )
-                    )
+                    if (navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) {
+                        navController.navigate(
+                            Screen.AccountDetail.createRoute(
+                                accountId = account.accountId,
+                                accountNo = account.accountNumber
+                            )
+                        ) {
+                            launchSingleTop = true
+                        }
+                    }
                 },
                 onCardClick = { card ->
-                    navController.currentBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("cardName", card.cardName)
-                    navController.currentBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("cardNo", card.cardNumber)
-                    card.cardId?.let { navController.navigate(Screen.CardDetail.createRoute(it)) }
+                    if (navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) {
+                        navController.currentBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("cardName", card.cardName)
+                        navController.currentBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("cardNo", card.cardNumber)
+                        card.cardId?.let {
+                            navController.navigate(Screen.CardDetail.createRoute(it)) {
+                                launchSingleTop = true
+                            }
+                        }
+                    }
                 },
                 onDeleteAccount = { },
                 onSetPrimary = { },
@@ -718,21 +728,31 @@ private fun AssetTabContent(
         onRegisterNewAccount = { navController.navigate(Screen.RegisterAsset.createRoute(0)) },
         onRegisterNewCard = { navController.navigate(Screen.RegisterAsset.createRoute(1)) },
         onAccountClick = { account ->
-            navController.navigate(
-                Screen.AccountDetail.createRoute(
-                    accountId = account.accountId,
-                    accountNo = account.accountNumber
-                )
-            )
+            if (navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) {
+                navController.navigate(
+                    Screen.AccountDetail.createRoute(
+                        accountId = account.accountId,
+                        accountNo = account.accountNumber
+                    )
+                ) {
+                    launchSingleTop = true
+                }
+            }
         },
         onCardClick = { card ->
-            navController.currentBackStackEntry
-                ?.savedStateHandle
-                ?.set("cardName", card.cardName)
-            navController.currentBackStackEntry
-                ?.savedStateHandle
-                ?.set("cardNo", card.cardNumber)
-            card.cardId?.let { navController.navigate(Screen.CardDetail.createRoute(it)) }
+            if (navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) {
+                navController.currentBackStackEntry
+                    ?.savedStateHandle
+                    ?.set("cardName", card.cardName)
+                navController.currentBackStackEntry
+                    ?.savedStateHandle
+                    ?.set("cardNo", card.cardNumber)
+                card.cardId?.let {
+                    navController.navigate(Screen.CardDetail.createRoute(it)) {
+                        launchSingleTop = true
+                    }
+                }
+            }
         },
         onDeleteAccount = { },
         onSetPrimary = { },
