@@ -176,7 +176,6 @@ fun StoreDetailBottomSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // 수정: modifier.offset(y = (-6).dp)를 제거하여 하단에 밀착시킴
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
@@ -194,9 +193,7 @@ fun StoreDetailBottomSheet(
                     .clickable(onClick = onDismiss)
                     .padding(bottom = 8.dp)
             ) {
-                StoreImageHero(
-                    imageUrl = store.imageUrl,
-                    categoryName = toMapCategoryLabel(store.categoryName),
+                Box(
                     modifier = Modifier
                         .align(Alignment.Center)
                         .width(48.dp)
@@ -210,7 +207,7 @@ fun StoreDetailBottomSheet(
 
             StoreImageHero(
                 imageUrl = store.imageUrl,
-                categoryName = store.categoryName,
+                categoryName = toMapCategoryLabel(store.categoryName),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(180.dp)
@@ -218,19 +215,21 @@ fun StoreDetailBottomSheet(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    toMapCategoryLabel(store.categoryName)?.let { categoryName ->
-                        StoreMetaChip(categoryName)
-                    }
-                    if (store.facePayEnabled) {
-                        StoreMetaChip("FACE PAY", background = Color(0xFFE8F0FF), content = Color(0xFF4F74FF))
-                    }
-                    if (store.isLocalBusiness) {
-                        StoreMetaChip("구미 로컬", background = Mint50, content = Mint500)
-                    }
+            Text(
+                text = store.storeName,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Navy900
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                toMapCategoryLabel(store.categoryName)?.let { categoryName ->
+                    StoreMetaChip(categoryName)
                 }
                 if (store.facePayEnabled) {
                     StoreMetaChip("FACE PAY", background = Color(0xFFE8F0FF), content = Color(0xFF4F74FF))
@@ -259,6 +258,18 @@ fun StoreDetailBottomSheet(
                 "평점",
                 if (store.rating > 0.0) String.format("%.1f", store.rating) else "평점 없음"
             )
+
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                StoreMetaChip(
+                    text = "닫기",
+                    background = Color(0xFF152341),
+                    content = Color.White,
+                    modifier = Modifier.clickable(onClick = onDismiss)
+                )
+            }
         }
     }
 }
