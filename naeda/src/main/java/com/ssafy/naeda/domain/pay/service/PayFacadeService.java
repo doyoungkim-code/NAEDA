@@ -780,7 +780,7 @@ public class PayFacadeService {
 
     private void failRequest(Long requestId, String reason) {
         try {
-            payRequestRedisService.transition(requestId, PayRequestStatus.FAILED);
+            payRequestRedisService.markFailed(requestId, reason);
         } catch (Exception e) {
             log.warn("[Pay] Redis 상태 업데이트 실패: requestId={}", requestId, e);
         }

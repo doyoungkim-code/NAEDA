@@ -151,6 +151,7 @@ private data class UploadCandidate(
 
 @Composable
 fun FacePayAuthScreen(
+    requestId: Long,
     amount: Long,
     merchant: String,
     apiBaseUrl: String,
@@ -249,6 +250,16 @@ fun FacePayAuthScreen(
 
             if (remaining <= 0L) {
                 scanResolved = true
+                withContext(Dispatchers.IO) {
+                    runCatching {
+                        markPayRequestFailed(
+                            client = client,
+                            apiBaseUrl = apiBaseUrl,
+                            requestId = requestId,
+                            reason = "30초 동안 얼굴을 인식하지 못해 결제가 종료되었습니다."
+                        )
+                    }
+                }
                 onNotMatched("30초 동안 얼굴을 인식하지 못했습니다.")
                 return@LaunchedEffect
             }
@@ -892,4 +903,21 @@ private fun postFaceSearchBytes(
             candidates = candidates
         )
     }
+}
+
+private fun markPayRequestFailed(
+    client: OkHttpClient,
+    apiBaseUrl: String,
+    requestId: Long,
+    reason: String
+) {
+    val payload = JSONObject()
+        .put("reason", reason)
+
+    val request = Request.Builder()
+        .url("${apiBaseUrl.trimEnd('/')}/api/pay-requests/$requestId/fail")
+        .post(payload.toString().toRequestBody("application/json".toMediaType()))
+        .build()
+
+    client.newCall(request).execute().use { }
 }
