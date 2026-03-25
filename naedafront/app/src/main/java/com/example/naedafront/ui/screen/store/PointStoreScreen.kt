@@ -154,7 +154,7 @@ fun PointStoreScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 categories.forEach { category ->
@@ -262,13 +262,13 @@ private fun PointStoreHeader(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(300.dp)
+            .height(236.dp)
             .background(Color(0xFF005E54))
     ) {
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(82.dp)
+                .height(56.dp)
                 .align(Alignment.BottomCenter)
         ) {
             val w = size.width
@@ -305,12 +305,12 @@ private fun PointStoreHeader(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 24.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.Center
         ) {
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 18.dp),
+                    .fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -321,7 +321,7 @@ private fun PointStoreHeader(
                 )
             }
 
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Card(
                 modifier = Modifier.fillMaxWidth(),

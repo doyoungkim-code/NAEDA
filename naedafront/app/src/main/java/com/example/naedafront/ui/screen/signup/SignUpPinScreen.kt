@@ -1,5 +1,6 @@
 package com.example.naedafront.ui.screen.signup
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -40,12 +41,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.naedafront.AuthPrefs
 import com.example.naedafront.ui.common.SignUpProgressBar
+import com.example.naedafront.data.remote.AuthRepository
+import com.example.naedafront.data.remote.LoginResult
+import com.example.naedafront.data.repository.PointRepository
 import com.example.naedafront.ui.theme.Background
 import com.example.naedafront.ui.theme.Mint50
 import com.example.naedafront.ui.theme.Mint500
@@ -63,6 +69,7 @@ fun SignUpPinScreen(
     onBackClick: () -> Unit = {},
     onConfirmClick: () -> Unit = {},
 ) {
+    val context = LocalContext.current
     val uiState by signUpViewModel.uiState.collectAsState()
 
     var firstPin by remember { mutableStateOf("") }
@@ -72,6 +79,40 @@ fun SignUpPinScreen(
 
     val currentPin = if (isConfirming) confirmPin else firstPin
     val currentStep = if (isConfirming) 7 else 6
+
+    suspend fun createPointWalletAfterSignUp() {
+        when (val loginResult = AuthRepository.login(uiState.userId, uiState.password)) {
+            is LoginResult.Success -> {
+                val response = loginResult.response
+
+                AuthPrefs.saveLoginSession(
+                    context = context,
+                    userNo = response.userNo,
+                    userId = response.userId,
+                    username = response.username,
+                    userKey = response.userKey,
+                    accessToken = response.accessToken,
+                    refreshToken = response.refreshToken,
+                    faceRegistered = response.faceRegistered,
+                    secondaryAuthEnabled = response.secondaryAuthEnabled
+                )
+
+                PointRepository().createPointWallet(response.userNo)
+                    .onFailure { throwable ->
+                        val message = throwable.message.orEmpty()
+                        if (!message.contains("409")) {
+                            Log.w("SignUpPinScreen", "createPointWalletAfterSignUp failed: $message")
+                        }
+                    }
+
+                AuthPrefs.clearSession(context)
+            }
+
+            is LoginResult.Failure -> {
+                Log.w("SignUpPinScreen", "auto login after sign up failed: ${loginResult.message}")
+            }
+        }
+    }
 
     LaunchedEffect(hasPinMismatchError) {
         if (hasPinMismatchError) {
@@ -83,6 +124,7 @@ fun SignUpPinScreen(
 
     LaunchedEffect(uiState.isSignUpSuccess) {
         if (uiState.isSignUpSuccess) {
+            createPointWalletAfterSignUp()
             signUpViewModel.resetSignUpSuccess()
             onConfirmClick()
         }
