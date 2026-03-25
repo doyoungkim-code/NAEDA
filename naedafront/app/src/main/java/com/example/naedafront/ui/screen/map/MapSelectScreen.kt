@@ -604,7 +604,7 @@ fun MapSelectScreen(
             )
         }
 
-        if (selectedTabIndex == 0 && selectedStoreCluster.isNotEmpty()) {
+        if (selectedTabIndex == 0 && selectedStoreCluster.isNotEmpty() && selectedStoreDetail == null) {
             StoreClusterBottomSheet(
                 stores = selectedStoreCluster,
                 expanded = isStoreSheetExpanded,
@@ -678,9 +678,12 @@ fun MapSelectScreen(
         }
 
         selectedStoreDetail?.let { store ->
-            StoreDetailDialog(
+            StoreDetailBottomSheet(
                 store = store,
-                onDismiss = { selectedStoreDetail = null }
+                onDismiss = { selectedStoreDetail = null },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
             )
         }
     }
@@ -1913,8 +1916,10 @@ private fun PopularRestaurantMapTab(
 
         val transformableState = rememberTransformableState { zoomChange, panChange, _ ->
             scale = (scale * zoomChange).coerceIn(1f, 4f)
-            panOffsetX += panChange.x
-            panOffsetY += panChange.y
+            val maxX = (scale - 1f) * boxSize.width / 2f
+            val maxY = (scale - 1f) * boxSize.height / 2f
+            panOffsetX = (panOffsetX + panChange.x).coerceIn(-maxX, maxX)
+            panOffsetY = (panOffsetY + panChange.y).coerceIn(-maxY, maxY)
         }
 
         Box(
@@ -2035,9 +2040,12 @@ private fun PopularRestaurantMapTab(
         }
 
         selectedStoreDetail?.let { store ->
-            StoreDetailDialog(
+            StoreDetailBottomSheet(
                 store = store,
-                onDismiss = { selectedStoreDetail = null }
+                onDismiss = { selectedStoreDetail = null },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
             )
         }
     }

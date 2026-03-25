@@ -8,6 +8,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import coil.compose.AsyncImage
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,13 +19,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FavoriteBorder
@@ -35,10 +34,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,7 +51,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.naedafront.R
 import com.example.naedafront.data.remote.MapStoreResponseDto
-import com.example.naedafront.ui.theme.Background
 import com.example.naedafront.ui.theme.Mint50
 import com.example.naedafront.ui.theme.Mint500
 import com.example.naedafront.ui.theme.Navy900
@@ -79,8 +75,9 @@ fun StoreClusterBottomSheet(
         )
     }
 
+    // 수정: modifier.offset(y = (-6).dp)를 제거하여 하단에 밀착시킴
     Surface(
-        modifier = modifier.offset(y = (-6).dp),
+        modifier = modifier,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         color = Color(0xFFF7F7F8),
         shadowElevation = 14.dp
@@ -88,7 +85,7 @@ fun StoreClusterBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 10.dp, start = 20.dp, end = 20.dp, bottom = 10.dp)
+                .padding(top = 10.dp, start = 20.dp, end = 20.dp, bottom = 0.dp)
         ) {
             Box(
                 modifier = Modifier
@@ -174,39 +171,52 @@ fun StoreClusterBottomSheet(
 }
 
 @Composable
-fun StoreDetailDialog(
+fun StoreDetailBottomSheet(
     store: MapStoreResponseDto,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(28.dp),
-            color = Background,
-            shadowElevation = 16.dp
+    // 수정: modifier.offset(y = (-6).dp)를 제거하여 하단에 밀착시킴
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        color = Color(0xFFF7F7F8),
+        shadowElevation = 14.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 10.dp, start = 20.dp, end = 20.dp, bottom = 20.dp)
         ) {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
+                    .clickable(onClick = onDismiss)
+                    .padding(bottom = 8.dp)
             ) {
                 StoreImageHero(
                     imageUrl = store.imageUrl,
                     categoryName = toMapCategoryLabel(store.categoryName),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
+                        .align(Alignment.Center)
+                        .width(48.dp)
+                        .height(5.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Color(0xFFD1D5DB))
                 )
+            }
 
-                Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-                Text(
-                    text = store.storeName,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Navy900
-                )
+            StoreImageHero(
+                imageUrl = store.imageUrl,
+                categoryName = store.categoryName,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+            )
 
-                Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -222,38 +232,33 @@ fun StoreDetailDialog(
                         StoreMetaChip("구미 로컬", background = Mint50, content = Mint500)
                     }
                 }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Text(
-                    text = store.description?.takeIf { it.isNotBlank() } ?: "등록된 설명이 없습니다.",
-                    fontSize = 15.sp,
-                    lineHeight = 22.sp,
-                    color = OnSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(18.dp))
-                HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp)
-                Spacer(modifier = Modifier.height(18.dp))
-
-                StoreDetailLine("주소", store.roadAddress ?: store.numberAddress ?: "주소 정보 없음")
-                StoreDetailLine("전화", store.phone ?: "전화번호 정보 없음")
-                StoreDetailLine(
-                    "평점",
-                    if (store.rating > 0.0) String.format("%.1f", store.rating) else "평점 없음"
-                )
-
-                Spacer(modifier = Modifier.height(22.dp))
-
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                    StoreMetaChip(
-                        text = "닫기",
-                        background = Color(0xFF152341),
-                        content = Color.White,
-                        modifier = Modifier.clickable(onClick = onDismiss)
-                    )
+                if (store.facePayEnabled) {
+                    StoreMetaChip("FACE PAY", background = Color(0xFFE8F0FF), content = Color(0xFF4F74FF))
+                }
+                if (store.isLocalBusiness) {
+                    StoreMetaChip("구미 로컬", background = Mint50, content = Mint500)
                 }
             }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text(
+                text = store.description?.takeIf { it.isNotBlank() } ?: "등록된 설명이 없습니다.",
+                fontSize = 15.sp,
+                lineHeight = 22.sp,
+                color = OnSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+            HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp)
+            Spacer(modifier = Modifier.height(18.dp))
+
+            StoreDetailLine("주소", store.roadAddress ?: store.numberAddress ?: "주소 정보 없음")
+            StoreDetailLine("전화", store.phone ?: "전화번호 정보 없음")
+            StoreDetailLine(
+                "평점",
+                if (store.rating > 0.0) String.format("%.1f", store.rating) else "평점 없음"
+            )
         }
     }
 }
@@ -326,17 +331,18 @@ private fun StoreMapListRow(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (store.facePayEnabled) {
-                        StoreMetaChip("FACE PAY", background = Color(0xFFE8F0FF), content = Color(0xFF4F74FF))
-                    }
-                    if (store.isLocalBusiness) {
-                        StoreMetaChip("구미 로컬", background = Mint50, content = Mint500)
+                if (store.facePayEnabled || store.isLocalBusiness) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (store.facePayEnabled) {
+                            StoreMetaChip("FACE PAY", background = Color(0xFFE8F0FF), content = Color(0xFF4F74FF))
+                        }
+                        if (store.isLocalBusiness) {
+                            StoreMetaChip("구미 로컬", background = Mint50, content = Mint500)
+                        }
                     }
                 }
             }

@@ -1,4 +1,5 @@
-﻿package com.example.naedafront.ui.screen.asset
+﻿// File: app/src/main/java/com/example/naedafront/ui/screen/asset/AssetListRoute.kt
+package com.example.naedafront.ui.screen.asset
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -196,9 +197,9 @@ private fun AssetAccountResponse.toUi(
     val resolvedAccountName = accountName.orEmpty().ifBlank { bankName.orEmpty().ifBlank { "내 계좌" } }
     val payMethod = payMethods.firstOrNull { method ->
         method.isActive != false &&
-            method.methodType == "ACCOUNT" &&
-            method.accountId != null &&
-            method.accountId == accountId
+                method.methodType == "ACCOUNT" &&
+                method.accountId != null &&
+                method.accountId == accountId
     }
 
     return AccountItem(
@@ -231,6 +232,7 @@ private fun AssetCardResponse.toUi(
 
     return CardItem(
         id = cardId?.toString() ?: cardUniqueNo.orEmpty().ifBlank { "card-$index" },
+        cardId = cardId,
         paymentMethodId = payMethod?.paymentMethodId,
         cardType = resolvedCardType,
         cardIssuerName = cardIssuerName.orEmpty().ifBlank { style.displayName },
