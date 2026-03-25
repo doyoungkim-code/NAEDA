@@ -1,6 +1,7 @@
 package com.ssafy.naeda.domain.pay.controller;
 
 import com.ssafy.naeda.domain.pay.dto.request.PayProcessRequest;
+import com.ssafy.naeda.domain.pay.dto.request.PayRequestFailRequest;
 import com.ssafy.naeda.domain.pay.dto.request.PayRequestCreateRequest;
 import com.ssafy.naeda.domain.pay.dto.PayRequestResponse;
 import com.ssafy.naeda.domain.pay.dto.response.PayTransactionResponse;
@@ -82,6 +83,25 @@ public class PayRequestController {
         );
 
         return ResponseEntity.ok(PayTransactionResponse.from(tx));
+    }
+
+    @PostMapping("/{id}/fail")
+    @Operation(summary = "결제 요청 실패 처리",
+            description = "단말기 타임아웃 또는 사용자 중단 시 결제 요청을 FAILED 상태로 종료합니다.")
+    public ResponseEntity<PayRequestResponse> failRequest(
+            @Parameter(description = "결제 요청 ID") @PathVariable Long id,
+            @RequestBody(required = false) PayRequestFailRequest request) {
+
+        String reason = request != null ? request.getReason() : null;
+        boolean failed = payRequestRedisService.markFailed(id, reason);
+        if (!failed) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        Map<Object, Object> data = payRequestRedisService.getRequest(id);
+        return data == null
+                ? ResponseEntity.notFound().build()
+                : ResponseEntity.ok(PayRequestResponse.from(id, data));
     }
 
     @GetMapping
