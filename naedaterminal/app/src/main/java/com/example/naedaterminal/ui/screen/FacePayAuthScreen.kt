@@ -103,8 +103,9 @@ private const val AMBIGUOUS_HOLD_MS = 2_000L
 private const val AMBIGUOUS_CONTINUITY_GAP_MS = 1_500L
 private const val MIN_BRIGHTNESS = 40f
 private const val FRAME_EDGE_MARGIN_RATIO = 0.02f
-private const val MIN_FACE_WIDTH_RATIO = 0.12f
-private const val MIN_FACE_HEIGHT_RATIO = 0.16f
+private const val MIN_GUIDE_FACE_WIDTH_RATIO = 0.52f
+private const val MIN_GUIDE_FACE_HEIGHT_RATIO = 0.68f
+private const val GUIDE_CENTER_TOLERANCE_RATIO = 0.5f
 
 data class CandidateResult(
     val userId: String,
@@ -650,10 +651,12 @@ private fun evaluateGuideFrame(
     val dy = midpoint.y - guideCenterY
     val centerDistance = sqrt(dx * dx + dy * dy)
 
-    val centered = centerDistance <= guideRadius * 0.45f
-    val faceWidthRatio = box.width().toFloat() / frameWidth
-    val faceHeightRatio = box.height().toFloat() / frameHeight
-    val largeEnough = faceWidthRatio >= MIN_FACE_WIDTH_RATIO && faceHeightRatio >= MIN_FACE_HEIGHT_RATIO
+    val guideDiameter = guideRadius * 2f
+    val centered = centerDistance <= guideRadius * GUIDE_CENTER_TOLERANCE_RATIO
+    val faceWidthToGuide = box.width().toFloat() / guideDiameter
+    val faceHeightToGuide = box.height().toFloat() / guideDiameter
+    val largeEnough = faceWidthToGuide >= MIN_GUIDE_FACE_WIDTH_RATIO &&
+        faceHeightToGuide >= MIN_GUIDE_FACE_HEIGHT_RATIO
     val sizeOk = largeEnough
     val frameMarginX = frameWidth * FRAME_EDGE_MARGIN_RATIO
     val frameMarginY = frameHeight * FRAME_EDGE_MARGIN_RATIO
@@ -662,15 +665,19 @@ private fun evaluateGuideFrame(
         box.right <= frameWidth - frameMarginX &&
         box.top >= frameMarginY &&
         box.bottom <= frameHeight - frameMarginY
-    val aligned = fullyVisible && largeEnough
-    val alignmentScore = (1f - (centerDistance / guideRadius).coerceIn(0f, 1f))
-    val sizeScore = ((faceWidthRatio + faceHeightRatio) / 2f).coerceIn(0f, 1f)
+    val aligned = fullyVisible && centered && largeEnough
+    val alignmentScore = (1f - (centerDistance / (guideRadius * GUIDE_CENTER_TOLERANCE_RATIO)).coerceIn(0f, 1f))
+    val sizeScore = (
+        (faceWidthToGuide / MIN_GUIDE_FACE_WIDTH_RATIO) +
+            (faceHeightToGuide / MIN_GUIDE_FACE_HEIGHT_RATIO)
+        ) / 2f
+    val normalizedSizeScore = sizeScore.coerceIn(0f, 1f)
     val brightnessScore = ((brightness - MIN_BRIGHTNESS) / 60f).coerceIn(0f, 1f)
-    val score = (alignmentScore * 0.55f) + (sizeScore * 0.30f) + (brightnessScore * 0.15f)
+    val score = (alignmentScore * 0.55f) + (normalizedSizeScore * 0.30f) + (brightnessScore * 0.15f)
 
     val message = when {
         !fullyVisible -> "얼굴 전체가 화면 안에 보이도록 맞춰주세요."
-        !largeEnough -> "얼굴을 조금 더 가까이 보여주세요."
+        !largeEnough -> "얼굴을 원형 가이드 크기 정도로 더 가까이 보여주세요."
         !centered -> "가능하면 얼굴을 가운데로 맞춰주세요."
         else -> "좋아요. 얼굴을 그대로 유지해주세요."
     }

@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -11,9 +12,12 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -39,6 +43,7 @@ private val ErrorColor = Color(0xFFD32F2F)
 sealed class RbaAuthType {
     object Pin : RbaAuthType()
     object PhoneMiddleFour : RbaAuthType()
+    object Signature : RbaAuthType()
 }
 
 @Composable
@@ -51,7 +56,8 @@ fun RbaAuthContainer(
     onAuthComplete: () -> Unit,
     onAuthCancel: () -> Unit,
     onPinEntered: ((pin: String) -> Unit)? = null,
-    onPhoneEntered: ((digits: String) -> Unit)? = null
+    onPhoneEntered: ((digits: String) -> Unit)? = null,
+    onSignatureConfirmed: (() -> Unit)? = null
 ) {
     var currentStepIndex by remember { mutableStateOf(0) }
 
@@ -95,7 +101,65 @@ fun RbaAuthContainer(
                 },
                 onCancel = onAuthCancel
             )
+            is RbaAuthType.Signature -> SignatureCaptureScreen(
+                paymentAmount = paymentAmount,
+                merchantName = merchantName,
+                stepInfo = "${currentStepIndex + 1}/${authSteps.size}",
+                onSuccess = {
+                    onSignatureConfirmed?.invoke()
+                    currentStepIndex++
+                },
+                onCancel = onAuthCancel
+            )
         }
+    }
+}
+
+@Composable
+fun AmbiguousAuthChoiceScreen(
+    paymentAmount: Long,
+    merchantName: String,
+    onChoosePin: () -> Unit,
+    onChoosePhone: () -> Unit,
+    onCancel: () -> Unit
+) {
+    RbaAuthScaffold(
+        title = "추가 인증 방식을\n선택해주세요",
+        subtitle = "애매한 얼굴 매칭은 PIN 번호 또는 전화번호 4자리 중 하나가 필요합니다",
+        stepInfo = "1/1",
+        paymentAmount = paymentAmount,
+        merchantName = merchantName,
+        onCancel = onCancel
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            AuthChoiceButton(
+                title = "PIN 번호 입력",
+                subtitle = "등록한 6자리 PIN 번호로 인증합니다",
+                onClick = onChoosePin
+            )
+            AuthChoiceButton(
+                title = "전화번호 4자리 입력",
+                subtitle = "휴대폰 번호 가운데 4자리로 인증합니다",
+                onClick = onChoosePhone
+            )
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        Text(
+            text = "둘 중 한 가지 인증만 통과하면 결제를 진행합니다.",
+            color = TextSecondary,
+            fontSize = 13.sp,
+            fontFamily = NaedaFontFamily,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 28.dp),
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
@@ -460,6 +524,43 @@ private data class PhoneVerifyResult(
     val message: String?
 )
 
+@Composable
+private fun AuthChoiceButton(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = AccentColor.copy(alpha = 0.1f),
+            contentColor = TextPrimary
+        ),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Text(
+                text = title,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = NaedaFontFamily
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = subtitle,
+                fontSize = 13.sp,
+                color = TextSecondary,
+                fontFamily = NaedaFontFamily
+            )
+        }
+    }
+}
+
 private fun verifyPhoneMiddleDigits(
     client: OkHttpClient,
     apiBaseUrl: String,
@@ -490,6 +591,134 @@ private fun verifyPhoneMiddleDigits(
         PhoneVerifyResult(
             verified = json.optBoolean("verified", false),
             message = json.optString("message").takeIf { it.isNotBlank() }
+        )
+    }
+}
+
+@Composable
+private fun SignatureCaptureScreen(
+    paymentAmount: Long,
+    merchantName: String,
+    stepInfo: String,
+    onSuccess: () -> Unit,
+    onCancel: () -> Unit
+) {
+    val strokes = remember { mutableStateListOf<List<Offset>>() }
+    var currentStroke by remember { mutableStateOf<List<Offset>>(emptyList()) }
+    val hasSignature = strokes.any { it.size > 1 } || currentStroke.size > 1
+
+    RbaAuthScaffold(
+        title = "서명을 입력해주세요",
+        subtitle = "5만원 이상 결제는 화면에 서명 후 확인이 필요합니다",
+        stepInfo = stepInfo,
+        paymentAmount = paymentAmount,
+        merchantName = merchantName,
+        onCancel = onCancel
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(260.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.White)
+                    .border(1.dp, AccentColor.copy(alpha = 0.24f), RoundedCornerShape(20.dp))
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                currentStroke = listOf(offset)
+                            },
+                            onDragEnd = {
+                                if (currentStroke.size > 1) {
+                                    strokes.add(currentStroke)
+                                }
+                                currentStroke = emptyList()
+                            },
+                            onDragCancel = {
+                                currentStroke = emptyList()
+                            }
+                        ) { change, _ ->
+                            currentStroke = currentStroke + change.position
+                        }
+                    }
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    strokes.forEach { stroke ->
+                        drawStroke(stroke)
+                    }
+                    drawStroke(currentStroke)
+                }
+
+                if (!hasSignature) {
+                    Text(
+                        text = "손가락으로 서명해주세요",
+                        color = TextSecondary,
+                        fontSize = 15.sp,
+                        fontFamily = NaedaFontFamily,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        strokes.clear()
+                        currentStroke = emptyList()
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentColor)
+                ) {
+                    Text("다시 쓰기", fontFamily = NaedaFontFamily)
+                }
+                Button(
+                    onClick = onSuccess,
+                    enabled = hasSignature,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AccentColor,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("확인", fontFamily = NaedaFontFamily)
+                }
+            }
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+private fun DrawScope.drawStroke(points: List<Offset>) {
+    if (points.isEmpty()) {
+        return
+    }
+    if (points.size == 1) {
+        drawCircle(
+            color = AccentColor,
+            radius = 4.dp.toPx(),
+            center = points.first()
+        )
+        return
+    }
+
+    for (index in 0 until points.lastIndex) {
+        drawLine(
+            color = AccentColor,
+            start = points[index],
+            end = points[index + 1],
+            strokeWidth = 5.dp.toPx(),
+            cap = StrokeCap.Round
         )
     }
 }
