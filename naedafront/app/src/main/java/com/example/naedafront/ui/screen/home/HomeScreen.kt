@@ -70,13 +70,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.AssetAccountResponse
 import com.example.naedafront.data.remote.AssetCardResponse
+import com.example.naedafront.data.repository.CardRepository
 import com.example.naedafront.ui.theme.Background
 import com.example.naedafront.ui.theme.KronaOneFontFamily
 import com.example.naedafront.ui.theme.Mint100
@@ -144,6 +147,7 @@ data class HomeUiState(
 fun HomeScreen(
     uiState: HomeUiState = HomeUiState(),
     onTransactionClick: () -> Unit = {},
+    onCardTransactionClick: (AssetCardResponse) -> Unit = {},
     onFacePaySettingClick: () -> Unit = {},
     onLinkAccountClick: () -> Unit = {},
     onViewAllTransactionsClick: () -> Unit = {},
@@ -155,6 +159,34 @@ fun HomeScreen(
     onNoticeItemClick: (NoticeItem) -> Unit = {},
     onNoticeMoreClick: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    var cardPaymentAmounts by remember(uiState.cards) { mutableStateOf<Map<Long, Long>>(emptyMap()) }
+
+    LaunchedEffect(uiState.cards) {
+        val userNo = AuthPrefs.getUserNo(context)
+        if (userNo == null || uiState.cards.isEmpty()) {
+            cardPaymentAmounts = emptyMap()
+            return@LaunchedEffect
+        }
+
+        val totals = mutableMapOf<Long, Long>()
+
+        uiState.cards.forEach { card ->
+            val cardId = card.cardId ?: return@forEach
+            val totalAmount = CardRepository.getCardTransactions(
+                userNo = userNo,
+                cardId = cardId,
+                period = "전체"
+            ).getOrDefault(emptyList())
+                .filter { !it.isCanceled }
+                .sumOf { it.amount }
+
+            totals[cardId] = totalAmount
+        }
+
+        cardPaymentAmounts = totals
+    }
+
     Scaffold(
         topBar = {
             NaedaHomeTopBar(
@@ -185,7 +217,9 @@ fun HomeScreen(
                 uiState.isAccountLinked -> AssetCardPager(
                     account = uiState.account!!,
                     cards = uiState.cards,
+                    cardPaymentAmounts = cardPaymentAmounts,
                     onTransactionClick = onTransactionClick,
+                    onCardTransactionClick = onCardTransactionClick,
                     onRegisterCardClick = onRegisterCardClick
                 )
                 else -> LinkAccountCard(onLinkAccountClick = onLinkAccountClick)
@@ -398,12 +432,18 @@ private fun BalanceCard(
                             color = Color.White.copy(alpha = 0.45f)
                         )
                     }
-                    Icon(
-                        Icons.Default.AccountBalanceWallet,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.85f),
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color.White.copy(alpha = 0.2f))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "계좌",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = Color.White
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -455,7 +495,9 @@ private fun BalanceCard(
 private fun AssetCardPager(
     account: AssetAccountResponse,
     cards: List<AssetCardResponse>,
+    cardPaymentAmounts: Map<Long, Long>,
     onTransactionClick: () -> Unit,
+    onCardTransactionClick: (AssetCardResponse) -> Unit,
     onRegisterCardClick: () -> Unit
 ) {
     // 계좌(1) + 카드(N) + 카드없으면 등록카드(1)
@@ -466,7 +508,13 @@ private fun AssetCardPager(
         pages.add { RegisterCardPrompt(onClick = onRegisterCardClick) }
     } else {
         cards.forEach { card ->
-            pages.add { CardInfoCard(card = card) }
+            pages.add {
+                CardInfoCard(
+                    card = card,
+                    amount = card.cardId?.let { cardPaymentAmounts[it] } ?: 0L,
+                    onTransactionClick = { onCardTransactionClick(card) }
+                )
+            }
         }
     }
 
@@ -531,12 +579,17 @@ private fun resolveCardGradient(cardIssuerCode: String?, cardIssuerName: String?
 }
 
 @Composable
-private fun CardInfoCard(card: AssetCardResponse) {
+private fun CardInfoCard(
+    card: AssetCardResponse,
+    amount: Long,
+    onTransactionClick: () -> Unit = {}
+) {
     val (gradientStart, gradientEnd) = resolveCardGradient(card.cardIssuerCode, card.cardIssuerName)
     val isLight = isLightColor(gradientStart)
     val textPrimary = if (isLight) Color(0xFF1A1A1A) else Color.White
-    val textSecondary = if (isLight) Color(0xFF1A1A1A).copy(alpha = 0.55f) else Color.White.copy(alpha = 0.45f)
-    val textBody = if (isLight) Color(0xFF1A1A1A).copy(alpha = 0.8f) else Color.White.copy(alpha = 0.85f)
+    val textSecondary = if (isLight) Color(0xFF1A1A1A).copy(alpha = 0.65f) else Color.White.copy(alpha = 0.65f)
+    val textTertiary = if (isLight) Color(0xFF1A1A1A).copy(alpha = 0.45f) else Color.White.copy(alpha = 0.45f)
+    val textBody = if (isLight) Color(0xFF1A1A1A).copy(alpha = 0.7f) else Color.White.copy(alpha = 0.7f)
     val badgeBg = if (isLight) Color.Black.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.2f)
     val decoColor = if (isLight) Color.Black.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.06f)
     val decoColor2 = if (isLight) Color.Black.copy(alpha = 0.03f) else Color.White.copy(alpha = 0.04f)
@@ -584,14 +637,14 @@ private fun CardInfoCard(card: AssetCardResponse) {
                 Column {
                     Text(
                         text = card.cardIssuerName ?: "",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = textPrimary
+                        style = MaterialTheme.typography.labelMedium,
+                        color = textSecondary
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = card.cardNo ?: "",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = textSecondary
+                        style = MaterialTheme.typography.labelSmall,
+                        color = textTertiary
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -613,17 +666,56 @@ private fun CardInfoCard(card: AssetCardResponse) {
             // 중단: 카드 상품명
             Text(
                 text = card.cardName ?: "등록 카드",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
+                style = MaterialTheme.typography.bodySmall,
                 color = textBody,
                 maxLines = 1
             )
 
-            // 하단: 유효기간
+            Spacer(modifier = Modifier.height(8.dp))
+
             Text(
-                text = "~ ${card.cardExpiryDate ?: ""}",
-                style = MaterialTheme.typography.bodySmall,
-                color = textSecondary
+                text = "₩${"%,d".format(amount)}",
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 30.sp
+                ),
+                color = textPrimary
             )
+
+            // 하단: 유효기간 + 거래내역 버튼
+            Column {
+                Text(
+                    text = "유효기간 ${card.cardExpiryDate ?: ""}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = textSecondary
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedButton(
+                    onClick = onTransactionClick,
+                    enabled = card.cardId != null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color.White.copy(alpha = 0.08f),
+                        contentColor = textPrimary,
+                        disabledContainerColor = Color.White.copy(alpha = 0.05f),
+                        disabledContentColor = textPrimary.copy(alpha = 0.45f)
+                    ),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.28f))
+                ) {
+                    Text(
+                        "거래내역",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = if (card.cardId != null) textPrimary else textPrimary.copy(alpha = 0.45f)
+                    )
+                }
+            }
         }
     }
 }
