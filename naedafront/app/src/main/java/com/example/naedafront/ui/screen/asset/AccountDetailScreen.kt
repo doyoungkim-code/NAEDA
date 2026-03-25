@@ -271,7 +271,7 @@ private fun AccountDetailHeader(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = accountNumber,
+                    text = accountNumber.maskAccountNumber(),
                     style = NaedaTypography.labelSmall,
                     color = Color.White.copy(alpha = 0.65f)
                 )
@@ -635,4 +635,13 @@ private fun TransactionItem.matches(query: String): Boolean {
         date,
         time
     ).any { it.lowercase().contains(keyword) }
+}
+
+private fun String.maskAccountNumber(): String {
+    val digits = replace("-", "").replace(" ", "")
+    return when {
+        digits.isBlank() -> "-"
+        digits.length <= 4 -> digits
+        else -> "*".repeat(digits.length - 4) + digits.takeLast(4)
+    }
 }
