@@ -866,12 +866,12 @@ private fun FacePayBannerCard(onFacePaySettingClick: () -> Unit) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
+                .padding(horizontal = 20.dp, vertical = 20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "웃으며 결제하세요",
+                    text = "얼굴 등록 한 번으로 결제 끝!",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold
                     ),
@@ -879,14 +879,16 @@ private fun FacePayBannerCard(onFacePaySettingClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "내다의 혁신적인 얼굴 인식\n결제로 더 안전하고 편리하게.",
+                    text = "카드 없이도 어디서든 빠르게.",
                     style = MaterialTheme.typography.bodySmall,
                     color = OnBackground.copy(alpha = 0.55f)
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 Button(
                     onClick = onFacePaySettingClick,
-                    modifier = Modifier.height(36.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp),
                     shape = RoundedCornerShape(8.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Mint900)
@@ -900,15 +902,16 @@ private fun FacePayBannerCard(onFacePaySettingClick: () -> Unit) {
                 }
             }
 
-            Box(
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Image(
+                painter = painterResource(id = R.drawable.face_before),
+                contentDescription = "페이스페이 등록 전",
+                contentScale = ContentScale.Fit,
                 modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(Mint900.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(text = "😊", fontSize = 36.sp)
-            }
+                    .size(90.dp)
+                    .clip(RoundedCornerShape(16.dp))
+            )
         }
     }
 }
@@ -987,15 +990,14 @@ private fun FacePayBenefitCard(
                 )
             }
 
-            Box(
+            Image(
+                painter = painterResource(id = R.drawable.face_after),
+                contentDescription = "페이스페이 등록 완료",
+                contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .size(80.dp)
-                    .clip(CircleShape)
-                    .background(Mint900.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(text = "😎", fontSize = 36.sp)
-            }
+                    .clip(RoundedCornerShape(16.dp))
+            )
         }
     }
 }
