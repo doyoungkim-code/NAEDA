@@ -30,6 +30,8 @@ import androidx.compose.material.icons.outlined.LocalShipping
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -51,6 +53,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.naedafront.ui.common.NaedaTopBar
 
@@ -62,6 +65,7 @@ fun MyPageScreen(
     onNotificationClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onFaceReRegisterClick: () -> Unit = {},
+    onSecondaryAuthClick: () -> Unit = {},
     onPinChangeClick: () -> Unit = {},
     onDeliveryAddressClick: () -> Unit = {},
     onOrderHistoryClick: () -> Unit = {},
@@ -152,6 +156,35 @@ fun MyPageScreen(
                             iconBg = Color(0xFFE8F7F1),
                             iconTint = Color(0xFF16A36A),
                             onClick = onFaceReRegisterClick
+                        ),
+                        MyPageMenuItemData(
+                            title = "2차 암호 사용",
+                            icon = Icons.Outlined.Edit,
+                            iconBg = Color(0xFFFFF4E5),
+                            iconTint = Color(0xFFF59E0B),
+                            trailingType = MyPageMenuTrailing.Toggle(
+                                checked = uiState.secondaryAuthEnabled,
+                                enabled = !uiState.isUpdatingSecondaryAuth
+                            ),
+                            onClick = {
+                                if (!uiState.faceRegistered) {
+                                    Toast.makeText(context, "얼굴 등록 후 사용할 수 있습니다.", Toast.LENGTH_SHORT).show()
+                                } else if (uiState.secondaryAuthEnabled) {
+                                    viewModel.updateSecondaryAuth(
+                                        context = context,
+                                        enable = false,
+                                        currentPin = null,
+                                        onSuccess = {
+                                            Toast.makeText(context, "2차 인증이 해제되었습니다.", Toast.LENGTH_SHORT).show()
+                                        },
+                                        onFailure = { message ->
+                                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                        }
+                                    )
+                                } else {
+                                    onSecondaryAuthClick()
+                                }
+                            }
                         ),
                         MyPageMenuItemData(
                             title = "PIN 번호 변경",
@@ -413,7 +446,7 @@ private fun MyPageMenuRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = item.onClick)
+            .clickable(enabled = item.enabled, onClick = item.onClick)
             .padding(horizontal = 18.dp, vertical = 20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -443,13 +476,45 @@ private fun MyPageMenuRow(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = "이동",
-            tint = Color(0xFFB8BEC8),
-            modifier = Modifier.size(22.dp)
-        )
+        when (val trailing = item.trailingType) {
+            MyPageMenuTrailing.Chevron -> {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "이동",
+                    tint = Color(0xFFB8BEC8),
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            is MyPageMenuTrailing.Toggle -> {
+                Switch(
+                    checked = trailing.checked,
+                    onCheckedChange = if (trailing.enabled) {
+                        { item.onClick() }
+                    } else {
+                        null
+                    },
+                    enabled = trailing.enabled,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Color(0xFF16A36A),
+                        uncheckedThumbColor = Color.White,
+                        uncheckedTrackColor = Color(0xFFD5D9E0),
+                        uncheckedBorderColor = Color(0xFFD5D9E0)
+                    )
+                )
+            }
+        }
     }
+}
+
+@Immutable
+private sealed interface MyPageMenuTrailing {
+    data object Chevron : MyPageMenuTrailing
+    data class Toggle(
+        val checked: Boolean,
+        val enabled: Boolean
+    ) : MyPageMenuTrailing
 }
 
 @Immutable
@@ -459,5 +524,7 @@ private data class MyPageMenuItemData(
     val iconBg: Color,
     val iconTint: Color,
     val textColor: Color = Color(0xFF1F2937),
+    val enabled: Boolean = true,
+    val trailingType: MyPageMenuTrailing = MyPageMenuTrailing.Chevron,
     val onClick: () -> Unit = {}
 )

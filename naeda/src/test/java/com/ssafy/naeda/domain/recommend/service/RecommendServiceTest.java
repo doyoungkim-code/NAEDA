@@ -35,6 +35,7 @@ class RecommendServiceTest {
                 .roadAddress(address)
                 .categoryName(category)
                 .rating(rating)
+                .isRecommended(true)
                 .isActive(true)
                 .build();
     }
@@ -47,7 +48,7 @@ class RecommendServiceTest {
         Store s1 = store(1L, "맛집A", "경북 구미시 진평동 1", "한식", 4.5);
         Store s2 = store(2L, "맛집B", "경북 구미시 인의동 2", "양식", 3.0);
 
-        given(storeRepository.findByFilters(null, null)).willReturn(List.of(s1, s2));
+        given(storeRepository.findRecommendedByFilters(null, null)).willReturn(List.of(s1, s2));
         given(payTransactionRepository.countVisitsByStore()).willReturn(List.of(
                 new Object[]{1L, 10L},
                 new Object[]{2L, 50L}
@@ -67,7 +68,7 @@ class RecommendServiceTest {
         Store s1 = store(1L, "맛집A", "경북 구미시 진평동 1", "한식", 3.0);
         Store s2 = store(2L, "맛집B", "경북 구미시 인의동 2", "양식", 4.8);
 
-        given(storeRepository.findByFilters(null, null)).willReturn(List.of(s1, s2));
+        given(storeRepository.findRecommendedByFilters(null, null)).willReturn(List.of(s1, s2));
         given(payTransactionRepository.countVisitsByStore()).willReturn(List.of());
 
         List<RecommendResponse> result = recommendService.getRecommendStores(null, null, "rating");
@@ -82,7 +83,7 @@ class RecommendServiceTest {
         Store s1 = store(1L, "맛집A", "경북 구미시 진평동 1", "한식", 4.5);
         Store s2 = store(2L, "맛집B", "경북 구미시 인의동 2", "양식", 3.0);
 
-        given(storeRepository.findByFilters(null, null)).willReturn(List.of(s1, s2));
+        given(storeRepository.findRecommendedByFilters(null, null)).willReturn(List.of(s1, s2));
         given(payTransactionRepository.countVisitsByStore()).willReturn(List.of(
                 new Object[]{1L, 5L},
                 new Object[]{2L, 30L}
@@ -99,7 +100,7 @@ class RecommendServiceTest {
     void getRecommendStores_dongFilter() {
         Store s1 = store(1L, "맛집A", "경북 구미시 진평동 1", "한식", 4.0);
 
-        given(storeRepository.findByFilters("진평동", null)).willReturn(List.of(s1));
+        given(storeRepository.findRecommendedByFilters("진평동", null)).willReturn(List.of(s1));
         given(payTransactionRepository.countVisitsByStore()).willReturn(List.of());
 
         List<RecommendResponse> result = recommendService.getRecommendStores("진평동", null, null);
@@ -113,7 +114,7 @@ class RecommendServiceTest {
     void getRecommendStores_categoryFilter() {
         Store s1 = store(1L, "맛집A", "경북 구미시 진평동 1", "한식", 4.0);
 
-        given(storeRepository.findByFilters(null, "한식")).willReturn(List.of(s1));
+        given(storeRepository.findRecommendedByFilters(null, "한식")).willReturn(List.of(s1));
         given(payTransactionRepository.countVisitsByStore()).willReturn(List.of());
 
         List<RecommendResponse> result = recommendService.getRecommendStores(null, "한식", null);
@@ -128,7 +129,7 @@ class RecommendServiceTest {
         Store s1 = store(1L, "맛집A", "경북 구미시 진평동 1", "한식", 4.5);
         Store s2 = store(2L, "맛집B", "경북 구미시 진평동 2", "한식", 3.8);
 
-        given(storeRepository.findByFilters("진평동", "한식")).willReturn(List.of(s1, s2));
+        given(storeRepository.findRecommendedByFilters("진평동", "한식")).willReturn(List.of(s1, s2));
         given(payTransactionRepository.countVisitsByStore()).willReturn(List.of(
                 new Object[]{1L, 10L},
                 new Object[]{2L, 20L}
@@ -145,7 +146,7 @@ class RecommendServiceTest {
     void getRecommendStores_noVisits() {
         Store s1 = store(1L, "신규맛집", "경북 구미시 진평동 1", "한식", 4.0);
 
-        given(storeRepository.findByFilters(null, null)).willReturn(List.of(s1));
+        given(storeRepository.findRecommendedByFilters(null, null)).willReturn(List.of(s1));
         given(payTransactionRepository.countVisitsByStore()).willReturn(List.of());
 
         List<RecommendResponse> result = recommendService.getRecommendStores(null, null, null);
