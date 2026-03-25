@@ -102,10 +102,14 @@ private const val CANDIDATE_STALE_MS = 1_500L
 private const val AMBIGUOUS_HOLD_MS = 2_000L
 private const val AMBIGUOUS_CONTINUITY_GAP_MS = 1_500L
 private const val MIN_BRIGHTNESS = 40f
-private const val FRAME_EDGE_MARGIN_RATIO = 0.02f
-private const val MIN_GUIDE_FACE_WIDTH_RATIO = 0.52f
-private const val MIN_GUIDE_FACE_HEIGHT_RATIO = 0.68f
-private const val GUIDE_CENTER_TOLERANCE_RATIO = 0.5f
+private const val FRAME_EDGE_MARGIN_RATIO = 0.01f
+private const val MIN_GUIDE_FACE_WIDTH_RATIO = 0.38f
+private const val MIN_GUIDE_FACE_HEIGHT_RATIO = 0.48f
+private const val GUIDE_CENTER_TOLERANCE_RATIO = 0.72f
+private const val GUIDE_CENTER_Y_RATIO = 0.47f
+private const val FACE_SIDE_PADDING_RATIO = 0.14f
+private const val FACE_TOP_PADDING_RATIO = 0.02f
+private const val FACE_BOTTOM_PADDING_RATIO = 0.02f
 
 data class CandidateResult(
     val userId: String,
@@ -151,6 +155,7 @@ private data class UploadCandidate(
 
 @Composable
 fun FacePayAuthScreen(
+    requestId: Long,
     amount: Long,
     merchant: String,
     apiBaseUrl: String,
@@ -249,6 +254,16 @@ fun FacePayAuthScreen(
 
             if (remaining <= 0L) {
                 scanResolved = true
+                withContext(Dispatchers.IO) {
+                    runCatching {
+                        markPayRequestFailed(
+                            client = client,
+                            apiBaseUrl = apiBaseUrl,
+                            requestId = requestId,
+                            reason = "30초 동안 얼굴을 인식하지 못해 결제가 종료되었습니다."
+                        )
+                    }
+                }
                 onNotMatched("30초 동안 얼굴을 인식하지 못했습니다.")
                 return@LaunchedEffect
             }
@@ -443,7 +458,7 @@ private fun FaceScanContent(
                     .fillMaxSize()
                     .drawWithCache {
                         val cx = size.width / 2f
-                        val cy = size.height / 2f
+                        val cy = size.height * GUIDE_CENTER_Y_RATIO
                         val radius = size.width * 0.38f
                         val guideColor = if (guideAligned) GuideReady else Primary
                         onDrawWithContent {
@@ -646,7 +661,7 @@ private fun evaluateGuideFrame(
     val midpoint = PointF(box.centerX().toFloat(), box.centerY().toFloat())
     val guideRadius = frameWidth * 0.38f
     val guideCenterX = frameWidth / 2f
-    val guideCenterY = frameHeight / 2f
+    val guideCenterY = frameHeight * GUIDE_CENTER_Y_RATIO
     val dx = midpoint.x - guideCenterX
     val dy = midpoint.y - guideCenterY
     val centerDistance = sqrt(dx * dx + dy * dy)
@@ -660,12 +675,15 @@ private fun evaluateGuideFrame(
     val sizeOk = largeEnough
     val frameMarginX = frameWidth * FRAME_EDGE_MARGIN_RATIO
     val frameMarginY = frameHeight * FRAME_EDGE_MARGIN_RATIO
+    val requiredSidePadding = max(frameMarginX, box.width().toFloat() * FACE_SIDE_PADDING_RATIO)
+    val requiredTopPadding = max(frameMarginY, box.height().toFloat() * FACE_TOP_PADDING_RATIO)
+    val requiredBottomPadding = max(frameMarginY, box.height().toFloat() * FACE_BOTTOM_PADDING_RATIO)
     val fullyVisible =
-        box.left >= frameMarginX &&
-        box.right <= frameWidth - frameMarginX &&
-        box.top >= frameMarginY &&
-        box.bottom <= frameHeight - frameMarginY
-    val aligned = fullyVisible && centered && largeEnough
+        box.left >= requiredSidePadding &&
+        box.right <= frameWidth - requiredSidePadding &&
+        box.top >= requiredTopPadding &&
+        box.bottom <= frameHeight - requiredBottomPadding
+    val aligned = fullyVisible && largeEnough
     val alignmentScore = (1f - (centerDistance / (guideRadius * GUIDE_CENTER_TOLERANCE_RATIO)).coerceIn(0f, 1f))
     val sizeScore = (
         (faceWidthToGuide / MIN_GUIDE_FACE_WIDTH_RATIO) +
@@ -677,8 +695,8 @@ private fun evaluateGuideFrame(
 
     val message = when {
         !fullyVisible -> "얼굴 전체가 화면 안에 보이도록 맞춰주세요."
-        !largeEnough -> "얼굴을 원형 가이드 크기 정도로 더 가까이 보여주세요."
-        !centered -> "가능하면 얼굴을 가운데로 맞춰주세요."
+        !largeEnough -> "얼굴을 조금만 더 가까이 보여주세요."
+        !centered -> "얼굴을 조금 더 가운데로 맞춰주세요."
         else -> "좋아요. 얼굴을 그대로 유지해주세요."
     }
 
@@ -892,4 +910,21 @@ private fun postFaceSearchBytes(
             candidates = candidates
         )
     }
+}
+
+private fun markPayRequestFailed(
+    client: OkHttpClient,
+    apiBaseUrl: String,
+    requestId: Long,
+    reason: String
+) {
+    val payload = JSONObject()
+        .put("reason", reason)
+
+    val request = Request.Builder()
+        .url("${apiBaseUrl.trimEnd('/')}/api/pay-requests/$requestId/fail")
+        .post(payload.toString().toRequestBody("application/json".toMediaType()))
+        .build()
+
+    client.newCall(request).execute().use { }
 }

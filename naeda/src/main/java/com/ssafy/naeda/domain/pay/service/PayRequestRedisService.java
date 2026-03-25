@@ -120,6 +120,25 @@ public class PayRequestRedisService {
         return true;
     }
 
+    public boolean markFailed(Long requestId, String reason) {
+        PayRequestStatus currentStatus = getStatus(requestId);
+        if (currentStatus == null) {
+            log.error("[PayRequest] 실패 처리 대상 없음: requestId={}", requestId);
+            return false;
+        }
+
+        boolean transitioned = currentStatus == PayRequestStatus.FAILED
+                || transition(requestId, PayRequestStatus.FAILED);
+        if (!transitioned) {
+            return false;
+        }
+
+        if (reason != null && !reason.isBlank()) {
+            setResultData(requestId, Map.of("failureReason", reason));
+        }
+        return true;
+    }
+
     /**
      * 결과 데이터 추가 (성공 시 transactionId, 실패 시 reason 등)
      */
