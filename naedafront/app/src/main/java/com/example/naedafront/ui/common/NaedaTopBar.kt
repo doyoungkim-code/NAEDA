@@ -1,5 +1,6 @@
 package com.example.naedafront.ui.common
 
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -69,6 +70,7 @@ fun NaedaTopBar(
             navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
             actionIconContentColor = MaterialTheme.colorScheme.onBackground,
         ),
+        windowInsets = WindowInsets(0),
         modifier = modifier,
     )
 }

@@ -21,6 +21,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -493,7 +494,15 @@ fun NaedaNavGraph(
                 viewModel = myPageViewModel,
                 onBackClick = { navController.popBackStack() },
                 onNotificationClick = { navController.navigate(Screen.Notification.route) },
-                onSettingsClick = { navController.navigate(Screen.Settings.route) },
+                onSettingsClick = {
+                    navController.navigate(Screen.More.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
                 onFaceReRegisterClick = { navController.navigate(Screen.FaceRegister.route) },
                 onPinChangeClick = { navController.navigate(Screen.Security.route) },
                 onDeliveryAddressClick = { navController.navigate(Screen.DeliveryAddress.route) },
@@ -504,8 +513,7 @@ fun NaedaNavGraph(
                         popUpTo(Screen.Welcome.route) { inclusive = true }
                         launchSingleTop = true
                     }
-                },
-                onFabClick = { }
+                }
             )
         }
 
