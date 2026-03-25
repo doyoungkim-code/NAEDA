@@ -80,7 +80,6 @@ data class AccountItem(
 data class CardItem(
     val id: String,
     val cardId: Long? = null,
-    val cardId: Long? = null,
     val paymentMethodId: Long? = null,
     val cardType: String,
     val cardIssuerName: String,
