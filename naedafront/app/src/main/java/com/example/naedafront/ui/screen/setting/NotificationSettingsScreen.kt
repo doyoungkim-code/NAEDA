@@ -23,7 +23,6 @@ import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Celebration
 import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Stars
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -227,19 +226,6 @@ fun NotificationSettingsScreen(
                             checked = pointEnabled,
                             onCheckedChange = { enabled ->
                                 pointEnabled = enabled
-                                updateSettings()
-                            }
-                        )
-
-                        CardDivider()
-
-                        NotificationToggleRow(
-                            icon = Icons.Outlined.Shield,
-                            title = "이상거래 탐지 알림",
-                            description = "FDS 이상거래 감지 알림",
-                            checked = fdsEnabled,
-                            onCheckedChange = { enabled ->
-                                fdsEnabled = enabled
                                 updateSettings()
                             }
                         )
