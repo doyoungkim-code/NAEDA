@@ -294,7 +294,7 @@ private fun PointHistoryHeader(
                 Text(
                     text = "페이스페이로 결제 시 적립됩니다.",
                     color = Color.White.copy(alpha = 0.92f),
-                    fontSize = 13.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -331,7 +331,7 @@ private fun PointHistoryHeader(
                         Text(
                             text = "현재 포인트",
                             color = Color.White.copy(alpha = 0.8f),
-                            fontSize = 18.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Spacer(modifier = Modifier.height(10.dp))
@@ -341,14 +341,14 @@ private fun PointHistoryHeader(
                             Text(
                                 text = "%,d".format(point),
                                 color = Color.White,
-                                fontSize = 40.sp,
+                                fontSize = 32.sp,
                                 fontWeight = FontWeight.ExtraBold
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "P",
                                 color = Color.White,
-                                fontSize = 20.sp,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -368,7 +368,7 @@ private fun PointHistoryHeader(
                 Text(
                     text = "10,000 P 이상부터 전환 가능합니다",
                     color = Color.White.copy(alpha = 0.92f),
-                    fontSize = 12.sp,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -393,7 +393,7 @@ private fun PointHistoryHeader(
                 Text(
                     text = "구미사랑상품권으로 전환하기",
                     color = Color(0xFF94A3B8),
-                    fontSize = 16.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -417,7 +417,7 @@ private fun ProgressSection(
             text = "${progressPercent}% 완료",
             modifier = Modifier.align(Alignment.End),
             color = StoreGreen,
-            fontSize = 15.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold
         )
 
@@ -504,7 +504,7 @@ private fun ProgressNode(
             Text(
                 text = labelTop,
                 color = topTextColor,
-                fontSize = 15.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -514,7 +514,7 @@ private fun ProgressNode(
         Text(
             text = labelBottom,
             color = textColor,
-            fontSize = 13.sp,
+            fontSize = 11.sp,
             fontWeight = FontWeight.Bold
         )
     }
@@ -548,7 +548,7 @@ private fun PeriodSection(
                 Text(
                     text = selectedYear.toString(),
                     color = Color.White,
-                    fontSize = 16.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -562,7 +562,7 @@ private fun PeriodSection(
                 Text(
                     text = selectedMonth?.let { "${it}월" } ?: "전체",
                     color = Color.White,
-                    fontSize = 16.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -615,7 +615,7 @@ private fun SummaryCard(
             Text(
                 text = periodLabel,
                 color = Color(0xFF98A2B3),
-                fontSize = 13.sp,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Medium
             )
 
@@ -631,14 +631,14 @@ private fun SummaryCard(
                     Text(
                         text = "총 적립",
                         color = Color(0xFF94A3B8),
-                        fontSize = 13.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "+%,d P".format(totalEarned),
                         color = StoreGreen,
-                        fontSize = 18.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
                 }
@@ -659,14 +659,14 @@ private fun SummaryCard(
                     Text(
                         text = "총 사용",
                         color = Color(0xFF94A3B8),
-                        fontSize = 13.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "-%,d P".format(totalUsed),
                         color = Color(0xFF344054),
-                        fontSize = 18.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
                 }
@@ -686,7 +686,7 @@ private fun HistoryTitleRow() {
         Text(
             text = "상세 내역",
             color = Color(0xFF101828),
-            fontSize = 32.sp,
+            fontSize = 22.sp,
             fontWeight = FontWeight.ExtraBold
         )
 
@@ -712,7 +712,7 @@ private fun HistoryRow(
         ) {
             Box(
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(32.dp)
                     .clip(CircleShape)
                     .background(Color(0xFFF0F2F5)),
                 contentAlignment = Alignment.Center
@@ -720,12 +720,12 @@ private fun HistoryRow(
                 Text(
                     text = item.iconText,
                     color = Color(0xFF64748B),
-                    fontSize = 14.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
 
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             Column(
                 modifier = Modifier.weight(1f)
@@ -733,17 +733,17 @@ private fun HistoryRow(
                 Text(
                     text = item.title,
                     color = if (item.positive) Color(0xFF111827) else Color(0xFF98A2B3),
-                    fontSize = 18.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Row {
                     Text(
                         text = item.dateText,
                         color = Color(0xFF98A2B3),
-                        fontSize = 13.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
                     )
 
@@ -751,7 +751,7 @@ private fun HistoryRow(
                         Text(
                             text = " · ${item.detailText}",
                             color = Color(0xFF98A2B3),
-                            fontSize = 13.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -761,7 +761,7 @@ private fun HistoryRow(
             Text(
                 text = item.pointText,
                 color = if (item.positive) StoreGreen else Color(0xFF98A2B3),
-                fontSize = 18.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.ExtraBold
             )
         }
@@ -786,7 +786,7 @@ private fun EmptyHistorySection(
         Text(
             text = message,
             color = Color(0xFF98A2B3),
-            fontSize = 16.sp,
+            fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold
         )
     }
@@ -827,7 +827,7 @@ private fun FilterBottomSheet(
             Text(
                 text = "필터 설정",
                 color = Color(0xFF111827),
-                fontSize = 30.sp,
+                fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold
             )
 
@@ -870,7 +870,7 @@ private fun FilterBottomSheet(
             ) {
                 Text(
                     text = "적용하기",
-                    fontSize = 18.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -917,7 +917,7 @@ private fun PeriodBottomSheet(
             Text(
                 text = "기간 설정",
                 color = Color(0xFF111827),
-                fontSize = 30.sp,
+                fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold
             )
 
@@ -926,7 +926,7 @@ private fun PeriodBottomSheet(
             Text(
                 text = "연도",
                 color = Color(0xFF6B7280),
-                fontSize = 16.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Bold
             )
 
@@ -949,7 +949,7 @@ private fun PeriodBottomSheet(
             Text(
                 text = "월",
                 color = Color(0xFF6B7280),
-                fontSize = 16.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Bold
             )
 
@@ -989,7 +989,7 @@ private fun PeriodBottomSheet(
             ) {
                 Text(
                     text = "적용하기",
-                    fontSize = 18.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -1013,7 +1013,7 @@ private fun SelectChip(
         Text(
             text = text,
             color = if (selected) Color.White else Color(0xFF64748B),
-            fontSize = 15.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold
         )
     }
@@ -1035,7 +1035,7 @@ private fun FilterOptionRow(
         Text(
             text = title,
             color = if (selected) Color(0xFF00695C) else Color(0xFF6B7280),
-            fontSize = 18.sp,
+            fontSize = 15.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
         )
 
