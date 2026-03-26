@@ -118,6 +118,8 @@ import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.ui.graphics.graphicsLayer
 
+private const val MIN_REGION_RECOMMEND_STORE_COUNT = 5
+
 data class Restaurant(
     val name: String,
     val category: String,
@@ -152,6 +154,56 @@ private fun parsePoints(raw: String): List<Offset> =
         val (x, y) = it.split(",")
         Offset(x.toFloat(), y.toFloat())
     }
+
+private fun MapStoreResponseDto.toRecommendFallback(): RecommendResponseDto {
+    return RecommendResponseDto(
+        storeId = storeId,
+        storeName = storeName,
+        categoryName = categoryName,
+        roadAddress = roadAddress,
+        latitude = latitude,
+        longitude = longitude,
+        rating = rating,
+        imageUrl = imageUrl,
+        description = description,
+        visitCount = 0,
+        score = rating
+    )
+}
+
+private fun mergeWithFeaturedFallbackStores(
+    regionLabel: String,
+    stores: List<RecommendResponseDto>,
+    featuredStores: List<MapStoreResponseDto>
+): List<RecommendResponseDto> {
+    if (stores.size >= MIN_REGION_RECOMMEND_STORE_COUNT || featuredStores.isEmpty()) {
+        return stores
+    }
+
+    val existingStoreIds = stores.map { it.storeId }.toSet()
+    val existingNames = stores.map { it.storeName }.toSet()
+    val shortage = MIN_REGION_RECOMMEND_STORE_COUNT - stores.size
+    val startIndex = (regionLabel.hashCode() and Int.MAX_VALUE) % featuredStores.size
+    val fallbackStores = mutableListOf<RecommendResponseDto>()
+
+    for (offset in featuredStores.indices) {
+        if (fallbackStores.size >= shortage) {
+            break
+        }
+
+        val candidate = featuredStores[(startIndex + offset) % featuredStores.size]
+        if (candidate.storeId in existingStoreIds || candidate.storeName in existingNames) {
+            continue
+        }
+        if (fallbackStores.any { it.storeId == candidate.storeId || it.storeName == candidate.storeName }) {
+            continue
+        }
+
+        fallbackStores += candidate.toRecommendFallback()
+    }
+
+    return stores + fallbackStores
+}
 
 private val REGIONS: List<MapRegion> = listOf(
     MapRegion(
@@ -462,6 +514,17 @@ fun MapSelectScreen(
             categoryMatches && facePayMatches
         }
     }
+    val featuredRecommendFallbackStores = remember(mapStores) {
+        mapStores
+            .asSequence()
+            .filter { it.facePayEnabled }
+            .filter { toUsableMapImageUrl(it.imageUrl) != null }
+            .sortedWith(
+                compareByDescending<MapStoreResponseDto> { it.rating }
+                    .thenBy { it.storeName }
+            )
+            .toList()
+    }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -619,6 +682,7 @@ fun MapSelectScreen(
         if (selectedTabIndex == 1) {
             PopularRestaurantMapTab(
                 selectedRegion = selectedRegion,
+                featuredFallbackStores = featuredRecommendFallbackStores,
                 isSheetExpanded = isSheetExpanded,
                 onRegionSelected = {
                     selectedRegion = it
@@ -735,28 +799,29 @@ private fun TopMapHeader(
             Spacer(modifier = Modifier.weight(1f))
             Spacer(modifier = Modifier.size(40.dp))
         }
+    }
+}
 
-        if (selectedTabIndex == 1) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "지역명을 터치해 맛집을 알아보세요!",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFF374151)
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "확대하면 글씨와 지도를 크게 볼 수 있습니다.",
-                    fontSize = 11.sp,
-                    color = Color(0xFF9CA3AF)
-                )
-            }
-        }
+@Composable
+private fun MapRegionGuideHint(
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "지역명을 터치해 맛집을 알아보세요!",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF374151)
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = "확대하면 글씨와 지도를 크게 볼 수 있습니다.",
+            fontSize = 11.sp,
+            color = Color(0xFF9CA3AF)
+        )
     }
 }
 
@@ -1450,7 +1515,7 @@ private fun RecommendBottomSheet(
     isLoading: Boolean,
     expanded: Boolean,
     onToggleExpanded: () -> Unit,
-    onStoreClick: (Long) -> Unit,
+    onStoreClick: (RecommendResponseDto) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var selectedCategory by remember { mutableStateOf<String?>(null) }
@@ -1594,7 +1659,7 @@ private fun RecommendBottomSheet(
                                 items(filteredStores) { store ->
                                     RecommendStoreRow(
                                         store = store,
-                                        onClick = { onStoreClick(store.storeId) }
+                                        onClick = { onStoreClick(store) }
                                     )
                                 }
                             }
@@ -1868,6 +1933,7 @@ private fun FacePayChip() {
 @Composable
 private fun PopularRestaurantMapTab(
     selectedRegion: MapRegion?,
+    featuredFallbackStores: List<MapStoreResponseDto>,
     isSheetExpanded: Boolean,
     onRegionSelected: (MapRegion) -> Unit,
     onRegionCleared: () -> Unit,
@@ -1879,6 +1945,10 @@ private fun PopularRestaurantMapTab(
     var isRecommendLoading by remember { mutableStateOf(false) }
     var selectedStoreDetail by remember { mutableStateOf<MapStoreResponseDto?>(null) }
     var isDetailLoading by remember { mutableStateOf(false) }
+    val displayedRecommendStores = remember(selectedRegion?.label, recommendStores, featuredFallbackStores) {
+        val regionLabel = selectedRegion?.label ?: return@remember emptyList()
+        mergeWithFeaturedFallbackStores(regionLabel, recommendStores, featuredFallbackStores)
+    }
 
     LaunchedEffect(selectedRegion?.label) {
         if (selectedRegion != null) {
@@ -1898,11 +1968,11 @@ private fun PopularRestaurantMapTab(
 
     val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color(0xFFF3F4F6))
-            .clickable(
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .background(Color(0xFFF3F4F6))
+                .clickable(
                 indication = null,
                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
             ) { onRegionCleared() }
@@ -1991,6 +2061,14 @@ private fun PopularRestaurantMapTab(
             }
         }
 
+        if (selectedStoreDetail == null) {
+            MapRegionGuideHint(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 88.dp)
+            )
+        }
+
         AnimatedVisibility(
             visible = selectedRegion != null,
             enter = slideInVertically(
@@ -2008,15 +2086,15 @@ private fun PopularRestaurantMapTab(
             if (selectedRegion != null) {
                 RecommendBottomSheet(
                     regionLabel = selectedRegion.label,
-                    stores = recommendStores,
+                    stores = displayedRecommendStores,
                     isLoading = isRecommendLoading,
                     expanded = isSheetExpanded,
                     onToggleExpanded = onToggleExpanded,
-                    onStoreClick = { storeId ->
+                    onStoreClick = { store ->
                         coroutineScope.launch {
                             isDetailLoading = true
                             runCatching {
-                                StoreMapRepository.getStoreDetail(storeId)
+                                StoreMapRepository.getStoreDetail(store.storeId)
                             }.onSuccess { detail ->
                                 selectedStoreDetail = detail
                             }
