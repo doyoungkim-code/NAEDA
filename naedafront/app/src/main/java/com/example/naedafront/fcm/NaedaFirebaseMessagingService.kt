@@ -30,6 +30,12 @@ class NaedaFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
 
+        // 로그인 상태가 아니면 알림 무시
+        if (!AuthPrefs.isLoggedIn(applicationContext)) {
+            Log.d(TAG, "비로그인 상태 — 알림 무시")
+            return
+        }
+
         // 알림 데이터 추출
         val title = remoteMessage.notification?.title
             ?: remoteMessage.data["title"]

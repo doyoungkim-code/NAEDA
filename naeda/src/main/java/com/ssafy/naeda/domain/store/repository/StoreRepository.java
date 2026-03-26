@@ -74,10 +74,11 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
             select s
             from Store s
             where s.isActive = true
+              and s.isRecommended = true
               and (:dong is null or s.roadAddress like concat('%', :dong, '%'))
               and (:categoryName is null or s.categoryName = :categoryName)
             """)
-    List<Store> findByFilters(
+    List<Store> findRecommendedByFilters(
             @Param("dong") String dong,
             @Param("categoryName") String categoryName
     );

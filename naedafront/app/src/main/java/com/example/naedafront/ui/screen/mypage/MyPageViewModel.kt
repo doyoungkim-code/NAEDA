@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.ApiConfig
 import com.example.naedafront.data.remote.AuthApi
+import com.example.naedafront.data.remote.FaceRegistrationRepository
 import com.example.naedafront.data.remote.request.LogoutRequest
 import com.example.naedafront.data.remote.api.UserApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +22,15 @@ class MyPageViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(MyPageUiState())
     val uiState: StateFlow<MyPageUiState> = _uiState.asStateFlow()
+
+    private fun readableMessage(throwable: Throwable, fallback: String): String {
+        val raw = throwable.message
+            ?.substringBefore(" [")
+            ?.substringBefore(" (HTTP")
+            ?.trim()
+            .orEmpty()
+        return raw.ifBlank { fallback }
+    }
 
     fun loadInitialUserInfo(context: Context) {
         _uiState.update {
@@ -134,6 +144,50 @@ class MyPageViewModel : ViewModel() {
                 }
 
                 onLogoutSuccess()
+            }
+        }
+    }
+
+    fun updateSecondaryAuth(
+        context: Context,
+        enable: Boolean,
+        currentPin: String?,
+        onSuccess: (String?) -> Unit = {},
+        onFailure: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(isUpdatingSecondaryAuth = true)
+            }
+
+            runCatching {
+                FaceRegistrationRepository.updateFacePaySettings(
+                    enableSecondaryAuth = enable,
+                    currentPin = currentPin,
+                    paymentMethodId = null,
+                    dailyLimit = null,
+                    monthlyLimit = null,
+                    singleTransactionLimit = null
+                )
+            }.onSuccess { response ->
+                AuthPrefs.saveFacePaySettings(
+                    context = context,
+                    faceRegistered = response.faceRegistered,
+                    secondaryAuthEnabled = response.secondaryAuthEnabled
+                )
+                _uiState.update {
+                    it.copy(
+                        isUpdatingSecondaryAuth = false,
+                        faceRegistered = response.faceRegistered,
+                        secondaryAuthEnabled = response.secondaryAuthEnabled
+                    )
+                }
+                onSuccess(response.message)
+            }.onFailure { throwable ->
+                _uiState.update {
+                    it.copy(isUpdatingSecondaryAuth = false)
+                }
+                onFailure(readableMessage(throwable, "2차 인증 설정 변경에 실패했습니다."))
             }
         }
     }

@@ -37,7 +37,7 @@ public class RecommendService {
      */
     public List<RecommendResponse> getRecommendStores(String dong, String category, String sort) {
         // 1. dong, category 조건에 맞는 Store 목록 조회
-        List<Store> stores = storeRepository.findByFilters(dong, category);
+        List<Store> stores = storeRepository.findRecommendedByFilters(dong, category);
 
         // 2. 각 가게별 방문수(결제 횟수) 집계
         Map<Long, Long> visitMap = payTransactionRepository.countVisitsByStore()
