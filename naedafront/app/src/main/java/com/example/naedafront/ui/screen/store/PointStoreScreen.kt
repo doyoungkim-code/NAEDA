@@ -399,24 +399,13 @@ private fun PointStoreHeader(
 
                             Spacer(modifier = Modifier.weight(1f))
 
-                            Row(
-                                modifier = Modifier.clickable(onClick = onHistoryClick),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Refresh,
-                                    contentDescription = "history",
-                                    tint = Color(0xFF667085),
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "내역보기",
-                                    color = Color(0xFF667085),
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
+                            Text(
+                                text = "내역보기",
+                                color = Color(0xFF667085),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.clickable(onClick = onHistoryClick)
+                            )
                         }
                     }
 
