@@ -71,13 +71,11 @@ fun CustomerCenterScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = {
                     Text(
                         text = "고객센터",
-                        fontFamily = NaedaFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        color = OnBackground
+                        fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {
@@ -89,7 +87,8 @@ fun CustomerCenterScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Background)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Background),
+                windowInsets = WindowInsets(0)
             )
         },
         containerColor = Background,

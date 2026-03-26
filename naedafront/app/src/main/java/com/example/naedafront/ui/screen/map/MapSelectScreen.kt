@@ -667,6 +667,18 @@ fun MapSelectScreen(
             )
         }
 
+        // 식당 탭 캐릭터
+        if (selectedTabIndex == 0) {
+            Image(
+                painter = painterResource(id = R.drawable.map_restaurant),
+                contentDescription = null,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 24.dp)
+                    .size(80.dp)
+            )
+        }
+
         if (selectedTabIndex == 0 && selectedStoreCluster.isNotEmpty() && selectedStoreDetail == null) {
             StoreClusterBottomSheet(
                 stores = selectedStoreCluster,
@@ -693,6 +705,18 @@ fun MapSelectScreen(
                 onRestaurantClick = { region, restaurantName ->
                     onRestaurantClick(region, restaurantName)
                 }
+            )
+        }
+
+        // 맛집 탭 캐릭터
+        if (selectedTabIndex == 1) {
+            Image(
+                painter = painterResource(id = R.drawable.map_food),
+                contentDescription = null,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 24.dp)
+                    .size(80.dp)
             )
         }
 

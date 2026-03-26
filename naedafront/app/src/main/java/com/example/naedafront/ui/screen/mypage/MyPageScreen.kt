@@ -209,13 +209,6 @@ fun MyPageScreen(
                             iconBg = Color(0xFFEEF4FF),
                             iconTint = Color(0xFF2F6FED),
                             onClick = onDeliveryAddressClick
-                        ),
-                        MyPageMenuItemData(
-                            title = "주문 조회",
-                            icon = Icons.Outlined.ReceiptLong,
-                            iconBg = Color(0xFFFFF4E5),
-                            iconTint = Color(0xFFF59E0B),
-                            onClick = onOrderHistoryClick
                         )
                     )
                 )

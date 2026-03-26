@@ -93,7 +93,7 @@ fun WelcomeScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Image(
-                        painter = painterResource(id = R.drawable.chatbot_image),
+                        painter = painterResource(id = R.drawable.naeda_logo),
                         contentDescription = "내다 로고",
                         modifier = Modifier.size(280.dp)
                     )
