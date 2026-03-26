@@ -6,7 +6,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,12 +25,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.naedafront.R
 import com.example.naedafront.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,10 +68,11 @@ fun ChatScreen(
                                 .background(Mint100.copy(alpha = 0.3f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.chatbot_image),
+                            Icon(
+                                imageVector = Icons.Default.Chat,
                                 contentDescription = "내다봇",
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(20.dp),
+                                tint = Mint900
                             )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
@@ -163,10 +162,11 @@ private fun WelcomeMessage() {
                 .background(Mint100.copy(alpha = 0.2f)),
             contentAlignment = Alignment.Center
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.chatbot_image),
+            Icon(
+                imageVector = Icons.Default.Chat,
                 contentDescription = "내다봇",
-                modifier = Modifier.size(64.dp)
+                modifier = Modifier.size(36.dp),
+                tint = Mint900
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
@@ -220,10 +220,11 @@ private fun ChatBubble(message: ChatMessage) {
                     .background(Mint100.copy(alpha = 0.3f)),
                 contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.chatbot_image),
+                Icon(
+                    imageVector = Icons.Default.Chat,
                     contentDescription = "내다봇",
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(18.dp),
+                    tint = Mint900
                 )
             }
             Spacer(modifier = Modifier.width(6.dp))

@@ -212,6 +212,10 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // 자산 섹션
+            SectionLabel(title = "내 자산")
+            Spacer(modifier = Modifier.height(8.dp))
+
             when {
                 uiState.isLoadingAccount -> BalanceCardSkeleton()
                 uiState.isAccountLinked -> AssetCardPager(
@@ -225,26 +229,52 @@ fun HomeScreen(
                 else -> LinkAccountCard(onLinkAccountClick = onLinkAccountClick)
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
+            // 페이스페이 배너
             if (uiState.isFaceRegistered) {
-                FacePayBenefitCard(
-                    onReRegisterClick = onFacePaySettingClick
-                )
+                FacePayBenefitCard(onReRegisterClick = onFacePaySettingClick)
             } else {
                 FacePayBannerCard(onFacePaySettingClick = onFacePaySettingClick)
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
+            // 구미시 소식 섹션
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "구미시 소식",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    ),
+                    color = OnBackground.copy(alpha = 0.4f)
+                )
+                Text(
+                    text = "더보기",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Mint900,
+                    modifier = Modifier.clickable { onNoticeMoreClick() }
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
             NoticeCard(
                 notices = uiState.notices,
                 onItemClick = onNoticeItemClick,
                 onMoreClick = onNoticeMoreClick
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
+            // 소비 분석 섹션
+            SectionLabel(title = "소비 분석")
+            Spacer(modifier = Modifier.height(8.dp))
             SpendingAnalysisCard(
                 topCategory = uiState.topSpendingCategory,
                 topAmount = uiState.topSpendingAmount,
@@ -252,8 +282,32 @@ fun HomeScreen(
                 insight = uiState.spendingInsight
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
+            // 최근 거래내역 섹션
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "최근 거래",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    ),
+                    color = OnBackground.copy(alpha = 0.4f)
+                )
+                Text(
+                    text = "전체보기",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Mint900,
+                    modifier = Modifier.clickable { onViewAllTransactionsClick() }
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
             RecentTransactionsSection(
                 transactions = uiState.recentTransactions,
                 onViewAllClick = onViewAllTransactionsClick
@@ -262,6 +316,19 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
+}
+
+@Composable
+private fun SectionLabel(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge.copy(
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.5.sp
+        ),
+        color = OnBackground.copy(alpha = 0.4f),
+        modifier = Modifier.padding(horizontal = 20.dp)
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -365,6 +432,22 @@ private fun GreetingSection(
         }
     }
 
+    val today = remember {
+        val cal = java.util.Calendar.getInstance()
+        val month = cal.get(java.util.Calendar.MONTH) + 1
+        val day = cal.get(java.util.Calendar.DAY_OF_MONTH)
+        val dayOfWeek = when (cal.get(java.util.Calendar.DAY_OF_WEEK)) {
+            java.util.Calendar.MONDAY -> "월"
+            java.util.Calendar.TUESDAY -> "화"
+            java.util.Calendar.WEDNESDAY -> "수"
+            java.util.Calendar.THURSDAY -> "목"
+            java.util.Calendar.FRIDAY -> "금"
+            java.util.Calendar.SATURDAY -> "토"
+            else -> "일"
+        }
+        "${month}월 ${day}일 ${dayOfWeek}요일"
+    }
+
     Column(
         modifier = Modifier
             .padding(horizontal = 20.dp, vertical = 4.dp)
@@ -372,23 +455,24 @@ private fun GreetingSection(
                 detectTapGestures(
                     onPress = {
                         holding = true
-                        try {
-                            tryAwaitRelease()
-                        } finally {
-                            holding = false
-                        }
+                        try { tryAwaitRelease() } finally { holding = false }
                     }
                 )
             }
     ) {
         Text(
-            text = "반가워요, ${userName}님 👋",  // 여기만 바꾸면 됨
+            text = today,
+            style = MaterialTheme.typography.labelMedium,
+            color = OnBackground.copy(alpha = 0.45f)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "반가워요, ${userName}님 👋",
             style = MaterialTheme.typography.headlineSmall.copy(
                 fontWeight = FontWeight.Bold
             ),
             color = OnBackground
         )
-        Spacer(modifier = Modifier.height(2.dp))
     }
 }
 
@@ -1019,37 +1103,6 @@ private fun NoticeCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.LocationOn,
-                        contentDescription = null,
-                        tint = Mint900,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "구미시 소식",
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = OnBackground
-                    )
-                }
-                Text(
-                    text = "더보기",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Mint900,
-                    modifier = Modifier.clickable { onMoreClick() }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
             if (displayNotices.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -1138,33 +1191,32 @@ private fun SpendingAnalysisCard(
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(containerColor = Mint900.copy(alpha = 0.04f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = "이번 달 소비 분석",
-                style = MaterialTheme.typography.titleSmall.copy(
-                    fontWeight = FontWeight.Bold
-                ),
-                color = OnBackground
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
 
             if (categories.isEmpty() || topCategory.isNullOrBlank() || topAmount <= 0L) {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 24.dp),
-                    contentAlignment = Alignment.Center
+                        .padding(vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    Text("📊", fontSize = 32.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = insight ?: "이번 달 결제 기록이 없습니다.",
+                        text = "아직 소비 데이터가 없어요",
                         style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.SemiBold
                         ),
-                        color = OnBackground.copy(alpha = 0.5f),
+                        color = OnBackground.copy(alpha = 0.6f)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "결제 내역이 쌓이면\n맞춤 소비 분석을 보여드릴게요",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = OnBackground.copy(alpha = 0.4f),
                         textAlign = TextAlign.Center
                     )
                 }
@@ -1292,39 +1344,28 @@ private fun RecentTransactionsSection(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "최근 거래 내역",
-                    style = MaterialTheme.typography.titleSmall.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = OnBackground
-                )
-                Text(
-                    text = "전체보기",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Mint900,
-                    modifier = Modifier.clickable { onViewAllClick() }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
             if (transactions.isEmpty()) {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 24.dp),
-                    contentAlignment = Alignment.Center
+                        .padding(vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    Text("🧾", fontSize = 32.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "최근 거래 내역이 없습니다.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = OnBackground.copy(alpha = 0.5f)
+                        text = "최근 거래 내역이 없어요",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = OnBackground.copy(alpha = 0.6f)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "내다 페이스페이로\n첫 결제를 해보세요!",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = OnBackground.copy(alpha = 0.4f),
+                        textAlign = TextAlign.Center
                     )
                 }
             } else {
