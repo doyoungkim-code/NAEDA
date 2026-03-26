@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.AssetRepository
+import com.example.naedafront.data.remote.PaymentResponse
 import com.example.naedafront.data.remote.response.PaymentDetailResponse
 import com.example.naedafront.ui.theme.Background
 import com.example.naedafront.ui.theme.Mint500
@@ -87,6 +88,15 @@ data class TransactionItem(
 ) {
     val date: String get() = transacted.take(10)
     val time: String get() = if (transacted.length >= 16) transacted.substring(11, 16) else ""
+    val estimatedPoints: Long
+        get() = if (
+            transactionType.equals("DEPOSIT", ignoreCase = true) ||
+            ssafyTransactionId.isBlank()
+        ) {
+            0L
+        } else {
+            amount * 5 / 100
+        }
 }
 
 private val periodList = listOf("전체", "1주일", "1개월", "3개월", "6개월")
@@ -107,6 +117,7 @@ fun AccountDetailScreen(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedTransaction by remember { mutableStateOf<TransactionItem?>(null) }
     var selectedPaymentDetail by remember { mutableStateOf<PaymentDetailResponse?>(null) }
+    var selectedPaymentSummary by remember { mutableStateOf<PaymentResponse?>(null) }
     var isDetailLoading by remember { mutableStateOf(false) }
     var detailError by remember { mutableStateOf<String?>(null) }
 
@@ -222,6 +233,7 @@ fun AccountDetailScreen(
                         onClick = {
                             selectedTransaction = tx
                             selectedPaymentDetail = null
+                            selectedPaymentSummary = null
                             detailError = null
 
                             val userNo = AuthPrefs.getUserNo(context)
@@ -230,12 +242,13 @@ fun AccountDetailScreen(
                             } else {
                                 isDetailLoading = true
                                 coroutineScope.launch {
-                                    val matchedPaymentId = AssetRepository.getPayments(userNo)
+                                    val matchedPayment = AssetRepository.getPayments(userNo)
                                         .getOrNull()
                                         ?.firstOrNull { payment ->
                                             payment.ssafyTransactionId == tx.ssafyTransactionId
                                         }
-                                        ?.paymentId
+                                    selectedPaymentSummary = matchedPayment
+                                    val matchedPaymentId = matchedPayment?.paymentId
 
                                     if (matchedPaymentId != null && matchedPaymentId > 0L) {
                                         AssetRepository.getPaymentDetail(userNo, matchedPaymentId)
@@ -275,6 +288,7 @@ fun AccountDetailScreen(
             onDismissRequest = {
                 selectedTransaction = null
                 selectedPaymentDetail = null
+                selectedPaymentSummary = null
                 isDetailLoading = false
                 detailError = null
             },
@@ -296,6 +310,7 @@ fun AccountDetailScreen(
             onDismissRequest = {
                 selectedTransaction = null
                 selectedPaymentDetail = null
+                selectedPaymentSummary = null
                 isDetailLoading = false
                 detailError = null
             },
@@ -304,6 +319,7 @@ fun AccountDetailScreen(
                     onClick = {
                         selectedTransaction = null
                         selectedPaymentDetail = null
+                        selectedPaymentSummary = null
                         isDetailLoading = false
                         detailError = null
                     }
@@ -319,9 +335,11 @@ fun AccountDetailScreen(
     selectedPaymentDetail?.let { detail ->
         PaymentDetailDialog(
             detail = detail,
+            storeName = selectedPaymentSummary?.storeName.orEmpty(),
             onDismiss = {
                 selectedTransaction = null
                 selectedPaymentDetail = null
+                selectedPaymentSummary = null
                 isDetailLoading = false
                 detailError = null
             }
@@ -335,6 +353,7 @@ fun AccountDetailScreen(
                 onDismiss = {
                     selectedTransaction = null
                     selectedPaymentDetail = null
+                    selectedPaymentSummary = null
                     isDetailLoading = false
                     detailError = null
                 }
@@ -390,7 +409,7 @@ private fun AccountDetailHeader(
 
             Column(modifier = Modifier.padding(horizontal = 24.dp)) {
                 Text(
-                    text = bankName,
+                    text = "거래내역",
                     style = NaedaTypography.labelMedium,
                     color = Color.White.copy(alpha = 0.8f)
                 )
@@ -402,13 +421,16 @@ private fun AccountDetailHeader(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = accountName,
+                    text = listOf(bankName, accountName)
+                        .filter { it.isNotBlank() }
+                        .joinToString(" · ")
+                        .ifBlank { "기본 계좌" },
                     style = NaedaTypography.labelSmall,
                     color = Color.White.copy(alpha = 0.65f)
                 )
                 Spacer(modifier = Modifier.height(20.dp))
                 Text(
-                    text = "잔액",
+                    text = "현재 잔액",
                     style = NaedaTypography.labelMedium,
                     color = Color.White.copy(alpha = 0.75f)
                 )
@@ -437,7 +459,7 @@ private fun AccountSearchBar(
         singleLine = true,
         placeholder = {
             Text(
-                text = "결제내역 검색",
+                text = "거래내역 검색",
                 color = OnSurfaceVariant
             )
         },
@@ -512,6 +534,8 @@ private fun PeriodFilterRow(
             )
         }
     }
+
+    HorizontalDivider(color = OutlineVariant, thickness = 1.dp)
 }
 
 @Composable
@@ -627,7 +651,11 @@ private fun TransactionRow(
 
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "잔액 ${"%,d".format(item.balanceAfter)}원",
+                text = if (item.estimatedPoints > 0L) {
+                    "적립 포인트 ${"%,d".format(item.estimatedPoints)}P"
+                } else {
+                    "거래 후 잔액 ${"%,d".format(item.balanceAfter)}원"
+                },
                 style = NaedaTypography.labelSmall,
                 color = OnSurfaceVariant
             )
@@ -675,6 +703,9 @@ private fun AccountTransactionDetailDialog(
                 DetailRow("거래 상대", transaction.counterpart.ifBlank { "-" })
                 DetailRow("메모", transaction.memo.ifBlank { "-" })
                 DetailRow("카테고리", transaction.category.ifBlank { "-" })
+                if (transaction.estimatedPoints > 0L) {
+                    DetailRow("적립 포인트", "${"%,d".format(transaction.estimatedPoints)}P")
+                }
                 DetailRow("거래 후 잔액", "${"%,d".format(transaction.balanceAfter)}원")
                 DetailRow("거래 번호", transaction.ssafyTransactionId.ifBlank { transaction.id })
             }
@@ -685,6 +716,7 @@ private fun AccountTransactionDetailDialog(
 @Composable
 private fun PaymentDetailDialog(
     detail: PaymentDetailResponse,
+    storeName: String,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
@@ -705,8 +737,12 @@ private fun PaymentDetailDialog(
                 DetailRow("결제 금액", "${"%,d".format(detail.amount)}원")
                 DetailRow("결제 방식", detail.authMethod.toPaymentMethodLabel())
                 DetailRow("결제 시간", detail.createdAt?.formatCreatedAt() ?: "-")
+                DetailRow(
+                    "적립 포인트",
+                    detail.earnedPoints?.let { "${"%,d".format(it)}P" } ?: "—"
+                )
                 DetailRow("결제 번호", detail.ssafyTransactionId ?: detail.paymentId.toString())
-                DetailRow("결제 장소", detail.storeId.toString())
+                DetailRow("결제 장소", storeName.ifBlank { detail.storeId.toString() })
             }
         }
     )
@@ -853,9 +889,9 @@ private fun TransactionItem.matches(query: String): Boolean {
 
 private fun String?.toPaymentMethodLabel(): String {
     return when (this?.uppercase()) {
-        "FACE" -> "얼굴인증"
-        "PIN" -> "PIN"
-        else -> this ?: "-"
+        "FACE" -> "내다페이(페이스페이)"
+        "PIN" -> "내다페이(PIN인증)"
+        else -> "내다페이"
     }
 }
 
