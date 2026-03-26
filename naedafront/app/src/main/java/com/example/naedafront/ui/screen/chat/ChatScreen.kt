@@ -22,8 +22,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -51,100 +49,87 @@ fun ChatScreen(
         }
     }
 
-    // Scaffold를 사용하여 전체 구조를 잡되, 최상단 여백을 강제로 제거합니다.
-    Scaffold(
+    Column(
         modifier = Modifier
             .fillMaxSize()
+            .imePadding()
             .background(Background)
-            .imePadding(), // 키보드 올라올 때만 반응
-        topBar = {
-            TopAppBar(
-                // 🔥 [핵심] 시스템 상태바(Status Bar)가 주는 기본 패딩을 0으로 초기화해서 천장에 붙입니다.
-                windowInsets = WindowInsets(0, 0, 0, 0),
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(Mint100.copy(alpha = 0.3f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.chatbot_image),
-                                contentDescription = "내다봇",
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column {
-                            Text(
-                                text = "내다봇",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    lineHeight = 16.sp
-                                )
-                            )
-                            Text(
-                                text = "구미 맛집·축제 추천",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = OnBackground.copy(alpha = 0.5f)
-                            )
-                        }
+    ) {
+        TopAppBar(
+            windowInsets = WindowInsets(0, 0, 0, 0),
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Mint100.copy(alpha = 0.3f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.chatbot_image),
+                            contentDescription = "내다봇",
+                            modifier = Modifier.size(32.dp)
+                        )
                     }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = "내다봇",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                lineHeight = 16.sp
+                            )
+                        )
+                        Text(
+                            text = "구미 맛집·축제 추천",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = OnBackground.copy(alpha = 0.5f)
+                        )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Surface,
-                    titleContentColor = OnBackground,
-                    navigationIconContentColor = OnBackground
-                )
+                }
+            },
+            navigationIcon = {
+                IconButton(onClick = onBackClick) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Surface,
+                titleContentColor = OnBackground,
+                navigationIconContentColor = OnBackground
             )
-        }
-    ) { innerPadding ->
-        // Scaffold의 innerPadding을 무시하거나 적절히 조절하여 상단바 바로 밑에 붙입니다.
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = innerPadding.calculateTopPadding()) // 상단바 높이만큼만 정확히 띄움
-                .background(Background)
-        ) {
-            // 메시지 목록
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                state = listState,
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (uiState.messages.isEmpty()) {
-                    item { WelcomeMessage() }
-                }
+        )
 
-                items(uiState.messages) { message ->
-                    ChatBubble(message = message)
-                }
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            state = listState,
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (uiState.messages.isEmpty()) {
+                item { WelcomeMessage() }
             }
 
-            // 입력창
-            ChatInputBar(
-                text = inputText,
-                onTextChange = { inputText = it },
-                onSend = {
-                    if (canSendMessage) {
-                        viewModel.sendMessage(userNo!!, inputText)
-                        inputText = ""
-                    }
-                },
-                isLoading = uiState.isLoading,
-                isEnabled = canSendMessage
-            )
+            items(uiState.messages) { message ->
+                ChatBubble(message = message)
+            }
         }
+
+        ChatInputBar(
+            text = inputText,
+            onTextChange = { inputText = it },
+            onSend = {
+                if (canSendMessage) {
+                    viewModel.sendMessage(userNo!!, inputText)
+                    inputText = ""
+                }
+            },
+            isLoading = uiState.isLoading,
+            isEnabled = canSendMessage
+        )
     }
 }
 

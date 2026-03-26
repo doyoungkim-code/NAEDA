@@ -186,10 +186,11 @@ fun SignUpRrnScreen(
                                     if (index < frontNumber.length) c.toString() else ""
                                 }.joinToString(" ")
                             }.ifBlank { "" },
-                            fontSize = 24.sp,
+                            fontSize = 20.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface,
-                            letterSpacing = 4.sp
+                            letterSpacing = 2.sp,
+                            maxLines = 1
                         )
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -219,7 +220,7 @@ fun SignUpRrnScreen(
                         ) {
                             Text(
                                 text = if (backNumber.isNotEmpty()) backNumber else "",
-                                fontSize = 24.sp,
+                                fontSize = 20.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
