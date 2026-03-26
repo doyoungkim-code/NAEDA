@@ -659,7 +659,7 @@ private fun CardInfoCard(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = card.cardNo ?: "",
+                        text = card.cardNo?.maskCardNumber() ?: "",
                         style = MaterialTheme.typography.labelSmall,
                         color = textTertiary
                     )
@@ -1452,9 +1452,25 @@ private fun TransactionRow(item: TransactionItem) {
     }
 }
 
-private fun String.maskAccountNo(): String =
-    if (length <= 4) this
-    else "*".repeat(length - 4) + takeLast(4)
+private fun String.maskAccountNo(): String {
+    val digits = replace("-", "").replace(" ", "")
+    return when {
+        digits.isBlank() -> "-"
+        digits.length <= 7 -> this
+        else -> "${digits.take(3)}${"*".repeat(digits.length - 7)}${digits.takeLast(4)}"
+    }
+}
+
+private fun String.maskCardNumber(): String {
+    val digits = replace("-", "").replace(" ", "")
+    return if (digits.length >= 16) {
+        "${digits.substring(0, 4)}-****-****-${digits.takeLast(4)}"
+    } else if (isBlank()) {
+        "-"
+    } else {
+        this
+    }
+}
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
