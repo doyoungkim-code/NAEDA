@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -533,7 +534,8 @@ private fun ProductImage(
     imageUrl: String,
     thumbnailLabel: String,
     modifier: Modifier = Modifier,
-    badge: String? = null
+    badge: String? = null,
+    contentScale: ContentScale = ContentScale.Crop
 ) {
     Box(
         modifier = modifier
@@ -545,7 +547,7 @@ private fun ProductImage(
                 model = imageUrl,
                 contentDescription = thumbnailLabel,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = contentScale
             )
         } else {
             Text(
@@ -621,8 +623,9 @@ private fun StoreItemDetailDialog(
                     thumbnailLabel = item.thumbnailLabel,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(180.dp)
-                        .clip(RoundedCornerShape(18.dp))
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(18.dp)),
+                    contentScale = ContentScale.Fit
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))

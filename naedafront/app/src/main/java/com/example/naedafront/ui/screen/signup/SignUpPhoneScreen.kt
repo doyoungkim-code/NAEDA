@@ -57,7 +57,11 @@ fun SignUpPhoneScreen(
     var isChecking by remember { mutableStateOf(false) }
 
     val formattedPhone = formatPhone(phoneDigits)
-    val isValid = phoneDigits.length == 11
+    val isValid = isValidPhoneNumber(phoneDigits)
+    val showInvalidPhoneMessage = phoneDigits.isNotEmpty() && (
+        (phoneDigits.length >= 3 && !phoneDigits.startsWith("01")) ||
+            (phoneDigits.length == 11 && !isValid)
+        )
 
     fun handleConfirm() {
         if (!isValid || isChecking) return
@@ -172,9 +176,17 @@ fun SignUpPhoneScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "본인 명의의 휴대폰 번호를 입력해 주세요.",
+                text = if (showInvalidPhoneMessage) {
+                    "올바른 휴대폰 번호 형식이 아닙니다."
+                } else {
+                    "본인 명의의 휴대폰 번호를 입력해 주세요."
+                },
                 fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.outline
+                color = if (showInvalidPhoneMessage) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.outline
+                }
             )
 
             Spacer(modifier = Modifier.weight(1f))
@@ -217,6 +229,10 @@ fun SignUpPhoneScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+}
+
+private fun isValidPhoneNumber(phone: String): Boolean {
+    return phone.matches(Regex("""^01[0-9]\d{8}$"""))
 }
 
 /**
