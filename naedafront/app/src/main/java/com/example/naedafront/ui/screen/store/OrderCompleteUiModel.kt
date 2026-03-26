@@ -2,6 +2,8 @@ package com.example.naedafront.ui.screen.store
 
 data class OrderCompleteUiModel(
     val productName: String,
+    val imageUrl: String = "",
+    val thumbnailLabel: String = "",
     val orderNumber: String,
     val recipientName: String,
     val phone: String,
