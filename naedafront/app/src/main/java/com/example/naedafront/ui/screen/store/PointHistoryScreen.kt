@@ -341,14 +341,14 @@ private fun PointHistoryHeader(
                             Text(
                                 text = "%,d".format(point),
                                 color = Color.White,
-                                fontSize = 50.sp,
+                                fontSize = 40.sp,
                                 fontWeight = FontWeight.ExtraBold
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "P",
                                 color = Color.White,
-                                fontSize = 24.sp,
+                                fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -691,13 +691,7 @@ private fun HistoryTitleRow() {
         )
 
         Spacer(modifier = Modifier.weight(1f))
-
-        Text(
-            text = "SORTED BY DATE",
-            color = Color(0xFFB0BAC8),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium
-        )
+        
     }
 }
 

@@ -100,9 +100,10 @@ class PointHistoryViewModel : ViewModel() {
                             history.created
                         }
 
+                        val desc = history.description.orEmpty()
                         PointHistoryItemUi(
                             id = history.historyId,
-                            title = history.description.ifBlank { if (history.type == "EARN") "포인트 적립" else "포인트 사용" },
+                            title = desc.ifBlank { if (history.type == "EARN") "포인트 적립" else "포인트 사용" },
                             dateText = formattedDate,
                             detailText = "잔액 %,d P".format(history.balanceAfter),
                             pointText = if (history.type == "EARN") {
@@ -111,7 +112,7 @@ class PointHistoryViewModel : ViewModel() {
                                 "-%,d P".format(history.amount)
                             },
                             positive = history.type == "EARN",
-                            iconText = history.description.take(1).ifBlank { if (history.type == "EARN") "적" else "사" },
+                            iconText = desc.take(1).ifBlank { if (history.type == "EARN") "적" else "사" },
                             year = year,
                             month = month
                         )

@@ -150,7 +150,7 @@ fun SignUpPhoneScreen(
 
             Text(
                 text = formattedPhone.ifEmpty { "010-0000-0000" },
-                fontSize = 24.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Medium,
                 color = if (phoneDigits.isNotEmpty()) {
                     MaterialTheme.colorScheme.onSurface
@@ -274,7 +274,7 @@ fun NumberKeypad(
                         if (key.isNotEmpty()) {
                             Text(
                                 text = key,
-                                fontSize = 22.sp,
+                                fontSize = 20.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = textColor
                             )

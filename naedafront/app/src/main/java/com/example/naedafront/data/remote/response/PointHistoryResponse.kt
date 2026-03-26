@@ -5,6 +5,6 @@ data class PointHistoryResponse(
     val type: String,
     val amount: Long,
     val balanceAfter: Long,
-    val description: String,
+    val description: String?,
     val created: String
 )
