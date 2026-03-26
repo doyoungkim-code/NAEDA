@@ -46,6 +46,8 @@ import androidx.compose.ui.unit.dp
 import com.example.naedafront.data.remote.FestivalApiResponse
 import com.example.naedafront.data.remote.NoticeApiResponse
 import com.example.naedafront.data.repository.NoticeRepository
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import com.example.naedafront.ui.theme.Background
 import com.example.naedafront.ui.theme.Mint900
 import com.example.naedafront.ui.theme.OnBackground
@@ -64,6 +66,7 @@ fun NoticeDetailScreen(
     var tagColor by remember { mutableStateOf(Color(0xFF1976D2)) }
     var dateInfo by remember { mutableStateOf("") }
     var location by remember { mutableStateOf<String?>(null) }
+    var imageUrl by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
     LaunchedEffect(type, id) {
@@ -76,6 +79,7 @@ fun NoticeDetailScreen(
                     tagColor = Color(0xFFE91E63)
                     dateInfo = "${f.startDate ?: ""} ~ ${f.endDate ?: ""}"
                     location = f.location ?: f.roadAddress
+                    imageUrl = f.imageUrl
                 }
                 .onFailure { Log.e("NoticeDetail", "축제 상세 로드 실패: ${it.message}") }
         } else {
@@ -171,6 +175,19 @@ fun NoticeDetailScreen(
                             ),
                             color = OnBackground
                         )
+
+                        // Image (festival only)
+                        if (!imageUrl.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            AsyncImage(
+                                model = imageUrl,
+                                contentDescription = title,
+                                contentScale = ContentScale.FillWidth,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(12.dp))
 
