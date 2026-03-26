@@ -534,7 +534,7 @@ private fun ProductCard(
                 Text(
                     text = item.title,
                     color = Color(0xFF101828),
-                    fontSize = 16.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -545,7 +545,7 @@ private fun ProductCard(
                 Text(
                     text = "%,d P".format(item.pricePoint),
                     color = Color(0xFF006B60),
-                    fontSize = 16.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold
                 )
             }
