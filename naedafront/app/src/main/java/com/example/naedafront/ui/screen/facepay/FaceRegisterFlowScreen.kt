@@ -14,7 +14,12 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.media.MediaPlayer
 import android.net.Uri
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -44,7 +49,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -84,8 +91,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -104,6 +109,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -113,6 +119,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.naedafront.R
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.ApiRequestException
 import com.example.naedafront.data.remote.AssetAccountResponse
@@ -178,6 +185,7 @@ private val faceCaptureSequence = listOf(
 private const val ID_CARD_HOLD_DURATION_MS = 2000L
 private const val ID_CARD_REQUEST_INTERVAL_MS = 650L
 private const val ID_CARD_ALLOWED_MISSES = 1
+private val REGISTER_OVERLAY_CONTENT_TOP_PADDING = 64.dp
 
 private sealed class RegisterStage {
     object PermissionRequest : RegisterStage()
@@ -307,37 +315,6 @@ fun FaceRegisterFlowScreen(
         }
     }
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = titleForStage(stage),
-                        fontFamily = NaedaFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        color = OnBackground
-                    )
-                },
-                navigationIcon = {
-                    if (stage !is RegisterStage.Success) {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "뒤로가기",
-                                tint = OnBackground
-                            )
-                        }
-                    }
-                },
-                actions = {
-                    if (stage is RegisterStage.Success) {
-                        IconButton(onClick = onRegisterComplete) {
-                            Icon(Icons.Default.Close, contentDescription = "닫기", tint = OnBackground)
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Background)
-            )
-        },
         containerColor = Background,
         contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
@@ -460,6 +437,21 @@ fun FaceRegisterFlowScreen(
                 }
             }
 
+            val useDarkOverlayAction = stage is RegisterStage.FaceCapture || stage is RegisterStage.IdScanning
+
+            if (stage !is RegisterStage.Success) {
+                RegistrationOverlayActionButton(
+                    icon = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "뒤로가기",
+                    onClick = onBack,
+                    darkBackground = useDarkOverlayAction,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .statusBarsPadding()
+                        .padding(start = 12.dp, top = 12.dp)
+                )
+            }
+
             globalError?.let { message ->
                 Box(
                     modifier = Modifier
@@ -474,21 +466,30 @@ fun FaceRegisterFlowScreen(
     }
 }
 
-private fun titleForStage(stage: RegisterStage): String {
-    return when (stage) {
-        is RegisterStage.PermissionRequest -> "권한 요청"
-        is RegisterStage.Intro -> "페이스페이"
-        is RegisterStage.Guide -> "촬영 가이드"
-        is RegisterStage.FaceCapture -> "얼굴 등록"
-        is RegisterStage.IdGuide -> "신분증 준비"
-        is RegisterStage.IdScanning -> "신분증 촬영"
-        is RegisterStage.IdConfirm -> "신분증 정보 확인"
-        is RegisterStage.PaymentMethodSelect -> "대표 결제수단"
-        is RegisterStage.PaymentLimitSetup -> "결제 한도"
-        is RegisterStage.PinChoice -> "PIN 설정"
-        is RegisterStage.CurrentPin -> "현재 PIN 입력"
-        is RegisterStage.Saving -> "페이스페이"
-        is RegisterStage.Success -> "등록 완료"
+@Composable
+private fun RegistrationOverlayActionButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    darkBackground: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.size(44.dp),
+        shape = CircleShape,
+        color = if (darkBackground) Color.Black.copy(alpha = 0.34f) else Color.White.copy(alpha = 0.94f),
+        shadowElevation = if (darkBackground) 0.dp else 6.dp
+    ) {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = if (darkBackground) Color.White else OnBackground
+            )
+        }
     }
 }
 
@@ -601,11 +602,11 @@ private fun IntroStageContent(onStartClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp)
+            .statusBarsPadding()
+            .padding(start = 24.dp, top = REGISTER_OVERLAY_CONTENT_TOP_PADDING, end = 24.dp)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.Start
     ) {
-        Spacer(modifier = Modifier.height(32.dp))
         Text(
             text = "이제 오프라인에서\n얼굴 인증으로 결제하세요",
             fontFamily = NaedaFontFamily,
@@ -748,10 +749,10 @@ private fun FaceGuideStageContent(onStartClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp)
+            .statusBarsPadding()
+            .padding(start = 24.dp, top = REGISTER_OVERLAY_CONTENT_TOP_PADDING, end = 24.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        Spacer(modifier = Modifier.height(24.dp))
         Text(
             text = "페이스페이 사용을 위해\n얼굴을 등록할게요.",
             fontFamily = NaedaFontFamily,
@@ -761,13 +762,6 @@ private fun FaceGuideStageContent(onStartClick: () -> Unit) {
             lineHeight = 32.sp
         )
         Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = "빠르고 안전한 결제를 시작해 보세요.",
-            fontFamily = NaedaFontFamily,
-            fontSize = 14.sp,
-            color = OnSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(20.dp))
 
         // ── 얼굴 일러스트 카드 (그라데이션 배경) ──────────────
         Card(
@@ -863,25 +857,6 @@ private fun FaceGuideStageContent(onStartClick: () -> Unit) {
         Spacer(modifier = Modifier.height(24.dp))
 
         // ── 등록 팁 ────────────────────────────────────────────
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Info,
-                contentDescription = null,
-                tint = OnSurfaceVariant,
-                modifier = Modifier.size(16.dp)
-            )
-            Text(
-                text = "등록 팁",
-                fontFamily = NaedaFontFamily,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 15.sp,
-                color = OnBackground
-            )
-        }
-        Spacer(modifier = Modifier.height(12.dp))
         tipItems.forEachIndexed { index, (icon, text) ->
             Row(
                 modifier = Modifier
@@ -1203,6 +1178,7 @@ private fun FaceCaptureStageContent(
     onRestartRequested: () -> Unit,
     onError: (String) -> Unit
 ) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val postureState = rememberDevicePostureState()
     var statusMessage by remember { mutableStateOf("얼굴을 화면 중앙에 맞춰주세요.") }
@@ -1220,11 +1196,21 @@ private fun FaceCaptureStageContent(
     val requiredHoldMillis = remember(spec.backendPose) {
         if (spec.backendPose == "front1") 2000L else 1000L
     }
+    val captureFeedbackPlayer = remember(context) {
+        MediaPlayer.create(context, R.raw.kevangc_pling_sound)
+    }
+
+    DisposableEffect(captureFeedbackPlayer) {
+        onDispose {
+            captureFeedbackPlayer?.release()
+        }
+    }
 
     // poseCompleted가 true로 바뀌는 순간 확실히 트리거
     val onPoseSavedUpdated by rememberUpdatedState(onPoseSaved)
     LaunchedEffect(poseCompleted) {
         if (poseCompleted) {
+            triggerFaceCaptureFeedback(context, captureFeedbackPlayer)
             delay(600L)
             onPoseSavedUpdated()
         }
@@ -1606,7 +1592,9 @@ private fun FaceCaptureOverlay(
         Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 20.dp),
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(top = 64.dp, start = 84.dp, end = 84.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Surface(
@@ -2021,26 +2009,11 @@ private fun IdConfirmStageContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp)
+            .statusBarsPadding()
+            .padding(start = 24.dp, top = REGISTER_OVERLAY_CONTENT_TOP_PADDING, end = 24.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        Spacer(modifier = Modifier.height(32.dp))
-
         // ── 상단 칩 ──────────────────────────────────────────────
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(20.dp))
-                .background(Mint50)
-                .padding(horizontal = 16.dp, vertical = 6.dp)
-        ) {
-            Text(
-                text = "정보 확인",
-                fontFamily = NaedaFontFamily,
-                fontWeight = FontWeight.Medium,
-                fontSize = 13.sp,
-                color = Mint500
-            )
-        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -2323,25 +2296,9 @@ private fun PaymentMethodSelectStageContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp)
+            .statusBarsPadding()
+            .padding(start = 24.dp, top = REGISTER_OVERLAY_CONTENT_TOP_PADDING, end = 24.dp)
     ) {
-        Spacer(modifier = Modifier.height(32.dp))
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(20.dp))
-                .background(Mint50)
-                .padding(horizontal = 16.dp, vertical = 6.dp)
-        ) {
-            Text(
-                text = "결제수단 설정",
-                fontFamily = NaedaFontFamily,
-                fontWeight = FontWeight.Medium,
-                fontSize = 13.sp,
-                color = Mint500
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "대표 결제수단을\n선택해 주세요",
             fontFamily = NaedaFontFamily,
@@ -2644,25 +2601,10 @@ private fun PaymentLimitSetupStageContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp)
+            .statusBarsPadding()
+            .padding(start = 24.dp, top = REGISTER_OVERLAY_CONTENT_TOP_PADDING, end = 24.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        Spacer(modifier = Modifier.height(32.dp))
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(20.dp))
-                .background(Mint50)
-                .padding(horizontal = 16.dp, vertical = 6.dp)
-        ) {
-            Text(
-                text = "한도 설정",
-                fontFamily = NaedaFontFamily,
-                fontWeight = FontWeight.Medium,
-                fontSize = 13.sp,
-                color = Mint500
-            )
-        }
-
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "결제 한도를\n설정해 주세요",
@@ -3322,63 +3264,75 @@ private fun SuccessStageContent(
     secondaryAuthEnabled: Boolean,
     onComplete: () -> Unit
 ) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        contentAlignment = Alignment.Center
     ) {
-        Spacer(modifier = Modifier.height(56.dp))
-        Box(
+        Column(
             modifier = Modifier
-                .size(160.dp)
-                .background(Color(0xFFCCEAE7), CircleShape),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .widthIn(max = 360.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
                 modifier = Modifier
-                    .size(116.dp)
-                    .background(Mint500, CircleShape),
+                    .size(160.dp)
+                    .background(Color(0xFFCCEAE7), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.FaceRetouchingNatural,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(72.dp)
+                Box(
+                    modifier = Modifier
+                        .size(116.dp)
+                        .background(Mint500, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.FaceRetouchingNatural,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(72.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+            Text(
+                text = "페이스페이 등록이 완료되었습니다",
+                fontFamily = NaedaFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 24.sp,
+                color = OnBackground,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = if (secondaryAuthEnabled) "얼굴 등록과 신분증 확인이 완료되었고 PIN 2차 인증 사용도 저장되었습니다." else "얼굴 등록과 신분증 확인이 완료되었습니다. PIN 2차 인증은 사용 안 함으로 저장되었습니다.",
+                fontFamily = NaedaFontFamily,
+                fontSize = 15.sp,
+                color = OnSurfaceVariant,
+                textAlign = TextAlign.Center,
+                lineHeight = 22.sp
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            Button(
+                onClick = onComplete,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+            ) {
+                Text(
+                    "홈으로 이동",
+                    fontFamily = NaedaFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    color = Color.White
                 )
             }
         }
-        Spacer(modifier = Modifier.height(28.dp))
-        Text(
-            text = "페이스페이 등록이 완료되었습니다",
-            fontFamily = NaedaFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 24.sp,
-            color = OnBackground,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = if (secondaryAuthEnabled) "얼굴 등록과 신분증 확인이 완료되었고 PIN 2차 인증 사용도 저장되었습니다." else "얼굴 등록과 신분증 확인이 완료되었습니다. PIN 2차 인증은 사용 안 함으로 저장되었습니다.",
-            fontFamily = NaedaFontFamily,
-            fontSize = 15.sp,
-            color = OnSurfaceVariant,
-            textAlign = TextAlign.Center,
-            lineHeight = 22.sp
-        )
-        Spacer(modifier = Modifier.weight(1f))
-        Button(
-            onClick = onComplete,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Mint900)
-        ) {
-            Text("홈으로 이동", fontFamily = NaedaFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Color.White)
-        }
-        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
@@ -3602,6 +3556,39 @@ private fun isFaceCentered(face: Face, frameWidth: Int, frameHeight: Int): Boole
 private fun resetHold(holdStartedAt: AtomicLong, updateProgress: (Float) -> Unit) {
     holdStartedAt.set(0L)
     updateProgress(0f)
+}
+
+private fun triggerFaceCaptureFeedback(
+    context: Context,
+    mediaPlayer: MediaPlayer?
+) {
+    mediaPlayer?.let { player ->
+        runCatching {
+            if (player.isPlaying) {
+                player.pause()
+            }
+            player.seekTo(0)
+            player.start()
+        }
+    }
+
+    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        context.getSystemService(VibratorManager::class.java)?.defaultVibrator
+    } else {
+        @Suppress("DEPRECATION")
+        context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+    }
+
+    if (vibrator?.hasVibrator() != true) {
+        return
+    }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        vibrator.vibrate(VibrationEffect.createOneShot(40L, 80))
+    } else {
+        @Suppress("DEPRECATION")
+        vibrator.vibrate(40L)
+    }
 }
 
 private class RegistrationPassiveLivenessEvaluator {
