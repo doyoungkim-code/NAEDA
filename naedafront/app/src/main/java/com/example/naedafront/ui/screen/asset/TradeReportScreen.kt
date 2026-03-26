@@ -223,7 +223,9 @@ class TradeReportViewModel : ViewModel() {
                 .onSuccess { payments ->
                     _uiState.update {
                         it.copy(
-                            transactions = payments.map { payment -> payment.toUiItem() },
+                            transactions = payments
+                                .filter { payment -> payment.status?.uppercase() in listOf("APPROVED", "SUCCESS", "COMPLETED") }
+                                .map { payment -> payment.toUiItem() },
                             isLoading = false
                         )
                     }
@@ -285,8 +287,7 @@ private fun PaymentResponse.toUiItem(): TradeReportItem {
         paymentId = paymentId ?: -1L,
         title = when {
             !isSuccess -> "결제 실패"
-            authMethod?.uppercase() == "FACE" -> "내다페이 (얼굴인증)"
-            authMethod?.uppercase() == "PIN" -> "내다페이 (PIN인증)"
+            rawStoreName.isNotBlank() -> rawStoreName
             else -> "내다페이 결제"
         },
         subTitle = createdAt?.formatCreatedAt() ?: "",
