@@ -95,8 +95,8 @@ fun NaedaNavGraph(
     ) {
         composable(Screen.Welcome.route) {
             WelcomeScreen(
-                onStartClick = { navController.navigate(Screen.SignUp.route) },
-                onLoginClick = { navController.navigate(Screen.Login.route) }
+                onStartClick = { navController.navigateSingleTopTo(Screen.SignUp.route) },
+                onLoginClick = { navController.navigateSingleTopTo(Screen.Login.route) }
             )
         }
 
@@ -106,6 +106,7 @@ fun NaedaNavGraph(
                 onLoginSuccess = {
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Welcome.route) { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             )
@@ -115,7 +116,7 @@ fun NaedaNavGraph(
             SignUpNameScreen(
                 signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { navController.navigate(Screen.SignUpRrn.route) }
+                onConfirmClick = { navController.navigateSingleTopTo(Screen.SignUpRrn.route) }
             )
         }
 
@@ -123,7 +124,7 @@ fun NaedaNavGraph(
             SignUpRrnScreen(
                 signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { navController.navigate(Screen.SignUpPhone.route) }
+                onConfirmClick = { navController.navigateSingleTopTo(Screen.SignUpPhone.route) }
             )
         }
 
@@ -131,9 +132,7 @@ fun NaedaNavGraph(
             SignUpPhoneScreen(
                 signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = {
-                    navController.navigate(Screen.SignUpEmail.route)
-                }
+                onConfirmClick = { navController.navigateSingleTopTo(Screen.SignUpEmail.route) }
             )
         }
 
@@ -153,7 +152,7 @@ fun NaedaNavGraph(
                 signUpViewModel = signUpViewModel,
                 phoneNumber = phone,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { navController.navigate(Screen.SignUpEmail.route) },
+                onConfirmClick = { navController.navigateSingleTopTo(Screen.SignUpEmail.route) },
                 onResendClick = { }
             )
         }
@@ -162,7 +161,7 @@ fun NaedaNavGraph(
             SignUpEmailScreen(
                 signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { navController.navigate(Screen.SignUpPassword.route) }
+                onConfirmClick = { navController.navigateSingleTopTo(Screen.SignUpPassword.route) }
             )
         }
 
@@ -170,7 +169,7 @@ fun NaedaNavGraph(
             SignUpPasswordScreen(
                 signUpViewModel = signUpViewModel,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { navController.navigate(Screen.SignUpPin.route) }
+                onConfirmClick = { navController.navigateSingleTopTo(Screen.SignUpPin.route) }
             )
         }
 
@@ -210,7 +209,7 @@ fun NaedaNavGraph(
                 onSearchPostCodeClick = { },
                 onRequestClick = { },
                 onAddressSelected = {
-                    navController.navigate(Screen.OrderComplete.route)
+                    navController.navigateSingleTopTo(Screen.OrderComplete.route)
                 }
             )
         }
@@ -230,13 +229,13 @@ fun NaedaNavGraph(
                 OrderCompleteScreen(
                     orderInfo = orderInfo,
                     onCloseClick = {
-                        navController.navigate(Screen.Home.route)
+                        navController.navigateSingleTopTo(Screen.Home.route)
                     },
                     onOrderHistoryClick = {
-                        navController.navigate(Screen.OrderHistory.route)
+                        navController.navigateSingleTopTo(Screen.OrderHistory.route)
                     },
                     onHomeClick = {
-                        navController.navigate(Screen.Home.route)
+                        navController.navigateSingleTopTo(Screen.Home.route)
                     }
                 )
             }
@@ -255,7 +254,7 @@ fun NaedaNavGraph(
                 viewModel = orderHistoryViewModel,
                 onBackClick = { navController.popBackStack() },
                 onOrderClick = { orderId ->
-                    navController.navigate(Screen.OrderDetail.createRoute(orderId))
+                    navController.navigateSingleTopTo(Screen.OrderDetail.createRoute(orderId))
                 }
             )
         }
@@ -311,7 +310,7 @@ fun NaedaNavGraph(
         composable(Screen.FaceMatchRecognize.route) {
             FaceMatchRecognizeScreen(
                 onBack = { navController.popBackStack() },
-                onShowResult = { navController.navigate(Screen.FaceMatchResult.route) }
+                onShowResult = { navController.navigateSingleTopTo(Screen.FaceMatchResult.route) }
             )
         }
 
@@ -503,7 +502,7 @@ fun NaedaNavGraph(
             MyPageScreen(
                 viewModel = myPageViewModel,
                 onBackClick = { navController.popBackStack() },
-                onNotificationClick = { navController.navigate(Screen.Notification.route) },
+                onNotificationClick = { navController.navigateSingleTopTo(Screen.Notification.route) },
                 onSettingsClick = {
                     navController.navigate(Screen.More.route) {
                         popUpTo(navController.graph.findStartDestination().id) {
@@ -513,11 +512,11 @@ fun NaedaNavGraph(
                         restoreState = true
                     }
                 },
-                onFaceReRegisterClick = { navController.navigate(Screen.FaceRegister.route) },
-                onSecondaryAuthClick = { navController.navigate(Screen.SecondaryAuthPin.route) },
-                onPinChangeClick = { navController.navigate(Screen.Security.route) },
-                onDeliveryAddressClick = { navController.navigate(Screen.DeliveryAddress.route) },
-                onOrderHistoryClick = { navController.navigate(Screen.OrderHistory.route) },
+                onFaceReRegisterClick = { navController.navigateSingleTopTo(Screen.FaceRegister.route) },
+                onSecondaryAuthClick = { navController.navigateSingleTopTo(Screen.SecondaryAuthPin.route) },
+                onPinChangeClick = { navController.navigateSingleTopTo(Screen.Security.route) },
+                onDeliveryAddressClick = { navController.navigateSingleTopTo(Screen.DeliveryAddress.route) },
+                onOrderHistoryClick = { navController.navigateSingleTopTo(Screen.OrderHistory.route) },
                 onLogoutClick = {
                     AuthPrefs.clearSession(context)
                     navController.navigate(Screen.Welcome.route) {
@@ -542,10 +541,10 @@ fun NaedaNavGraph(
 
         composable(Screen.Settings.route) {
             SettingsScreen(
-                onNotificationClick = { navController.navigate(Screen.NotificationSettings.route) },
-                onTermsClick = { navController.navigate(Screen.TermsOfService.route) },
-                onPrivacyClick = { navController.navigate(Screen.PrivacyPolicy.route) },
-                onSupportClick = { navController.navigate(Screen.CustomerCenter.route) },
+                onNotificationClick = { navController.navigateSingleTopTo(Screen.NotificationSettings.route) },
+                onTermsClick = { navController.navigateSingleTopTo(Screen.TermsOfService.route) },
+                onPrivacyClick = { navController.navigateSingleTopTo(Screen.PrivacyPolicy.route) },
+                onSupportClick = { navController.navigateSingleTopTo(Screen.CustomerCenter.route) },
                 onLogoutClick = {
                     AuthPrefs.clearSession(context)
                     navController.navigate(Screen.Welcome.route) {
@@ -596,7 +595,7 @@ fun NaedaNavGraph(
             NoticeListScreen(
                 onBackClick = { navController.popBackStack() },
                 onItemClick = { type, id ->
-                    navController.navigate(Screen.NoticeDetail.createRoute(type, id))
+                    navController.navigateSingleTopTo(Screen.NoticeDetail.createRoute(type, id))
                 }
             )
         }
@@ -675,7 +674,7 @@ private fun HomeTabContent(
 
     HomeScreen(
         uiState = homeUiState,
-        onTransactionClick = { navController.navigate(Screen.Transaction.createRoute()) },
+        onTransactionClick = { navController.navigateSingleTopTo(Screen.Transaction.createRoute()) },
         onCardTransactionClick = { card ->
             navController.currentBackStackEntry
                 ?.savedStateHandle
@@ -683,20 +682,20 @@ private fun HomeTabContent(
             navController.currentBackStackEntry
                 ?.savedStateHandle
                 ?.set("cardNo", card.cardNo.orEmpty())
-            card.cardId?.let { navController.navigate(Screen.CardDetail.createRoute(it)) }
+            card.cardId?.let { navController.navigateSingleTopTo(Screen.CardDetail.createRoute(it)) }
         },
-        onFacePaySettingClick = { navController.navigate(Screen.FaceRegister.route) },
-        onLinkAccountClick = { navController.navigate(Screen.AccountList.createRoute(0)) },
-        onViewAllTransactionsClick = { navController.navigate(Screen.Transaction.createRoute()) },
+        onFacePaySettingClick = { navController.navigateSingleTopTo(Screen.FaceRegister.route) },
+        onLinkAccountClick = { navController.navigateSingleTopTo(Screen.AccountList.createRoute(0)) },
+        onViewAllTransactionsClick = { navController.navigateSingleTopTo(Screen.Transaction.createRoute()) },
         onSearchClick = { },
-        onAlarmClick = { navController.navigate(Screen.Notification.route) },
-        onProfileClick = { navController.navigate(Screen.MyPage.route) },
-        onSecretFaceMatchTestClick = { navController.navigate(Screen.FaceMatchRecognize.route) },
-        onRegisterCardClick = { navController.navigate(Screen.Asset.route) },
+        onAlarmClick = { navController.navigateSingleTopTo(Screen.Notification.route) },
+        onProfileClick = { navController.navigateSingleTopTo(Screen.MyPage.route) },
+        onSecretFaceMatchTestClick = { navController.navigateSingleTopTo(Screen.FaceMatchRecognize.route) },
+        onRegisterCardClick = { navController.navigateSingleTopTo(Screen.Asset.route) },
         onNoticeItemClick = { item ->
-            navController.navigate(Screen.NoticeDetail.createRoute(item.type, item.id))
+            navController.navigateSingleTopTo(Screen.NoticeDetail.createRoute(item.type, item.id))
         },
-        onNoticeMoreClick = { navController.navigate(Screen.NoticeList.route) }
+        onNoticeMoreClick = { navController.navigateSingleTopTo(Screen.NoticeList.route) }
     )
 }
 
@@ -705,9 +704,9 @@ private fun StoreTabContent(
     navController: NavHostController
 ) {
     PointStoreScreen(
-        onHistoryClick = { navController.navigate(Screen.PointHistory.route) },
+        onHistoryClick = { navController.navigateSingleTopTo(Screen.PointHistory.route) },
         onPurchaseClick = {
-            navController.navigate(Screen.DeliveryAddress.route)
+            navController.navigateSingleTopTo(Screen.DeliveryAddress.route)
         }
     )
 }
@@ -726,7 +725,7 @@ private fun MapTabContent(
             navController.currentBackStackEntry
                 ?.savedStateHandle
                 ?.set("selectedRestaurant", restaurantName)
-            navController.navigate(Screen.GumiMap.route)
+            navController.navigateSingleTopTo(Screen.GumiMap.route)
         }
     )
 }
@@ -739,8 +738,8 @@ private fun AssetTabContent(
         initialTab = 0,
         onBack = { },
         showBackButton = false,
-        onRegisterNewAccount = { navController.navigate(Screen.RegisterAsset.createRoute(0)) },
-        onRegisterNewCard = { navController.navigate(Screen.RegisterAsset.createRoute(1)) },
+        onRegisterNewAccount = { navController.navigateSingleTopTo(Screen.RegisterAsset.createRoute(0)) },
+        onRegisterNewCard = { navController.navigateSingleTopTo(Screen.RegisterAsset.createRoute(1)) },
         onAccountClick = { account ->
             if (navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) {
                 navController.navigate(
@@ -783,10 +782,10 @@ private fun SettingsTabContent(
     val context = LocalContext.current
 
     SettingsScreen(
-        onNotificationClick = { navController.navigate(Screen.NotificationSettings.route) },
-        onTermsClick = { navController.navigate(Screen.TermsOfService.route) },
-        onPrivacyClick = { navController.navigate(Screen.PrivacyPolicy.route) },
-        onSupportClick = { navController.navigate(Screen.CustomerCenter.route) },
+        onNotificationClick = { navController.navigateSingleTopTo(Screen.NotificationSettings.route) },
+        onTermsClick = { navController.navigateSingleTopTo(Screen.TermsOfService.route) },
+        onPrivacyClick = { navController.navigateSingleTopTo(Screen.PrivacyPolicy.route) },
+        onSupportClick = { navController.navigateSingleTopTo(Screen.CustomerCenter.route) },
         onLogoutClick = {
             AuthPrefs.clearSession(context)
             navController.navigate(Screen.Welcome.route) {
@@ -795,6 +794,12 @@ private fun SettingsTabContent(
             }
         }
     )
+}
+
+private fun NavHostController.navigateSingleTopTo(route: String) {
+    navigate(route) {
+        launchSingleTop = true
+    }
 }
 
 @Composable
