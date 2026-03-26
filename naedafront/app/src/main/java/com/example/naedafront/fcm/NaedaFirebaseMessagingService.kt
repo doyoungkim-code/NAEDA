@@ -31,8 +31,7 @@ class NaedaFirebaseMessagingService : FirebaseMessagingService() {
         super.onMessageReceived(remoteMessage)
 
         // 로그인 상태가 아니면 알림 무시
-        val userNo = AuthPrefs.getUserNo(applicationContext)
-        if (userNo == null) {
+        if (!AuthPrefs.isLoggedIn(applicationContext)) {
             Log.d(TAG, "비로그인 상태 — 알림 무시")
             return
         }
