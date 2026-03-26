@@ -67,6 +67,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("com.google.mlkit:face-detection:16.1.0")
     implementation("androidx.navigation:navigation-compose:2.8.5")
+    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("com.naver.maps:map-sdk:3.23.1")
 
     testImplementation(libs.junit)
