@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import com.example.naedafront.data.remote.FestivalApiResponse
 import com.example.naedafront.data.remote.NoticeApiResponse
 import com.example.naedafront.data.repository.NoticeRepository
+import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 import com.example.naedafront.ui.theme.Background
 import com.example.naedafront.ui.theme.Mint900
@@ -180,6 +181,7 @@ fun NoticeDetailScreen(
                             AsyncImage(
                                 model = imageUrl,
                                 contentDescription = title,
+                                contentScale = ContentScale.FillWidth,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))

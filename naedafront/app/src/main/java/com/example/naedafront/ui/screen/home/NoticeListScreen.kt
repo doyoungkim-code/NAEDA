@@ -76,7 +76,8 @@ fun NoticeListScreen(
                             tagColor = Color(0xFFE91E63),
                             title = f.title ?: "",
                             content = f.description ?: "",
-                            date = "$startDate ~ $endDate"
+                            date = "$startDate ~ $endDate",
+                            imageUrl = f.imageUrl
                         )
                     )
                 }
@@ -95,7 +96,8 @@ fun NoticeListScreen(
                             tagColor = Color(0xFF1976D2),
                             title = n.title ?: "",
                             content = n.content ?: "",
-                            date = created
+                            date = created,
+                            imageUrl = null
                         )
                     )
                 }
