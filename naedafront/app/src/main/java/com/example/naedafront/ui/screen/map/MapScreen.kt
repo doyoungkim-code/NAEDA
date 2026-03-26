@@ -176,6 +176,13 @@ private fun setupMap(
 
     naverMap.locationTrackingMode = LocationTrackingMode.NoFollow
 
+    naverMap.minZoom = 6.0
+    naverMap.maxZoom = 18.0
+    naverMap.extent = LatLngBounds(
+        LatLng(35.85, 128.05),
+        LatLng(36.40, 128.65)
+    )
+
     moveCameraToDefaultRegion(naverMap, paddingPx)
 }
 
