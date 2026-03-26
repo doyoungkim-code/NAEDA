@@ -460,6 +460,16 @@ fun FaceRegisterFlowScreen(
                 }
             }
 
+            globalError?.let { message ->
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(16.dp)
+                ) {
+                    ErrorBanner(message)
+                }
+            }
+
         }
     }
 }
@@ -2006,7 +2016,7 @@ private fun IdConfirmStageContent(
     var name by remember(extracted) { mutableStateOf(extracted.name.orEmpty()) }
     var residentFront6 by remember(extracted) { mutableStateOf(extracted.residentFront6.orEmpty()) }
     var residentBackFirst1 by remember(extracted) { mutableStateOf(extracted.residentBackFirst1.orEmpty()) }
-    var isLoading by remember { mutableStateOf(false) }
+    var isLoading by remember(extracted) { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -2169,23 +2179,25 @@ private fun IdConfirmStageContent(
                     onConfirmError("OCR 확인값을 다시 확인해 주세요.")
                     return@Button
                 }
-                isLoading = true
-                scope.launch(Dispatchers.IO) {
-                    runCatching {
-                        FaceRegistrationRepository.confirmResidentId(
-                            name = name,
-                            residentFront6 = residentFront6,
-                            residentBackFirst1 = residentBackFirst1
-                        )
-                    }.onSuccess { response ->
-                        isLoading = false
+                scope.launch {
+                    isLoading = true
+                    val result = runCatching {
+                        withContext(Dispatchers.IO) {
+                            FaceRegistrationRepository.confirmResidentId(
+                                name = name,
+                                residentFront6 = residentFront6,
+                                residentBackFirst1 = residentBackFirst1
+                            )
+                        }
+                    }
+                    isLoading = false
+                    result.onSuccess { response ->
                         if (response.verified) {
                             onConfirmComplete()
                         } else {
                             onConfirmError(buildIdConfirmError(response))
                         }
                     }.onFailure { throwable ->
-                        isLoading = false
                         onConfirmError(throwable.message ?: "신분증 확인에 실패했습니다.")
                     }
                 }
