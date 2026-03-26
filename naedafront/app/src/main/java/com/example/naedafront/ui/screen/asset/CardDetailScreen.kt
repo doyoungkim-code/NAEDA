@@ -101,6 +101,9 @@ data class CardTransactionItem(
 
     val time: String
         get() = transactedRaw.toTimeOnly()
+
+    val estimatedPoints: Long
+        get() = if (isCanceled) 0L else amount * 5 / 100
 }
 
 data class CardDetailUiState(
@@ -522,26 +525,28 @@ private fun CardDetailHeader(
 
             Column(modifier = Modifier.padding(horizontal = 24.dp)) {
                 Text(
-                    text = card?.cardIssuerName.orEmpty().ifBlank { "카드 거래내역" },
+                    text = "거래내역",
                     style = NaedaTypography.labelMedium,
                     color = Color.White.copy(alpha = 0.8f)
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = card?.cardName.orEmpty().ifBlank { "등록 카드" },
-                    style = NaedaTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                    color = Color.White
+                    text = card?.cardNo.orEmpty().maskCardNumber(),
+                    style = NaedaTypography.labelSmall,
+                    color = Color.White.copy(alpha = 0.65f)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = card?.cardNo.orEmpty().maskCardNumber(),
+                    text = card?.cardName.orEmpty().ifBlank {
+                        card?.cardIssuerName.orEmpty().ifBlank { "등록 카드" }
+                    },
                     style = NaedaTypography.labelSmall,
                     color = Color.White.copy(alpha = 0.65f)
                 )
 
                 Spacer(modifier = Modifier.height(20.dp))
                 Text(
-                    text = "이번 달 결제금액",
+                    text = "이번 달 결제 금액",
                     style = NaedaTypography.labelMedium,
                     color = Color.White.copy(alpha = 0.75f)
                 )
@@ -579,7 +584,7 @@ private fun CardSearchBar(
         singleLine = true,
         placeholder = {
             Text(
-                text = "가맹점, 카테고리, 금액 검색",
+                text = "거래내역 검색",
                 color = OnSurfaceVariant
             )
         },
@@ -771,7 +776,7 @@ private fun CardTransactionRow(
 
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "거래 ID ${item.transactionId}",
+                text = "적립 포인트 ${formatAmount(item.estimatedPoints)}P",
                 style = NaedaTypography.labelSmall,
                 color = OnSurfaceVariant
             )
@@ -806,20 +811,21 @@ private fun CardTransactionDetailDialog(
         },
         title = {
             Text(
-                text = "거래 상세",
+                text = "결제 상세",
                 style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                DetailRow("가맹점", transaction.merchantName.ifBlank { "가맹점 정보 없음" })
                 DetailRow("결제 금액", "${formatAmount(transaction.amount)}원")
-                DetailRow("거래 시간", transaction.transactedRaw.toDisplayDateTime())
-                DetailRow("카테고리", transaction.category.ifBlank { "-" })
-                DetailRow("거래 상태", if (transaction.isCanceled) "취소" else "승인")
-                DetailRow("카드명", card?.cardName.orEmpty().ifBlank { "-" })
-                DetailRow("카드 번호", card?.cardNo.orEmpty().maskCardNumber())
-                DetailRow("거래 ID", transaction.transactionId)
+                DetailRow("결제 방식", "카드 결제")
+                DetailRow(
+                    "결제 시간",
+                    transaction.transactedRaw.toDisplayDateTime().ifBlank { "-" }
+                )
+                DetailRow("적립 포인트", "${formatAmount(transaction.estimatedPoints)}P")
+                DetailRow("결제 번호", transaction.transactionId)
+                DetailRow("결제 장소", transaction.merchantName.ifBlank { "가맹점 정보 없음" })
             }
         }
     )
@@ -951,15 +957,31 @@ private fun String.toDateKey(): String {
 
 private fun String.toTimeOnly(): String {
     val parsed = parseFlexibleDate(this) ?: return ""
-    return SimpleDateFormat("yyyy년 M월 d일 HH시 mm분", Locale.KOREA).format(parsed)
+    return SimpleDateFormat("HH:mm", Locale.KOREA).format(parsed)
 }
 
 private fun String.toDisplayDateTime(): String {
     val parsed = parseFlexibleDate(this) ?: return this
-    return SimpleDateFormat("yyyy년 M월 d일 HH시 mm분", Locale.KOREA).format(parsed)
+    val calendar = Calendar.getInstance().apply { time = parsed }
+    val hour24 = calendar.get(Calendar.HOUR_OF_DAY)
+    val minute = calendar.get(Calendar.MINUTE)
+    val month = calendar.get(Calendar.MONTH) + 1
+    val day = calendar.get(Calendar.DAY_OF_MONTH)
+    val ampm = if (hour24 < 12) "오전" else "오후"
+    val hour12 = when (hour24 % 12) {
+        0 -> 12
+        else -> hour24 % 12
+    }
+
+    return "${month}월 ${day}일 $ampm $hour12:${"%02d".format(minute)}"
 }
 
 private fun parseFlexibleDate(raw: String): java.util.Date? {
+    val normalizedRaw = raw.trim().replace(
+        Regex("""\.\d{1,9}(?=Z|[+-]\d{2}:?\d{2}|$)"""),
+        ""
+    )
+
     val patterns = listOf(
         "yyyyMMdd HHmmss",
         "yyyyMMdd HH:mm:ss",
@@ -985,8 +1007,8 @@ private fun parseFlexibleDate(raw: String): java.util.Date? {
             isLenient = false
         }
         val position = ParsePosition(0)
-        val parsed = formatter.parse(raw, position)
-        if (parsed != null && position.index == raw.length) {
+        val parsed = formatter.parse(normalizedRaw, position)
+        if (parsed != null && position.index == normalizedRaw.length) {
             return parsed
         }
     }

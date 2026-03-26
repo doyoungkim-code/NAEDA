@@ -87,6 +87,7 @@ data class TradeReportItem(
     val title: String,
     val subTitle: String,
     val category: String = "",
+    val storeName: String = "",
     val amount: String,
     val amountValue: Long,
     val isIncome: Boolean,
@@ -278,6 +279,7 @@ private fun PaymentResponse.toUiItem(): TradeReportItem {
 
     val rawAmount = amount ?: 0L
     val rawCategory = categoryName?.trim().orEmpty()
+    val rawStoreName = storeName?.trim().orEmpty()
 
     return TradeReportItem(
         paymentId = paymentId ?: -1L,
@@ -289,6 +291,7 @@ private fun PaymentResponse.toUiItem(): TradeReportItem {
         },
         subTitle = createdAt?.formatCreatedAt() ?: "",
         category = rawCategory,
+        storeName = rawStoreName,
         amount = if (isSuccess) "-${"%,d".format(rawAmount)}원" else "실패",
         amountValue = rawAmount,
         isIncome = false,
@@ -388,9 +391,9 @@ private fun String.toTimeOnly(): String {
 
 private fun String?.toPaymentMethodLabel(): String {
     return when (this?.uppercase()) {
-        "FACE" -> "얼굴인증"
-        "PIN" -> "PIN"
-        else -> this ?: "-"
+        "FACE" -> "내다페이(페이스페이)"
+        "PIN" -> "내다페이(PIN인증)"
+        else -> "내다페이"
     }
 }
 
@@ -401,6 +404,7 @@ private fun TradeReportItem.matches(query: String): Boolean {
     return listOf(
         title,
         subTitle,
+        storeName,
         category,
         amount,
         balanceAfter,
@@ -430,6 +434,7 @@ fun TradeReportScreen(
     var isSearchMode by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var showPeriodDialog by rememberSaveable { mutableStateOf(false) }
+    var selectedPaymentItem by remember { mutableStateOf<TradeReportItem?>(null) }
 
     LaunchedEffect(uiState.selectedPeriod) {
         viewModel.loadData(context, uiState.selectedPeriod)
@@ -554,6 +559,7 @@ fun TradeReportScreen(
                                 item = item,
                                 onClick = {
                                     if (item.paymentId > 0L) {
+                                        selectedPaymentItem = item
                                         viewModel.loadPaymentDetail(context, item.paymentId)
                                     }
                                 }
@@ -580,7 +586,10 @@ fun TradeReportScreen(
 
     if (uiState.isDetailLoading) {
         AlertDialog(
-            onDismissRequest = { viewModel.clearPaymentDetail() },
+            onDismissRequest = {
+                selectedPaymentItem = null
+                viewModel.clearPaymentDetail()
+            },
             confirmButton = {},
             title = { Text("결제 상세 조회 중") },
             text = {
@@ -596,9 +605,15 @@ fun TradeReportScreen(
 
     uiState.detailError?.let { message ->
         AlertDialog(
-            onDismissRequest = { viewModel.clearPaymentDetail() },
+            onDismissRequest = {
+                selectedPaymentItem = null
+                viewModel.clearPaymentDetail()
+            },
             confirmButton = {
-                TextButton(onClick = { viewModel.clearPaymentDetail() }) {
+                TextButton(onClick = {
+                    selectedPaymentItem = null
+                    viewModel.clearPaymentDetail()
+                }) {
                     Text("확인")
                 }
             },
@@ -610,7 +625,11 @@ fun TradeReportScreen(
     uiState.selectedPaymentDetail?.let { detail ->
         PaymentDetailDialog(
             detail = detail,
-            onDismiss = { viewModel.clearPaymentDetail() }
+            storeName = selectedPaymentItem?.storeName.orEmpty(),
+            onDismiss = {
+                selectedPaymentItem = null
+                viewModel.clearPaymentDetail()
+            }
         )
     }
 }
@@ -924,8 +943,7 @@ private fun TradeTransactionRow(
 
     val subtitle = listOfNotNull(
         item.time.takeIf { it.isNotBlank() },
-        item.category.takeIf { it.isNotBlank() },
-        item.balanceAfter.takeIf { it.isNotBlank() && it != "—" }
+        item.category.takeIf { it.isNotBlank() }
     ).joinToString(" · ")
 
     Row(
@@ -1000,6 +1018,7 @@ private fun TradeTransactionRow(
 @Composable
 private fun PaymentDetailDialog(
     detail: PaymentDetailResponse,
+    storeName: String,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -1022,8 +1041,12 @@ private fun PaymentDetailDialog(
                 DetailRow("결제 금액", "${"%,d".format(detail.amount)}원")
                 DetailRow("결제 방식", detail.authMethod.toPaymentMethodLabel())
                 DetailRow("결제 시간", detail.createdAt?.formatCreatedAt() ?: "-")
+                DetailRow(
+                    "적립 포인트",
+                    detail.earnedPoints?.let { "${"%,d".format(it)}P" } ?: "—"
+                )
                 DetailRow("결제 번호", detail.ssafyTransactionId ?: detail.paymentId.toString())
-                DetailRow("결제 장소", detail.storeId.toString())
+                DetailRow("결제 장소", storeName.ifBlank { detail.storeId.toString() })
             }
         }
     )
