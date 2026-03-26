@@ -115,7 +115,8 @@ data class NoticeItem(
     val title: String,
     val content: String = "",
     val date: String,
-    val createdRaw: String = ""
+    val createdRaw: String = "",
+    val imageUrl : String?
 )
 
 data class HomeUiState(
