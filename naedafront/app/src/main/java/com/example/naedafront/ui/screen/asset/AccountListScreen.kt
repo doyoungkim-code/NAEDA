@@ -38,7 +38,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface as MaterialSurface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -121,12 +121,11 @@ fun AccountListScreen(
     Scaffold(
         containerColor = Background,
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = {
                     Text(
                         text = "계좌 및 카드 관리",
-                        style = NaedaTypography.titleMedium,
-                        color = OnBackground
+                        fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {
@@ -140,7 +139,7 @@ fun AccountListScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceColor),
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = SurfaceColor),
                 windowInsets = WindowInsets(0)
             )
         },

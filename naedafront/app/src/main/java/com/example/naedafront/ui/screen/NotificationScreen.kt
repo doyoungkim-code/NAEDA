@@ -189,8 +189,7 @@ fun NotificationScreen(
                 title = {
                     Text(
                         text = "알림",
-                        style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = OnBackground
+                        fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {
