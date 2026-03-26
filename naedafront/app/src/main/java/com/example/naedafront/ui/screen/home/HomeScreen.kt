@@ -115,7 +115,8 @@ data class NoticeItem(
     val title: String,
     val content: String = "",
     val date: String,
-    val createdRaw: String = ""
+    val createdRaw: String = "",
+    val imageUrl : String?
 )
 
 data class HomeUiState(
@@ -341,16 +342,24 @@ private fun NaedaHomeTopBar(
 ) {
     TopAppBar(
         title = {
-            Text(
-                text = "NAEDA",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontFamily = KronaOneFontFamily,
-                    fontWeight = FontWeight.Normal,
-                    fontSize = 32.sp,
-                    letterSpacing = 1.sp
-                ),
-                color = Mint900
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    painter = painterResource(id = R.drawable.naeda_logo),
+                    contentDescription = "내다 캐릭터",
+                    modifier = Modifier.size(36.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "NAEDA",
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontFamily = KronaOneFontFamily,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 32.sp,
+                        letterSpacing = 1.sp
+                    ),
+                    color = Mint900
+                )
+            }
         },
         actions = {
             Box {
@@ -750,8 +759,10 @@ private fun CardInfoCard(
             // 중단: 카드 상품명
             Text(
                 text = card.cardName ?: "등록 카드",
-                style = MaterialTheme.typography.bodySmall,
-                color = textBody,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = textPrimary,
                 maxLines = 1
             )
 
@@ -759,18 +770,9 @@ private fun CardInfoCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.Bottom
             ) {
-                Text(
-                    text = "₩${"%,d".format(amount)}",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 30.sp
-                    ),
-                    color = textPrimary
-                )
-
                 Text(
                     text = "유효기간 ${card.cardExpiryDate ?: ""}",
                     style = MaterialTheme.typography.bodySmall,

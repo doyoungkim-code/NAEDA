@@ -30,7 +30,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -76,7 +76,8 @@ fun NoticeListScreen(
                             tagColor = Color(0xFFE91E63),
                             title = f.title ?: "",
                             content = f.description ?: "",
-                            date = "$startDate ~ $endDate"
+                            date = "$startDate ~ $endDate",
+                            imageUrl = f.imageUrl
                         )
                     )
                 }
@@ -95,7 +96,8 @@ fun NoticeListScreen(
                             tagColor = Color(0xFF1976D2),
                             title = n.title ?: "",
                             content = n.content ?: "",
-                            date = created
+                            date = created,
+                            imageUrl = null
                         )
                     )
                 }
@@ -108,32 +110,22 @@ fun NoticeListScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.LocationOn,
-                            contentDescription = null,
-                            tint = Mint900,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "구미시 소식",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold
-                            )
-                        )
-                    }
+                    Text(
+                        text = "구미시 소식",
+                        fontWeight = FontWeight.SemiBold
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "뒤로가기")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = Background
-                )
+                ),
+                windowInsets = WindowInsets(0)
             )
         },
         containerColor = Background,
