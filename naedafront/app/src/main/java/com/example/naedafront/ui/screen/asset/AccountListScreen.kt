@@ -2,6 +2,7 @@
 package com.example.naedafront.ui.screen.asset
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -47,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -259,7 +262,7 @@ private fun AccountListContent(
         item { AccountListHeader(count = accounts.size, onRegisterNew = onRegisterNew) }
 
         items(accounts, key = { it.id }) { account ->
-            AccountListItem(
+            AccountPassbookCardLikeListItem(
                 account = account,
                 isMenuExpanded = expandedMenuId == account.id,
                 onMenuToggle = { onMenuToggle(account.id) },
@@ -415,6 +418,412 @@ private fun AccountListItem(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AccountPassbookListItem(
+    account: AccountItem,
+    isMenuExpanded: Boolean,
+    onMenuToggle: () -> Unit,
+    onAccountClick: () -> Unit,
+    onSetPrimary: () -> Unit,
+    onDeleteRequest: () -> Unit
+) {
+    val gradientEnd = account.bankColor.blendTowardWhite(0.42f)
+    val isLight = isLightColor(gradientEnd)
+    val textPrimary = if (isLight) Color(0xFF1A1A1A) else Color.White
+    val textSecondary = if (isLight) Color(0xFF1A1A1A).copy(alpha = 0.62f) else Color.White.copy(alpha = 0.68f)
+    val badgeBg = if (isLight) Color.Black.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.18f)
+    val decoColor = if (isLight) Color.Black.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.10f)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp)
+            .height(200.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .clickable { onAccountClick() }
+            .background(
+                brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                    colors = listOf(account.bankColor, gradientEnd)
+                )
+            )
+    ) {
+        Box(
+            modifier = Modifier
+                .size(150.dp)
+                .offset(x = 210.dp, y = (-18).dp)
+                .clip(CircleShape)
+                .background(decoColor)
+        )
+        Box(
+            modifier = Modifier
+                .size(120.dp)
+                .offset(x = 240.dp, y = 118.dp)
+                .clip(CircleShape)
+                .background(decoColor.copy(alpha = decoColor.alpha * 0.9f))
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = account.bankName,
+                        style = NaedaTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = textPrimary,
+                        maxLines = 1
+                    )
+                    if (account.isPrimary) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(badgeBg)
+                                .padding(horizontal = 7.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = "대표",
+                                style = NaedaTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = textPrimary
+                            )
+                        }
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(badgeBg)
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Text(
+                            text = "계좌",
+                            style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = textPrimary
+                        )
+                    }
+
+                    if (account.paymentMethodId != null) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Box {
+                            IconButton(onClick = onMenuToggle) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "더보기",
+                                    tint = textPrimary
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = isMenuExpanded,
+                                onDismissRequest = onMenuToggle,
+                                modifier = Modifier.background(SurfaceColor)
+                            ) {
+                                if (!account.isPrimary) {
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                "대표계좌로 설정",
+                                                style = NaedaTypography.bodyMedium,
+                                                color = OnBackground
+                                            )
+                                        },
+                                        onClick = onSetPrimary
+                                    )
+                                }
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            "삭제",
+                                            style = NaedaTypography.bodyMedium,
+                                            color = Error
+                                        )
+                                    },
+                                    onClick = onDeleteRequest
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Column {
+                Text(
+                    text = account.accountName,
+                    style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = account.accountNumber,
+                    style = NaedaTypography.bodyLarge,
+                    color = textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Column {
+                    Text(
+                        text = "현재 잔액",
+                        style = NaedaTypography.labelMedium,
+                        color = textSecondary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "${"%,d".format(account.accountBalance ?: 0L)}원",
+                        style = NaedaTypography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 28.sp
+                        ),
+                        color = textPrimary,
+                        maxLines = 1
+                    )
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    BankIcon(
+                        initials = account.bankInitials,
+                        color = account.bankColor
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(112.dp)
+                            .height(2.dp)
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(textPrimary.copy(alpha = 0.18f))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(86.dp)
+                            .height(2.dp)
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(textPrimary.copy(alpha = 0.14f))
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun Color.blendTowardWhite(fraction: Float): Color {
+    return Color(
+        red = red + (1f - red) * fraction,
+        green = green + (1f - green) * fraction,
+        blue = blue + (1f - blue) * fraction,
+        alpha = 1f
+    )
+}
+
+@Composable
+private fun AccountPassbookCardLikeListItem(
+    account: AccountItem,
+    isMenuExpanded: Boolean,
+    onMenuToggle: () -> Unit,
+    onAccountClick: () -> Unit,
+    onSetPrimary: () -> Unit,
+    onDeleteRequest: () -> Unit
+) {
+    val paperColor = Color(0xFFFFFCF5)
+    val paperBorder = Color(0xFFE7DED0)
+    val textPrimary = Color(0xFF2E261C)
+    val textSecondary = Color(0xFF7A7065)
+    val textBody = Color(0xFF4A4035)
+    val badgeBg = Color(0xFFF2E6D8)
+    val maskedAccountNumber = account.accountNumber.maskAccountNumberForList()
+
+    MaterialSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp)
+            .clickable { onAccountClick() }
+            .border(1.dp, paperBorder, RoundedCornerShape(24.dp)),
+        shape = RoundedCornerShape(24.dp),
+        color = paperColor,
+        shadowElevation = 3.dp,
+        tonalElevation = 0.dp
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(18.dp)
+                    .background(account.bankColor)
+            )
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                repeat(5) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.78f))
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = account.bankName,
+                            style = NaedaTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (account.isPrimary) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(badgeBg)
+                                    .padding(horizontal = 7.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = "대표",
+                                    style = NaedaTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = textPrimary
+                                )
+                            }
+                        }
+                    }
+
+                    if (account.paymentMethodId != null) {
+                        Box {
+                            IconButton(onClick = onMenuToggle) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "더보기",
+                                    tint = textPrimary
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = isMenuExpanded,
+                                onDismissRequest = onMenuToggle,
+                                modifier = Modifier.background(SurfaceColor)
+                            ) {
+                                if (!account.isPrimary) {
+                                    DropdownMenuItem(
+                                        text = { Text("대표계좌로 설정") },
+                                        onClick = onSetPrimary
+                                    )
+                                }
+                                DropdownMenuItem(
+                                    text = { Text("삭제", color = Error) },
+                                    onClick = onDeleteRequest
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Column {
+                    Text(
+                        text = account.accountName,
+                        style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = maskedAccountNumber,
+                        style = NaedaTypography.bodyLarge,
+                        color = textBody,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(badgeBg)
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "계좌",
+                                style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = textBody
+                            )
+                        }
+                        Text(
+                            text = formatWon(account.accountBalance ?: 0L),
+                            style = NaedaTypography.labelMedium,
+                            color = textSecondary
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PassbookStamp(initials: String, color: Color) {
+    val stampColor = color.copy(alpha = 0.88f)
+    Box(
+        modifier = Modifier
+            .size(58.dp)
+            .clip(CircleShape)
+            .border(2.dp, stampColor.copy(alpha = 0.28f), CircleShape)
+            .background(stampColor.copy(alpha = 0.1f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = initials,
+            style = NaedaTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
+            color = stampColor
+        )
     }
 }
 
@@ -586,6 +995,7 @@ private fun CardListItem(
     val badgeBg = if (isLight) Color.Black.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.2f)
     val decoColor = if (isLight) Color.Black.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.06f)
     val decoColor2 = if (isLight) Color.Black.copy(alpha = 0.03f) else Color.White.copy(alpha = 0.04f)
+    val cardTypeLabel = card.cardType.toCardTypeShortLabel()
 
     Box(
         modifier = Modifier
@@ -686,20 +1096,28 @@ private fun CardListItem(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = card.cardNumber,
+                    text = card.cardNumber.maskCardNumberForList(),
                     style = NaedaTypography.bodyLarge,
                     color = textBody
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = card.cardType,
-                        style = NaedaTypography.labelMedium,
-                        color = textSecondary
-                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(badgeBg)
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = cardTypeLabel,
+                            style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = textBody
+                        )
+                    }
                     Text(
                         text = card.cardExpiryDate,
                         style = NaedaTypography.labelMedium,
@@ -708,6 +1126,38 @@ private fun CardListItem(
                 }
             }
         }
+    }
+}
+
+private fun formatWon(amount: Long): String {
+    return "%,d원".format(amount)
+}
+
+private fun String.maskAccountNumberForList(): String {
+    val digits = replace("-", "").replace(" ", "")
+    return when {
+        digits.isBlank() -> "-"
+        digits.length <= 7 -> this
+        else -> "${digits.take(3)}${"*".repeat(digits.length - 7)}${digits.takeLast(4)}"
+    }
+}
+
+private fun String.maskCardNumberForList(): String {
+    val digits = replace("-", "").replace(" ", "")
+    return if (digits.length >= 16) {
+        "${digits.substring(0, 4)}-****-****-${digits.takeLast(4)}"
+    } else if (isBlank()) {
+        "-"
+    } else {
+        this
+    }
+}
+
+private fun String?.toCardTypeShortLabel(): String {
+    return when (this?.uppercase()) {
+        "CREDIT" -> "신용"
+        "CHECK", "DEBIT" -> "체크"
+        else -> this?.ifBlank { "-" } ?: "-"
     }
 }
 

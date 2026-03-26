@@ -20,6 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -88,8 +89,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun NaedaApp() {
     val context = LocalContext.current
-    val startDestination =
+    val startDestination = remember {
         if (AuthPrefs.hasSession(context)) Screen.Home.route else Screen.Welcome.route
+    }
 
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
