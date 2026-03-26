@@ -26,7 +26,7 @@ private val SpeechBubbleShape = GenericShape { size, _ ->
     val h = size.height
     val r = size.minDimension * 0.22f
     val tailW = w * 0.22f
-    val tailH = h * 0.18f
+    val tailH = h * 0.12f
     val tailX = w * 0.18f
     val bodyH = h - tailH
 

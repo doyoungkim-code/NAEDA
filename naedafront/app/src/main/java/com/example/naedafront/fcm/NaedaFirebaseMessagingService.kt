@@ -79,7 +79,7 @@ class NaedaFirebaseMessagingService : FirebaseMessagingService() {
 
         val channelId = CHANNEL_ID
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.chatbot_image)
+            .setSmallIcon(R.drawable.naeda_logo)
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
