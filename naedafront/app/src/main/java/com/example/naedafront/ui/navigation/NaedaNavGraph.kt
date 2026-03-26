@@ -105,7 +105,7 @@ fun NaedaNavGraph(
                 onBackClick = { navController.popBackStack() },
                 onLoginSuccess = {
                     navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                        popUpTo(0) { inclusive = true }
                     }
                 }
             )
@@ -521,7 +521,7 @@ fun NaedaNavGraph(
                 onLogoutClick = {
                     AuthPrefs.clearSession(context)
                     navController.navigate(Screen.Welcome.route) {
-                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                        popUpTo(0) { inclusive = true }
                         launchSingleTop = true
                     }
                 }
@@ -549,7 +549,7 @@ fun NaedaNavGraph(
                 onLogoutClick = {
                     AuthPrefs.clearSession(context)
                     navController.navigate(Screen.Welcome.route) {
-                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                        popUpTo(0) { inclusive = true }
                         launchSingleTop = true
                     }
                 }
@@ -790,7 +790,7 @@ private fun SettingsTabContent(
         onLogoutClick = {
             AuthPrefs.clearSession(context)
             navController.navigate(Screen.Welcome.route) {
-                popUpTo(Screen.Welcome.route) { inclusive = true }
+                popUpTo(0) { inclusive = true }
                 launchSingleTop = true
             }
         }
