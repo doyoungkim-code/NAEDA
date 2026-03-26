@@ -708,8 +708,8 @@ fun MapSelectScreen(
             )
         }
 
-        // 맛집 탭 캐릭터
-        if (selectedTabIndex == 1) {
+        // 맛집 탭 캐릭터 (지역 선택하면 숨김)
+        if (selectedTabIndex == 1 && selectedRegion == null) {
             Image(
                 painter = painterResource(id = R.drawable.map_food),
                 contentDescription = null,
