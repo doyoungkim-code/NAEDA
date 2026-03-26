@@ -28,6 +28,8 @@ object StoreOrderDraftStore {
     ): OrderCompleteUiModel {
         val model = OrderCompleteUiModel(
             productName = order.productName,
+            imageUrl = selectedItem?.imageUrl.orEmpty(),
+            thumbnailLabel = selectedItem?.thumbnailLabel.orEmpty(),
             orderNumber = order.orderId.toString(),
             recipientName = recipientName,
             phone = phone,

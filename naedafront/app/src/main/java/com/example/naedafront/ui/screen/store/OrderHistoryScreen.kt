@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
@@ -50,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.naedafront.data.remote.response.OrderResponse
 import com.example.naedafront.ui.theme.Background
+import coil.compose.AsyncImage
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -121,6 +124,7 @@ fun OrderHistoryScreen(
                     items(visibleOrders, key = { it.orderId }) { order ->
                         OrderHistoryBlock(
                             order = order,
+                            imageUrl = uiState.productImageUrls[order.productId].orEmpty(),
                             onClick = { onOrderClick(order.orderId) },
                             onCancelClick = {
                                 hiddenOrderIds.add(order.orderId)
@@ -173,6 +177,7 @@ private fun OrderHistoryTopBar(
 @Composable
 private fun OrderHistoryBlock(
     order: OrderResponse,
+    imageUrl: String,
     onClick: () -> Unit,
     onCancelClick: () -> Unit
 ) {
@@ -191,41 +196,73 @@ private fun OrderHistoryBlock(
                 .padding(18.dp)
         ) {
             Row(
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.Top
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.LocalShipping,
-                    contentDescription = null,
-                    tint = Color(0xFF16A36A),
-                    modifier = Modifier.size(18.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(96.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFFF2F4F7)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (imageUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = imageUrl,
+                            contentDescription = order.productName,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ReceiptLong,
+                            contentDescription = null,
+                            tint = Color(0xFF98A2B3),
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.LocalShipping,
+                            contentDescription = null,
+                            tint = Color(0xFF16A36A),
+                            modifier = Modifier.size(18.dp)
+                        )
 
-                Text(
-                    text = "배송 준비중",
-                    color = Color(0xFF16A36A),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Text(
+                            text = "배송 준비중",
+                            color = Color(0xFF16A36A),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = order.productName,
+                        color = Color(0xFF111827),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    InfoRow("주문번호", order.orderId.toString())
+                    Spacer(modifier = Modifier.height(8.dp))
+                    InfoRow("결제 포인트", formatPoint(order.pointPrice))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    InfoRow("주문일시", formatOrderDate(order.orderAt))
+                }
             }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Text(
-                text = order.productName,
-                color = Color(0xFF111827),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            InfoRow("주문번호", order.orderId.toString())
-            Spacer(modifier = Modifier.height(8.dp))
-            InfoRow("결제 포인트", formatPoint(order.pointPrice))
-            Spacer(modifier = Modifier.height(8.dp))
-            InfoRow("주문일시", formatOrderDate(order.orderAt))
 
             Spacer(modifier = Modifier.height(18.dp))
 
