@@ -56,25 +56,36 @@ fun SignUpPasswordScreen(
     onConfirmClick: () -> Unit = {},
 ) {
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
     var showInvalidPasswordDialog by remember { mutableStateOf(false) }
+    var showPasswordMismatchDialog by remember { mutableStateOf(false) }
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val trimmedPassword = password.trim()
+    val trimmedConfirmPassword = confirmPassword.trim()
 
     val hasLetter = trimmedPassword.any { it.isLetter() }
     val hasDigit = trimmedPassword.any { it.isDigit() }
     val isLengthValid = trimmedPassword.length >= 8
     val isPasswordNotBlank = trimmedPassword.isNotBlank()
+    val isConfirmPasswordNotBlank = trimmedConfirmPassword.isNotBlank()
     val isPasswordValid = isLengthValid && hasLetter && hasDigit
+    val isPasswordMatched = trimmedPassword == trimmedConfirmPassword
 
     fun handleConfirm() {
         keyboardController?.hide()
 
-        if (!isPasswordNotBlank) return
+        if (!isPasswordNotBlank || !isConfirmPasswordNotBlank) return
 
         if (!isPasswordValid) {
             showInvalidPasswordDialog = true
+            return
+        }
+
+        if (!isPasswordMatched) {
+            showPasswordMismatchDialog = true
             return
         }
 
@@ -95,6 +106,23 @@ fun SignUpPasswordScreen(
             },
             text = {
                 Text("비밀번호는 8자 이상이며 영문과 숫자를 모두 포함해야 합니다.")
+            }
+        )
+    }
+
+    if (showPasswordMismatchDialog) {
+        AlertDialog(
+            onDismissRequest = { showPasswordMismatchDialog = false },
+            confirmButton = {
+                TextButton(onClick = { showPasswordMismatchDialog = false }) {
+                    Text("확인")
+                }
+            },
+            title = {
+                Text("비밀번호 불일치")
+            },
+            text = {
+                Text("비밀번호와 비밀번호 확인이 일치하지 않습니다.")
             }
         )
     }
@@ -186,6 +214,57 @@ fun SignUpPasswordScreen(
                     },
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Next
+                    ),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Mint500,
+                        focusedLabelColor = Mint500,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        cursorColor = Mint500
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("비밀번호 확인") },
+                    visualTransformation = if (confirmPasswordVisible) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                            Icon(
+                                imageVector = if (confirmPasswordVisible) {
+                                    Icons.Default.Visibility
+                                } else {
+                                    Icons.Default.VisibilityOff
+                                },
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    supportingText = {
+                        if (isConfirmPasswordNotBlank && isPasswordMatched) {
+                            Text(
+                                text = "비밀번호가 일치합니다.",
+                                color = Mint900
+                            )
+                        } else if (isConfirmPasswordNotBlank && !isPasswordMatched) {
+                            Text(
+                                text = "비밀번호가 일치하지 않습니다.",
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Done
                     ),
                     keyboardActions = KeyboardActions(
@@ -207,7 +286,7 @@ fun SignUpPasswordScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    enabled = isPasswordNotBlank,
+                    enabled = isPasswordNotBlank && isConfirmPasswordNotBlank,
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Mint900,
