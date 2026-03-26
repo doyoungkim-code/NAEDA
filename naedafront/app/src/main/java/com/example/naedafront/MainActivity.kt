@@ -93,7 +93,6 @@ fun NaedaApp() {
         Screen.Home.route,
         Screen.Store.route,
         Screen.Scan.route,
-        Screen.PointHistory.route,
         Screen.Asset.route,
         Screen.More.route,
         Screen.MyPage.route
