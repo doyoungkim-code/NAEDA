@@ -204,7 +204,7 @@ class HomeViewModel : ViewModel() {
                             title = n.title ?: "",
                             content = n.content ?: "",
                             date = created,
-                            createdRaw = n.created ?: "",
+                            createdRaw = n.modified ?: n.created ?: "",
                             imageUrl = null
                         )
                     )
