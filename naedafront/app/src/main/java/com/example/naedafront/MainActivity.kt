@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -129,7 +129,7 @@ fun NaedaApp() {
                     modifier = Modifier.size(56.dp)
                 ) {
                     Icon(
-                        Icons.Default.SmartToy,
+                        Icons.Default.Chat,
                         contentDescription = "챗봇",
                         modifier = Modifier.size(28.dp)
                     )

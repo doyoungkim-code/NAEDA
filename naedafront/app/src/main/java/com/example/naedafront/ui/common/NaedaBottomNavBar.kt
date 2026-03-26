@@ -3,7 +3,6 @@ package com.example.naedafront.ui.common
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Settings
@@ -24,17 +23,24 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import com.example.naedafront.ui.navigation.Screen
 import com.example.naedafront.ui.theme.Background
-
+import androidx.compose.material.icons.filled.Wallet
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Map
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material.icons.outlined.Wallet
+import androidx.compose.ui.text.font.FontWeight
 enum class BottomNavItem(
     val route: String,
     val label: String,
-    val icon: ImageVector
+    val selectedIcon: ImageVector,
+    val unselectedIcon: ImageVector
 ) {
-    HOME(Screen.Home.route, "홈", Icons.Default.Home),
-    BENEFIT(Screen.Store.route, "상점", Icons.Default.Store),
-    SCAN(Screen.Scan.route, "지도", Icons.Default.Map),
-    ASSET(Screen.Asset.route, "지갑", Icons.Default.AccountBalanceWallet),
-    MORE(Screen.More.route, "설정", Icons.Default.Settings)
+    HOME(Screen.Home.route, "홈", Icons.Filled.Home, Icons.Outlined.Home),
+    BENEFIT(Screen.Store.route, "상점", Icons.Filled.Store, Icons.Outlined.Storefront),
+    SCAN(Screen.Scan.route, "지도", Icons.Filled.Map, Icons.Outlined.Map),
+    ASSET(Screen.Asset.route, "지갑", Icons.Filled.Wallet, Icons.Outlined.Wallet),
+    MORE(Screen.More.route, "설정", Icons.Filled.Settings, Icons.Outlined.Settings)
 }
 
 @Composable
@@ -72,7 +78,7 @@ fun NaedaBottomNavBar(
                 },
                 icon = {
                     Icon(
-                        imageVector = item.icon,
+                        imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
                         contentDescription = item.label,
                         modifier = Modifier.size(24.dp)
                     )
@@ -80,7 +86,8 @@ fun NaedaBottomNavBar(
                 label = {
                     Text(
                         text = item.label,
-                        fontSize = 11.sp
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                     )
                 },
                 colors = NavigationBarItemDefaults.colors(
