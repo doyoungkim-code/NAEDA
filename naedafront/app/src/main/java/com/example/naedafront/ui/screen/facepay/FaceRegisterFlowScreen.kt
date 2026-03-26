@@ -84,7 +84,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -308,7 +308,7 @@ fun FaceRegisterFlowScreen(
     }
     Scaffold(
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = {
                     Text(
                         text = titleForStage(stage),
@@ -335,7 +335,8 @@ fun FaceRegisterFlowScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Background)
+                windowInsets = WindowInsets(0),
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Background)
             )
         },
         containerColor = Background,

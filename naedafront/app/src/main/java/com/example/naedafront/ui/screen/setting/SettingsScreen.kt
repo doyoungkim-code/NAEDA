@@ -32,9 +32,12 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.naedafront.ui.theme.Background
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     isDarkMode: Boolean = false,
@@ -60,7 +64,21 @@ fun SettingsScreen(
 
     Scaffold(
         containerColor = Background,
-        contentWindowInsets = WindowInsets(0)
+        contentWindowInsets = WindowInsets(0),
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        text = "설정",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Background
+                ),
+                windowInsets = WindowInsets(0)
+            )
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -70,16 +88,6 @@ fun SettingsScreen(
                 .padding(horizontal = 20.dp)
                 .verticalScroll(scrollState)
         ) {
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Text(
-                text = "설정",
-                fontSize = 30.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF202632)
-            )
-
-            Spacer(modifier = Modifier.height(28.dp))
 
             SectionTitle(title = "앱 설정")
             Spacer(modifier = Modifier.height(14.dp))

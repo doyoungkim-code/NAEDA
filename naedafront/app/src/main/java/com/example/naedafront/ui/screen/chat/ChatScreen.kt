@@ -7,6 +7,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,7 +17,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Chat
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.example.naedafront.R
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -64,24 +67,23 @@ fun ChatScreen(
                             .background(Mint100.copy(alpha = 0.3f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Chat,
-                            contentDescription = "내다봇",
-                            modifier = Modifier.size(20.dp),
-                            tint = Mint900
+                        Image(
+                            painter = painterResource(id = R.drawable.chatbot_ai),
+                            contentDescription = "토미봇",
+                            modifier = Modifier.size(32.dp)
                         )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         Text(
-                            text = "내다봇",
+                            text = "토미봇",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 lineHeight = 16.sp
                             )
                         )
                         Text(
-                            text = "구미 맛집·축제 추천",
+                            text = "구미 생활 AI 도우미",
                             style = MaterialTheme.typography.labelSmall,
                             color = OnBackground.copy(alpha = 0.5f)
                         )
@@ -106,10 +108,16 @@ fun ChatScreen(
                 .fillMaxWidth(),
             state = listState,
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = if (uiState.messages.isEmpty()) Arrangement.Center else Arrangement.spacedBy(8.dp)
         ) {
             if (uiState.messages.isEmpty()) {
-                item { WelcomeMessage() }
+                item {
+                    WelcomeMessage(
+                        onSuggestionClick = { suggestion ->
+                            userNo?.let { viewModel.sendMessage(it, suggestion) }
+                        }
+                    )
+                }
             }
 
             items(uiState.messages) { message ->
@@ -133,7 +141,9 @@ fun ChatScreen(
 }
 
 @Composable
-private fun WelcomeMessage() {
+private fun WelcomeMessage(
+    onSuggestionClick: (String) -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -147,22 +157,21 @@ private fun WelcomeMessage() {
                 .background(Mint100.copy(alpha = 0.2f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Chat,
-                contentDescription = "내다봇",
-                modifier = Modifier.size(36.dp),
-                tint = Mint900
+            Image(
+                painter = painterResource(id = R.drawable.chatbot_ai),
+                contentDescription = "토미봇",
+                modifier = Modifier.size(64.dp)
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-            text = "안녕하세요! 내다봇이에요",
+            text = "안녕하세요! 토미봇이에요",
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
             color = OnBackground
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "구미 맛집, 카페, 축제 추천을 도와드려요!",
+            text = "구미 맛집, 카페, 축제부터 생활 정보까지!",
             style = MaterialTheme.typography.bodySmall,
             color = OnBackground.copy(alpha = 0.5f)
         )
@@ -177,6 +186,7 @@ private fun WelcomeMessage() {
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
                         .background(Mint900.copy(alpha = 0.08f))
+                        .clickable { onSuggestionClick(suggestion) }
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     Text(
@@ -205,11 +215,10 @@ private fun ChatBubble(message: ChatMessage) {
                     .background(Mint100.copy(alpha = 0.3f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Chat,
-                    contentDescription = "내다봇",
-                    modifier = Modifier.size(18.dp),
-                    tint = Mint900
+                Image(
+                    painter = painterResource(id = R.drawable.chatbot_ai),
+                    contentDescription = "토미봇",
+                    modifier = Modifier.size(28.dp)
                 )
             }
             Spacer(modifier = Modifier.width(6.dp))
@@ -225,7 +234,7 @@ private fun ChatBubble(message: ChatMessage) {
                         bottomEnd = if (isUser) 4.dp else 16.dp
                     )
                 )
-                .background(if (isUser) Mint900 else Surface)
+                .background(if (isUser) Mint900 else Mint50)
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
             if (message.isLoading) {
@@ -304,13 +313,13 @@ private fun ChatInputBar(
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
                 disabledIndicatorColor = Color.Transparent,
-                focusedTextColor = Mint900,
-                unfocusedTextColor = Mint900
+                focusedTextColor = OnBackground,
+                unfocusedTextColor = OnBackground
             ),
             shape = RoundedCornerShape(50.dp),
             singleLine = false,
             maxLines = 4,
-            textStyle = MaterialTheme.typography.bodyMedium.copy(color = Mint900)
+            textStyle = MaterialTheme.typography.bodyMedium.copy(color = OnBackground)
         )
 
         Spacer(modifier = Modifier.width(8.dp))

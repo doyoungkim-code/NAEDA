@@ -341,16 +341,24 @@ private fun NaedaHomeTopBar(
 ) {
     TopAppBar(
         title = {
-            Text(
-                text = "NAEDA",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontFamily = KronaOneFontFamily,
-                    fontWeight = FontWeight.Normal,
-                    fontSize = 32.sp,
-                    letterSpacing = 1.sp
-                ),
-                color = Mint900
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    painter = painterResource(id = R.drawable.naeda_logo),
+                    contentDescription = "내다 캐릭터",
+                    modifier = Modifier.size(36.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "NAEDA",
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontFamily = KronaOneFontFamily,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 32.sp,
+                        letterSpacing = 1.sp
+                    ),
+                    color = Mint900
+                )
+            }
         },
         actions = {
             Box {
