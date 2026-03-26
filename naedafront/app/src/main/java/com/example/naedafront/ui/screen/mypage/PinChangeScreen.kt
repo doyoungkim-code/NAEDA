@@ -248,9 +248,7 @@ fun PinChangeScreen(
                 title = {
                     Text(
                         text = topBarTitle,
-                        fontFamily = NaedaFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        color = OnBackground
+                        fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {

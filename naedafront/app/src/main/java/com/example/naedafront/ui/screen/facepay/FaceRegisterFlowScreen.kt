@@ -312,9 +312,7 @@ fun FaceRegisterFlowScreen(
                 title = {
                     Text(
                         text = titleForStage(stage),
-                        fontFamily = NaedaFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        color = OnBackground
+                        fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {

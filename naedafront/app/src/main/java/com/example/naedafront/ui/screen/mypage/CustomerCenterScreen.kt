@@ -75,9 +75,7 @@ fun CustomerCenterScreen(
                 title = {
                     Text(
                         text = "고객센터",
-                        fontFamily = NaedaFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        color = OnBackground
+                        fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {

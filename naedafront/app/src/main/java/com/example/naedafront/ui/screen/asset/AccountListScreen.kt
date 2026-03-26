@@ -125,8 +125,7 @@ fun AccountListScreen(
                 title = {
                     Text(
                         text = "계좌 및 카드 관리",
-                        style = NaedaTypography.titleMedium,
-                        color = OnBackground
+                        fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {

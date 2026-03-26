@@ -43,7 +43,12 @@ fun FaceMatchResultScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("페이스 매칭 결과") },
+                title = {
+                    Text(
+                        text = "페이스 매칭 결과",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")

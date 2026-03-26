@@ -70,7 +70,7 @@ fun SettingsScreen(
                 title = {
                     Text(
                         text = "설정",
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.SemiBold
                     )
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(

@@ -102,9 +102,7 @@ fun NoticeDetailScreen(
                 title = {
                     Text(
                         text = if (type == "festival") "축제 상세" else "공지사항 상세",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold
-                        )
+                        fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {

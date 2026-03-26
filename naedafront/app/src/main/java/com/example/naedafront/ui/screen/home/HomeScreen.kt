@@ -759,8 +759,10 @@ private fun CardInfoCard(
             // 중단: 카드 상품명
             Text(
                 text = card.cardName ?: "등록 카드",
-                style = MaterialTheme.typography.bodySmall,
-                color = textBody,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = textPrimary,
                 maxLines = 1
             )
 
@@ -768,18 +770,9 @@ private fun CardInfoCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.Bottom
             ) {
-                Text(
-                    text = "₩${"%,d".format(amount)}",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 30.sp
-                    ),
-                    color = textPrimary
-                )
-
                 Text(
                     text = "유효기간 ${card.cardExpiryDate ?: ""}",
                     style = MaterialTheme.typography.bodySmall,

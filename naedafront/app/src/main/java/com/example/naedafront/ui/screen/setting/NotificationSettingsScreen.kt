@@ -112,7 +112,7 @@ fun NotificationSettingsScreen(
                 title = {
                     Text(
                         text = "알림 설정",
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {

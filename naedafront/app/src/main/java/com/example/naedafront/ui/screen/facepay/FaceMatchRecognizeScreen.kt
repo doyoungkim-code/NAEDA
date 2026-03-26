@@ -115,7 +115,12 @@ fun FaceMatchRecognizeScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("페이스 매칭 테스트") },
+                title = {
+                    Text(
+                        text = "페이스 매칭 테스트",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")

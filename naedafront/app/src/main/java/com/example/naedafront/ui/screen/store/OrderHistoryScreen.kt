@@ -151,7 +151,7 @@ private fun OrderHistoryTopBar(
             title = {
                 Text(
                     text = "배송 조회",
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.SemiBold
                 )
             },
             navigationIcon = {

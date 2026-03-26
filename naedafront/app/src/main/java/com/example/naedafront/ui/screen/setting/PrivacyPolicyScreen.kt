@@ -56,7 +56,7 @@ fun PrivacyPolicyScreen(
                 title = {
                     Text(
                         text = "개인정보 처리방침",
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {

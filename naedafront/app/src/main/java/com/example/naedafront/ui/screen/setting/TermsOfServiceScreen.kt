@@ -58,7 +58,7 @@ fun TermsOfServiceScreen(
                 title = {
                     Text(
                         text = "이용약관",
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {
