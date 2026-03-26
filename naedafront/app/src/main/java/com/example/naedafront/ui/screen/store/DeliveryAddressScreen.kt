@@ -834,6 +834,7 @@ private fun DeliveryRequestSection(
     onCustomRequestChange: (Boolean) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val selectedRequestText = if (isCustomRequest) "직접 입력" else value
 
     val presetRequests = listOf(
         "문 앞에 놔주세요",
@@ -862,7 +863,7 @@ private fun DeliveryRequestSection(
                     .clickable { expanded = true }
             ) {
                 OutlinedTextField(
-                    value = if (value.isBlank()) "" else value,
+                    value = selectedRequestText,
                     onValueChange = {},
                     readOnly = true,
                     enabled = false,

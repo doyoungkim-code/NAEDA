@@ -37,11 +37,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.naedafront.ui.theme.Background
+import coil.compose.AsyncImage
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -238,12 +240,21 @@ private fun OrderCompleteSummarySection(
                 .background(Color(0xFFF1F5F9)),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "상품",
-                color = Color(0xFF9CA3AF),
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
-            )
+            if (orderInfo.imageUrl.isNotBlank()) {
+                AsyncImage(
+                    model = orderInfo.imageUrl,
+                    contentDescription = orderInfo.productName,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Text(
+                    text = orderInfo.thumbnailLabel.ifBlank { "상품" },
+                    color = Color(0xFF9CA3AF),
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(22.dp))
