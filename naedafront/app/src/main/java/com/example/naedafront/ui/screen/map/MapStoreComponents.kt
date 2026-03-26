@@ -26,7 +26,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -358,16 +357,6 @@ private fun StoreMapListRow(
                 }
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Icon(
-                imageVector = Icons.Outlined.FavoriteBorder,
-                contentDescription = "찜",
-                tint = Color(0xFFCBD5E1),
-                modifier = Modifier
-                    .padding(top = 4.dp)
-                    .size(24.dp)
-            )
         }
 
         Spacer(modifier = Modifier.height(14.dp))
