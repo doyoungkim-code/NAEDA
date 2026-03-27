@@ -15,4 +15,4 @@ class ResidentIdOcrResponse(BaseModel):
     extraction_status: str = Field(alias="extractionStatus")
     warnings: list[str] = Field(default_factory=list)
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
