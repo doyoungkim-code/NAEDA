@@ -306,6 +306,8 @@ fun AccountDetailScreen(
                 transaction = selectedTransaction ?: return@let,
                 paymentDetail = detail,
                 storeName = selectedPaymentSummary?.storeName.orEmpty(),
+                bankName = account.bankName,
+                accountNumber = account.accountNumber,
                 onClose = {
                     selectedTransaction = null
                     selectedPaymentDetail = null
@@ -320,6 +322,8 @@ fun AccountDetailScreen(
             selectedTransaction?.let { transaction ->
                 AccountTransactionDetailScreen(
                     transaction = transaction,
+                    bankName = account.bankName,
+                    accountNumber = account.accountNumber,
                     onClose = {
                         selectedTransaction = null
                         selectedPaymentDetail = null
@@ -652,6 +656,7 @@ private fun TransactionRow(
     onClick: () -> Unit,
 ) {
     val isDeposit = item.transactionType.equals("DEPOSIT", ignoreCase = true)
+    val transactionColor = if (isDeposit) Color(0xFF307CBF) else Color(0xFFF2522E)
 
     val title = when {
         item.counterpart.isNotBlank() -> item.counterpart
@@ -672,25 +677,6 @@ private fun TransactionRow(
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(
-                    if (isDeposit) Color(0xFFDFF7E8) else Color(0xFFDCEBFF)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = if (isDeposit) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
-                contentDescription = null,
-                tint = if (isDeposit) Color(0xFF1F8F5F) else Mint900,
-                modifier = Modifier.size(18.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
@@ -724,7 +710,7 @@ private fun TransactionRow(
         Text(
             text = if (isDeposit) "+${"%,d".format(item.amount)}원" else "-${"%,d".format(item.amount)}원",
             style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = if (isDeposit) Color(0xFF1F8F5F) else OnBackground
+            color = transactionColor
         )
     }
 

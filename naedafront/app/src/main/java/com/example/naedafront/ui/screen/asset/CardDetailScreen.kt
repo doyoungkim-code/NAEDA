@@ -726,9 +726,7 @@ private fun CardTransactionRow(
     } else {
         "-${formatAmount(item.amount)}원"
     }
-    val amountColor = if (item.isCanceled) Color(0xFF1F8F5F) else OnBackground
-    val iconBackground = if (item.isCanceled) Color(0xFFDFF7E8) else Color(0xFFDCEBFF)
-    val iconTint = if (item.isCanceled) Color(0xFF1F8F5F) else Mint900
+    val transactionColor = if (item.isCanceled) Color(0xFF307CBF) else Color(0xFFF2522E)
     val subtitle = listOfNotNull(
         item.time.takeIf { it.isNotBlank() },
         item.category.takeIf { it.isNotBlank() }
@@ -742,23 +740,6 @@ private fun CardTransactionRow(
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(iconBackground),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = if (item.isCanceled) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(18.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.merchantName.ifBlank { "가맹점 정보 없음" },
@@ -788,7 +769,7 @@ private fun CardTransactionRow(
         Text(
             text = amountText,
             style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = amountColor
+            color = transactionColor
         )
     }
 

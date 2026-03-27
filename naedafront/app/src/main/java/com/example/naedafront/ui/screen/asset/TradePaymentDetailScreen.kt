@@ -36,51 +36,28 @@ import java.text.ParsePosition
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
-import java.util.TimeZone
 
 @Composable
-fun AccountTransactionDetailScreen(
-    transaction: TransactionItem,
-    paymentDetail: PaymentDetailResponse? = null,
-    storeName: String = "",
-    bankName: String = "",
-    accountNumber: String = "",
+fun TradePaymentDetailScreen(
+    item: TradeReportItem,
+    detail: PaymentDetailResponse,
     onClose: () -> Unit,
 ) {
-    val isPayment = paymentDetail != null
-    val isDeposit = transaction.transactionType.equals("DEPOSIT", ignoreCase = true)
     val accentColor = Mint900
-
-    val headlineValue = when {
-        isPayment && storeName.isNotBlank() -> storeName
-        transaction.counterpart.isNotBlank() -> transaction.counterpart
-        transaction.memo.isNotBlank() -> transaction.memo
-        else -> "거래 정보 없음"
-    }
-
-    val paymentMethod = listOf(bankName, accountNumber)
-        .filter { it.isNotBlank() }
-        .joinToString(" ")
-        .ifBlank { "계좌 정보 없음" }
-
-    val detailFields = if (isPayment) {
-        listOf(
-            "결제 수단" to paymentMethod,
-            "결제 시간" to ((paymentDetail?.createdAt?.formatCreatedAt()) ?: transaction.transacted.toDisplayDateTime()),
-            "적립 포인트" to (paymentDetail?.earnedPoints?.let { "${formatAmount(it)}P" } ?: "${formatAmount(transaction.estimatedPoints)}P"),
-            "결제 번호" to (paymentDetail?.ssafyTransactionId ?: paymentDetail?.paymentId?.toString().orEmpty()).ifBlank { transaction.ssafyTransactionId.ifBlank { transaction.id } },
-            "결제 장소" to headlineValue,
-        )
-    } else {
-        listOf(
-            "결제 수단" to paymentMethod,
-            "거래 시간" to transaction.transacted.toDisplayDateTime(),
-            "적립 포인트" to "${formatAmount(transaction.estimatedPoints)}P",
-            "거래 후 잔액" to "${formatAmount(transaction.balanceAfter)}원",
-            "거래 번호" to transaction.ssafyTransactionId.ifBlank { transaction.id },
-            "거래처" to headlineValue,
-        )
-    }
+    val merchantName = item.storeName.ifBlank { item.title.ifBlank { "가맹점 정보 없음" } }
+    val accountInfo = buildList {
+        item.bankName.takeIf { it.isNotBlank() }?.let(::add)
+        item.accountNumber.takeIf { it.isNotBlank() }?.let(::add)
+    }.joinToString(" ").ifBlank { "계좌 정보 없음" }
+    val cardInfo = item.cardNumber.ifBlank { "-" }
+    val detailFields = listOf(
+        "결제 수단" to accountInfo,
+        "카드 번호" to cardInfo,
+        "결제 시간" to (detail.createdAt?.toTradeDetailDateTime().orEmpty().ifBlank { "-" }),
+        "적립 포인트" to (detail.earnedPoints?.let { "${tradeDetailAmount(it)}P" } ?: "적립 없음"),
+        "거래 번호" to (detail.ssafyTransactionId ?: detail.paymentId.toString()),
+        "결제 장소" to merchantName,
+    )
 
     Box(
         modifier = Modifier
@@ -116,7 +93,7 @@ fun AccountTransactionDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (isPayment) "결제 상세" else "거래 상세",
+                        text = "결제 상세",
                         style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = accentColor
                     )
@@ -149,7 +126,7 @@ fun AccountTransactionDetailScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (isPayment) "PAY" else if (isDeposit) "IN" else "OUT",
+                            text = "PAY",
                             style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
                             color = accentColor
                         )
@@ -158,7 +135,7 @@ fun AccountTransactionDetailScreen(
                     Spacer(modifier = Modifier.height(14.dp))
 
                     Text(
-                        text = if (isPayment) "결제 장소" else "거래처",
+                        text = "결제 장소",
                         style = NaedaTypography.bodyMedium,
                         color = OnSurfaceVariant
                     )
@@ -166,7 +143,7 @@ fun AccountTransactionDetailScreen(
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = headlineValue,
+                        text = merchantName,
                         style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         color = OnBackground,
                         textAlign = TextAlign.Center
@@ -185,7 +162,7 @@ fun AccountTransactionDetailScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = if (isPayment) "총 결제 금액" else "총 거래 금액",
+                                text = "총 결제 금액",
                                 style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                 color = OnSurfaceVariant
                             )
@@ -193,19 +170,15 @@ fun AccountTransactionDetailScreen(
                             Spacer(modifier = Modifier.height(10.dp))
 
                             Text(
-                                text = "${formatAmount(paymentDetail?.amount ?: transaction.amount)}원",
+                                text = "${tradeDetailAmount(detail.amount)}원",
                                 style = NaedaTypography.displayMedium.copy(fontWeight = FontWeight.Bold),
                                 color = accentColor
                             )
 
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            AccountDetailStatusChip(
-                                text = when {
-                                    isPayment -> paymentDetail?.status.toPaymentStatusLabel()
-                                    isDeposit -> "입금 완료"
-                                    else -> "출금 완료"
-                                },
+                            TradePaymentStatusChip(
+                                text = detail.status.toTradePaymentStatusText(),
                                 accentColor = accentColor
                             )
                         }
@@ -218,7 +191,7 @@ fun AccountTransactionDetailScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         detailFields.forEach { (label, value) ->
-                            AccountDetailField(
+                            TradePaymentDetailField(
                                 label = label,
                                 value = value
                             )
@@ -227,7 +200,7 @@ fun AccountTransactionDetailScreen(
 
                     Spacer(modifier = Modifier.weight(1f))
 
-                    AccountDetailPrimaryButton(
+                    TradePaymentPrimaryButton(
                         text = "닫기",
                         onClick = onClose
                     )
@@ -238,7 +211,7 @@ fun AccountTransactionDetailScreen(
 }
 
 @Composable
-private fun AccountDetailStatusChip(
+private fun TradePaymentStatusChip(
     text: String,
     accentColor: Color,
 ) {
@@ -265,7 +238,7 @@ private fun AccountDetailStatusChip(
 }
 
 @Composable
-private fun AccountDetailField(
+private fun TradePaymentDetailField(
     label: String,
     value: String,
 ) {
@@ -285,7 +258,7 @@ private fun AccountDetailField(
 }
 
 @Composable
-private fun AccountDetailPrimaryButton(
+private fun TradePaymentPrimaryButton(
     text: String,
     onClick: () -> Unit,
 ) {
@@ -306,21 +279,20 @@ private fun AccountDetailPrimaryButton(
     }
 }
 
-private fun formatAmount(amount: Long): String {
+private fun tradeDetailAmount(amount: Long): String {
     return "%,d".format(amount)
 }
 
-private fun String?.toPaymentStatusLabel(): String {
+private fun String?.toTradePaymentStatusText(): String {
     return when (this?.uppercase()) {
-        "COMPLETED", "SUCCESS", "PAID" -> "결제 완료"
-        "CANCELED", "CANCELLED" -> "결제 취소"
-        "FAILED" -> "결제 실패"
+        "APPROVED", "SUCCESS", "COMPLETED" -> "결제 완료"
+        "FAILED", "FAIL", "CANCELED", "CANCELLED" -> "결제 실패"
         else -> "처리 완료"
     }
 }
 
-private fun String.formatCreatedAt(): String {
-    val parsed = parseFlexibleDate(this) ?: return this
+private fun String.toTradeDetailDateTime(): String {
+    val parsed = parseTradeDetailDate(this) ?: return this
     val calendar = Calendar.getInstance().apply { time = parsed }
     val hour24 = calendar.get(Calendar.HOUR_OF_DAY)
     val minute = calendar.get(Calendar.MINUTE)
@@ -329,48 +301,27 @@ private fun String.formatCreatedAt(): String {
     return "${month}월 ${day}일 ${"%02d".format(hour24)}:${"%02d".format(minute)}"
 }
 
-private fun String.toDisplayDateTime(): String {
-    val parsed = parseFlexibleDate(this) ?: return this
-    val calendar = Calendar.getInstance().apply { time = parsed }
-    val hour24 = calendar.get(Calendar.HOUR_OF_DAY)
-    val minute = calendar.get(Calendar.MINUTE)
-    val month = calendar.get(Calendar.MONTH) + 1
-    val day = calendar.get(Calendar.DAY_OF_MONTH)
-    return "${month}월 ${day}일 ${"%02d".format(hour24)}:${"%02d".format(minute)}"
-}
-
-private fun parseFlexibleDate(raw: String): java.util.Date? {
+private fun parseTradeDetailDate(raw: String): java.util.Date? {
     val normalizedRaw = raw.trim().replace(
         Regex("""\.\d{1,9}(?=Z|[+-]\d{2}:?\d{2}|$)"""),
         ""
     )
 
     val patterns = listOf(
-        "yyyyMMdd HHmmss",
-        "yyyyMMdd HH:mm:ss",
-        "yyyyMMdd HH:mm",
-        "yyyyMMdd",
-        "yyyy-M-d HH:mm:ss",
-        "yyyy-M-d HH:mm",
-        "yyyy-M-d",
-        "yyyy.M.d HH:mm:ss",
-        "yyyy.M.d HH:mm",
-        "yyyy.M.d",
-        "yyyy-MM-dd HH:mm:ss",
-        "yyyy-MM-dd HH:mm",
         "yyyy-MM-dd'T'HH:mm:ss.SSSX",
         "yyyy-MM-dd'T'HH:mm:ssX",
         "yyyy-MM-dd'T'HH:mm:ss",
-        "yyyy.MM.dd HH:mm",
+        "yyyy-MM-dd HH:mm:ss",
+        "yyyy-MM-dd HH:mm",
+        "yyyyMMdd HHmmss",
+        "yyyyMMdd HH:mm:ss",
+        "yyyyMMdd HH:mm",
         "yyyy-MM-dd"
     )
 
     for (pattern in patterns) {
         val formatter = SimpleDateFormat(pattern, Locale.KOREA).apply {
             isLenient = false
-            if (pattern.contains("X")) {
-                timeZone = TimeZone.getTimeZone("UTC")
-            }
         }
         val position = ParsePosition(0)
         val parsed = formatter.parse(normalizedRaw, position)

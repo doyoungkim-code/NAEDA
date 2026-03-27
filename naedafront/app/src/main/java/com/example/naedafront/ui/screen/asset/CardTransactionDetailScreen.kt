@@ -12,12 +12,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.naedafront.ui.theme.Mint900
 import com.example.naedafront.ui.theme.NaedaTypography
@@ -42,27 +42,33 @@ fun CardTransactionDetailScreen(
     card: CardHeaderUi?,
     onClose: () -> Unit,
 ) {
-    val accentColor = if (transaction.isCanceled) Color(0xFF1F8F5F) else Mint900
-    val paymentMethod = buildString {
-        append(card?.cardName?.ifBlank { "Card Payment" } ?: "Card Payment")
-        val maskedNo = card?.cardNo?.maskCardNumber().orEmpty()
-        if (maskedNo.isNotBlank() && maskedNo != "-") {
-            append(" ")
-            append(maskedNo)
-        }
-    }
-    val scrollState = rememberScrollState()
+    val accentColor = Mint900
+    val merchantName = transaction.merchantName.ifBlank { "매장 정보 없음" }
+    val paymentMethod = buildList {
+        card?.cardName?.takeIf { it.isNotBlank() }?.let(::add)
+        card?.cardNo?.maskCardNumber()?.takeIf { it.isNotBlank() && it != "-" }?.let(::add)
+    }.joinToString(" ").ifBlank { "카드 정보 없음" }
+
+    val detailFields = listOf(
+        "결제 수단" to paymentMethod,
+        "결제 시간" to transaction.transactedRaw.toDisplayDateTime().ifBlank { "-" },
+        "적립 포인트" to "${formatAmount(transaction.estimatedPoints)}P",
+        "결제 번호" to transaction.transactionId.ifBlank { "-" },
+        "결제 장소" to merchantName,
+    )
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF6F2F5))
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
@@ -73,9 +79,9 @@ fun CardTransactionDetailScreen(
                         .clickable { onClose() },
                     contentAlignment = Alignment.Center
                 ) {
-                    androidx.compose.material3.Icon(
+                    Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
+                        contentDescription = "닫기",
                         tint = accentColor
                     )
                 }
@@ -85,7 +91,7 @@ fun CardTransactionDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Payment Details",
+                        text = "결제 상세",
                         style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = accentColor
                     )
@@ -94,117 +100,116 @@ fun CardTransactionDetailScreen(
                 Spacer(modifier = Modifier.size(42.dp))
             }
 
-            Column(
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Surface(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .fillMaxWidth()
+                    .weight(1f),
+                shape = RoundedCornerShape(34.dp),
+                color = Color.White,
+                shadowElevation = 10.dp
             ) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(36.dp),
-                    color = Color.White,
-                    shadowElevation = 10.dp
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 22.dp, vertical = 22.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Box(
+                        modifier = Modifier
+                            .size(84.dp)
+                            .clip(CircleShape)
+                            .background(accentColor.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(92.dp)
-                                .clip(CircleShape)
-                                .background(accentColor.copy(alpha = 0.1f)),
-                            contentAlignment = Alignment.Center
+                        Text(
+                            text = "PAY",
+                            style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            color = accentColor
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "결제 장소",
+                        style = NaedaTypography.bodyMedium,
+                        color = OnSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = merchantName,
+                        style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = OnBackground,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(28.dp),
+                        color = Color(0xFFF7F3F6),
+                        shadowElevation = 2.dp
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "PAY",
-                                style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                text = "총 결제 금액",
+                                style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = OnSurfaceVariant
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Text(
+                                text = "${formatAmount(transaction.amount)}원",
+                                style = NaedaTypography.displayMedium.copy(fontWeight = FontWeight.Bold),
                                 color = accentColor
                             )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            CardDetailStatusChip(
+                                text = if (transaction.isCanceled) "결제 취소" else "결제 완료",
+                                accentColor = accentColor
+                            )
                         }
-
-                        Spacer(modifier = Modifier.height(18.dp))
-                        Text(
-                            text = "Merchant",
-                            style = NaedaTypography.bodyMedium,
-                            color = OnSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = transaction.merchantName.ifBlank { "No Merchant Info" },
-                            style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                            color = OnBackground
-                        )
-
-                        Spacer(modifier = Modifier.height(28.dp))
-
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(28.dp),
-                            color = Color(0xFFF7F3F6),
-                            shadowElevation = 2.dp
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = "TOTAL TRANSACTION",
-                                    style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = OnSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(10.dp))
-                                Text(
-                                    text = "${formatAmount(transaction.amount)} KRW",
-                                    style = NaedaTypography.displayMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = accentColor
-                                )
-                                Spacer(modifier = Modifier.height(14.dp))
-                                DetailChip(
-                                    text = if (transaction.isCanceled) "Payment Cancelled" else "Payment Complete",
-                                    accentColor = accentColor
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(28.dp))
-
-                        DetailField("Payment Method", paymentMethod)
-                        DetailField("Date & Time", transaction.transactedRaw.toDisplayDateTime().ifBlank { "-" })
-                        DetailField("Reward Points", "${formatAmount(transaction.estimatedPoints)}P")
-                        DetailField("Payment ID", transaction.transactionId)
-                        DetailField("Merchant", transaction.merchantName.ifBlank { "No Merchant Info" })
                     }
-                }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(28.dp))
-                        .background(Mint900)
-                        .clickable { onClose() }
-                        .padding(vertical = 18.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Close",
-                        style = NaedaTypography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        detailFields.forEach { (label, value) ->
+                            CardDetailField(
+                                label = label,
+                                value = value
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    CardDetailPrimaryButton(
+                        text = "닫기",
+                        onClick = onClose
                     )
                 }
-
-                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
 }
 
 @Composable
-private fun DetailChip(
+private fun CardDetailStatusChip(
     text: String,
     accentColor: Color,
 ) {
@@ -231,7 +236,7 @@ private fun DetailChip(
 }
 
 @Composable
-private fun DetailField(
+private fun CardDetailField(
     label: String,
     value: String,
 ) {
@@ -241,13 +246,34 @@ private fun DetailField(
             style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
             color = OnSurfaceVariant
         )
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = value,
             style = NaedaTypography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
             color = OnBackground
         )
-        Spacer(modifier = Modifier.height(20.dp))
+    }
+}
+
+@Composable
+private fun CardDetailPrimaryButton(
+    text: String,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(28.dp))
+            .background(Mint900)
+            .clickable { onClick() }
+            .padding(vertical = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            style = NaedaTypography.labelLarge.copy(fontWeight = FontWeight.Bold),
+            color = Color.White
+        )
     }
 }
 
@@ -262,7 +288,7 @@ private fun String.toDisplayDateTime(): String {
     val minute = calendar.get(Calendar.MINUTE)
     val month = calendar.get(Calendar.MONTH) + 1
     val day = calendar.get(Calendar.DAY_OF_MONTH)
-    return "$month/$day ${"%02d".format(hour24)}:${"%02d".format(minute)}"
+    return "${month}월 ${day}일 ${"%02d".format(hour24)}:${"%02d".format(minute)}"
 }
 
 private fun parseFlexibleDate(raw: String): java.util.Date? {
