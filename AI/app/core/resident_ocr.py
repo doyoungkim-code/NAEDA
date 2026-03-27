@@ -204,124 +204,25 @@ def _resize_for_ocr(image: np.ndarray, min_dimension: int = 1000, max_dimension:
     return image
 
 
-def _order_quad_points(points: np.ndarray) -> np.ndarray:
-    rect = np.zeros((4, 2), dtype=np.float32)
-    sums = points.sum(axis=1)
-    diffs = np.diff(points, axis=1).reshape(-1)
-    rect[0] = points[np.argmin(sums)]
-    rect[2] = points[np.argmax(sums)]
-    rect[1] = points[np.argmin(diffs)]
-    rect[3] = points[np.argmax(diffs)]
-    return rect
 
-
-def _detect_document_corners(bgr: np.ndarray) -> np.ndarray | None:
+def _build_orientation_candidates(bgr: np.ndarray) -> list[tuple[str, np.ndarray]]:
+    """원본 + 세로 촬영 대응용 90도 회전 후보를 반환."""
     height, width = bgr.shape[:2]
-    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    # 여러 Canny 임계값으로 시도하여 다양한 조명 조건 대응
-    all_contours = []
-    for low, high in ((30, 100), (40, 130), (60, 180)):
-        edges = cv2.Canny(blurred, low, high)
-        edges = cv2.dilate(edges, np.ones((3, 3), dtype=np.uint8), iterations=1)
-        edges = cv2.erode(edges, np.ones((3, 3), dtype=np.uint8), iterations=1)
-        found, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-        all_contours.extend(found)
-    contours = all_contours
-
-    best_corners: np.ndarray | None = None
-    best_score = 0.0
-    min_area = float(height * width) * 0.12
-
-    for contour in contours:
-        area = cv2.contourArea(contour)
-        if area < min_area:
-            continue
-
-        perimeter = cv2.arcLength(contour, True)
-        if perimeter <= 0:
-            continue
-
-        approx = cv2.approxPolyDP(contour, 0.02 * perimeter, True)
-        if len(approx) == 4:
-            corners = approx.reshape(4, 2).astype(np.float32)
-        else:
-            rect = cv2.minAreaRect(contour)
-            box = cv2.boxPoints(rect)
-            corners = np.array(box, dtype=np.float32)
-
-        ordered = _order_quad_points(corners)
-        width_top = np.linalg.norm(ordered[1] - ordered[0])
-        width_bottom = np.linalg.norm(ordered[2] - ordered[3])
-        height_left = np.linalg.norm(ordered[3] - ordered[0])
-        height_right = np.linalg.norm(ordered[2] - ordered[1])
-        warped_width = max(width_top, width_bottom)
-        warped_height = max(height_left, height_right)
-        if warped_width <= 0 or warped_height <= 0:
-            continue
-
-        aspect_ratio = max(warped_width, warped_height) / max(1.0, min(warped_width, warped_height))
-        aspect_penalty = min(1.0, abs(aspect_ratio - 1.58) / 0.9)
-        area_ratio = min(1.0, area / (float(height * width) * 0.65))
-        rectangularity = min(1.0, area / max(1.0, warped_width * warped_height))
-        score = area_ratio * 0.55 + (1.0 - aspect_penalty) * 0.25 + rectangularity * 0.20
-
-        if score > best_score:
-            best_score = score
-            best_corners = ordered
-
-    if best_score < 0.35:
-        return None
-    return best_corners
-
-
-def _normalize_document_image(bgr: np.ndarray) -> np.ndarray | None:
-    corners = _detect_document_corners(bgr)
-    if corners is None:
-        return None
-
-    width_top = np.linalg.norm(corners[1] - corners[0])
-    width_bottom = np.linalg.norm(corners[2] - corners[3])
-    height_left = np.linalg.norm(corners[3] - corners[0])
-    height_right = np.linalg.norm(corners[2] - corners[1])
-    w = max(width_top, width_bottom)
-    h = max(height_left, height_right)
-
-    # 신분증은 가로가 긴 문서 — quad 좌표가 세로로 잡혔으면 w/h를 교환해서 가로로 보정
-    if h > w:
-        # 코너를 한 칸씩 회전시켜 가로 방향으로 재매핑
-        corners = np.array([corners[3], corners[0], corners[1], corners[2]], dtype=np.float32)
-        w, h = h, w
-
-    max_width = max(1, int(round(w)))
-    max_height = max(1, int(round(h)))
-    destination = np.array(
-        [
-            [0.0, 0.0],
-            [max_width - 1.0, 0.0],
-            [max_width - 1.0, max_height - 1.0],
-            [0.0, max_height - 1.0],
-        ],
-        dtype=np.float32,
-    )
-    matrix = cv2.getPerspectiveTransform(corners, destination)
-    warped = cv2.warpPerspective(bgr, matrix, (max_width, max_height))
-    if warped.size == 0:
-        return None
-    return warped
+    candidates: list[tuple[str, np.ndarray]] = [("original", bgr)]
+    # 세로 이미지(height > width)면 가로 회전 버전도 후보로 추가
+    if height > width:
+        rotated = cv2.rotate(bgr, cv2.ROTATE_90_CLOCKWISE)
+        candidates.append(("rotated_cw", rotated))
+    return candidates
 
 
 def _preprocess_variants_for_ocr(bgr: np.ndarray) -> list[tuple[str, np.ndarray]]:
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
 
-    # 변형 1: 원본 컬러
-    # 변형 2: 단순 그레이스케일 정규화 (독립 경로)
-    normalized = cv2.normalize(gray, None, 0, 255, cv2.NORM_MINMAX)
-
-    # 변형 3: CLAHE 대비 강화 (독립 경로)
+    # CLAHE 대비 강화
     clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8)).apply(gray)
 
-    # 변형 4: 디노이즈 + 샤프닝 (독립 경로)
+    # 디노이즈 + 샤프닝
     denoised = cv2.fastNlMeansDenoising(gray, None, h=10, templateWindowSize=7, searchWindowSize=21)
     sharpened = cv2.filter2D(
         denoised,
@@ -329,7 +230,7 @@ def _preprocess_variants_for_ocr(bgr: np.ndarray) -> list[tuple[str, np.ndarray]
         np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]], dtype=np.float32),
     )
 
-    # 변형 5: 적응형 이진화 (그레이스케일에서 직접, 독립 경로)
+    # 적응형 이진화
     blurred_for_thresh = cv2.GaussianBlur(gray, (3, 3), 0)
     threshold = cv2.adaptiveThreshold(
         blurred_for_thresh,
@@ -340,17 +241,11 @@ def _preprocess_variants_for_ocr(bgr: np.ndarray) -> list[tuple[str, np.ndarray]
         9,
     )
 
-    # 변형 6: Otsu 이진화 (조명 불균일 대응, 독립 경로)
-    blurred_for_otsu = cv2.GaussianBlur(gray, (5, 5), 0)
-    _, otsu = cv2.threshold(blurred_for_otsu, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
     variants = [
         ("color", bgr.copy()),
-        ("normalized", cv2.cvtColor(normalized, cv2.COLOR_GRAY2BGR)),
         ("clahe", cv2.cvtColor(clahe, cv2.COLOR_GRAY2BGR)),
         ("denoised_sharp", cv2.cvtColor(sharpened, cv2.COLOR_GRAY2BGR)),
         ("adaptive_thresh", cv2.cvtColor(threshold, cv2.COLOR_GRAY2BGR)),
-        ("otsu", cv2.cvtColor(otsu, cv2.COLOR_GRAY2BGR)),
     ]
     return [(name, _resize_for_ocr(image)) for name, image in variants]
 
@@ -823,10 +718,7 @@ def _extract_with_paddle_provider(image_raw: bytes) -> dict[str, Any]:
     ocr = _get_paddle_ocr()
     parsed_results: list[dict[str, Any]] = []
     inference_failures = 0
-    candidate_images: list[tuple[str, np.ndarray]] = [("full", bgr)]
-    normalized_document = _normalize_document_image(bgr)
-    if normalized_document is not None:
-        candidate_images.insert(0, ("document", normalized_document))
+    candidate_images = _build_orientation_candidates(bgr)
 
     for source_name, source_image in candidate_images:
         variants = _preprocess_variants_for_ocr(source_image)
