@@ -9,6 +9,7 @@ import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
 import android.graphics.Matrix
 import android.graphics.Rect
+import android.graphics.RectF
 import android.graphics.YuvImage
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -113,6 +114,7 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -148,10 +150,13 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.ExecutorService
@@ -193,6 +198,8 @@ private const val ID_CARD_OVERLAY_ASPECT_RATIO = 1.586f
 private const val ID_CARD_GUIDE_ANALYSIS_PADDING_RATIO = 1.18f
 private const val ID_CARD_CROP_PADDING_RATIO = 1.12f
 private const val ID_CARD_CROP_JPEG_QUALITY = 94
+private const val ID_CARD_CAPTURE_TIMEOUT_MS = 6_000L
+private const val ID_CARD_OCR_TIMEOUT_MS = 15_000L
 private const val OCR_STATUS_REVIEW_REQUIRED = "REVIEW_REQUIRED"
 private const val OCR_STATUS_RETAKE_REQUIRED = "RETAKE_REQUIRED"
 private val REGISTER_OVERLAY_CONTENT_TOP_PADDING = 64.dp
@@ -250,6 +257,11 @@ private data class DocumentGuideAssessment(
     val canHold: Boolean,
     val message: String,
     val state: DocumentGuideState?
+)
+
+private data class CameraViewportSize(
+    val width: Int,
+    val height: Int
 )
 
 private enum class IdScanFailureReason {
@@ -1840,6 +1852,10 @@ private fun IdCardScanningStageContent(
     onExtracted: (ResidentIdExtractResponseDto) -> Unit,
     onError: (String?) -> Unit
 ) {
+    val holdMessage = "신분증을 그대로 유지해 주세요."
+    val processingMessage = "신분증 정보를 확인하는 중입니다."
+    val onExtractedUpdated by rememberUpdatedState(onExtracted)
+    val onErrorUpdated by rememberUpdatedState(onError)
     var statusMessage by remember { mutableStateOf("신분증을 가이드 안에 맞춰주세요.") }
     var holdProgress by remember { mutableFloatStateOf(0f) }
     var requestInFlight by remember { mutableStateOf(false) }
@@ -1849,6 +1865,7 @@ private fun IdCardScanningStageContent(
     var previousGuideState by remember { mutableStateOf<DocumentGuideState?>(null) }
     var blockedGuideState by remember { mutableStateOf<DocumentGuideState?>(null) }
     var guideMissCount by remember { mutableStateOf(0) }
+    var cameraViewportSize by remember { mutableStateOf<CameraViewportSize?>(null) }
     val captureCallbackExecutor = remember { Executors.newSingleThreadExecutor() }
 
     DisposableEffect(captureCallbackExecutor) {
@@ -1881,7 +1898,7 @@ private fun IdCardScanningStageContent(
         }
     }
 
-    LaunchedEffect(holdStartedAt, requestInFlight, cameraController, isCompleting) {
+    LaunchedEffect(holdStartedAt, cameraController) {
         if (holdStartedAt == 0L || requestInFlight || isCompleting) {
             if (!requestInFlight && !isCompleting) {
                 holdProgress = 0f
@@ -1893,93 +1910,110 @@ private fun IdCardScanningStageContent(
             val progress = ((System.currentTimeMillis() - holdStartedAt).toFloat() / ID_CARD_HOLD_DURATION_MS)
                 .coerceIn(0f, 1f)
             holdProgress = progress
-            statusMessage = if (progress < 1f) {
-                "신분증이 안정적으로 보이는지 확인 중입니다. 그대로 유지해 주세요."
-            } else {
-                "고해상도 사진을 촬영하는 중입니다."
-            }
-            onError(null)
+            statusMessage = holdMessage
+            onErrorUpdated(null)
 
             if (progress >= 1f) {
                 val controller = cameraController
                 if (controller == null) {
                     resetRecognition("카메라를 준비하는 중입니다. 잠시만 기다려 주세요.")
-                    onError(null)
+                    onErrorUpdated(null)
                     break
                 }
 
                 requestInFlight = true
-                statusMessage = "고해상도 사진을 촬영하는 중입니다."
-                onError(null)
+                holdProgress = 0f
+                statusMessage = processingMessage
+                onErrorUpdated(null)
 
-                val capturedJpegs = runCatching { captureResidentIdJpegs(controller, captureCallbackExecutor) }
-                if (capturedJpegs.isFailure) {
+                val capturedJpegs = try {
+                    withTimeout(ID_CARD_CAPTURE_TIMEOUT_MS) {
+                        captureResidentIdJpegs(
+                            cameraController = controller,
+                            callbackExecutor = captureCallbackExecutor,
+                            viewportSize = cameraViewportSize
+                        )
+                    }
+                } catch (timeoutException: TimeoutCancellationException) {
                     requestInFlight = false
-                    val message = capturedJpegs.exceptionOrNull()?.message ?: "신분증 촬영에 실패했습니다."
+                    blockUntilGuideChanges("촬영 응답이 지연되고 있습니다.", IdScanFailureReason.CAPTURE_FAILURE)
+                    onErrorUpdated("촬영 응답이 지연되고 있습니다.")
+                    break
+                } catch (cancellationException: CancellationException) {
+                    throw cancellationException
+                } catch (throwable: Throwable) {
+                    requestInFlight = false
+                    val message = throwable.message ?: "신분증 촬영에 실패했습니다."
                     blockUntilGuideChanges(message, IdScanFailureReason.CAPTURE_FAILURE)
-                    onError(message)
+                    onErrorUpdated(message)
                     break
                 }
 
-                statusMessage = "신분증 정보를 추출하는 중입니다."
-                val result = withContext(Dispatchers.IO) {
-                    runCatching {
-                        val payload = capturedJpegs.getOrThrow()
-                        extractResidentIdWithFallback(
-                            croppedJpeg = payload.first,
-                            fullJpeg = payload.second
-                        )
+                statusMessage = processingMessage
+                val extracted = try {
+                    withTimeout(ID_CARD_OCR_TIMEOUT_MS) {
+                        withContext(Dispatchers.IO) {
+                            extractResidentIdWithFallback(
+                                croppedJpeg = capturedJpegs.first,
+                                fullJpeg = capturedJpegs.second
+                            )
+                        }
                     }
-                }
-                requestInFlight = false
-
-                result.onSuccess { extracted ->
-                    val provider = extracted.provider?.trim()?.lowercase()
-                    if (provider == "mock") {
-                        blockUntilGuideChanges("실제 OCR 서버가 아니라 mock 응답을 받았습니다.", IdScanFailureReason.OCR_RETAKE)
-                        onError("서버 OCR이 mock 모드입니다. AI 설정을 확인해 주세요.")
-                        return@onSuccess
-                    }
-
-                    val assessment = assessResidentIdExtract(extracted)
-                    if (!assessment.canProceed) {
-                        val message = assessment.warningMessage ?: assessment.statusMessage
-                        blockUntilGuideChanges(message, IdScanFailureReason.OCR_RETAKE)
-                        onError(message)
-                        return@onSuccess
-                    }
-
-                    val displayExtract = if (assessment.requiresReview && extracted.warnings.isEmpty()) {
-                        extracted.copy(
-                            extractionStatus = OCR_STATUS_REVIEW_REQUIRED,
-                            warnings = listOf(assessment.warningMessage ?: assessment.statusMessage)
-                        )
-                    } else {
-                        extracted
-                    }
-
-                    isCompleting = true
-                    holdStartedAt = 0L
-                    holdProgress = 1f
-                    statusMessage = "신분증 인식이 완료되었습니다."
-                    onError(null)
-                    onExtracted(displayExtract)
-                }.onFailure { throwable ->
+                } catch (timeoutException: TimeoutCancellationException) {
+                    requestInFlight = false
+                    blockUntilGuideChanges("신분증 OCR 응답이 지연되고 있습니다.", IdScanFailureReason.OCR_RETRY)
+                    onErrorUpdated("신분증 OCR 응답이 지연되고 있습니다.")
+                    break
+                } catch (cancellationException: CancellationException) {
+                    requestInFlight = false
+                    throw cancellationException
+                } catch (throwable: Throwable) {
+                    requestInFlight = false
                     if (isRecoverableResidentIdError(throwable)) {
                         blockUntilGuideChanges(
                             buildRecoverableResidentIdMessage(throwable),
                             IdScanFailureReason.OCR_RETRY
                         )
-                        onError(null)
+                        onErrorUpdated(null)
                     } else {
                         blockUntilGuideChanges(
                             throwable.message ?: "신분증 OCR 추출에 실패했습니다.",
                             IdScanFailureReason.OCR_RETAKE
                         )
-                        onError(throwable.message ?: "신분증 OCR 추출에 실패했습니다.")
+                        onErrorUpdated(throwable.message ?: "신분증 OCR 추출에 실패했습니다.")
                     }
+                    break
                 }
-                break
+                requestInFlight = false
+
+                val provider = extracted.provider?.trim()?.lowercase()
+                if (provider == "mock") {
+                    blockUntilGuideChanges("실제 OCR 서버가 아니라 mock 응답을 받았습니다.", IdScanFailureReason.OCR_RETAKE)
+                    onErrorUpdated("서버 OCR이 mock 모드입니다. AI 설정을 확인해 주세요.")
+                    break
+                }
+
+                val assessment = assessResidentIdExtract(extracted)
+                if (!assessment.canProceed) {
+                    val message = assessment.warningMessage ?: assessment.statusMessage
+                    blockUntilGuideChanges(message, IdScanFailureReason.OCR_RETAKE)
+                    onErrorUpdated(message)
+                    break
+                }
+
+                val displayExtract = if (assessment.requiresReview && extracted.warnings.isEmpty()) {
+                    extracted.copy(
+                        extractionStatus = OCR_STATUS_REVIEW_REQUIRED,
+                        warnings = listOf(assessment.warningMessage ?: assessment.statusMessage)
+                    )
+                } else {
+                    extracted
+                }
+
+                isCompleting = true
+                onErrorUpdated(null)
+                onExtractedUpdated(displayExtract)
+                return@LaunchedEffect
             }
 
             delay(50L)
@@ -2022,26 +2056,33 @@ private fun IdCardScanningStageContent(
                 .weight(1f)
                 .padding(horizontal = 16.dp),
             onControllerReady = { cameraController = it },
+            onViewportChanged = { width, height ->
+                cameraViewportSize = CameraViewportSize(width = width, height = height)
+            },
             onFrame = { imageProxy ->
                 if (requestInFlight || isCompleting) {
                     imageProxy.close()
                     return@DocumentCaptureCameraCard
                 }
 
-                val guideAssessment = assessDocumentGuideFrame(imageProxy, previousGuideState)
+                val guideAssessment = assessDocumentGuideFrame(
+                    imageProxy = imageProxy,
+                    previousState = previousGuideState,
+                    viewportSize = cameraViewportSize
+                )
                 previousGuideState = guideAssessment.state
                 imageProxy.close()
 
                 if (!guideAssessment.canHold) {
                     if (holdStartedAt != 0L && guideMissCount < 4) {
                         guideMissCount += 1
-                        statusMessage = "신분증을 그대로 유지해 주세요."
-                        onError(null)
+                        statusMessage = holdMessage
+                        onErrorUpdated(null)
                         return@DocumentCaptureCameraCard
                     }
                     blockedGuideState = null
                     resetRecognition(guideAssessment.message)
-                    onError(null)
+                    onErrorUpdated(null)
                     return@DocumentCaptureCameraCard
                 }
                 guideMissCount = 0
@@ -2051,7 +2092,7 @@ private fun IdCardScanningStageContent(
                     holdStartedAt = 0L
                     holdProgress = 0f
                     statusMessage = "직전 인식이 실패했습니다. 신분증을 잠시 뗐다가 다시 맞춰주세요."
-                    onError(null)
+                    onErrorUpdated(null)
                     return@DocumentCaptureCameraCard
                 } else if (blockedState != null) {
                     blockedGuideState = null
@@ -2059,11 +2100,11 @@ private fun IdCardScanningStageContent(
 
                 if (holdStartedAt == 0L) {
                     holdStartedAt = System.currentTimeMillis()
-                    statusMessage = guideAssessment.message
+                    statusMessage = holdMessage
                 } else if (holdProgress <= 0f) {
-                    statusMessage = guideAssessment.message
+                    statusMessage = holdMessage
                 }
-                onError(null)
+                onErrorUpdated(null)
             },
             overlay = {
                 IdCaptureOverlay(
@@ -3650,6 +3691,7 @@ private fun FaceRegistrationCameraCard(
 private fun DocumentCaptureCameraCard(
     modifier: Modifier,
     onControllerReady: (LifecycleCameraController) -> Unit,
+    onViewportChanged: (Int, Int) -> Unit,
     onFrame: (ImageProxy) -> Unit,
     overlay: @Composable BoxScope.() -> Unit
 ) {
@@ -3687,7 +3729,13 @@ private fun DocumentCaptureCameraCard(
 
     Box(modifier = modifier) {
         AndroidView(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .onSizeChanged { size ->
+                    if (size.width > 0 && size.height > 0) {
+                        onViewportChanged(size.width, size.height)
+                    }
+                },
             factory = { ctx ->
                 PreviewView(ctx).apply {
                     controller = cameraController
@@ -4026,15 +4074,24 @@ private fun estimateLuminance(imageProxy: ImageProxy): Double {
 }
 
 private fun imageProxyToJpegBytes(imageProxy: ImageProxy): ByteArray {
-    val nv21 = yuv420888ToNv21(imageProxy)
-    val yuvImage = YuvImage(nv21, ImageFormat.NV21, imageProxy.width, imageProxy.height, null)
-    val output = ByteArrayOutputStream()
-    yuvImage.compressToJpeg(Rect(0, 0, imageProxy.width, imageProxy.height), 92, output)
-    val jpegBytes = output.toByteArray()
+    val jpegBytes = when (imageProxy.format) {
+        ImageFormat.JPEG -> readSinglePlaneBytes(imageProxy)
+        ImageFormat.YUV_420_888 -> {
+            val nv21 = yuv420888ToNv21(imageProxy)
+            val yuvImage = YuvImage(nv21, ImageFormat.NV21, imageProxy.width, imageProxy.height, null)
+            val output = ByteArrayOutputStream()
+            yuvImage.compressToJpeg(Rect(0, 0, imageProxy.width, imageProxy.height), 92, output)
+            output.toByteArray()
+        }
+        else -> throw IllegalArgumentException("지원하지 않는 이미지 포맷입니다: ${imageProxy.format}")
+    }
     return rotateJpeg(jpegBytes, imageProxy.imageInfo.rotationDegrees)
 }
 
-private fun sampleDocumentGuideSignature(imageProxy: ImageProxy): IntArray? {
+private fun sampleDocumentGuideSignature(
+    imageProxy: ImageProxy,
+    viewportSize: CameraViewportSize?
+): IntArray? {
     val plane = imageProxy.planes.firstOrNull() ?: return null
     val buffer = plane.buffer.duplicate()
     if (buffer.limit() <= 0) {
@@ -4043,26 +4100,35 @@ private fun sampleDocumentGuideSignature(imageProxy: ImageProxy): IntArray? {
 
     val columns = 26
     val rows = 16
-    var cropWidth = (imageProxy.width * ID_CARD_OVERLAY_WIDTH_RATIO * ID_CARD_GUIDE_ANALYSIS_PADDING_RATIO)
-        .roundToInt()
-        .coerceIn(1, imageProxy.width)
-    var cropHeight = (cropWidth / ID_CARD_OVERLAY_ASPECT_RATIO).roundToInt().coerceAtLeast(1)
-    if (cropHeight > imageProxy.height) {
-        cropHeight = imageProxy.height
-        cropWidth = min(imageProxy.width, (cropHeight * ID_CARD_OVERLAY_ASPECT_RATIO).roundToInt().coerceAtLeast(1))
-    }
-
-    val left = ((imageProxy.width - cropWidth) / 2).coerceAtLeast(0)
-    val top = ((imageProxy.height - cropHeight) / 2).coerceAtLeast(0)
+    val rotationDegrees = normalizedRotationDegrees(imageProxy.imageInfo.rotationDegrees)
+    val rotatedWidth = rotatedImageWidth(imageProxy.width, imageProxy.height, rotationDegrees)
+    val rotatedHeight = rotatedImageHeight(imageProxy.width, imageProxy.height, rotationDegrees)
+    val guideRect = resolveGuideRectInRotatedImage(
+        imageWidth = rotatedWidth,
+        imageHeight = rotatedHeight,
+        viewportSize = viewportSize,
+        paddingRatio = ID_CARD_GUIDE_ANALYSIS_PADDING_RATIO
+    )
     val signature = IntArray(columns * rows)
     val rowStride = plane.rowStride
     val pixelStride = plane.pixelStride
 
     for (row in 0 until rows) {
-        val sampleY = (top + ((row + 0.5f) * cropHeight / rows).roundToInt()).coerceIn(0, imageProxy.height - 1)
+        val sampleY = (
+            guideRect.top + ((row + 0.5f) * guideRect.height() / rows).roundToInt()
+            ).coerceIn(0, rotatedHeight - 1)
         for (column in 0 until columns) {
-            val sampleX = (left + ((column + 0.5f) * cropWidth / columns).roundToInt()).coerceIn(0, imageProxy.width - 1)
-            val index = sampleY * rowStride + sampleX * pixelStride
+            val sampleX = (
+                guideRect.left + ((column + 0.5f) * guideRect.width() / columns).roundToInt()
+                ).coerceIn(0, rotatedWidth - 1)
+            val rawPoint = rotatedToRawPoint(
+                x = sampleX,
+                y = sampleY,
+                rawWidth = imageProxy.width,
+                rawHeight = imageProxy.height,
+                rotationDegrees = rotationDegrees
+            )
+            val index = rawPoint.second * rowStride + rawPoint.first * pixelStride
             signature[row * columns + column] = buffer.get(index).toInt() and 0xFF
         }
     }
@@ -4072,9 +4138,10 @@ private fun sampleDocumentGuideSignature(imageProxy: ImageProxy): IntArray? {
 
 private fun assessDocumentGuideFrame(
     imageProxy: ImageProxy,
-    previousState: DocumentGuideState?
+    previousState: DocumentGuideState?,
+    viewportSize: CameraViewportSize?
 ): DocumentGuideAssessment {
-    val signature = sampleDocumentGuideSignature(imageProxy)
+    val signature = sampleDocumentGuideSignature(imageProxy, viewportSize)
         ?: return DocumentGuideAssessment(
             canHold = false,
             message = "신분증을 가이드 안에 맞춰주세요.",
@@ -4121,10 +4188,10 @@ private fun assessDocumentGuideFrame(
         horizontalEdges[index] /= columns.toDouble()
     }
 
-    val leftBoundaryRange = 2..8
-    val rightBoundaryRange = 15..22
+    val leftBoundaryRange = 1..8
+    val rightBoundaryRange = 16..(columns - 2)
     val topBoundaryRange = 1..5
-    val bottomBoundaryRange = 9..13
+    val bottomBoundaryRange = 10..(rows - 2)
     val leftBoundaryIndex = leftBoundaryRange.maxByOrNull { verticalEdges[it] } ?: 0
     val rightBoundaryIndex = rightBoundaryRange.maxByOrNull { verticalEdges[it] } ?: (columns - 2)
     val topBoundaryIndex = topBoundaryRange.maxByOrNull { horizontalEdges[it] } ?: 0
@@ -4213,14 +4280,15 @@ private fun assessDocumentGuideFrame(
 
 private suspend fun captureResidentIdJpegs(
     cameraController: LifecycleCameraController,
-    callbackExecutor: ExecutorService
+    callbackExecutor: ExecutorService,
+    viewportSize: CameraViewportSize?
 ): Pair<ByteArray, ByteArray> = suspendCancellableCoroutine { continuation ->
     cameraController.takePicture(
         callbackExecutor,
         object : ImageCapture.OnImageCapturedCallback() {
             override fun onCaptureSuccess(image: ImageProxy) {
                 try {
-                    val payload = prepareResidentIdJpegs(image)
+                    val payload = prepareResidentIdJpegs(image, viewportSize)
                     image.close()
                     if (continuation.isActive) {
                         continuation.resume(payload)
@@ -4242,9 +4310,12 @@ private suspend fun captureResidentIdJpegs(
     )
 }
 
-private fun prepareResidentIdJpegs(imageProxy: ImageProxy): Pair<ByteArray, ByteArray> {
+private fun prepareResidentIdJpegs(
+    imageProxy: ImageProxy,
+    viewportSize: CameraViewportSize?
+): Pair<ByteArray, ByteArray> {
     val fullJpeg = imageProxyToJpegBytes(imageProxy)
-    return cropDocumentJpeg(fullJpeg) to fullJpeg
+    return cropDocumentJpeg(fullJpeg, viewportSize) to fullJpeg
 }
 
 private fun residentIdExtractQualityScore(extracted: ResidentIdExtractResponseDto): Double {
@@ -4288,8 +4359,7 @@ private fun shouldEvaluateFullFrameResidentId(
     return !hasResidentNumber ||
             !hasName ||
             extracted.documentType.isNullOrBlank() ||
-            status == OCR_STATUS_RETAKE_REQUIRED ||
-            residentIdExtractQualityScore(extracted) < 7.2
+            status == OCR_STATUS_RETAKE_REQUIRED
 }
 
 private fun selectBetterResidentIdExtract(
@@ -4305,16 +4375,29 @@ private suspend fun extractResidentIdWithFallback(
     croppedJpeg: ByteArray,
     fullJpeg: ByteArray
 ): ResidentIdExtractResponseDto {
-    val croppedResult = runCatching { extractResidentIdWithRetry(croppedJpeg) }
-    val croppedExtract = croppedResult.getOrNull()
-    val croppedFailure = croppedResult.exceptionOrNull()
+    var croppedExtract: ResidentIdExtractResponseDto? = null
+    var croppedFailure: Throwable? = null
+    try {
+        croppedExtract = extractResidentIdWithRetry(croppedJpeg)
+    } catch (cancellationException: CancellationException) {
+        throw cancellationException
+    } catch (throwable: Throwable) {
+        croppedFailure = throwable
+    }
 
     if (!shouldEvaluateFullFrameResidentId(croppedExtract, croppedFailure) && croppedExtract != null) {
         return croppedExtract
     }
 
-    val fullResult = runCatching { extractResidentIdWithRetry(fullJpeg) }
-    val fullExtract = fullResult.getOrNull()
+    var fullExtract: ResidentIdExtractResponseDto? = null
+    var fullFailure: Throwable? = null
+    try {
+        fullExtract = extractResidentIdWithRetry(fullJpeg)
+    } catch (cancellationException: CancellationException) {
+        throw cancellationException
+    } catch (throwable: Throwable) {
+        fullFailure = throwable
+    }
 
     if (croppedExtract != null && fullExtract != null) {
         return selectBetterResidentIdExtract(croppedExtract, fullExtract)
@@ -4326,7 +4409,6 @@ private suspend fun extractResidentIdWithFallback(
         return croppedExtract
     }
 
-    val fullFailure = fullResult.exceptionOrNull()
     if (fullFailure != null) {
         throw fullFailure
     }
@@ -4348,22 +4430,21 @@ private suspend fun extractResidentIdWithRetry(imageJpeg: ByteArray): ResidentId
     }
 }
 
-private fun cropDocumentJpeg(jpegBytes: ByteArray): ByteArray {
+private fun cropDocumentJpeg(
+    jpegBytes: ByteArray,
+    viewportSize: CameraViewportSize?
+): ByteArray {
     val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size) ?: return jpegBytes
-    var cropWidth = (bitmap.width * ID_CARD_OVERLAY_WIDTH_RATIO * ID_CARD_CROP_PADDING_RATIO).roundToInt()
-        .coerceIn(1, bitmap.width)
-    var cropHeight = (cropWidth / ID_CARD_OVERLAY_ASPECT_RATIO).roundToInt().coerceAtLeast(1)
-    val maxCropHeight = min(bitmap.height, (bitmap.height * 0.78f).roundToInt().coerceAtLeast(1))
-
-    if (cropHeight > maxCropHeight) {
-        cropHeight = maxCropHeight
-        cropWidth = min(bitmap.width, (cropHeight * ID_CARD_OVERLAY_ASPECT_RATIO).roundToInt().coerceAtLeast(1))
-    }
-
-    val left = ((bitmap.width - cropWidth) / 2).coerceAtLeast(0)
-    val top = ((bitmap.height - cropHeight) / 2).coerceAtLeast(0)
-    val right = (left + cropWidth).coerceAtMost(bitmap.width)
-    val bottom = (top + cropHeight).coerceAtMost(bitmap.height)
+    val cropRect = resolveGuideRectInRotatedImage(
+        imageWidth = bitmap.width,
+        imageHeight = bitmap.height,
+        viewportSize = viewportSize,
+        paddingRatio = ID_CARD_CROP_PADDING_RATIO
+    )
+    val left = cropRect.left.coerceAtLeast(0)
+    val top = cropRect.top.coerceAtLeast(0)
+    val right = cropRect.right.coerceAtMost(bitmap.width)
+    val bottom = cropRect.bottom.coerceAtMost(bitmap.height)
 
     if (right <= left || bottom <= top) {
         bitmap.recycle()
@@ -4382,6 +4463,142 @@ private fun cropDocumentJpeg(jpegBytes: ByteArray): ByteArray {
     resizedBitmap.compress(Bitmap.CompressFormat.JPEG, ID_CARD_CROP_JPEG_QUALITY, output)
     resizedBitmap.recycle()
     return output.toByteArray()
+}
+
+private fun resolveGuideRectInRotatedImage(
+    imageWidth: Int,
+    imageHeight: Int,
+    viewportSize: CameraViewportSize?,
+    paddingRatio: Float
+): Rect {
+    if (imageWidth <= 0 || imageHeight <= 0) {
+        return Rect(0, 0, max(1, imageWidth), max(1, imageHeight))
+    }
+    if (viewportSize == null || viewportSize.width <= 0 || viewportSize.height <= 0) {
+        return centeredGuideRect(imageWidth, imageHeight, paddingRatio)
+    }
+
+    val overlayRectInView = computeGuideOverlayRectInView(viewportSize.width, viewportSize.height)
+    return mapViewRectToImageRect(
+        viewRect = overlayRectInView,
+        imageWidth = imageWidth,
+        imageHeight = imageHeight,
+        viewWidth = viewportSize.width,
+        viewHeight = viewportSize.height,
+        paddingRatio = paddingRatio
+    )
+}
+
+private fun centeredGuideRect(
+    imageWidth: Int,
+    imageHeight: Int,
+    paddingRatio: Float
+): Rect {
+    val overlayWidth = min(
+        imageWidth.toFloat() * ID_CARD_OVERLAY_WIDTH_RATIO,
+        imageHeight.toFloat() * ID_CARD_OVERLAY_ASPECT_RATIO
+    ).coerceAtLeast(1f)
+    val overlayHeight = (overlayWidth / ID_CARD_OVERLAY_ASPECT_RATIO).coerceAtLeast(1f)
+    val overlayRect = RectF(
+        (imageWidth - overlayWidth) / 2f,
+        (imageHeight - overlayHeight) / 2f,
+        (imageWidth + overlayWidth) / 2f,
+        (imageHeight + overlayHeight) / 2f
+    )
+    return expandRectFToIntRect(overlayRect, paddingRatio, imageWidth, imageHeight)
+}
+
+private fun computeGuideOverlayRectInView(viewWidth: Int, viewHeight: Int): RectF {
+    val overlayWidth = min(
+        viewWidth.toFloat() * ID_CARD_OVERLAY_WIDTH_RATIO,
+        viewHeight.toFloat() * ID_CARD_OVERLAY_ASPECT_RATIO
+    ).coerceAtLeast(1f)
+    val overlayHeight = (overlayWidth / ID_CARD_OVERLAY_ASPECT_RATIO).coerceAtLeast(1f)
+    val left = (viewWidth - overlayWidth) / 2f
+    val top = (viewHeight - overlayHeight) / 2f
+    return RectF(left, top, left + overlayWidth, top + overlayHeight)
+}
+
+private fun mapViewRectToImageRect(
+    viewRect: RectF,
+    imageWidth: Int,
+    imageHeight: Int,
+    viewWidth: Int,
+    viewHeight: Int,
+    paddingRatio: Float
+): Rect {
+    if (viewWidth <= 0 || viewHeight <= 0 || imageWidth <= 0 || imageHeight <= 0) {
+        return centeredGuideRect(imageWidth, imageHeight, paddingRatio)
+    }
+
+    val scale = max(
+        viewWidth / imageWidth.toFloat(),
+        viewHeight / imageHeight.toFloat()
+    )
+    val displayedWidth = imageWidth * scale
+    val displayedHeight = imageHeight * scale
+    val offsetX = (viewWidth - displayedWidth) / 2f
+    val offsetY = (viewHeight - displayedHeight) / 2f
+
+    val mappedRect = RectF(
+        ((viewRect.left - offsetX) / scale).coerceIn(0f, imageWidth.toFloat()),
+        ((viewRect.top - offsetY) / scale).coerceIn(0f, imageHeight.toFloat()),
+        ((viewRect.right - offsetX) / scale).coerceIn(0f, imageWidth.toFloat()),
+        ((viewRect.bottom - offsetY) / scale).coerceIn(0f, imageHeight.toFloat())
+    )
+    return expandRectFToIntRect(mappedRect, paddingRatio, imageWidth, imageHeight)
+}
+
+private fun expandRectFToIntRect(
+    rect: RectF,
+    paddingRatio: Float,
+    maxWidth: Int,
+    maxHeight: Int
+): Rect {
+    val centerX = rect.centerX()
+    val centerY = rect.centerY()
+    val halfWidth = (rect.width() * paddingRatio / 2f).coerceAtLeast(1f)
+    val halfHeight = (rect.height() * paddingRatio / 2f).coerceAtLeast(1f)
+    val left = (centerX - halfWidth).roundToInt().coerceIn(0, maxWidth - 1)
+    val top = (centerY - halfHeight).roundToInt().coerceIn(0, maxHeight - 1)
+    val right = (centerX + halfWidth).roundToInt().coerceIn(left + 1, maxWidth)
+    val bottom = (centerY + halfHeight).roundToInt().coerceIn(top + 1, maxHeight)
+    return Rect(left, top, right, bottom)
+}
+
+private fun normalizedRotationDegrees(rotationDegrees: Int): Int {
+    val normalized = ((rotationDegrees % 360) + 360) % 360
+    return when (normalized) {
+        0, 90, 180, 270 -> normalized
+        else -> 0
+    }
+}
+
+private fun rotatedImageWidth(rawWidth: Int, rawHeight: Int, rotationDegrees: Int): Int {
+    return if (rotationDegrees == 90 || rotationDegrees == 270) rawHeight else rawWidth
+}
+
+private fun rotatedImageHeight(rawWidth: Int, rawHeight: Int, rotationDegrees: Int): Int {
+    return if (rotationDegrees == 90 || rotationDegrees == 270) rawWidth else rawHeight
+}
+
+private fun rotatedToRawPoint(
+    x: Int,
+    y: Int,
+    rawWidth: Int,
+    rawHeight: Int,
+    rotationDegrees: Int
+): Pair<Int, Int> {
+    val mapped = when (rotationDegrees) {
+        90 -> Pair(y, rawHeight - 1 - x)
+        180 -> Pair(rawWidth - 1 - x, rawHeight - 1 - y)
+        270 -> Pair(rawWidth - 1 - y, x)
+        else -> Pair(x, y)
+    }
+    return Pair(
+        mapped.first.coerceIn(0, rawWidth - 1),
+        mapped.second.coerceIn(0, rawHeight - 1)
+    )
 }
 
 private fun createFaceFramePayload(
@@ -4511,4 +4728,13 @@ private fun yuv420888ToNv21(image: ImageProxy): ByteArray {
     }
 
     return nv21
+}
+
+private fun readSinglePlaneBytes(imageProxy: ImageProxy): ByteArray {
+    val plane = imageProxy.planes.firstOrNull()
+        ?: throw IllegalArgumentException("JPEG 이미지 plane이 비어 있습니다.")
+    val buffer = plane.buffer.duplicate()
+    val bytes = ByteArray(buffer.remaining())
+    buffer.get(bytes)
+    return bytes
 }

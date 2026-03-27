@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import re
@@ -8,6 +9,7 @@ from typing import Any
 import cv2
 import numpy as np
 from fastapi import UploadFile
+from fastapi.concurrency import run_in_threadpool
 
 from app.core.config import get_settings
 from app.core.errors import AIServiceError
@@ -465,7 +467,32 @@ async def extract_resident_id_fields(upload_file: UploadFile) -> dict[str, Any]:
                 message="Mock OCR provider is disabled. Set RESIDENT_OCR_PROVIDER to paddleocr",
             )
         if provider == "paddleocr":
-            return _extract_with_paddle(image_raw)
+            last_error: AIServiceError | None = None
+            total_attempts = max(1, settings.ai_retry_count + 1)
+
+            for attempt in range(1, total_attempts + 1):
+                try:
+                    return await asyncio.wait_for(
+                        run_in_threadpool(_extract_with_paddle, image_raw),
+                        timeout=settings.ai_timeout_seconds,
+                    )
+                except asyncio.TimeoutError as exc:
+                    last_error = AIServiceError(status_code=504, code="AI_TIMEOUT", message="AI request timeout")
+                    if attempt >= total_attempts:
+                        raise last_error from exc
+                except AIServiceError as exc:
+                    last_error = exc
+                    if attempt >= total_attempts or exc.status_code < 500:
+                        raise
+
+                if attempt < total_attempts:
+                    await asyncio.sleep(settings.ai_retry_backoff_ms / 1000)
+
+            raise last_error or AIServiceError(
+                status_code=503,
+                code="OCR_UNAVAILABLE",
+                message="ID card OCR provider is not available",
+            )
 
         logger.error("ID card OCR provider is not configured: provider=%s", provider)
         raise AIServiceError(

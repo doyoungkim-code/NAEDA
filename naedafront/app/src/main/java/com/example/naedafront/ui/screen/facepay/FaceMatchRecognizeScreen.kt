@@ -561,11 +561,17 @@ private fun estimateLuminance(imageProxy: ImageProxy): Double {
 }
 
 private fun imageProxyToJpegBytes(imageProxy: ImageProxy): ByteArray {
-    val nv21 = yuv420888ToNv21(imageProxy)
-    val yuvImage = YuvImage(nv21, ImageFormat.NV21, imageProxy.width, imageProxy.height, null)
-    val output = ByteArrayOutputStream()
-    yuvImage.compressToJpeg(Rect(0, 0, imageProxy.width, imageProxy.height), 90, output)
-    val jpegBytes = output.toByteArray()
+    val jpegBytes = when (imageProxy.format) {
+        ImageFormat.JPEG -> readSinglePlaneBytes(imageProxy)
+        ImageFormat.YUV_420_888 -> {
+            val nv21 = yuv420888ToNv21(imageProxy)
+            val yuvImage = YuvImage(nv21, ImageFormat.NV21, imageProxy.width, imageProxy.height, null)
+            val output = ByteArrayOutputStream()
+            yuvImage.compressToJpeg(Rect(0, 0, imageProxy.width, imageProxy.height), 90, output)
+            output.toByteArray()
+        }
+        else -> throw IllegalArgumentException("지원하지 않는 이미지 포맷입니다: ${imageProxy.format}")
+    }
     return rotateJpeg(jpegBytes, imageProxy.imageInfo.rotationDegrees)
 }
 
@@ -718,4 +724,13 @@ private fun yuv420888ToNv21(image: ImageProxy): ByteArray {
     }
 
     return nv21
+}
+
+private fun readSinglePlaneBytes(imageProxy: ImageProxy): ByteArray {
+    val plane = imageProxy.planes.firstOrNull()
+        ?: throw IllegalArgumentException("JPEG 이미지 plane이 비어 있습니다.")
+    val buffer = plane.buffer.duplicate()
+    val bytes = ByteArray(buffer.remaining())
+    buffer.get(bytes)
+    return bytes
 }
