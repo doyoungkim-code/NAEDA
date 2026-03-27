@@ -2209,7 +2209,7 @@ private fun IdConfirmStageContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Mint50)
+                    .background(MaterialTheme.colorScheme.primaryContainer)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -2220,7 +2220,7 @@ private fun IdConfirmStageContent(
                     Icon(
                         imageVector = Icons.Default.Info,
                         contentDescription = null,
-                        tint = Mint500,
+                        tint = MaterialTheme.colorScheme.primaryContainer,
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
@@ -2228,7 +2228,7 @@ private fun IdConfirmStageContent(
                         fontFamily = NaedaFontFamily,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,
-                        color = OnBackground
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
                 reviewMessages.forEach { warning ->
@@ -2236,7 +2236,7 @@ private fun IdConfirmStageContent(
                         text = "• $warning",
                         fontFamily = NaedaFontFamily,
                         fontSize = 13.sp,
-                        color = OnSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 19.sp
                     )
                 }

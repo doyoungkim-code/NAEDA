@@ -463,26 +463,27 @@ fun NaedaNavGraph(
             )
         }
 
-        composable(Screen.Transfer.route) {
-            PlaceholderScreen("이체")
-        }
-
         composable(
             route = Screen.Transaction.routeWithArgs,
             arguments = listOf(
                 navArgument(Screen.Transaction.ASSET_TYPE_ARG) {
                     type = NavType.StringType
                     defaultValue = ""
+                    nullable = true
                 },
                 navArgument(Screen.Transaction.PAYMENT_METHOD_ID_ARG) {
-                    type = NavType.StringType
-                    defaultValue = ""
+                    type = NavType.LongType
+                    defaultValue = -1L
                 }
             )
         ) {
             TradeReportScreen(
                 onBackClick = { navController.popBackStack() }
             )
+        }
+
+        composable(Screen.Transfer.route) {
+            PlaceholderScreen("이체")
         }
 
         composable(Screen.Report.route) { PlaceholderScreen("📊 소비 리포트") }
@@ -681,9 +682,17 @@ private fun HomeTabContent(
         }
     }
 
+    val homeAccount = homeUiState.account
+    val homeAccountRoute = homeAccount?.accountNo
+        ?.takeIf { it.isNotBlank() }
+        ?.let { Screen.AccountDetail.createRoute(homeAccount.accountId, it) }
+
     HomeScreen(
         uiState = homeUiState,
-        onTransactionClick = { navController.navigateSingleTopTo(Screen.Transaction.createRoute()) },
+        onTransactionClick = {
+            homeAccountRoute?.let { navController.navigateSingleTopTo(it) }
+                ?: navController.navigateSingleTopTo(Screen.AccountList.createRoute(0))
+        },
         onCardTransactionClick = { card ->
             navController.currentBackStackEntry
                 ?.savedStateHandle
@@ -695,7 +704,9 @@ private fun HomeTabContent(
         },
         onFacePaySettingClick = { navController.navigateSingleTopTo(Screen.FaceRegister.route) },
         onLinkAccountClick = { navController.navigateSingleTopTo(Screen.AccountList.createRoute(0)) },
-        onViewAllTransactionsClick = { navController.navigateSingleTopTo(Screen.Transaction.createRoute()) },
+        onViewAllTransactionsClick = {
+            navController.navigateSingleTopTo(Screen.Transaction.createRoute())
+        },
         onSearchClick = { },
         onAlarmClick = { navController.navigateSingleTopTo(Screen.Notification.route) },
         onProfileClick = { navController.navigateSingleTopTo(Screen.MyPage.route) },

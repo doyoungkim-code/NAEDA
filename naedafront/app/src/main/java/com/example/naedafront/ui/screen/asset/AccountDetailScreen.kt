@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,8 +19,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -150,7 +153,8 @@ fun AccountDetailScreen(
         filteredTransactions.groupBy { it.date }.toSortedMap(reverseOrder())
     }
 
-    Scaffold(containerColor = MaterialTheme.colorScheme.background, contentWindowInsets = WindowInsets(0)) { innerPadding ->
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(containerColor = MaterialTheme.colorScheme.background, contentWindowInsets = WindowInsets(0)) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -267,6 +271,66 @@ fun AccountDetailScreen(
         }
     }
 
+        if (isDetailLoading && selectedTransaction != null) {
+            AccountDetailLoadingOverlay(
+                onDismiss = {
+                    selectedTransaction = null
+                    selectedPaymentDetail = null
+                    selectedPaymentSummary = null
+                    isDetailLoading = false
+                    detailError = null
+                }
+            )
+        }
+
+        detailError?.let { message ->
+            AccountDetailErrorOverlay(
+                message = message,
+                onDismiss = {
+                    selectedTransaction = null
+                    selectedPaymentDetail = null
+                    selectedPaymentSummary = null
+                    isDetailLoading = false
+                    detailError = null
+                }
+            )
+        }
+
+        selectedPaymentDetail?.let { detail ->
+            AccountTransactionDetailScreen(
+                transaction = selectedTransaction ?: return@let,
+                paymentDetail = detail,
+                storeName = selectedPaymentSummary?.storeName.orEmpty(),
+                bankName = account.bankName,
+                accountNumber = account.accountNumber,
+                onClose = {
+                    selectedTransaction = null
+                    selectedPaymentDetail = null
+                    selectedPaymentSummary = null
+                    isDetailLoading = false
+                    detailError = null
+                }
+            )
+        }
+
+        if (!isDetailLoading && detailError == null && selectedPaymentDetail == null) {
+            selectedTransaction?.let { transaction ->
+                AccountTransactionDetailScreen(
+                    transaction = transaction,
+                    bankName = account.bankName,
+                    accountNumber = account.accountNumber,
+                    onClose = {
+                        selectedTransaction = null
+                        selectedPaymentDetail = null
+                        selectedPaymentSummary = null
+                        isDetailLoading = false
+                        detailError = null
+                    }
+                )
+            }
+        }
+    }
+
     if (showPeriodDialog) {
         PeriodPickerDialog(
             selected = selectedPeriod,
@@ -278,7 +342,7 @@ fun AccountDetailScreen(
         )
     }
 
-    if (isDetailLoading) {
+    if (false && isDetailLoading) {
         AlertDialog(
             onDismissRequest = {
                 selectedTransaction = null
@@ -300,7 +364,7 @@ fun AccountDetailScreen(
         )
     }
 
-    detailError?.let { message ->
+    detailError.takeIf { false }?.let { message ->
         AlertDialog(
             onDismissRequest = {
                 selectedTransaction = null
@@ -327,7 +391,7 @@ fun AccountDetailScreen(
         )
     }
 
-    selectedPaymentDetail?.let { detail ->
+    selectedPaymentDetail.takeIf { false }?.let { detail ->
         PaymentDetailDialog(
             detail = detail,
             storeName = selectedPaymentSummary?.storeName.orEmpty(),
@@ -341,7 +405,7 @@ fun AccountDetailScreen(
         )
     }
 
-    if (!isDetailLoading && detailError == null && selectedPaymentDetail == null) {
+    if (false && !isDetailLoading && detailError == null && selectedPaymentDetail == null) {
         selectedTransaction?.let { transaction ->
             AccountTransactionDetailDialog(
                 transaction = transaction,
@@ -587,6 +651,7 @@ private fun TransactionRow(
     onClick: () -> Unit,
 ) {
     val isDeposit = item.transactionType.equals("DEPOSIT", ignoreCase = true)
+    val transactionColor = if (isDeposit) Color(0xFF307CBF) else Color(0xFFF2522E)
 
     val title = when {
         item.counterpart.isNotBlank() -> item.counterpart
@@ -607,25 +672,6 @@ private fun TransactionRow(
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(
-                    if (isDeposit) Color(0xFFDFF7E8) else Color(0xFFDCEBFF)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = if (isDeposit) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
-                contentDescription = null,
-                tint = if (isDeposit) Color(0xFF1F8F5F) else MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
@@ -659,7 +705,7 @@ private fun TransactionRow(
         Text(
             text = if (isDeposit) "+${"%,d".format(item.amount)}원" else "-${"%,d".format(item.amount)}원",
             style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = if (isDeposit) Color(0xFF1F8F5F) else MaterialTheme.colorScheme.onBackground
+            color = transactionColor
         )
     }
 
@@ -760,6 +806,366 @@ private fun DetailRow(
             style = NaedaTypography.bodyMedium,
             color = MaterialTheme.colorScheme.onBackground
         )
+    }
+}
+
+@Composable
+private fun AccountTransactionDetailFullScreen(
+    transaction: TransactionItem,
+    onDismiss: () -> Unit,
+) {
+    val isDeposit = transaction.transactionType.equals("DEPOSIT", ignoreCase = true)
+    val accentColor = if (isDeposit) Color(0xFF1F8F5F) else Mint900
+
+    AccountDetailFullScreenLayout(
+        title = "거래 상세",
+        badgeText = if (isDeposit) "입" else "출",
+        headlineLabel = if (isDeposit) "입금 상대" else "거래 상대",
+        headlineValue = transaction.counterpart.ifBlank { transaction.memo.ifBlank { "거래 정보" } },
+        amountText = "${"%,d".format(transaction.amount)}원",
+        statusText = if (isDeposit) "입금 완료" else "출금 완료",
+        accentColor = accentColor,
+        onDismiss = onDismiss
+    ) {
+        AccountDetailField("거래 유형", if (isDeposit) "입금" else "출금")
+        AccountDetailField("거래 시간", transaction.transacted)
+        AccountDetailField("메모", transaction.memo.ifBlank { "-" })
+        AccountDetailField("카테고리", transaction.category.ifBlank { "-" })
+        if (transaction.estimatedPoints > 0L) {
+            AccountDetailField("적립 포인트", "${"%,d".format(transaction.estimatedPoints)}P")
+        }
+        AccountDetailField("거래 후 잔액", "${"%,d".format(transaction.balanceAfter)}원")
+        AccountDetailField("거래 번호", transaction.ssafyTransactionId.ifBlank { transaction.id })
+    }
+}
+
+@Composable
+private fun PaymentDetailFullScreen(
+    detail: PaymentDetailResponse,
+    storeName: String,
+    onDismiss: () -> Unit,
+) {
+    AccountDetailFullScreenLayout(
+        title = "결제 상세",
+        badgeText = "결",
+        headlineLabel = "결제 장소",
+        headlineValue = storeName.ifBlank { detail.storeId.toString() },
+        amountText = "${"%,d".format(detail.amount)}원",
+        statusText = detail.status.toPaymentStatusLabel(),
+        accentColor = Mint900,
+        onDismiss = onDismiss
+    ) {
+        AccountDetailField("결제 방식", detail.authMethod.toPaymentMethodLabel())
+        AccountDetailField("결제 시간", detail.createdAt?.formatCreatedAt() ?: "-")
+        AccountDetailField(
+            "적립 포인트",
+            detail.earnedPoints?.let { "${"%,d".format(it)}P" } ?: "0P"
+        )
+        AccountDetailField("결제 번호", detail.ssafyTransactionId ?: detail.paymentId.toString())
+        AccountDetailField("결제 장소", storeName.ifBlank { detail.storeId.toString() })
+    }
+}
+
+@Composable
+private fun AccountDetailFullScreenLayout(
+    title: String,
+    badgeText: String,
+    headlineLabel: String,
+    headlineValue: String,
+    amountText: String,
+    statusText: String,
+    accentColor: Color,
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val scrollState = rememberScrollState()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF6F2F5))
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                        .clickable { onDismiss() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "닫기",
+                        tint = accentColor
+                    )
+                }
+
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = title,
+                        style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = accentColor
+                    )
+                }
+
+                Spacer(modifier = Modifier.size(42.dp))
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(36.dp),
+                    color = Color.White,
+                    shadowElevation = 10.dp
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(92.dp)
+                                .clip(CircleShape)
+                                .background(accentColor.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = badgeText,
+                                style = NaedaTypography.displayMedium.copy(fontWeight = FontWeight.Bold),
+                                color = accentColor
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Text(
+                            text = headlineLabel,
+                            style = NaedaTypography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = headlineValue,
+                            style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+
+                        Spacer(modifier = Modifier.height(28.dp))
+
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(28.dp),
+                            color = Color(0xFFF7F3F6),
+                            shadowElevation = 2.dp
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "TOTAL TRANSACTION",
+                                    style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = amountText,
+                                    style = NaedaTypography.displayMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = accentColor
+                                )
+                                Spacer(modifier = Modifier.height(14.dp))
+                                AccountDetailStatusChip(
+                                    text = statusText,
+                                    accentColor = accentColor
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(28.dp))
+
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(20.dp),
+                            content = content
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                AccountDetailPrimaryButton(
+                    text = "닫기",
+                    onClick = onDismiss
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountDetailStatusChip(
+    text: String,
+    accentColor: Color,
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(accentColor.copy(alpha = 0.12f))
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(accentColor)
+        )
+        Text(
+            text = text,
+            style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
+            color = accentColor
+        )
+    }
+}
+
+@Composable
+private fun AccountDetailField(
+    label: String,
+    value: String,
+) {
+    Column {
+        Text(
+            text = label,
+            style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = value,
+            style = NaedaTypography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onBackground
+        )
+    }
+}
+
+@Composable
+private fun AccountDetailPrimaryButton(
+    text: String,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(28.dp))
+            .background(Mint900)
+            .clickable { onClick() }
+            .padding(vertical = 18.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            style = NaedaTypography.labelLarge.copy(fontWeight = FontWeight.Bold),
+            color = Color.White
+        )
+    }
+}
+
+@Composable
+private fun AccountDetailLoadingOverlay(
+    onDismiss: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF6F2F5)),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            shape = RoundedCornerShape(28.dp),
+            color = Color.White,
+            shadowElevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                CircularProgressIndicator(color = Mint900)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "상세 정보를 불러오고 있습니다.",
+                    style = NaedaTypography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                TextButton(onClick = onDismiss) {
+                    Text(text = "닫기", color = Mint900)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountDetailErrorOverlay(
+    message: String,
+    onDismiss: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF6F2F5)),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            shape = RoundedCornerShape(28.dp),
+            color = Color.White,
+            shadowElevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "상세 정보를 불러오지 못했습니다.",
+                    style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = message,
+                    style = NaedaTypography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                TextButton(onClick = onDismiss) {
+                    Text(text = "닫기", color = Mint900)
+                }
+            }
+        }
     }
 }
 
@@ -887,6 +1293,15 @@ private fun String?.toPaymentMethodLabel(): String {
         "FACE" -> "내다페이(페이스페이)"
         "PIN" -> "내다페이(PIN인증)"
         else -> "내다페이"
+    }
+}
+
+private fun String?.toPaymentStatusLabel(): String {
+    return when (this?.uppercase()) {
+        "COMPLETED", "SUCCESS", "PAID" -> "결제 완료"
+        "CANCELED", "CANCELLED" -> "결제 취소"
+        "FAILED" -> "결제 실패"
+        else -> "처리 완료"
     }
 }
 
