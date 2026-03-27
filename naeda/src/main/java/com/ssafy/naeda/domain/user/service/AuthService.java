@@ -45,8 +45,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
+import com.ssafy.naeda.domain.user.dto.response.PasswordResetCodeResponse;
+import com.ssafy.naeda.domain.user.dto.response.PasswordResetVerifyResponse;
+import com.ssafy.naeda.global.exception.BadRequestException;
+import com.ssafy.naeda.global.exception.NotFoundException;
+
+import java.security.SecureRandom;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 
@@ -494,5 +501,69 @@ public class AuthService {
             throw new SsafyApiException("NETWORK_ERROR", "SSAFY 회원 조회 API 호출 실패: " + e.getMessage());
         }
 
+    }
+
+    private static final int RESET_CODE_TTL_SECONDS = 300; // 5분
+    private static final int RESET_TOKEN_TTL_SECONDS = 600; // 10분
+    private static final String RESET_CODE_PREFIX = "pwd-reset:";
+    private static final String RESET_VERIFIED_PREFIX = "pwd-reset-verified:";
+
+    public PasswordResetCodeResponse requestPasswordReset(String userId) {
+        userRepository.findByUserId(userId)
+                .orElseThrow(() -> new NotFoundException("등록되지 않은 이메일입니다."));
+
+        String code = String.format("%06d", new SecureRandom().nextInt(1_000_000));
+
+        redisTemplate.opsForValue().set(
+                RESET_CODE_PREFIX + userId,
+                code,
+                RESET_CODE_TTL_SECONDS,
+                TimeUnit.SECONDS
+        );
+
+        log.info("[AuthService] 비밀번호 재설정 코드 발급: userId={}", userId);
+        return PasswordResetCodeResponse.of(code, RESET_CODE_TTL_SECONDS);
+    }
+
+    public PasswordResetVerifyResponse verifyPasswordResetCode(String userId, String code) {
+        String savedCode = redisTemplate.opsForValue().get(RESET_CODE_PREFIX + userId);
+
+        if (savedCode == null) {
+            throw new BadRequestException("인증 코드가 만료되었거나 존재하지 않습니다.");
+        }
+        if (!savedCode.equals(code)) {
+            throw new BadRequestException("인증 코드가 일치하지 않습니다.");
+        }
+
+        redisTemplate.delete(RESET_CODE_PREFIX + userId);
+
+        String token = UUID.randomUUID().toString();
+        redisTemplate.opsForValue().set(
+                RESET_VERIFIED_PREFIX + token,
+                userId,
+                RESET_TOKEN_TTL_SECONDS,
+                TimeUnit.SECONDS
+        );
+
+        log.info("[AuthService] 비밀번호 재설정 코드 검증 성공: userId={}", userId);
+        return PasswordResetVerifyResponse.of(token);
+    }
+
+    @Transactional
+    public void confirmPasswordReset(String token, String newPassword) {
+        String userId = redisTemplate.opsForValue().get(RESET_VERIFIED_PREFIX + token);
+
+        if (userId == null) {
+            throw new BadRequestException("유효하지 않거나 만료된 토큰입니다.");
+        }
+
+        redisTemplate.delete(RESET_VERIFIED_PREFIX + token);
+
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
+
+        user.updatePassword(passwordEncoder.encode(newPassword));
+
+        log.info("[AuthService] 비밀번호 재설정 완료: userId={}", userId);
     }
 }
