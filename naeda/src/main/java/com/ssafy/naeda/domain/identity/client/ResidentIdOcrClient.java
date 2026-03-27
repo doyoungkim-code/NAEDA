@@ -58,8 +58,7 @@ public class ResidentIdOcrClient {
                     })
                     .body(ResidentIdOcrResponse.class);
 
-            if (response == null || response.getName() == null || response.getResidentFront6() == null
-                    || response.getResidentBackFirst1() == null) {
+            if (response == null) {
                 throw new BadRequestException("신분증 OCR 결과가 올바르지 않습니다.");
             }
             if (!response.isDocumentMatched()) {

@@ -92,7 +92,12 @@ def test_resident_id_ocr_returns_paddleocr_result(monkeypatch):
     assert data["residentFront6"] == "900101"
     assert data["residentBackFirst1"] == "1"
     assert data["provider"] == "paddleocr"
-    assert data["confidence"] >= 0.5
+    assert data["confidence"] > 0.0
+    assert data["documentConfidence"] > 0.0
+    assert data["nameConfidence"] > 0.0
+    assert data["residentNumberConfidence"] > 0.0
+    assert data["extractionStatus"] == "SUCCESS"
+    assert data["warnings"] == []
 
 
 def test_resident_id_ocr_extracts_name_from_split_resident_id_entries(monkeypatch):
@@ -138,6 +143,7 @@ def test_resident_id_ocr_extracts_name_from_split_resident_id_entries(monkeypatc
     assert data["name"] == "홍길동"
     assert data["residentFront6"] == "900101"
     assert data["residentBackFirst1"] == "1"
+    assert data["extractionStatus"] == "SUCCESS"
 
 
 def test_resident_id_ocr_prefers_name_over_region_text(monkeypatch):
@@ -181,3 +187,48 @@ def test_resident_id_ocr_prefers_name_over_region_text(monkeypatch):
     data = response.json()
     assert data["documentType"] == "RESIDENT_ID"
     assert data["name"] == "김민수"
+    assert data["warnings"] == []
+
+
+def test_resident_id_ocr_ignores_driver_license_class_text_for_name(monkeypatch):
+    monkeypatch.setenv("RESIDENT_OCR_PROVIDER", "paddleocr")
+
+    fake_module = types.ModuleType("paddleocr")
+
+    class FakePaddleOCR:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        def ocr(self, image, cls=True):
+            return [[
+                [[[0, 0], [70, 0], [70, 10], [0, 10]], ("운전면허증", 0.99)],
+                [[[0, 20], [40, 20], [40, 30], [0, 30]], ("1종보통", 0.97)],
+                [[[44, 20], [82, 20], [82, 30], [44, 30]], ("성경훈", 0.95)],
+                [[[0, 42], [90, 42], [90, 52], [0, 52]], ("900101-1******", 0.96)],
+            ]]
+
+    fake_module.PaddleOCR = FakePaddleOCR
+    monkeypatch.setitem(sys.modules, "paddleocr", fake_module)
+
+    from app.core.config import get_settings
+    from app.core import resident_ocr
+
+    get_settings.cache_clear()
+    resident_ocr._get_paddle_ocr.cache_clear()
+    try:
+        response = client.post(
+            "/internal/v1/ocr/id-card/extract",
+            headers=AUTH_HEADER,
+            files={"image": ("card.png", valid_png_bytes(), "image/png")},
+        )
+    finally:
+        get_settings.cache_clear()
+        resident_ocr._get_paddle_ocr.cache_clear()
+        sys.modules.pop("paddleocr", None)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["documentType"] == "DRIVER_LICENSE"
+    assert data["name"] == "성경훈"
+    assert data["extractionStatus"] == "REVIEW_REQUIRED"
+    assert data["warnings"]

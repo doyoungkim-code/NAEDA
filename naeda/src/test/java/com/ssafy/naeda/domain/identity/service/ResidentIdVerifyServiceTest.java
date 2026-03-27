@@ -9,6 +9,7 @@ import com.ssafy.naeda.domain.identity.dto.response.ResidentIdVerifyResponse;
 import com.ssafy.naeda.domain.user.entity.User;
 import com.ssafy.naeda.domain.user.repository.UserRepository;
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -48,6 +49,11 @@ class ResidentIdVerifyServiceTest {
         setField(response, "residentBackFirst1", "1");
         setField(response, "provider", "mock");
         setField(response, "confidence", 0.91d);
+        setField(response, "documentConfidence", 0.93d);
+        setField(response, "nameConfidence", 0.88d);
+        setField(response, "residentNumberConfidence", 0.97d);
+        setField(response, "extractionStatus", "REVIEW_REQUIRED");
+        setField(response, "warnings", List.of("이름 인식 신뢰도가 낮습니다."));
         given(residentIdOcrClient.extractResidentId(any())).willReturn(response);
 
         ResidentIdExtractResponse result = residentIdVerifyService.extract(
@@ -61,6 +67,11 @@ class ResidentIdVerifyServiceTest {
         assertThat(result.getResidentBackFirst1()).isEqualTo("1");
         assertThat(result.getProvider()).isEqualTo("mock");
         assertThat(result.getConfidence()).isEqualTo(0.91d);
+        assertThat(result.getDocumentConfidence()).isEqualTo(0.93d);
+        assertThat(result.getNameConfidence()).isEqualTo(0.88d);
+        assertThat(result.getResidentNumberConfidence()).isEqualTo(0.97d);
+        assertThat(result.getExtractionStatus()).isEqualTo("REVIEW_REQUIRED");
+        assertThat(result.getWarnings()).containsExactly("이름 인식 신뢰도가 낮습니다.");
     }
 
     @Test
@@ -136,6 +147,12 @@ class ResidentIdVerifyServiceTest {
     }
 
     private static void setField(Object target, String name, double value) throws Exception {
+        Field field = target.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        field.set(target, value);
+    }
+
+    private static void setField(Object target, String name, List<String> value) throws Exception {
         Field field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);
         field.set(target, value);
