@@ -295,6 +295,7 @@ private fun AccountListHeader(count: Int, onRegisterNew: () -> Unit) {
                 color = OnBackground
             )
         }
+        if (false) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.clickable { onRegisterNew() }
@@ -311,6 +312,7 @@ private fun AccountListHeader(count: Int, onRegisterNew: () -> Unit) {
                 style = NaedaTypography.labelMedium,
                 color = Mint900
             )
+        }
         }
     }
 }
