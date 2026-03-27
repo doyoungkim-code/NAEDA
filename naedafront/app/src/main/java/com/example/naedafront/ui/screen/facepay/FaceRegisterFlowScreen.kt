@@ -190,6 +190,7 @@ private const val ID_CARD_ALLOWED_MISSES = 3
 private const val ID_CARD_REQUIRED_STABLE_MATCHES = 1
 private const val ID_CARD_OVERLAY_WIDTH_RATIO = 0.88f
 private const val ID_CARD_OVERLAY_ASPECT_RATIO = 1.586f
+private const val ID_CARD_CROP_PADDING_RATIO = 1.12f
 private const val ID_CARD_CROP_JPEG_QUALITY = 94
 private const val OCR_STATUS_REVIEW_REQUIRED = "REVIEW_REQUIRED"
 private const val OCR_STATUS_RETAKE_REQUIRED = "RETAKE_REQUIRED"
@@ -3720,8 +3721,9 @@ private fun assessResidentIdExtract(extracted: ResidentIdExtractResponseDto): Id
     val status = extracted.extractionStatus?.trim()?.uppercase().orEmpty()
     val firstWarning = extracted.warnings.firstOrNull { it.isNotBlank() }
     val hasDocumentType = !extracted.documentType.isNullOrBlank()
+    val hasCoreIdentity = hasResidentNumber || (hasName && hasDocumentType)
 
-    if (!extracted.documentMatched && !hasDocumentType) {
+    if (!extracted.documentMatched && !hasDocumentType && !hasCoreIdentity) {
         return IdCaptureAssessment(
             canProceed = false,
             requiresReview = false,
@@ -3731,7 +3733,7 @@ private fun assessResidentIdExtract(extracted: ResidentIdExtractResponseDto): Id
         )
     }
 
-    if (status == OCR_STATUS_RETAKE_REQUIRED && !hasDocumentType) {
+    if (status == OCR_STATUS_RETAKE_REQUIRED && !hasCoreIdentity) {
         return IdCaptureAssessment(
             canProceed = false,
             requiresReview = false,
@@ -3745,6 +3747,7 @@ private fun assessResidentIdExtract(extracted: ResidentIdExtractResponseDto): Id
             status == OCR_STATUS_RETAKE_REQUIRED ||
             !hasName ||
             !hasResidentNumber ||
+            !hasDocumentType ||
             extracted.warnings.isNotEmpty() ||
             (hasName && extracted.nameConfidence in 0.0..0.779)
 
@@ -3762,11 +3765,11 @@ private fun assessResidentIdExtract(extracted: ResidentIdExtractResponseDto): Id
 }
 
 private fun buildResidentIdExtractKey(extracted: ResidentIdExtractResponseDto): String? {
-    val documentType = extracted.documentType?.trim()?.uppercase() ?: return null
+    val documentType = extracted.documentType?.trim()?.uppercase()
     val residentFront6 = extracted.residentFront6?.trim().orEmpty()
     val residentBackFirst1 = extracted.residentBackFirst1?.trim().orEmpty()
     return if (residentFront6.length == 6 && residentBackFirst1.length == 1) {
-        listOf(documentType, residentFront6, residentBackFirst1).joinToString("|")
+        listOfNotNull(documentType, residentFront6, residentBackFirst1).joinToString("|")
     } else {
         documentType
     }
@@ -3937,24 +3940,93 @@ private fun prepareResidentIdJpegs(imageProxy: ImageProxy): Pair<ByteArray, Byte
     return cropDocumentJpeg(fullJpeg) to fullJpeg
 }
 
+private fun residentIdExtractQualityScore(extracted: ResidentIdExtractResponseDto): Double {
+    val status = extracted.extractionStatus?.trim()?.uppercase().orEmpty()
+    var score = 0.0
+
+    if (!extracted.documentType.isNullOrBlank()) score += 2.8
+    if (extracted.documentMatched) score += 1.2
+    if (extracted.residentFront6?.length == 6) score += 2.4
+    if (extracted.residentBackFirst1?.length == 1) score += 1.6
+    if (!extracted.name.isNullOrBlank()) score += 1.6
+
+    score += extracted.documentConfidence.coerceIn(0.0, 1.0) * 1.2
+    score += extracted.residentNumberConfidence.coerceIn(0.0, 1.0) * 1.8
+    if (!extracted.name.isNullOrBlank()) {
+        score += extracted.nameConfidence.coerceIn(0.0, 1.0) * 1.2
+    }
+
+    score += when (status) {
+        "SUCCESS" -> 1.0
+        OCR_STATUS_REVIEW_REQUIRED -> 0.5
+        OCR_STATUS_RETAKE_REQUIRED -> -0.4
+        else -> 0.0
+    }
+    score -= min(0.9, extracted.warnings.size * 0.18)
+    return score
+}
+
+private fun shouldEvaluateFullFrameResidentId(
+    croppedExtract: ResidentIdExtractResponseDto?,
+    failure: Throwable?
+): Boolean {
+    if (failure != null) {
+        return true
+    }
+    val extracted = croppedExtract ?: return true
+    val hasResidentNumber = extracted.residentFront6?.length == 6 && extracted.residentBackFirst1?.length == 1
+    val hasName = !extracted.name.isNullOrBlank()
+    val status = extracted.extractionStatus?.trim()?.uppercase().orEmpty()
+
+    return !hasResidentNumber ||
+            !hasName ||
+            extracted.documentType.isNullOrBlank() ||
+            status == OCR_STATUS_RETAKE_REQUIRED ||
+            residentIdExtractQualityScore(extracted) < 7.2
+}
+
+private fun selectBetterResidentIdExtract(
+    primary: ResidentIdExtractResponseDto,
+    secondary: ResidentIdExtractResponseDto
+): ResidentIdExtractResponseDto {
+    val primaryScore = residentIdExtractQualityScore(primary)
+    val secondaryScore = residentIdExtractQualityScore(secondary)
+    return if (secondaryScore > primaryScore) secondary else primary
+}
+
 private suspend fun extractResidentIdWithFallback(
     croppedJpeg: ByteArray,
     fullJpeg: ByteArray
 ): ResidentIdExtractResponseDto {
     val croppedResult = runCatching { extractResidentIdWithRetry(croppedJpeg) }
     val croppedExtract = croppedResult.getOrNull()
-    if (croppedExtract != null) {
-        val status = croppedExtract.extractionStatus?.trim()?.uppercase().orEmpty()
-        if (status != OCR_STATUS_RETAKE_REQUIRED || croppedExtract.documentMatched) {
-            return croppedExtract
-        }
-    }
+    val croppedFailure = croppedResult.exceptionOrNull()
 
-    if (croppedResult.exceptionOrNull() !is ApiRequestException && croppedExtract != null) {
+    if (!shouldEvaluateFullFrameResidentId(croppedExtract, croppedFailure) && croppedExtract != null) {
         return croppedExtract
     }
 
-    return extractResidentIdWithRetry(fullJpeg)
+    val fullResult = runCatching { extractResidentIdWithRetry(fullJpeg) }
+    val fullExtract = fullResult.getOrNull()
+
+    if (croppedExtract != null && fullExtract != null) {
+        return selectBetterResidentIdExtract(croppedExtract, fullExtract)
+    }
+    if (fullExtract != null) {
+        return fullExtract
+    }
+    if (croppedExtract != null) {
+        return croppedExtract
+    }
+
+    val fullFailure = fullResult.exceptionOrNull()
+    if (fullFailure != null) {
+        throw fullFailure
+    }
+    if (croppedFailure != null) {
+        throw croppedFailure
+    }
+    throw IllegalStateException("신분증 OCR 응답을 확인할 수 없습니다.")
 }
 
 private suspend fun extractResidentIdWithRetry(imageJpeg: ByteArray): ResidentIdExtractResponseDto {
@@ -3971,9 +4043,10 @@ private suspend fun extractResidentIdWithRetry(imageJpeg: ByteArray): ResidentId
 
 private fun cropDocumentJpeg(jpegBytes: ByteArray): ByteArray {
     val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size) ?: return jpegBytes
-    var cropWidth = (bitmap.width * ID_CARD_OVERLAY_WIDTH_RATIO).roundToInt().coerceIn(1, bitmap.width)
+    var cropWidth = (bitmap.width * ID_CARD_OVERLAY_WIDTH_RATIO * ID_CARD_CROP_PADDING_RATIO).roundToInt()
+        .coerceIn(1, bitmap.width)
     var cropHeight = (cropWidth / ID_CARD_OVERLAY_ASPECT_RATIO).roundToInt().coerceAtLeast(1)
-    val maxCropHeight = min(bitmap.height, (bitmap.height * 0.72f).roundToInt().coerceAtLeast(1))
+    val maxCropHeight = min(bitmap.height, (bitmap.height * 0.78f).roundToInt().coerceAtLeast(1))
 
     if (cropHeight > maxCropHeight) {
         cropHeight = maxCropHeight
