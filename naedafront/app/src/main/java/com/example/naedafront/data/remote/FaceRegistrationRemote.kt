@@ -5,6 +5,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import kotlinx.coroutines.delay
 import retrofit2.HttpException
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -202,13 +203,26 @@ object FaceRegistrationRepository {
     }
 
     suspend fun extractResidentId(imageBytes: ByteArray): ResidentIdExtractResponseDto {
-        return runCatching {
-            service.extractResidentId(
-                image = imagePart(imageBytes, "id-card.jpg")
-            )
-        }.getOrElse { throwable ->
-            throw toReadableException(throwable, "신분증 OCR 추출에 실패했습니다.")
+        val requestImagePart = imagePart(imageBytes, "id-card.jpg")
+        val initialResult = runCatching {
+            service.extractResidentId(image = requestImagePart)
         }
+
+        val initialFailure = initialResult.exceptionOrNull()
+        if (initialFailure != null) {
+            val readable = toReadableException(initialFailure, "신분증 OCR 추출에 실패했습니다.")
+            if (isRecoverableOcrServiceError(readable)) {
+                delay(350L)
+                return runCatching {
+                    service.extractResidentId(image = requestImagePart)
+                }.getOrElse { retryThrowable ->
+                    throw toReadableException(retryThrowable, "신분증 OCR 추출에 실패했습니다.")
+                }
+            }
+            throw readable
+        }
+
+        return initialResult.getOrThrow()
     }
 
     suspend fun checkHeadPose(expectedDirection: String, imageBytes: ByteArray): HeadPoseCheckResponseDto {
@@ -368,5 +382,17 @@ object FaceRegistrationRepository {
             message = message,
             cause = throwable
         )
+    }
+
+    private fun isRecoverableOcrServiceError(throwable: Throwable): Boolean {
+        if (throwable !is ApiRequestException) {
+            return false
+        }
+        val code = throwable.errorCode?.trim()?.uppercase()
+        return throwable.statusCode in setOf(502, 503, 504) ||
+                code == "OCR_UNAVAILABLE" ||
+                code == "OCR_TIMEOUT" ||
+                code == "AI_TIMEOUT" ||
+                code == "AI_UNAVAILABLE"
     }
 }

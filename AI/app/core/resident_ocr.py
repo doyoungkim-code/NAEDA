@@ -166,8 +166,9 @@ def _preprocess_variants_for_ocr(bgr: np.ndarray) -> list[tuple[str, np.ndarray]
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
     normalized = cv2.normalize(gray, None, 0, 255, cv2.NORM_MINMAX)
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(normalized)
+    denoised = cv2.fastNlMeansDenoising(clahe, None, h=9, templateWindowSize=7, searchWindowSize=21)
     sharpened = cv2.filter2D(
-        clahe,
+        denoised,
         -1,
         np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]], dtype=np.float32),
     )
@@ -181,7 +182,9 @@ def _preprocess_variants_for_ocr(bgr: np.ndarray) -> list[tuple[str, np.ndarray]
     )
 
     variants = [
+        ("color", bgr.copy()),
         ("normalized", cv2.cvtColor(normalized, cv2.COLOR_GRAY2BGR)),
+        ("denoised", cv2.cvtColor(denoised, cv2.COLOR_GRAY2BGR)),
         ("clahe_sharpened", cv2.cvtColor(sharpened, cv2.COLOR_GRAY2BGR)),
         ("threshold", cv2.cvtColor(threshold, cv2.COLOR_GRAY2BGR)),
     ]
@@ -563,15 +566,17 @@ def _extract_with_paddle_provider(image_raw: bytes) -> dict[str, Any]:
     variants = _preprocess_variants_for_ocr(bgr)
     ocr = _get_paddle_ocr()
     parsed_results: list[dict[str, Any]] = []
+    inference_failures = 0
 
-    for _, image in variants:
+    for variant_name, image in variants:
         try:
             result = ocr.ocr(image, cls=True)
         except AIServiceError:
             raise
         except Exception as exc:
-            logger.exception("PaddleOCR inference failed")
-            raise AIServiceError(status_code=503, code="OCR_UNAVAILABLE", message="PaddleOCR inference failed") from exc
+            inference_failures += 1
+            logger.exception("PaddleOCR inference failed for variant=%s", variant_name)
+            continue
 
         entries = _flatten_ocr_entries(result)
         if not entries:
@@ -586,6 +591,12 @@ def _extract_with_paddle_provider(image_raw: bytes) -> dict[str, Any]:
         parsed_results.append(parsed)
 
     if not parsed_results:
+        if inference_failures > 0:
+            logger.warning(
+                "ID card OCR inference failed for %s variants and produced no parsed results",
+                inference_failures,
+            )
+            return _retake_result("신분증 인식이 불안정합니다. 신분증을 더 가까이 맞추고 그대로 유지해 주세요.")
         logger.warning("ID card OCR parsed no text entries from any preprocessing variant")
         return _retake_result("신분증에서 텍스트를 읽지 못했습니다. 신분증을 더 크게 맞추고 빛 반사를 줄여주세요.")
 

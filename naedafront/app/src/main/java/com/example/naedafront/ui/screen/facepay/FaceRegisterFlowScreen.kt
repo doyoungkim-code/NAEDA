@@ -185,8 +185,8 @@ private val faceCaptureSequence = listOf(
 )
 
 private const val ID_CARD_HOLD_DURATION_MS = 2000L
-private const val ID_CARD_REQUEST_INTERVAL_MS = 650L
-private const val ID_CARD_ALLOWED_MISSES = 1
+private const val ID_CARD_REQUEST_INTERVAL_MS = 1100L
+private const val ID_CARD_ALLOWED_MISSES = 3
 private const val ID_CARD_REQUIRED_STABLE_MATCHES = 1
 private const val ID_CARD_OVERLAY_WIDTH_RATIO = 0.88f
 private const val ID_CARD_OVERLAY_ASPECT_RATIO = 1.586f
@@ -1989,12 +1989,12 @@ private fun IdCardScanningStageContent(
                         statusMessage = assessment.warningMessage ?: assessment.statusMessage
                         onError(null)
                     }.onFailure { throwable ->
-                        if (throwable is ApiRequestException && throwable.statusCode == 400) {
+                        if (isRecoverableResidentIdError(throwable)) {
                             if (holdStartedAt != 0L && consecutiveRecoverableMisses < ID_CARD_ALLOWED_MISSES) {
                                 consecutiveRecoverableMisses += 1
-                                statusMessage = "신분증 정보를 다시 맞추는 중입니다. 그대로 유지해 주세요."
+                                statusMessage = buildRecoverableResidentIdMessage(throwable)
                             } else {
-                                resetRecognition()
+                                resetRecognition(buildRecoverableResidentIdMessage(throwable))
                             }
                             onError(null)
                             return@onFailure
@@ -3772,6 +3772,35 @@ private fun buildResidentIdExtractKey(extracted: ResidentIdExtractResponseDto): 
     }
 }
 
+private fun isRecoverableResidentIdError(throwable: Throwable): Boolean {
+    if (throwable !is ApiRequestException) {
+        return false
+    }
+
+    val errorCode = throwable.errorCode?.trim()?.uppercase()
+    return throwable.statusCode == 400 ||
+            throwable.statusCode in setOf(502, 503, 504) ||
+            errorCode == "OCR_UNAVAILABLE" ||
+            errorCode == "OCR_TIMEOUT" ||
+            errorCode == "AI_TIMEOUT" ||
+            errorCode == "AI_UNAVAILABLE"
+}
+
+private fun buildRecoverableResidentIdMessage(throwable: Throwable): String {
+    if (throwable is ApiRequestException) {
+        val errorCode = throwable.errorCode?.trim()?.uppercase()
+        if (throwable.statusCode in setOf(502, 503, 504) ||
+            errorCode == "OCR_UNAVAILABLE" ||
+            errorCode == "OCR_TIMEOUT" ||
+            errorCode == "AI_TIMEOUT" ||
+            errorCode == "AI_UNAVAILABLE"
+        ) {
+            return "신분증 인식 서버를 다시 준비하는 중입니다. 신분증을 그대로 유지해 주세요."
+        }
+    }
+    return "신분증 정보를 다시 맞추는 중입니다. 그대로 유지해 주세요."
+}
+
 private fun isFaceCentered(face: Face, frameWidth: Int, frameHeight: Int): Boolean {
     val box = face.boundingBox
     val centerX = box.centerX().toFloat() / frameWidth.toFloat()
@@ -3912,7 +3941,7 @@ private suspend fun extractResidentIdWithFallback(
     croppedJpeg: ByteArray,
     fullJpeg: ByteArray
 ): ResidentIdExtractResponseDto {
-    val croppedResult = runCatching { FaceRegistrationRepository.extractResidentId(croppedJpeg) }
+    val croppedResult = runCatching { extractResidentIdWithRetry(croppedJpeg) }
     val croppedExtract = croppedResult.getOrNull()
     if (croppedExtract != null) {
         val status = croppedExtract.extractionStatus?.trim()?.uppercase().orEmpty()
@@ -3925,7 +3954,19 @@ private suspend fun extractResidentIdWithFallback(
         return croppedExtract
     }
 
-    return FaceRegistrationRepository.extractResidentId(fullJpeg)
+    return extractResidentIdWithRetry(fullJpeg)
+}
+
+private suspend fun extractResidentIdWithRetry(imageJpeg: ByteArray): ResidentIdExtractResponseDto {
+    return try {
+        FaceRegistrationRepository.extractResidentId(imageJpeg)
+    } catch (exception: ApiRequestException) {
+        if (!isRecoverableResidentIdError(exception) || exception.statusCode == 400) {
+            throw exception
+        }
+        delay(450L)
+        FaceRegistrationRepository.extractResidentId(imageJpeg)
+    }
 }
 
 private fun cropDocumentJpeg(jpegBytes: ByteArray): ByteArray {
