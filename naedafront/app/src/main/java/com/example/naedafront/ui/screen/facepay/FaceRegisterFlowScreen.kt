@@ -22,6 +22,7 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -260,6 +261,7 @@ fun FaceRegisterFlowScreen(
     var completedSecondaryAuthEnabled by remember { mutableStateOf(false) }
     var selectedFacePayPaymentMethodId by remember { mutableStateOf<Long?>(null) }
     var pendingPayLimit by remember { mutableStateOf<PendingPayLimit?>(null) }
+    var latestResidentIdExtract by remember { mutableStateOf<ResidentIdExtractResponseDto?>(null) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -329,6 +331,43 @@ fun FaceRegisterFlowScreen(
             }
         }
     }
+
+    fun resolvePreviousStage(currentStage: RegisterStage): RegisterStage? = when (currentStage) {
+        is RegisterStage.PermissionRequest -> null
+        is RegisterStage.Intro -> null
+        is RegisterStage.Guide -> RegisterStage.Intro
+        is RegisterStage.FaceCapture -> {
+            if (currentStage.index > 0) {
+                RegisterStage.FaceCapture(currentStage.index - 1)
+            } else {
+                RegisterStage.Guide
+            }
+        }
+        is RegisterStage.IdGuide -> RegisterStage.FaceCapture(faceCaptureSequence.lastIndex)
+        is RegisterStage.IdScanning -> RegisterStage.FaceCapture(faceCaptureSequence.lastIndex)
+        is RegisterStage.IdConfirm -> RegisterStage.IdScanning
+        is RegisterStage.PaymentMethodSelect -> latestResidentIdExtract?.let(RegisterStage::IdConfirm)
+            ?: RegisterStage.IdScanning
+        is RegisterStage.PaymentLimitSetup -> RegisterStage.PaymentMethodSelect
+        is RegisterStage.PinChoice -> RegisterStage.PaymentLimitSetup
+        is RegisterStage.CurrentPin -> RegisterStage.PinChoice
+        is RegisterStage.Saving -> null
+        is RegisterStage.Success -> null
+    }
+
+    fun navigateBackWithinFlow() {
+        val previousStage = resolvePreviousStage(stage)
+        if (previousStage == null) {
+            onBack()
+        } else {
+            stage = previousStage
+        }
+    }
+
+    BackHandler(enabled = stage !is RegisterStage.Success && stage !is RegisterStage.Saving) {
+        navigateBackWithinFlow()
+    }
+
     Scaffold(
         containerColor = Background,
         contentWindowInsets = WindowInsets(0)
@@ -398,13 +437,19 @@ fun FaceRegisterFlowScreen(
                     )
 
                     is RegisterStage.IdScanning -> IdCardScanningStageContent(
-                        onExtracted = { extracted -> stage = RegisterStage.IdConfirm(extracted) },
+                        onExtracted = { extracted ->
+                            latestResidentIdExtract = extracted
+                            stage = RegisterStage.IdConfirm(extracted)
+                        },
                         onError = { globalError = it }
                     )
 
                     is RegisterStage.IdConfirm -> IdConfirmStageContent(
                         extracted = currentStage.extracted,
-                        onConfirmComplete = { stage = RegisterStage.PaymentMethodSelect },
+                        onConfirmComplete = { confirmedExtract ->
+                            latestResidentIdExtract = confirmedExtract
+                            stage = RegisterStage.PaymentMethodSelect
+                        },
                         onConfirmError = { globalError = it }
                     )
 
@@ -419,6 +464,7 @@ fun FaceRegisterFlowScreen(
 
                     is RegisterStage.PaymentLimitSetup -> PaymentLimitSetupStageContent(
                         userNo = userNo!!,
+                        initialPayLimit = pendingPayLimit,
                         onSaveComplete = {
                             pendingPayLimit = it
                             stage = RegisterStage.PinChoice
@@ -454,11 +500,11 @@ fun FaceRegisterFlowScreen(
 
             val useDarkOverlayAction = stage is RegisterStage.FaceCapture || stage is RegisterStage.IdScanning
 
-            if (stage !is RegisterStage.Success) {
+            if (stage !is RegisterStage.Success && stage !is RegisterStage.Saving) {
                 RegistrationOverlayActionButton(
                     icon = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "뒤로가기",
-                    onClick = onBack,
+                    onClick = ::navigateBackWithinFlow,
                     darkBackground = useDarkOverlayAction,
                     modifier = Modifier
                         .align(Alignment.TopStart)
@@ -2056,7 +2102,7 @@ private fun IdCaptureOverlay(
 @Composable
 private fun IdConfirmStageContent(
     extracted: ResidentIdExtractResponseDto,
-    onConfirmComplete: () -> Unit,
+    onConfirmComplete: (ResidentIdExtractResponseDto) -> Unit,
     onConfirmError: (String) -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -2274,7 +2320,13 @@ private fun IdConfirmStageContent(
                     isLoading = false
                     result.onSuccess { response ->
                         if (response.verified) {
-                            onConfirmComplete()
+                            onConfirmComplete(
+                                extracted.copy(
+                                    name = name.trim(),
+                                    residentFront6 = residentFront6,
+                                    residentBackFirst1 = residentBackFirst1
+                                )
+                            )
                         } else {
                             onConfirmError(buildIdConfirmError(response))
                         }
@@ -2679,6 +2731,7 @@ private fun PaymentMethodSelectCard(
 @Composable
 private fun PaymentLimitSetupStageContent(
     userNo: Long,
+    initialPayLimit: PendingPayLimit?,
     onSaveComplete: (PendingPayLimit) -> Unit,
     onError: (String) -> Unit
 ) {
@@ -2689,7 +2742,15 @@ private fun PaymentLimitSetupStageContent(
     var singleLimitInput by remember { mutableStateOf("") }
     var monthlyLimit by remember { mutableStateOf(0L) }
 
-    LaunchedEffect(userNo) {
+    LaunchedEffect(userNo, initialPayLimit) {
+        if (initialPayLimit != null) {
+            dailyLimitInput = initialPayLimit.dailyLimit.toString()
+            singleLimitInput = initialPayLimit.singleTransactionLimit.toString()
+            monthlyLimit = initialPayLimit.monthlyLimit
+            isLoading = false
+            return@LaunchedEffect
+        }
+
         isLoading = true
         runCatching {
             withContext(Dispatchers.IO) {

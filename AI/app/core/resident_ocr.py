@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from functools import lru_cache
@@ -11,6 +12,8 @@ from fastapi import UploadFile
 from app.core.config import get_settings
 from app.core.errors import AIServiceError
 from app.core.upload_validation import validate_image_bytes
+
+logger = logging.getLogger(__name__)
 
 SUPPORTED_DOCUMENT_TYPES = {"RESIDENT_ID", "DRIVER_LICENSE"}
 DOCUMENT_KEYWORDS = {
@@ -111,9 +114,14 @@ def _clean_name_candidate(value: str | None) -> str:
 
 
 def _document_stopwords(document_type: str | None) -> tuple[str, ...]:
+    keyword_fragments = tuple(
+        keyword
+        for keywords in DOCUMENT_KEYWORDS.values()
+        for keyword in keywords
+    )
     if document_type is None:
-        return COMMON_NAME_STOPWORDS
-    return COMMON_NAME_STOPWORDS + DOCUMENT_NAME_STOPWORDS.get(document_type, ())
+        return COMMON_NAME_STOPWORDS + keyword_fragments
+    return COMMON_NAME_STOPWORDS + keyword_fragments + DOCUMENT_NAME_STOPWORDS.get(document_type, ())
 
 
 def _contains_name_stopword(candidate: str, document_type: str | None) -> bool:
@@ -126,6 +134,13 @@ def _is_plausible_name_piece(value: str, document_type: str | None) -> bool:
 
 def _is_plausible_name(value: str, document_type: str | None) -> bool:
     return bool(re.fullmatch(r"[가-힣]{2,5}", value)) and not _contains_name_stopword(value, document_type)
+
+
+def _sanitize_name(value: str | None, document_type: str | None) -> str | None:
+    cleaned = _clean_name_candidate(value)
+    if not cleaned or not _is_plausible_name(cleaned, document_type):
+        return None
+    return cleaned
 
 
 def _decode_image(image_raw: bytes) -> np.ndarray:
@@ -186,6 +201,7 @@ def _get_paddle_ocr():
     try:
         from paddleocr import PaddleOCR  # type: ignore
     except ImportError as exc:
+        logger.exception("PaddleOCR import failed")
         raise AIServiceError(
             status_code=503,
             code="OCR_UNAVAILABLE",
@@ -199,6 +215,7 @@ def _get_paddle_ocr():
             show_log=False,
         )
     except Exception as exc:
+        logger.exception("PaddleOCR initialization failed")
         raise AIServiceError(
             status_code=503,
             code="OCR_UNAVAILABLE",
@@ -485,6 +502,9 @@ def _build_extraction_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
         filtered_results = results
 
     name, name_confidence = _vote_text_field(filtered_results, "name", "name_confidence")
+    name = _sanitize_name(name, document_type)
+    if name is None:
+        name_confidence = 0.0
     resident_number, resident_number_confidence = _vote_text_field(
         filtered_results,
         "resident_number_key",
@@ -550,6 +570,7 @@ def _extract_with_paddle_provider(image_raw: bytes) -> dict[str, Any]:
         except AIServiceError:
             raise
         except Exception as exc:
+            logger.exception("PaddleOCR inference failed")
             raise AIServiceError(status_code=503, code="OCR_UNAVAILABLE", message="PaddleOCR inference failed") from exc
 
         entries = _flatten_ocr_entries(result)
@@ -565,6 +586,7 @@ def _extract_with_paddle_provider(image_raw: bytes) -> dict[str, Any]:
         parsed_results.append(parsed)
 
     if not parsed_results:
+        logger.warning("ID card OCR parsed no text entries from any preprocessing variant")
         return _retake_result("신분증에서 텍스트를 읽지 못했습니다. 신분증을 더 크게 맞추고 빛 반사를 줄여주세요.")
 
     return _build_extraction_summary(parsed_results)
@@ -587,6 +609,7 @@ async def extract_resident_id_fields(upload_file: UploadFile) -> dict[str, Any]:
         if provider == "paddleocr":
             return _extract_with_paddle_provider(image_raw)
 
+        logger.error("ID card OCR provider is not configured: provider=%s", provider)
         raise AIServiceError(
             status_code=503,
             code="OCR_UNAVAILABLE",

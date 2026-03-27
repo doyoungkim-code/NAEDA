@@ -190,6 +190,50 @@ def test_resident_id_ocr_prefers_name_over_region_text(monkeypatch):
     assert data["warnings"] == []
 
 
+def test_resident_id_ocr_does_not_use_document_header_as_name(monkeypatch):
+    monkeypatch.setenv("RESIDENT_OCR_PROVIDER", "paddleocr")
+
+    fake_module = types.ModuleType("paddleocr")
+
+    class FakePaddleOCR:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        def ocr(self, image, cls=True):
+            return [[
+                [[[0, 0], [60, 0], [60, 10], [0, 10]], ("주민등록", 0.99)],
+                [[[0, 22], [90, 22], [90, 32], [0, 32]], ("900101-1******", 0.96)],
+            ]]
+
+    fake_module.PaddleOCR = FakePaddleOCR
+    monkeypatch.setitem(sys.modules, "paddleocr", fake_module)
+
+    from app.core.config import get_settings
+    from app.core import resident_ocr
+
+    get_settings.cache_clear()
+    resident_ocr._get_paddle_ocr.cache_clear()
+    try:
+        response = client.post(
+            "/internal/v1/ocr/id-card/extract",
+            headers=AUTH_HEADER,
+            files={"image": ("card.png", valid_png_bytes(), "image/png")},
+        )
+    finally:
+        get_settings.cache_clear()
+        resident_ocr._get_paddle_ocr.cache_clear()
+        sys.modules.pop("paddleocr", None)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["documentType"] == "RESIDENT_ID"
+    assert data["name"] is None
+    assert data["residentFront6"] == "900101"
+    assert data["residentBackFirst1"] == "1"
+    assert data["extractionStatus"] == "REVIEW_REQUIRED"
+    assert data["warnings"]
+
+
 def test_resident_id_ocr_ignores_driver_license_class_text_for_name(monkeypatch):
     monkeypatch.setenv("RESIDENT_OCR_PROVIDER", "paddleocr")
 
