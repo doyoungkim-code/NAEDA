@@ -57,6 +57,9 @@ import com.example.naedafront.ui.screen.mypage.MyPageScreen
 import com.example.naedafront.ui.screen.mypage.MyPageViewModel
 import com.example.naedafront.ui.screen.mypage.SecondaryAuthPinScreen
 import com.example.naedafront.ui.screen.mypage.PinChangeScreen
+import com.example.naedafront.ui.screen.passwordreset.PasswordResetEmailScreen
+import com.example.naedafront.ui.screen.passwordreset.PasswordResetVerifyScreen
+import com.example.naedafront.ui.screen.passwordreset.PasswordResetNewScreen
 import com.example.naedafront.ui.screen.setting.NotificationSettingsScreen
 import com.example.naedafront.ui.screen.setting.PrivacyPolicyScreen
 import com.example.naedafront.ui.screen.setting.SettingsScreen
@@ -108,6 +111,51 @@ fun NaedaNavGraph(
                 onLoginSuccess = {
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Welcome.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onForgotPasswordClick = {
+                    navController.navigateSingleTopTo(Screen.PasswordResetEmail.route)
+                }
+            )
+        }
+
+        // ── 비밀번호 찾기 플로우 ──
+        composable(Screen.PasswordResetEmail.route) {
+            PasswordResetEmailScreen(
+                onBackClick = { navController.popBackStack() },
+                onCodeReceived = { email, code ->
+                    navController.currentBackStackEntry?.savedStateHandle?.set("resetEmail", email)
+                    navController.currentBackStackEntry?.savedStateHandle?.set("resetCode", code)
+                    navController.navigateSingleTopTo(Screen.PasswordResetVerify.route)
+                }
+            )
+        }
+
+        composable(Screen.PasswordResetVerify.route) {
+            val email = navController.previousBackStackEntry?.savedStateHandle?.get<String>("resetEmail") ?: ""
+            val code = navController.previousBackStackEntry?.savedStateHandle?.get<String>("resetCode") ?: ""
+
+            PasswordResetVerifyScreen(
+                email = email,
+                initialCode = code,
+                onBackClick = { navController.popBackStack() },
+                onVerified = { token ->
+                    navController.currentBackStackEntry?.savedStateHandle?.set("resetToken", token)
+                    navController.navigateSingleTopTo(Screen.PasswordResetNew.route)
+                }
+            )
+        }
+
+        composable(Screen.PasswordResetNew.route) {
+            val token = navController.previousBackStackEntry?.savedStateHandle?.get<String>("resetToken") ?: ""
+
+            PasswordResetNewScreen(
+                token = token,
+                onBackClick = { navController.popBackStack() },
+                onResetComplete = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.PasswordResetEmail.route) { inclusive = true }
                         launchSingleTop = true
                     }
                 }

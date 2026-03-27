@@ -100,6 +100,10 @@ sealed class Screen(val route: String) {
     object Security : Screen("security")
     object CustomerCenter : Screen("customer_center")
 
+    object PasswordResetEmail : Screen("password_reset_email")
+    object PasswordResetVerify : Screen("password_reset_verify")
+    object PasswordResetNew : Screen("password_reset_new")
+
     object NoticeList : Screen("notice_list")
 
     object NoticeDetail : Screen("notice_detail/{type}/{id}") {
