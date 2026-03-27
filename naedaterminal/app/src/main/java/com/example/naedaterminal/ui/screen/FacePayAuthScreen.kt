@@ -89,6 +89,7 @@ import java.util.concurrent.Executors
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.sqrt
+import kotlin.random.Random
 
 private val Primary = Color(0xFF00635A)
 private val BgScan = Color(0xFFECF8F7)
@@ -101,6 +102,7 @@ private const val SERVER_REQUEST_INTERVAL_MS = 700L
 private const val CANDIDATE_STALE_MS = 1_500L
 private const val AMBIGUOUS_HOLD_MS = 2_000L
 private const val AMBIGUOUS_CONTINUITY_GAP_MS = 1_500L
+private const val LIVENESS_MATCHES_PER_STEP = 2
 private const val MIN_BRIGHTNESS = 40f
 private const val FRAME_EDGE_MARGIN_RATIO = 0.01f
 private const val MIN_GUIDE_FACE_WIDTH_RATIO = 0.38f
@@ -133,7 +135,15 @@ data class FaceSearchResponse(
     val requiredMethods: Set<String>,
     val blocked: Boolean,
     val rbaReason: String?,
-    val candidates: List<CandidateResult>
+    val candidates: List<CandidateResult>,
+    val livenessPassed: Boolean = false
+)
+
+private data class HeadPoseCheckResult(
+    val expectedDirection: String,
+    val detectedDirection: String?,
+    val matched: Boolean,
+    val confidence: Double
 )
 
 private data class GuideFrameState(
@@ -195,6 +205,10 @@ fun FacePayAuthScreen(
     var ambiguousStartedAt by remember { mutableStateOf<Long?>(null) }
     var ambiguousLastSeenAt by remember { mutableStateOf<Long?>(null) }
     var ambiguousBestUserId by remember { mutableStateOf<String?>(null) }
+    val livenessDirections = remember(requestId) { buildLivenessChallengeSequence(requestId) }
+    var livenessStepIndex by remember(requestId) { mutableStateOf(0) }
+    var livenessStepMatches by remember(requestId) { mutableStateOf(0) }
+    var livenessCompleted by remember(requestId) { mutableStateOf(false) }
 
     fun resetAmbiguousHold() {
         ambiguousStartedAt = null
@@ -275,80 +289,129 @@ fun FacePayAuthScreen(
             ) {
                 isSending = true
                 bestCandidate = null
-                statusText = "얼굴 확인 중..."
+                if (!livenessCompleted) {
+                    val expectedDirection = livenessDirections.getOrNull(livenessStepIndex)
+                    if (expectedDirection == null) {
+                        livenessCompleted = true
+                    } else {
+                        statusText = "${expectedDirection.toDirectionLabel()} 방향으로 얼굴을 돌려주세요."
+                        val livenessResult = withContext(Dispatchers.IO) {
+                            runCatching {
+                                postHeadPoseCheckBytes(
+                                    client = client,
+                                    apiBaseUrl = apiBaseUrl,
+                                    imageBytes = candidate.jpegBytes,
+                                    expectedDirection = expectedDirection
+                                )
+                            }
+                        }
 
-                val result = withContext(Dispatchers.IO) {
-                    runCatching {
-                        postFaceSearchBytes(
-                            client = client,
-                            apiBaseUrl = apiBaseUrl,
-                            imageBytes = candidate.jpegBytes,
-                            topK = topK,
-                            amount = amount
-                        )
+                        livenessResult.onSuccess { response ->
+                            if (response.matched) {
+                                val nextMatches = livenessStepMatches + 1
+                                if (nextMatches >= LIVENESS_MATCHES_PER_STEP) {
+                                    livenessStepMatches = 0
+                                    if (livenessStepIndex >= livenessDirections.lastIndex) {
+                                        livenessCompleted = true
+                                        statusText = "생체 확인 완료. 얼굴을 확인하는 중입니다."
+                                    } else {
+                                        livenessStepIndex += 1
+                                        statusText = "${livenessDirections[livenessStepIndex].toDirectionLabel()} 방향으로 얼굴을 돌려주세요."
+                                    }
+                                } else {
+                                    livenessStepMatches = nextMatches
+                                    statusText = "${expectedDirection.toDirectionLabel()} 방향을 조금만 더 유지해주세요."
+                                }
+                            } else {
+                                livenessStepMatches = 0
+                                statusText = "${expectedDirection.toDirectionLabel()} 방향으로 얼굴을 움직여주세요."
+                            }
+                        }
+
+                        livenessResult.onFailure { error ->
+                            livenessStepMatches = 0
+                            statusText = "생체 확인 중 오류가 발생했습니다. 다시 시도합니다."
+                            android.util.Log.e("FacePay", "liveness 실패: ${error.message}", error)
+                        }
                     }
                 }
 
-                result.onSuccess { response ->
-                    val isAmbiguous = response.status.equals("AMBIGUOUS", ignoreCase = true) ||
-                            response.nextAction == "REQUIRE_SECOND_FACTOR"
-                    val hasBestUser = !response.bestUserId.isNullOrBlank()
-                    val isMatched = response.matched && hasBestUser
-                    val responseAt = SystemClock.elapsedRealtime()
-                    when {
-                        response.blocked -> {
-                            resetAmbiguousHold()
-                            scanResolved = true
-                            onNotMatched(response.rbaReason ?: "결제가 차단되었습니다.")
-                            return@LaunchedEffect
+                if (livenessCompleted && !scanResolved) {
+                    statusText = "얼굴 확인 중..."
+
+                    val result = withContext(Dispatchers.IO) {
+                        runCatching {
+                            postFaceSearchBytes(
+                                client = client,
+                                apiBaseUrl = apiBaseUrl,
+                                imageBytes = candidate.jpegBytes,
+                                topK = topK,
+                                amount = amount
+                            )
                         }
+                    }
 
-                        isMatched -> {
-                            resetAmbiguousHold()
-                            scanResolved = true
-                            onResolved(response)
-                            return@LaunchedEffect
-                        }
-
-                        hasBestUser && isAmbiguous -> {
-                            val shouldContinueHold = ambiguousStartedAt != null &&
-                                    ambiguousLastSeenAt != null &&
-                                    ambiguousBestUserId == response.bestUserId &&
-                                    responseAt - ambiguousLastSeenAt!! <= AMBIGUOUS_CONTINUITY_GAP_MS
-
-                            if (!shouldContinueHold) {
-                                ambiguousStartedAt = responseAt
-                                ambiguousBestUserId = response.bestUserId
-                            }
-                            ambiguousLastSeenAt = responseAt
-
-                            val holdStartedAt = ambiguousStartedAt ?: responseAt
-                            val heldDuration = responseAt - holdStartedAt
-                            if (heldDuration >= AMBIGUOUS_HOLD_MS) {
+                    result.onSuccess { response ->
+                        val isAmbiguous = response.status.equals("AMBIGUOUS", ignoreCase = true) ||
+                                response.nextAction == "REQUIRE_SECOND_FACTOR"
+                        val hasBestUser = !response.bestUserId.isNullOrBlank()
+                        val isMatched = response.matched && hasBestUser
+                        val responseAt = SystemClock.elapsedRealtime()
+                        when {
+                            response.blocked -> {
                                 resetAmbiguousHold()
                                 scanResolved = true
-                                onResolved(response)
+                                onNotMatched(response.rbaReason ?: "결제가 차단되었습니다.")
                                 return@LaunchedEffect
                             }
 
-                            val remainingHoldMs = (AMBIGUOUS_HOLD_MS - heldDuration).coerceAtLeast(0L)
-                            val remainingHoldSeconds = kotlin.math.ceil(remainingHoldMs / 1_000.0)
-                                .toInt()
-                                .coerceAtLeast(1)
-                            statusText = "인식이 애매합니다. 얼굴을 ${remainingHoldSeconds}초 더 유지해주세요."
-                        }
+                            isMatched -> {
+                                resetAmbiguousHold()
+                                scanResolved = true
+                                onResolved(response.copy(livenessPassed = true))
+                                return@LaunchedEffect
+                            }
 
-                        else -> {
-                            resetAmbiguousHold()
-                            statusText = guideState.messageWithCountdown(remainingSeconds)
+                            hasBestUser && isAmbiguous -> {
+                                val shouldContinueHold = ambiguousStartedAt != null &&
+                                        ambiguousLastSeenAt != null &&
+                                        ambiguousBestUserId == response.bestUserId &&
+                                        responseAt - ambiguousLastSeenAt!! <= AMBIGUOUS_CONTINUITY_GAP_MS
+
+                                if (!shouldContinueHold) {
+                                    ambiguousStartedAt = responseAt
+                                    ambiguousBestUserId = response.bestUserId
+                                }
+                                ambiguousLastSeenAt = responseAt
+
+                                val holdStartedAt = ambiguousStartedAt ?: responseAt
+                                val heldDuration = responseAt - holdStartedAt
+                                if (heldDuration >= AMBIGUOUS_HOLD_MS) {
+                                    resetAmbiguousHold()
+                                    scanResolved = true
+                                    onResolved(response.copy(livenessPassed = true))
+                                    return@LaunchedEffect
+                                }
+
+                                val remainingHoldMs = (AMBIGUOUS_HOLD_MS - heldDuration).coerceAtLeast(0L)
+                                val remainingHoldSeconds = kotlin.math.ceil(remainingHoldMs / 1_000.0)
+                                    .toInt()
+                                    .coerceAtLeast(1)
+                                statusText = "인식이 애매합니다. 얼굴을 ${remainingHoldSeconds}초 더 유지해주세요."
+                            }
+
+                            else -> {
+                                resetAmbiguousHold()
+                                statusText = "생체 확인을 완료했지만 얼굴 매칭이 불안정합니다. 정면을 다시 맞춰주세요."
+                            }
                         }
                     }
-                }
 
-                result.onFailure { error ->
-                    resetAmbiguousHold()
-                    statusText = "네트워크 오류가 발생했습니다. 다시 시도합니다."
-                    android.util.Log.e("FacePay", "얼굴 검색 실패: ${error.message}", error)
+                    result.onFailure { error ->
+                        resetAmbiguousHold()
+                        statusText = "네트워크 오류가 발생했습니다. 다시 시도합니다."
+                        android.util.Log.e("FacePay", "얼굴 검색 실패: ${error.message}", error)
+                    }
                 }
 
                 isSending = false
@@ -356,6 +419,14 @@ fun FacePayAuthScreen(
             } else {
                 statusText = when {
                     !guideState.brightnessOk -> guideState.message
+                    guideState.aligned && !livenessCompleted -> {
+                        val expectedDirection = livenessDirections.getOrNull(livenessStepIndex)
+                        if (expectedDirection == null) {
+                            "생체 확인을 마무리하는 중입니다."
+                        } else {
+                            "${expectedDirection.toDirectionLabel()} 방향으로 얼굴을 돌려주세요."
+                        }
+                    }
                     guideState.aligned -> "좋아요. 얼굴을 그대로 유지해주세요."
                     else -> guideState.messageWithCountdown(remainingSeconds)
                 }
@@ -391,6 +462,19 @@ fun FacePayAuthScreen(
 private fun GuideFrameState.messageWithCountdown(remainingSeconds: Int): String {
     if (remainingSeconds <= 0) return message
     return "$message (${remainingSeconds}초 남음)"
+}
+
+private fun buildLivenessChallengeSequence(seed: Long): List<String> {
+    val directions = listOf("left", "right", "up", "down")
+    return directions.shuffled(Random(seed)).take(2)
+}
+
+private fun String.toDirectionLabel(): String = when (this.lowercase()) {
+    "left" -> "왼쪽"
+    "right" -> "오른쪽"
+    "up" -> "위쪽"
+    "down" -> "아래쪽"
+    else -> "정면"
 }
 
 @Composable
@@ -908,6 +992,40 @@ private fun postFaceSearchBytes(
             blocked = json.optBoolean("blocked", false),
             rbaReason = json.optString("rbaReason").takeIf { it.isNotBlank() },
             candidates = candidates
+        )
+    }
+}
+
+private fun postHeadPoseCheckBytes(
+    client: OkHttpClient,
+    apiBaseUrl: String,
+    imageBytes: ByteArray,
+    expectedDirection: String
+): HeadPoseCheckResult {
+    val body = MultipartBody.Builder()
+        .setType(MultipartBody.FORM)
+        .addFormDataPart("expectedDirection", expectedDirection)
+        .addFormDataPart(
+            "image",
+            "face_liveness.jpg",
+            imageBytes.toRequestBody("image/jpeg".toMediaType())
+        )
+        .build()
+
+    val req = Request.Builder()
+        .url("${apiBaseUrl.trimEnd('/')}/api/v1/face/liveness/headpose/check")
+        .post(body)
+        .build()
+
+    return client.newCall(req).execute().use { res ->
+        val raw = res.body?.string().orEmpty()
+        if (!res.isSuccessful) error("HTTP ${res.code}: $raw")
+        val json = JSONObject(raw)
+        HeadPoseCheckResult(
+            expectedDirection = json.optString("expectedDirection", expectedDirection),
+            detectedDirection = json.optString("detectedDirection").takeIf { it.isNotBlank() },
+            matched = json.optBoolean("matched", false),
+            confidence = json.optDouble("confidence", 0.0)
         )
     }
 }

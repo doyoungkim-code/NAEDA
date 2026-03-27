@@ -60,6 +60,7 @@ class MainActivity : ComponentActivity() {
                 var enteredPin by remember { mutableStateOf<String?>(null) }
                 var enteredPhoneDigits by remember { mutableStateOf<String?>(null) }
                 var currentFaceStatus by remember { mutableStateOf<String?>(null) }
+                var currentLivenessPassed by remember { mutableStateOf(false) }
                 var selectedAuthMethod by remember { mutableStateOf<String?>(null) }
                 var signatureConfirmed by remember { mutableStateOf(false) }
                 var paymentFailureReason by remember { mutableStateOf<String?>(null) }
@@ -145,6 +146,7 @@ class MainActivity : ComponentActivity() {
                             enteredPin = null
                             enteredPhoneDigits = null
                             currentFaceStatus = null
+                            currentLivenessPassed = false
                             selectedAuthMethod = null
                             signatureConfirmed = false
                             route = Route.FacePay
@@ -203,6 +205,7 @@ class MainActivity : ComponentActivity() {
                             )
 
                             currentFaceStatus = faceResult.status
+                            currentLivenessPassed = faceResult.livenessPassed
                             selectedAuthMethod = null
                             enteredPin = null
                             enteredPhoneDigits = null
@@ -288,6 +291,7 @@ class MainActivity : ComponentActivity() {
                         pin = enteredPin,
                         phoneMiddleDigits = enteredPhoneDigits,
                         faceStatus = currentFaceStatus,
+                        livenessPassed = currentLivenessPassed,
                         selectedAuthMethod = selectedAuthMethod,
                         signatureConfirmed = signatureConfirmed,
                         amount = currentAmount,

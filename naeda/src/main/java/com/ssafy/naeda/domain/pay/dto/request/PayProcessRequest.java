@@ -17,6 +17,7 @@ public class PayProcessRequest {
     private String pin;              // 2차인증 PIN (6자리, 선택)
     private String phoneMiddleDigits;
     private FaceMatchStatus faceStatus;
+    private Boolean livenessPassed;
     private AuthMethod selectedAuthMethod;
     private Boolean signatureConfirmed;
 }
