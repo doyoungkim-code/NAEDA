@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,8 +20,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -470,10 +473,10 @@ fun CardDetailScreen(
     }
 
     uiState.selectedTransaction?.let { transaction ->
-        CardTransactionDetailDialog(
+        CardTransactionDetailScreen(
             transaction = transaction,
             card = uiState.selectedCard,
-            onDismiss = onDismissDetail
+            onClose = onDismissDetail
         )
     }
 }
@@ -723,9 +726,7 @@ private fun CardTransactionRow(
     } else {
         "-${formatAmount(item.amount)}원"
     }
-    val amountColor = if (item.isCanceled) Color(0xFF1F8F5F) else OnBackground
-    val iconBackground = if (item.isCanceled) Color(0xFFDFF7E8) else Color(0xFFDCEBFF)
-    val iconTint = if (item.isCanceled) Color(0xFF1F8F5F) else Mint900
+    val transactionColor = if (item.isCanceled) Color(0xFF307CBF) else Color(0xFFF2522E)
     val subtitle = listOfNotNull(
         item.time.takeIf { it.isNotBlank() },
         item.category.takeIf { it.isNotBlank() }
@@ -739,23 +740,6 @@ private fun CardTransactionRow(
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(iconBackground),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = if (item.isCanceled) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(18.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.merchantName.ifBlank { "가맹점 정보 없음" },
@@ -785,7 +769,7 @@ private fun CardTransactionRow(
         Text(
             text = amountText,
             style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = amountColor
+            color = transactionColor
         )
     }
 
@@ -847,6 +831,266 @@ private fun DetailRow(
             text = value,
             style = NaedaTypography.bodyMedium,
             color = OnBackground
+        )
+    }
+}
+
+@Composable
+private fun CardTransactionDetailFullScreen(
+    transaction: CardTransactionItem,
+    card: CardHeaderUi?,
+    onDismiss: () -> Unit
+) {
+    val statusText = if (transaction.isCanceled) "결제 취소" else "결제 완료"
+    val accentColor = if (transaction.isCanceled) Color(0xFF1F8F5F) else Mint900
+    val paymentMethod = buildString {
+        append(card?.cardName?.ifBlank { "카드 결제" } ?: "카드 결제")
+        val maskedNo = card?.cardNo?.maskCardNumber().orEmpty()
+        if (maskedNo.isNotBlank() && maskedNo != "-") {
+            append(" ")
+            append(maskedNo)
+        }
+    }
+
+    CardDetailFullScreenLayout(
+        title = "결제 상세",
+        badgeText = "결",
+        headlineLabel = "결제 장소",
+        headlineValue = transaction.merchantName.ifBlank { "가맹점 정보 없음" },
+        amountText = "${formatAmount(transaction.amount)}원",
+        statusText = statusText,
+        accentColor = accentColor,
+        onDismiss = onDismiss
+    ) {
+        CardDetailField("결제 방식", paymentMethod)
+        CardDetailField(
+            "결제 시간",
+            transaction.transactedRaw.toDisplayDateTime().ifBlank { "-" }
+        )
+        CardDetailField("적립 포인트", "${formatAmount(transaction.estimatedPoints)}P")
+        CardDetailField("결제 번호", transaction.transactionId)
+        CardDetailField("결제 장소", transaction.merchantName.ifBlank { "가맹점 정보 없음" })
+    }
+}
+
+@Composable
+private fun CardDetailFullScreenLayout(
+    title: String,
+    badgeText: String,
+    headlineLabel: String,
+    headlineValue: String,
+    amountText: String,
+    statusText: String,
+    accentColor: Color,
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val scrollState = rememberScrollState()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF6F2F5))
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                        .clickable { onDismiss() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "닫기",
+                        tint = accentColor
+                    )
+                }
+
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = title,
+                        style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = accentColor
+                    )
+                }
+
+                Spacer(modifier = Modifier.size(42.dp))
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                MaterialSurface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(36.dp),
+                    color = Color.White,
+                    shadowElevation = 10.dp
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(92.dp)
+                                .clip(CircleShape)
+                                .background(accentColor.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = badgeText,
+                                style = NaedaTypography.displayMedium.copy(fontWeight = FontWeight.Bold),
+                                color = accentColor
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Text(
+                            text = headlineLabel,
+                            style = NaedaTypography.bodyMedium,
+                            color = OnSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = headlineValue,
+                            style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            color = OnBackground
+                        )
+
+                        Spacer(modifier = Modifier.height(28.dp))
+
+                        MaterialSurface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(28.dp),
+                            color = Color(0xFFF7F3F6),
+                            shadowElevation = 2.dp
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "TOTAL TRANSACTION",
+                                    style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = OnSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = amountText,
+                                    style = NaedaTypography.displayMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = accentColor
+                                )
+                                Spacer(modifier = Modifier.height(14.dp))
+                                CardDetailStatusChip(
+                                    text = statusText,
+                                    accentColor = accentColor
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(28.dp))
+
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(20.dp),
+                            content = content
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                CardDetailPrimaryButton(
+                    text = "닫기",
+                    onClick = onDismiss
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun CardDetailStatusChip(
+    text: String,
+    accentColor: Color
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(accentColor.copy(alpha = 0.12f))
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(accentColor)
+        )
+        Text(
+            text = text,
+            style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
+            color = accentColor
+        )
+    }
+}
+
+@Composable
+private fun CardDetailField(
+    label: String,
+    value: String
+) {
+    Column {
+        Text(
+            text = label,
+            style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
+            color = OnSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = value,
+            style = NaedaTypography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = OnBackground
+        )
+    }
+}
+
+@Composable
+private fun CardDetailPrimaryButton(
+    text: String,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(28.dp))
+            .background(Mint900)
+            .clickable { onClick() }
+            .padding(vertical = 18.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            style = NaedaTypography.labelLarge.copy(fontWeight = FontWeight.Bold),
+            color = Color.White
         )
     }
 }
