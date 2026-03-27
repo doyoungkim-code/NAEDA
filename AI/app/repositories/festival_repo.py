@@ -15,7 +15,7 @@ async def search_festivals(
     if limit is None:
         limit = settings.chat_max_festival_results
 
-    conditions = ["start_date <= CURRENT_DATE AND end_date >= CURRENT_DATE"]
+    conditions = ["end_date >= CURRENT_DATE"]
     params: dict = {"limit": limit}
 
     if keyword:
