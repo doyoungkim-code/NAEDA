@@ -161,6 +161,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 
@@ -185,6 +186,12 @@ private val faceCaptureSequence = listOf(
 private const val ID_CARD_HOLD_DURATION_MS = 2000L
 private const val ID_CARD_REQUEST_INTERVAL_MS = 650L
 private const val ID_CARD_ALLOWED_MISSES = 1
+private const val ID_CARD_REQUIRED_STABLE_MATCHES = 2
+private const val ID_CARD_OVERLAY_WIDTH_RATIO = 0.88f
+private const val ID_CARD_OVERLAY_ASPECT_RATIO = 1.586f
+private const val ID_CARD_CROP_JPEG_QUALITY = 94
+private const val OCR_STATUS_REVIEW_REQUIRED = "REVIEW_REQUIRED"
+private const val OCR_STATUS_RETAKE_REQUIRED = "RETAKE_REQUIRED"
 private val REGISTER_OVERLAY_CONTENT_TOP_PADDING = 64.dp
 
 private sealed class RegisterStage {
@@ -217,6 +224,14 @@ private data class PendingPayLimit(
     val dailyLimit: Long,
     val monthlyLimit: Long,
     val singleTransactionLimit: Long
+)
+
+private data class IdCaptureAssessment(
+    val canProceed: Boolean,
+    val requiresReview: Boolean,
+    val statusMessage: String,
+    val key: String?,
+    val warningMessage: String? = null
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -376,7 +391,7 @@ fun FaceRegisterFlowScreen(
                         tips = listOf(
                             "주민등록증 또는 운전면허증을 준비해 주세요.",
                             "신분증이 프레임 안에서 또렷하게 보이도록 맞춰주세요.",
-                            "인식 상태를 3초간 유지하면 자동 촬영됩니다."
+                            "같은 인식 결과가 2초 동안 유지되면 자동으로 다음 단계로 넘어갑니다."
                         ),
                         primaryButtonText = "신분증 촬영 시작",
                         onPrimaryClick = { stage = RegisterStage.IdScanning }
@@ -1750,12 +1765,16 @@ private fun IdCardScanningStageContent(
     var holdStartedAt by remember { mutableStateOf(0L) }
     var consecutiveRecoverableMisses by remember { mutableStateOf(0) }
     var latestExtract by remember { mutableStateOf<ResidentIdExtractResponseDto?>(null) }
+    var stableExtractKey by remember { mutableStateOf<String?>(null) }
+    var stableExtractMatches by remember { mutableStateOf(0) }
 
     fun resetRecognition(message: String = "신분증을 가이드 안에 맞춰주세요.") {
         holdStartedAt = 0L
         holdProgress = 0f
         consecutiveRecoverableMisses = 0
         latestExtract = null
+        stableExtractKey = null
+        stableExtractMatches = 0
         statusMessage = message
     }
 
@@ -1769,8 +1788,13 @@ private fun IdCardScanningStageContent(
             val progress = ((System.currentTimeMillis() - holdStartedAt).toFloat() / ID_CARD_HOLD_DURATION_MS)
                 .coerceIn(0f, 1f)
             holdProgress = progress
+            val assessment = latestExtract?.let(::assessResidentIdExtract)
             statusMessage = if (progress < 1f) {
-                "신분증 정보를 읽는 중입니다. 흔들리지 않게 유지해 주세요."
+                if (assessment?.requiresReview == true) {
+                    "일부 항목을 다시 확인할 수 있도록 결과를 고정하는 중입니다."
+                } else {
+                    "신분증 정보를 읽는 중입니다. 흔들리지 않게 유지해 주세요."
+                }
             } else {
                 "신분증 인식이 완료되었습니다."
             }
@@ -1835,7 +1859,7 @@ private fun IdCardScanningStageContent(
                 }
                 lastRequestAt.set(now)
 
-                val jpegBytes = runCatching { imageProxyToJpegBytes(imageProxy) }
+                val jpegBytes = runCatching { prepareResidentIdJpeg(imageProxy) }
                     .onFailure { throwable ->
                         onError("신분증 프레임 변환 실패: ${throwable.message}")
                     }
@@ -1861,15 +1885,12 @@ private fun IdCardScanningStageContent(
                             return@onSuccess
                         }
 
-                        val isValid = extracted.documentMatched &&
-                                !extracted.name.isNullOrBlank() &&
-                                extracted.residentFront6?.length == 6 &&
-                                extracted.residentBackFirst1?.length == 1
+                        val assessment = assessResidentIdExtract(extracted)
 
-                        if (!isValid) {
+                        if (!assessment.canProceed) {
                             if (holdStartedAt != 0L && consecutiveRecoverableMisses < ID_CARD_ALLOWED_MISSES) {
                                 consecutiveRecoverableMisses += 1
-                                statusMessage = "신분증 정보를 다시 맞추는 중입니다. 그대로 유지해 주세요."
+                                statusMessage = assessment.statusMessage
                                 onError(null)
                             } else {
                                 resetRecognition()
@@ -1878,12 +1899,37 @@ private fun IdCardScanningStageContent(
                             return@onSuccess
                         }
 
+                        val extractKey = assessment.key
+                        if (extractKey == null) {
+                            resetRecognition()
+                            onError(null)
+                            return@onSuccess
+                        }
+
+                        if (stableExtractKey != extractKey) {
+                            stableExtractKey = extractKey
+                            stableExtractMatches = 1
+                            holdStartedAt = 0L
+                            holdProgress = 0f
+                            latestExtract = extracted
+                            consecutiveRecoverableMisses = 0
+                            statusMessage = "같은 인식 결과를 한 번 더 확인하는 중입니다."
+                            onError(null)
+                            return@onSuccess
+                        }
+
+                        stableExtractMatches += 1
                         latestExtract = extracted
                         consecutiveRecoverableMisses = 0
+                        if (stableExtractMatches < ID_CARD_REQUIRED_STABLE_MATCHES) {
+                            statusMessage = "같은 인식 결과를 한 번 더 확인하는 중입니다."
+                            onError(null)
+                            return@onSuccess
+                        }
                         if (holdStartedAt == 0L) {
                             holdStartedAt = System.currentTimeMillis()
                         }
-                        statusMessage = "신분증 정보를 읽는 중입니다. 흔들리지 않게 유지해 주세요."
+                        statusMessage = assessment.statusMessage
                         onError(null)
                     }.onFailure { throwable ->
                         if (throwable is ApiRequestException && throwable.statusCode == 400) {
@@ -2005,6 +2051,15 @@ private fun IdConfirmStageContent(
     var residentFront6 by remember(extracted) { mutableStateOf(extracted.residentFront6.orEmpty()) }
     var residentBackFirst1 by remember(extracted) { mutableStateOf(extracted.residentBackFirst1.orEmpty()) }
     var isLoading by remember(extracted) { mutableStateOf(false) }
+    val reviewMessages = remember(extracted) {
+        extracted.warnings.filter { it.isNotBlank() }.ifEmpty {
+            if (extracted.extractionStatus.equals(OCR_STATUS_REVIEW_REQUIRED, ignoreCase = true)) {
+                listOf("일부 항목의 인식 신뢰도가 낮습니다. 자동 입력값을 다시 확인해 주세요.")
+            } else {
+                emptyList()
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -2033,6 +2088,46 @@ private fun IdConfirmStageContent(
             color = OnSurfaceVariant,
             lineHeight = 22.sp
         )
+
+        if (reviewMessages.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(18.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Mint50)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = Mint500,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = "자동 인식 결과를 다시 확인해 주세요",
+                        fontFamily = NaedaFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        color = OnBackground
+                    )
+                }
+                reviewMessages.forEach { warning ->
+                    Text(
+                        text = "• $warning",
+                        fontFamily = NaedaFontFamily,
+                        fontSize = 13.sp,
+                        color = OnSurfaceVariant,
+                        lineHeight = 19.sp
+                    )
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(28.dp))
 
@@ -3545,6 +3640,59 @@ private fun buildIdConfirmError(response: ResidentIdVerifyResponseDto): String {
     }
 }
 
+private fun assessResidentIdExtract(extracted: ResidentIdExtractResponseDto): IdCaptureAssessment {
+    val hasResidentNumber = extracted.residentFront6?.length == 6 && extracted.residentBackFirst1?.length == 1
+    val hasName = !extracted.name.isNullOrBlank()
+    val status = extracted.extractionStatus?.trim()?.uppercase().orEmpty()
+    val firstWarning = extracted.warnings.firstOrNull { it.isNotBlank() }
+
+    if (!extracted.documentMatched) {
+        return IdCaptureAssessment(
+            canProceed = false,
+            requiresReview = false,
+            statusMessage = "주민등록증 또는 운전면허증이 가이드 안에 또렷하게 보이도록 맞춰주세요.",
+            key = null,
+            warningMessage = firstWarning
+        )
+    }
+
+    if (status == OCR_STATUS_RETAKE_REQUIRED || !hasResidentNumber) {
+        return IdCaptureAssessment(
+            canProceed = false,
+            requiresReview = false,
+            statusMessage = firstWarning ?: "주민등록번호가 잘 보이도록 신분증을 더 가까이 맞춰주세요.",
+            key = null,
+            warningMessage = firstWarning
+        )
+    }
+
+    val requiresReview = status == OCR_STATUS_REVIEW_REQUIRED ||
+            !hasName ||
+            extracted.warnings.isNotEmpty() ||
+            (extracted.nameConfidence in 0.0..0.779)
+
+    return IdCaptureAssessment(
+        canProceed = true,
+        requiresReview = requiresReview,
+        statusMessage = if (requiresReview) {
+            "일부 항목을 다시 확인할 수 있도록 결과를 고정하는 중입니다."
+        } else {
+            "신분증 정보를 읽는 중입니다. 흔들리지 않게 유지해 주세요."
+        },
+        key = buildResidentIdExtractKey(extracted),
+        warningMessage = firstWarning
+    )
+}
+
+private fun buildResidentIdExtractKey(extracted: ResidentIdExtractResponseDto): String? {
+    val documentType = extracted.documentType?.trim()?.uppercase() ?: return null
+    val residentFront6 = extracted.residentFront6?.trim() ?: return null
+    val residentBackFirst1 = extracted.residentBackFirst1?.trim() ?: return null
+    val normalizedName = extracted.name?.trim().orEmpty()
+    val status = extracted.extractionStatus?.trim()?.uppercase().orEmpty()
+    return listOf(documentType, residentFront6, residentBackFirst1, normalizedName, status).joinToString("|")
+}
+
 private fun isFaceCentered(face: Face, frameWidth: Int, frameHeight: Int): Boolean {
     val box = face.boundingBox
     val centerX = box.centerX().toFloat() / frameWidth.toFloat()
@@ -3674,6 +3822,46 @@ private fun imageProxyToJpegBytes(imageProxy: ImageProxy): ByteArray {
     yuvImage.compressToJpeg(Rect(0, 0, imageProxy.width, imageProxy.height), 92, output)
     val jpegBytes = output.toByteArray()
     return rotateJpeg(jpegBytes, imageProxy.imageInfo.rotationDegrees)
+}
+
+private fun prepareResidentIdJpeg(imageProxy: ImageProxy): ByteArray {
+    val fullJpeg = imageProxyToJpegBytes(imageProxy)
+    return cropDocumentJpeg(fullJpeg)
+}
+
+private fun cropDocumentJpeg(jpegBytes: ByteArray): ByteArray {
+    val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size) ?: return jpegBytes
+    var cropWidth = (bitmap.width * ID_CARD_OVERLAY_WIDTH_RATIO).roundToInt().coerceIn(1, bitmap.width)
+    var cropHeight = (cropWidth / ID_CARD_OVERLAY_ASPECT_RATIO).roundToInt().coerceAtLeast(1)
+    val maxCropHeight = min(bitmap.height, (bitmap.height * 0.72f).roundToInt().coerceAtLeast(1))
+
+    if (cropHeight > maxCropHeight) {
+        cropHeight = maxCropHeight
+        cropWidth = min(bitmap.width, (cropHeight * ID_CARD_OVERLAY_ASPECT_RATIO).roundToInt().coerceAtLeast(1))
+    }
+
+    val left = ((bitmap.width - cropWidth) / 2).coerceAtLeast(0)
+    val top = ((bitmap.height - cropHeight) / 2).coerceAtLeast(0)
+    val right = (left + cropWidth).coerceAtMost(bitmap.width)
+    val bottom = (top + cropHeight).coerceAtMost(bitmap.height)
+
+    if (right <= left || bottom <= top) {
+        bitmap.recycle()
+        return jpegBytes
+    }
+
+    val croppedBitmap = Bitmap.createBitmap(bitmap, left, top, right - left, bottom - top)
+    bitmap.recycle()
+
+    val resizedBitmap = resizeBitmapIfNeeded(croppedBitmap, 1600)
+    if (resizedBitmap !== croppedBitmap) {
+        croppedBitmap.recycle()
+    }
+
+    val output = ByteArrayOutputStream()
+    resizedBitmap.compress(Bitmap.CompressFormat.JPEG, ID_CARD_CROP_JPEG_QUALITY, output)
+    resizedBitmap.recycle()
+    return output.toByteArray()
 }
 
 private fun createFaceFramePayload(
