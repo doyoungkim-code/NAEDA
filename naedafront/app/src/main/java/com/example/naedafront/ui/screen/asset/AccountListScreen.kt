@@ -292,23 +292,6 @@ private fun AccountListHeader(count: Int, onRegisterNew: () -> Unit) {
                 color = MaterialTheme.colorScheme.onBackground
             )
         }
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable { onRegisterNew() }
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = "계좌 추가",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(2.dp))
-            Text(
-                text = "추가하기",
-                style = NaedaTypography.labelMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
     }
 }
 

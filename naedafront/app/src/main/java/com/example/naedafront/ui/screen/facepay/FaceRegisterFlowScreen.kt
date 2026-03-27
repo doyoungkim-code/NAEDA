@@ -468,20 +468,33 @@ private fun RegistrationOverlayActionButton(
     darkBackground: Boolean,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier.size(44.dp),
-        shape = CircleShape,
-        color = if (darkBackground) Color.Black.copy(alpha = 0.34f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
-        shadowElevation = if (darkBackground) 0.dp else 6.dp
-    ) {
+    if (darkBackground) {
+        Surface(
+            modifier = modifier.size(44.dp),
+            shape = CircleShape,
+            color = Color.Black.copy(alpha = 0.34f),
+            shadowElevation = 0.dp
+        ) {
+            IconButton(
+                onClick = onClick,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = contentDescription,
+                    tint = Color.White
+                )
+            }
+        }
+    } else {
         IconButton(
             onClick = onClick,
-            modifier = Modifier.fillMaxSize()
+            modifier = modifier.size(44.dp)
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
-                tint = if (darkBackground) Color.White else MaterialTheme.colorScheme.onBackground
+                tint = MaterialTheme.colorScheme.onBackground
             )
         }
     }
@@ -577,7 +590,7 @@ private fun PermissionRequestContentReal(
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
         ) {
             Text(
                 text = if (isPermanentlyDenied) "설정으로 이동" else "권한 허용하기",
@@ -686,7 +699,7 @@ private fun IntroStageContent(onStartClick: () -> Unit) {
                 Box(
                     modifier = Modifier
                         .size(26.dp)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape),
+                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -712,7 +725,7 @@ private fun IntroStageContent(onStartClick: () -> Unit) {
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
         ) {
             Text(
                 text = "페이스페이 시작하기",
@@ -781,6 +794,7 @@ private fun FaceGuideStageContent(onStartClick: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // 점선 원 + 2겹 원 + 얼굴 아이콘
+                    val dashedCircleColor = Color(0xFF009688)
                     Box(
                         modifier = Modifier
                             .size(160.dp)
@@ -788,7 +802,7 @@ private fun FaceGuideStageContent(onStartClick: () -> Unit) {
                                 val radius = size.minDimension / 2f
                                 val dashEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 9f), 0f)
                                 drawCircle(
-                                    color = Color(0xFF009688),
+                                    color = dashedCircleColor,
                                     radius = radius - 2.dp.toPx(),
                                     style = Stroke(width = 2.dp.toPx(), pathEffect = dashEffect)
                                 )
@@ -833,7 +847,7 @@ private fun FaceGuideStageContent(onStartClick: () -> Unit) {
                             Icon(
                                 imageVector = Icons.Default.PhotoCamera,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = Color(0xFF5B9E94),
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
@@ -886,11 +900,11 @@ private fun FaceGuideStageContent(onStartClick: () -> Unit) {
                         lineHeight = 22.sp
                     )
                 }
-                // 체크 뱃지 (MaterialTheme.colorScheme.primary 배경)
+                // 체크 뱃지
                 Box(
                     modifier = Modifier
                         .size(28.dp)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape),
+                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -913,7 +927,7 @@ private fun FaceGuideStageContent(onStartClick: () -> Unit) {
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
         ) {
             Text(
                 text = "등록 시작하기",
@@ -978,7 +992,7 @@ private fun RegistrationMessageScreen(
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
         ) {
             Text(
                 text = primaryButtonText,
@@ -1116,7 +1130,7 @@ private fun RegistrationChecklistScreen(
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
         ) {
             Text(
                 text = primaryButtonText,
@@ -2173,7 +2187,7 @@ private fun IdConfirmStageContent(
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
@@ -2416,7 +2430,7 @@ private fun PaymentMethodSelectStageContent(
                         onSelectionComplete(paymentMethodId)
                     },
                     enabled = !isSubmitting,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
                 ) {
                     Text(
                         text = "선택",
@@ -2703,7 +2717,7 @@ private fun PaymentLimitSetupStageContent(
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
             ) {
                 Text(
                     text = if (isSaving) "한도 저장 중..." else "한도 저장하고 다음",
@@ -2941,7 +2955,7 @@ private fun PinChoiceStageContent(
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
         ) {
             Text(
                 if (isSaving) "설정 저장 중..." else "2차 인증 사용하기",
@@ -3316,7 +3330,7 @@ private fun SuccessStageContent(
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
             ) {
                 Text(
                     "홈으로 이동",

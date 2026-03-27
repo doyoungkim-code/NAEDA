@@ -335,11 +335,15 @@ private fun PointStoreHeader(
     errorMessage: String?,
     onHistoryClick: () -> Unit
 ) {
+    val headerColor = MaterialTheme.colorScheme.primaryContainer
+    val waveColor1 = Color(0xFF1F7D72)
+    val waveColor2 = Color(0xFF0F645B)
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(236.dp)
-            .background(MaterialTheme.colorScheme.primary)
+            .background(headerColor)
     ) {
         Canvas(
             modifier = Modifier
@@ -370,10 +374,7 @@ private fun PointStoreHeader(
             drawPath(
                 path = path,
                 brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF1F7D72),
-                        Color(0xFF0F645B)
-                    )
+                    colors = listOf(waveColor1, waveColor2)
                 )
             )
         }
@@ -523,8 +524,8 @@ private fun CategoryChip(
     verticalPadding: Dp = 12.dp,
     onClick: () -> Unit
 ) {
-    val bgColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
-    val textColor = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+    val bgColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+    val textColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
 
     Box(
         modifier = Modifier
@@ -763,8 +764,8 @@ private fun StoreItemDetailDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     ),
                     enabled = item.stockQuantity > 0
                 ) {

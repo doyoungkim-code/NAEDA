@@ -80,8 +80,8 @@ fun NaedaChatFab(onClick: () -> Unit) {
             .background(
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        MaterialTheme.colorScheme.primary,
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                        MaterialTheme.colorScheme.primaryContainer,
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
                     ),
                     start = Offset(0f, 0f),
                     end = Offset(64f, 62f)

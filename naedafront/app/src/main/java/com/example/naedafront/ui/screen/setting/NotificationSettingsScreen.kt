@@ -1,6 +1,7 @@
 package com.example.naedafront.ui.screen.setting
 
 import androidx.compose.foundation.background
+import com.example.naedafront.ui.theme.Mint900
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -298,7 +299,7 @@ private fun NotificationToggleRow(
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = Color(0xFF0FA37F),
+                checkedTrackColor = Mint900,
                 uncheckedThumbColor = Color.White,
                 uncheckedTrackColor = MaterialTheme.colorScheme.outline
             )

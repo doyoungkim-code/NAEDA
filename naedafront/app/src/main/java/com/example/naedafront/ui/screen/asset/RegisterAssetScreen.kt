@@ -227,7 +227,7 @@ private fun CardRegisterForm(onRegisterComplete: () -> Unit) {
             Spacer(modifier = Modifier.height(12.dp))
             Button(
                 onClick = { loadTick++ },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
             ) {
                 Text("다시 시도")
             }
@@ -348,7 +348,7 @@ private fun CardRegisterForm(onRegisterComplete: () -> Unit) {
                 .height(54.dp),
             shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
                 disabledContainerColor = MaterialTheme.colorScheme.outline,
                 contentColor = Color.White,
                 disabledContentColor = Color.White

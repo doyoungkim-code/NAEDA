@@ -118,7 +118,7 @@ fun OrderCompleteScreen(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = Color.White
                 )
             ) {

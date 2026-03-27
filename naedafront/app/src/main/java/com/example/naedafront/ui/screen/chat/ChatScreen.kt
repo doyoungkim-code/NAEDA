@@ -185,14 +185,14 @@ private fun WelcomeMessage(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable { onSuggestionClick(suggestion) }
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     Text(
                         text = suggestion,
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -234,7 +234,7 @@ private fun ChatBubble(message: ChatMessage) {
                         bottomEnd = if (isUser) 4.dp else 16.dp
                     )
                 )
-                .background(if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer)
+                .background(if (isUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
             if (message.isLoading) {
@@ -331,12 +331,12 @@ private fun ChatInputBar(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f))
+                .background(if (isEnabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f))
         ) {
             Icon(
                 Icons.AutoMirrored.Filled.Send,
                 contentDescription = "보내기",
-                tint = if (isEnabled) Color.White else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f),
+                tint = if (isEnabled) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f),
                 modifier = Modifier.size(20.dp)
             )
         }

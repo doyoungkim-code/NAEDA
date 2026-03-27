@@ -127,7 +127,7 @@ fun SecondaryAuthPinScreen(
                         errorMessage != null -> errorMessage.orEmpty()
                         else -> "현재 사용 중인 PIN 번호를 입력하세요"
                     },
-                    color = if (errorMessage != null) Color(0xFFE53935) else Color(0xFF7B8494),
+                    color = if (errorMessage != null) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 13.sp,
                     fontFamily = NaedaFontFamily,
                     textAlign = TextAlign.Center

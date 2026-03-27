@@ -178,7 +178,7 @@ fun WelcomeScreen(
                         .height(56.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
                     ),
                     elevation = ButtonDefaults.buttonElevation(0.dp)
                 ) {

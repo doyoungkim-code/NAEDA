@@ -347,7 +347,7 @@ private fun NaedaHomeTopBar(
                     fontSize = 32.sp,
                     letterSpacing = 1.sp
                 ),
-                color = MaterialTheme.colorScheme.primary
+                color = Mint900
             )
         },
         actions = {
@@ -909,7 +909,7 @@ private fun LinkAccountCard(onLinkAccountClick: () -> Unit) {
                     .fillMaxWidth()
                     .height(44.dp),
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
             ) {
                 Icon(
                     Icons.Default.Add,
@@ -966,7 +966,7 @@ private fun FacePayBannerCard(onFacePaySettingClick: () -> Unit) {
                         .height(40.dp),
                     shape = RoundedCornerShape(8.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
                 ) {
                     Text(
                         "페이스 페이 설정",

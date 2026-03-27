@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Edit
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Switch
+import com.example.naedafront.ui.theme.Mint900
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -316,50 +318,19 @@ private fun ProfileHeader(
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box {
-                Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFF6CFC3)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(width = 28.dp, height = 40.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .border(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outline,
-                                shape = RoundedCornerShape(8.dp)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "카드",
-                            fontSize = 7.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .size(22.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF0F8B72))
-                        .border(2.dp, Color.White, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Edit,
-                        contentDescription = "프로필 편집",
-                        tint = Color.White,
-                        modifier = Modifier.size(11.dp)
-                    )
-                }
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "프로필",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp)
+                )
             }
 
             Spacer(modifier = Modifier.width(16.dp))
@@ -382,10 +353,8 @@ private fun ProfileHeader(
 
         Row(
             modifier = Modifier
-                .clip(RoundedCornerShape(999.dp))
-                .background(Color(0xFFFFF1F1))
                 .clickable(enabled = !isLogoutLoading, onClick = onLogoutClick)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(end = 8.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -490,10 +459,10 @@ private fun MyPageMenuRow(
                     enabled = trailing.enabled,
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
-                        checkedTrackColor = Color(0xFF16A36A),
+                        checkedTrackColor = Mint900,
                         uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = Color(0xFFD5D9E0),
-                        uncheckedBorderColor = Color(0xFFD5D9E0)
+                        uncheckedTrackColor = MaterialTheme.colorScheme.outline,
+                        uncheckedBorderColor = MaterialTheme.colorScheme.outline
                     )
                 )
             }

@@ -60,6 +60,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -105,6 +106,7 @@ import com.example.naedafront.data.remote.StoreMapRepository
 import com.example.naedafront.ui.common.NaedaButton
 import com.example.naedafront.ui.common.NaedaButtonType
 import com.example.naedafront.ui.theme.Mint500
+import com.example.naedafront.ui.theme.Mint900
 import com.example.naedafront.ui.theme.Navy900
 import com.example.naedafront.ui.theme.OnBackground
 import com.example.naedafront.ui.theme.OnSurfaceVariant
@@ -665,8 +667,8 @@ fun MapSelectScreen(
             )
         }
 
-        // 식당 탭 캐릭터
-        if (selectedTabIndex == 0) {
+        // 식당 탭 캐릭터 (상세보기 열려있으면 숨김)
+        if (selectedTabIndex == 0 && selectedStoreDetail == null && selectedStoreCluster.isEmpty()) {
             Image(
                 painter = painterResource(id = R.drawable.map_restaurant),
                 contentDescription = null,
@@ -1069,7 +1071,7 @@ private fun StoreMapFilterButton(
         onClick = onClick,
         modifier = modifier,
         shape = RoundedCornerShape(24.dp),
-        color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.background.copy(alpha = 0.96f),
+        color = if (isActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
         shadowElevation = 12.dp
     ) {
         Row(
@@ -1156,12 +1158,12 @@ private fun StoreMapFilterDialog(
                             Surface(
                                 onClick = { onApply(pendingState) },
                                 shape = RoundedCornerShape(16.dp),
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.primaryContainer
                             ) {
                                 Text(
                                     text = "확인",
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -1177,12 +1179,12 @@ private fun StoreMapFilterDialog(
                             StoreMapFilterSummaryChip(
                                 text = "카테고리 · $selectedCategoryLabel",
                                 background = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.primary
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                             StoreMapFilterSummaryChip(
                                 text = facePayFilterLabel,
                                 background = if (facePayOnly) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                                contentColor = if (facePayOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                contentColor = if (facePayOnly) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                             )
                             if (pendingState != StoreMapFilterState()) {
                                 StoreMapFilterActionChip(
@@ -1321,7 +1323,13 @@ private fun StoreMapFilterDialog(
 
                                     Switch(
                                         checked = facePayOnly,
-                                        onCheckedChange = { facePayOnly = it }
+                                        onCheckedChange = { facePayOnly = it },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = Color.White,
+                                            checkedTrackColor = Mint900,
+                                            uncheckedThumbColor = Color.White,
+                                            uncheckedTrackColor = MaterialTheme.colorScheme.outline
+                                        )
                                     )
                                 }
                             }
@@ -1387,7 +1395,7 @@ private fun StoreMapFilterDropdownItem(
         text = {
             Text(
                 text = label,
-                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                 fontSize = 14.sp,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
             )
@@ -1993,7 +2001,7 @@ private fun PopularRestaurantMapTab(
         Box(
             modifier = modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(Color(0xFFFCFFFF))
                 .clickable(
                 indication = null,
                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }

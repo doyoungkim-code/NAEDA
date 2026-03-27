@@ -20,8 +20,8 @@ private val NaedaLightColorScheme = lightColorScheme(
     // Primary — 앱의 메인 색상 (버튼, FAB, 강조)
     primary = Mint900,               // #00635A 딥 그린
     onPrimary = OnPrimary,           // 흰색 텍스트
-    primaryContainer = Mint100,      // #44E3D3 연한 민트 (선택된 상태 배경)
-    onPrimaryContainer = Mint900,    // #00635A 딥 그린
+    primaryContainer = Mint900,       // #00635A 딥 그린 (버튼 fill)
+    onPrimaryContainer = OnPrimary,  // 흰색 (버튼 위 텍스트)
 
     // Secondary — 보조 색상 (칩, 필터, 토글)
     secondary = Blue600,             // #307CBF 미디엄 블루
@@ -54,16 +54,16 @@ private val NaedaLightColorScheme = lightColorScheme(
     outlineVariant = OutlineVariant, // #E8E8E8
 )
 
-// 다크 테마 — #0D1A1A 기반 틸 계열
+// 다크 테마 — 순수 블랙 계열
 private val NaedaDarkColorScheme = darkColorScheme(
-    primary = Mint400,               // #00E3CC 밝은 민트 (다크에서 눈에 잘 띄게)
+    primary = Color(0xFFFCFFFF),      // #FCFFFF (텍스트/아이콘용)
     onPrimary = DarkBackground,
-    primaryContainer = Color(0xFF0F3D35),
-    onPrimaryContainer = Mint100,
+    primaryContainer = Color(0xFF1A3A35), // 어두운 초록 (버튼 fill용)
+    onPrimaryContainer = Color(0xFFFCFFFF),
 
     secondary = Blue400,
     onSecondary = DarkBackground,
-    secondaryContainer = Color(0xFF162D3D),
+    secondaryContainer = Color(0xFF1A2A3A),
     onSecondaryContainer = Blue300,
 
     tertiary = Sky400,
@@ -71,20 +71,20 @@ private val NaedaDarkColorScheme = darkColorScheme(
 
     error = Color(0xFFFF6B6B),
     onError = DarkBackground,
-    errorContainer = Color(0xFF3D1616),
+    errorContainer = Color(0xFF3A1A1A),
     onErrorContainer = Color(0xFFFF6B6B),
 
-    background = DarkBackground,          // #0D1A1A
-    onBackground = DarkOnBackground,      // #E2ECEC
-    surface = DarkSurface,                // #152626
-    onSurface = DarkOnSurface,            // #DAE6E6
-    surfaceVariant = DarkSurfaceVariant,  // #1E3232
-    onSurfaceVariant = DarkOnSurfaceVariant, // #87A0A0
+    background = DarkBackground,          // #000000
+    onBackground = DarkOnBackground,      // #E5E5E7
+    surface = DarkSurface,                // #1C1C1E
+    onSurface = DarkOnSurface,            // #E5E5E7
+    surfaceVariant = DarkSurfaceVariant,  // #2C2C2E
+    onSurfaceVariant = DarkOnSurfaceVariant, // #8E8E93
 
-    outline = DarkOutline,                // #2D4A4A
-    outlineVariant = DarkOutlineVariant,  // #1F3636
+    outline = DarkOutline,                // #38383A
+    outlineVariant = DarkOutlineVariant,  // #2C2C2E
 
-    inverseSurface = Color(0xFFDAE6E6),
+    inverseSurface = Color(0xFFE5E5E7),
     inverseOnSurface = DarkBackground,
     inversePrimary = Mint900,
 

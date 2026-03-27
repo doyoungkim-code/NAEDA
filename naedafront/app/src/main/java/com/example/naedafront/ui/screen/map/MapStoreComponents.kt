@@ -78,7 +78,7 @@ fun StoreClusterBottomSheet(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        color = Color(0xFFF7F7F8),
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 14.dp
     ) {
         Column(
@@ -178,7 +178,7 @@ fun StoreDetailBottomSheet(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        color = Color(0xFFF7F7F8),
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 14.dp
     ) {
         Column(
@@ -264,8 +264,8 @@ fun StoreDetailBottomSheet(
             ) {
                 StoreMetaChip(
                     text = "닫기",
-                    background = Color(0xFF152341),
-                    content = Color.White,
+                    background = MaterialTheme.colorScheme.onSurface,
+                    content = MaterialTheme.colorScheme.surface,
                     modifier = Modifier.clickable(onClick = onDismiss)
                 )
             }
@@ -456,8 +456,8 @@ private fun PlaceholderStoreGraphic(categoryName: String?) {
 @Composable
 private fun StoreMetaChip(
     text: String,
-    background: Color = Color(0xFFF1F5F9),
-    content: Color = Color(0xFF475569),
+    background: Color = MaterialTheme.colorScheme.surfaceVariant,
+    content: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     modifier: Modifier = Modifier
 ) {
     Box(

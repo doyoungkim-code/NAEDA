@@ -41,6 +41,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import com.example.naedafront.ui.theme.Mint900
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -261,7 +262,7 @@ private fun SettingsToggleRow(
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = Color(0xFF0FA37F),
+                checkedTrackColor = Mint900,
                 uncheckedThumbColor = Color.White,
                 uncheckedTrackColor = MaterialTheme.colorScheme.outline
             )

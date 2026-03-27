@@ -16,12 +16,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import com.example.naedafront.ui.navigation.Screen
+import com.example.naedafront.ui.theme.Mint100
+import com.example.naedafront.ui.theme.Mint900
 import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Map
@@ -58,6 +61,9 @@ fun NaedaBottomNavBar(
         tonalElevation = 0.dp,
         windowInsets = WindowInsets(0)
     ) {
+        val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+        val navSelectedColor = if (isDark) Mint100 else Mint900
+
         BottomNavItem.entries.forEach { item ->
             val isSelected = selectedRoute == item.route
 
@@ -90,11 +96,11 @@ fun NaedaBottomNavBar(
                     )
                 },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    selectedIconColor = navSelectedColor,
+                    selectedTextColor = navSelectedColor,
                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    indicatorColor = navSelectedColor.copy(alpha = 0.1f)
                 )
             )
         }

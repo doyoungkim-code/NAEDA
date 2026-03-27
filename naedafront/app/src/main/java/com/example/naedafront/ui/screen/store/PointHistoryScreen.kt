@@ -194,7 +194,7 @@ private fun PointHistoryHeader(
     point: Long,
     onBackClick: () -> Unit
 ) {
-    val primaryColor = MaterialTheme.colorScheme.primary
+    val primaryColor = MaterialTheme.colorScheme.primaryContainer
 
     Box(
         modifier = Modifier
@@ -356,7 +356,7 @@ private fun PointHistoryHeader(
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF202C49))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Text(
@@ -433,7 +433,7 @@ private fun ProgressSection(
                 modifier = Modifier
                     .weight(1f)
                     .height(3.dp)
-                    .background(MaterialTheme.colorScheme.primary)
+                    .background(MaterialTheme.colorScheme.primaryContainer)
             )
 
             ProgressNode(
@@ -447,7 +447,7 @@ private fun ProgressSection(
                 modifier = Modifier
                     .weight(1f)
                     .height(3.dp)
-                    .background(if (point >= 10_000L) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
+                    .background(if (point >= 10_000L) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.outlineVariant)
             )
 
             ProgressNode(
@@ -469,13 +469,13 @@ private fun ProgressNode(
 ) {
     val circleBg = when {
         faded -> MaterialTheme.colorScheme.surfaceVariant
-        selected -> MaterialTheme.colorScheme.primary
+        selected -> MaterialTheme.colorScheme.primaryContainer
         else -> Color.White
     }
 
     val textColor = when {
         faded -> MaterialTheme.colorScheme.outline
-        selected -> MaterialTheme.colorScheme.primary
+        selected -> MaterialTheme.colorScheme.onPrimaryContainer
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
@@ -537,7 +537,7 @@ private fun PeriodSection(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(999.dp))
-                    .background(MaterialTheme.colorScheme.primary)
+                    .background(MaterialTheme.colorScheme.primaryContainer)
                     .padding(horizontal = 18.dp, vertical = 11.dp)
             ) {
                 Text(
@@ -551,7 +551,7 @@ private fun PeriodSection(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(999.dp))
-                    .background(MaterialTheme.colorScheme.primary)
+                    .background(MaterialTheme.colorScheme.primaryContainer)
                     .padding(horizontal = 18.dp, vertical = 11.dp)
             ) {
                 Text(
@@ -859,7 +859,7 @@ private fun FilterBottomSheet(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = Color.White
                 )
             ) {
@@ -978,7 +978,7 @@ private fun PeriodBottomSheet(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = Color.White
                 )
             ) {
