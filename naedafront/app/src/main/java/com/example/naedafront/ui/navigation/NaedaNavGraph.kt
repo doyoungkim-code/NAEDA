@@ -677,9 +677,17 @@ private fun HomeTabContent(
         }
     }
 
+    val homeAccount = homeUiState.account
+    val homeAccountRoute = homeAccount?.accountNo
+        ?.takeIf { it.isNotBlank() }
+        ?.let { Screen.AccountDetail.createRoute(homeAccount.accountId, it) }
+
     HomeScreen(
         uiState = homeUiState,
-        onTransactionClick = { navController.navigateSingleTopTo(Screen.Transaction.createRoute()) },
+        onTransactionClick = {
+            homeAccountRoute?.let { navController.navigateSingleTopTo(it) }
+                ?: navController.navigateSingleTopTo(Screen.AccountList.createRoute(0))
+        },
         onCardTransactionClick = { card ->
             navController.currentBackStackEntry
                 ?.savedStateHandle
@@ -691,7 +699,10 @@ private fun HomeTabContent(
         },
         onFacePaySettingClick = { navController.navigateSingleTopTo(Screen.FaceRegister.route) },
         onLinkAccountClick = { navController.navigateSingleTopTo(Screen.AccountList.createRoute(0)) },
-        onViewAllTransactionsClick = { navController.navigateSingleTopTo(Screen.Transaction.createRoute()) },
+        onViewAllTransactionsClick = {
+            homeAccountRoute?.let { navController.navigateSingleTopTo(it) }
+                ?: navController.navigateSingleTopTo(Screen.AccountList.createRoute(0))
+        },
         onSearchClick = { },
         onAlarmClick = { navController.navigateSingleTopTo(Screen.Notification.route) },
         onProfileClick = { navController.navigateSingleTopTo(Screen.MyPage.route) },
