@@ -60,6 +60,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.naedafront.AuthPrefs
+import com.example.naedafront.data.remote.AssetAccountResponse
+import com.example.naedafront.data.remote.AssetCardResponse
+import com.example.naedafront.data.remote.AssetPayMethodResponse
 import com.example.naedafront.data.remote.AssetRepository
 import com.example.naedafront.data.remote.PaymentResponse
 import com.example.naedafront.data.remote.response.PaymentDetailResponse
@@ -91,6 +94,9 @@ data class TradeReportItem(
     val amount: String,
     val amountValue: Long,
     val isIncome: Boolean,
+    val bankName: String = "",
+    val accountNumber: String = "",
+    val cardNumber: String = "",
     val balanceAfter: String,
     val balanceLabel: String = "적립 포인트",
     val icon: ImageVector,
@@ -108,6 +114,8 @@ data class TradeReportUiState(
     val accountName: String = "",
     val accountNumber: String = "",
     val balance: Long = 0L,
+    val incomeTotal: Long = 0L,
+    val expenseTotal: Long = 0L,
     val transactions: List<TradeReportItem> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
@@ -130,6 +138,32 @@ data class TradeReportUiState(
         } else {
             transactions.filter { it.category == selectedCategory }
         }
+}
+
+private data class TradeWalletData(
+    val defaultAccount: AssetAccountResponse?,
+    val accountById: Map<Long, AssetAccountResponse>,
+    val payMethodById: Map<Long, AssetPayMethodResponse>,
+    val cardById: Map<Long, AssetCardResponse>
+)
+
+private suspend fun loadTradeWalletData(userNo: Long): TradeWalletData {
+    val wallet = AssetRepository.getWalletAssets(userNo)
+    return TradeWalletData(
+        defaultAccount = wallet.accounts.firstOrNull(),
+        accountById = wallet.accounts.mapNotNull { account ->
+            val accountId = account.accountId ?: return@mapNotNull null
+            accountId to account
+        }.toMap(),
+        payMethodById = wallet.payMethods.mapNotNull { payMethod ->
+            val paymentMethodId = payMethod.paymentMethodId ?: return@mapNotNull null
+            paymentMethodId to payMethod
+        }.toMap(),
+        cardById = wallet.cards.mapNotNull { card ->
+            val cardId = card.cardId ?: return@mapNotNull null
+            cardId to card
+        }.toMap()
+    )
 }
 
 class TradeReportViewModel : ViewModel() {
@@ -205,6 +239,17 @@ class TradeReportViewModel : ViewModel() {
                 )
             }
 
+            val walletData = runCatching { loadTradeWalletData(userNo) }.getOrNull()
+            walletData?.defaultAccount?.let { account ->
+                _uiState.update {
+                    it.copy(
+                        accountName = account.accountName.orEmpty().ifBlank { "내 계좌" },
+                        accountNumber = account.accountNo.orEmpty(),
+                        balance = account.accountBalance ?: 0L
+                    )
+                }
+            }
+
             runCatching {
                 AssetRepository.getWalletAssets(userNo).accounts.firstOrNull()
             }.onSuccess { account ->
@@ -225,7 +270,18 @@ class TradeReportViewModel : ViewModel() {
                         it.copy(
                             transactions = payments
                                 .filter { payment -> payment.status?.uppercase() in listOf("APPROVED", "SUCCESS", "COMPLETED") }
-                                .map { payment -> payment.toUiItem() },
+                                .map { payment ->
+                                    payment.toRecentTradeItem(
+                                        defaultAccount = walletData?.defaultAccount,
+                                        accountById = walletData?.accountById.orEmpty(),
+                                        payMethodById = walletData?.payMethodById.orEmpty(),
+                                        cardById = walletData?.cardById.orEmpty()
+                                    )
+                                },
+                            incomeTotal = 0L,
+                            expenseTotal = payments
+                                .filter { payment -> payment.status?.uppercase() in listOf("APPROVED", "SUCCESS", "COMPLETED") }
+                                .sumOf { payment -> payment.amount ?: 0L },
                             isLoading = false
                         )
                     }
@@ -272,7 +328,12 @@ private fun apiDateTimeFormat(): SimpleDateFormat {
     return SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.KOREA)
 }
 
-private fun PaymentResponse.toUiItem(): TradeReportItem {
+private fun PaymentResponse.toUiItem(
+    defaultAccount: AssetAccountResponse?,
+    accountById: Map<Long, AssetAccountResponse>,
+    payMethodById: Map<Long, AssetPayMethodResponse>,
+    cardById: Map<Long, AssetCardResponse>
+): TradeReportItem {
     val isSuccess = status?.uppercase() in listOf("APPROVED", "SUCCESS", "COMPLETED")
     val pointsText = earnedPoints
         ?.takeIf { it > 0 }
@@ -282,6 +343,15 @@ private fun PaymentResponse.toUiItem(): TradeReportItem {
     val rawAmount = amount ?: 0L
     val rawCategory = categoryName?.trim().orEmpty()
     val rawStoreName = storeName?.trim().orEmpty()
+    val payMethod = paymentMethodId?.let { payMethodById[it] }
+    val account = payMethod?.accountId?.let { accountById[it] } ?: defaultAccount
+    val cardId = payMethod?.debitCardId ?: payMethod?.creditCardId
+    val maskedCardNumber = cardId
+        ?.let { cardById[it]?.cardNo }
+        .orEmpty()
+        .maskCardNumber()
+        .takeIf { it.isNotBlank() && it != "-" }
+        .orEmpty()
 
     return TradeReportItem(
         paymentId = paymentId ?: -1L,
@@ -296,10 +366,56 @@ private fun PaymentResponse.toUiItem(): TradeReportItem {
         amount = if (isSuccess) "-${"%,d".format(rawAmount)}원" else "실패",
         amountValue = rawAmount,
         isIncome = false,
+        bankName = account?.bankName.orEmpty(),
+        accountNumber = account?.accountNo.orEmpty().maskAccountNumber(),
+        cardNumber = maskedCardNumber,
         balanceAfter = pointsText,
         balanceLabel = "적립 포인트",
         icon = Icons.Default.ArrowUpward,
         iconBg = if (isSuccess) Color(0xFFDCEBFF) else Color(0xFFFFEBEE),
+        createdAtRaw = createdAt ?: ""
+    )
+}
+
+private fun PaymentResponse.toRecentTradeItem(
+    defaultAccount: AssetAccountResponse?,
+    accountById: Map<Long, AssetAccountResponse>,
+    payMethodById: Map<Long, AssetPayMethodResponse>,
+    cardById: Map<Long, AssetCardResponse>
+): TradeReportItem {
+    val rawAmount = amount ?: 0L
+    val rawCategory = categoryName?.trim().orEmpty()
+    val rawStoreName = storeName?.trim().orEmpty()
+    val payMethod = paymentMethodId?.let { payMethodById[it] }
+    val account = payMethod?.accountId?.let { accountById[it] } ?: defaultAccount
+    val cardId = payMethod?.debitCardId ?: payMethod?.creditCardId
+    val maskedCardNumber = cardId
+        ?.let { cardById[it]?.cardNo }
+        .orEmpty()
+        .maskCardNumber()
+        .takeIf { it.isNotBlank() && it != "-" }
+        .orEmpty()
+    val pointsText = earnedPoints
+        ?.takeIf { it > 0 }
+        ?.let { "${"%,d".format(it)}P 적립" }
+        ?: "적립 없음"
+
+    return TradeReportItem(
+        paymentId = paymentId ?: -1L,
+        title = rawStoreName.ifBlank { "내다페이 결제" },
+        subTitle = createdAt?.formatCreatedAt() ?: "",
+        category = rawCategory,
+        storeName = rawStoreName,
+        amount = "-${"%,d".format(rawAmount)}원",
+        amountValue = rawAmount,
+        isIncome = false,
+        bankName = account?.bankName.orEmpty(),
+        accountNumber = account?.accountNo.orEmpty().maskAccountNumber(),
+        cardNumber = maskedCardNumber,
+        balanceAfter = pointsText,
+        balanceLabel = "적립 포인트",
+        icon = Icons.Default.ArrowUpward,
+        iconBg = Color(0xFFDCEBFF),
         createdAtRaw = createdAt ?: ""
     )
 }
@@ -410,6 +526,9 @@ private fun TradeReportItem.matches(query: String): Boolean {
         amount,
         balanceAfter,
         balanceLabel,
+        bankName,
+        accountNumber,
+        cardNumber,
         date,
         time
     ).any { it.lowercase().contains(keyword) }
@@ -421,6 +540,15 @@ private fun String.maskAccountNumber(): String {
         digits.isBlank() -> "-"
         digits.length <= 7 -> this
         else -> "${digits.take(3)}${"*".repeat(digits.length - 7)}${digits.takeLast(4)}"
+    }
+}
+
+private fun String.maskCardNumber(): String {
+    val digits = replace("-", "").replace(" ", "")
+    return when {
+        digits.isBlank() -> "-"
+        digits.length < 8 -> this
+        else -> "${digits.take(4)} •••• •••• ${digits.takeLast(4)}"
     }
 }
 
@@ -449,7 +577,8 @@ fun TradeReportScreen(
         filteredTransactions.groupBy { it.date }.toSortedMap(reverseOrder())
     }
 
-    Scaffold(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
         containerColor = Background,
         contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
@@ -462,7 +591,8 @@ fun TradeReportScreen(
                 TradeReportHeader(
                     accountName = uiState.accountName.ifBlank { "대표계좌" },
                     accountNumber = uiState.accountNumber,
-                    balance = uiState.balance,
+                    incomeTotal = uiState.incomeTotal,
+                    expenseTotal = uiState.expenseTotal,
                     onBack = onBackClick,
                     isSearchMode = isSearchMode,
                     onSearchToggle = {
@@ -556,7 +686,7 @@ fun TradeReportScreen(
                             TransactionDateHeader(date = date)
                         }
                         items(txList, key = { it.paymentId }) { item ->
-                            TradeTransactionRow(
+                            RecentTradeTransactionRow(
                                 item = item,
                                 onClick = {
                                     if (item.paymentId > 0L) {
@@ -571,6 +701,19 @@ fun TradeReportScreen(
             }
 
             item { Spacer(modifier = Modifier.height(32.dp)) }
+        }
+    }
+        val paymentItem = selectedPaymentItem
+        val paymentDetail = uiState.selectedPaymentDetail
+        if (paymentItem != null && paymentDetail != null) {
+            TradePaymentDetailScreen(
+                item = paymentItem,
+                detail = paymentDetail,
+                onClose = {
+                    selectedPaymentItem = null
+                    viewModel.clearPaymentDetail()
+                }
+            )
         }
     }
 
@@ -623,27 +766,20 @@ fun TradeReportScreen(
         )
     }
 
-    uiState.selectedPaymentDetail?.let { detail ->
-        PaymentDetailDialog(
-            detail = detail,
-            storeName = selectedPaymentItem?.storeName.orEmpty(),
-            onDismiss = {
-                selectedPaymentItem = null
-                viewModel.clearPaymentDetail()
-            }
-        )
-    }
 }
 
 @Composable
 private fun TradeReportHeader(
     accountName: String,
     accountNumber: String,
-    balance: Long,
+    incomeTotal: Long,
+    expenseTotal: Long,
     onBack: () -> Unit,
     isSearchMode: Boolean,
     onSearchToggle: () -> Unit
 ) {
+    val balance = expenseTotal
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -698,6 +834,39 @@ private fun TradeReportHeader(
                     color = Color.White.copy(alpha = 0.65f)
                 )
                 Spacer(modifier = Modifier.height(20.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "수입",
+                            style = NaedaTypography.labelMedium,
+                            color = Color.White.copy(alpha = 0.75f)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "+${"%,d".format(incomeTotal)}원",
+                            style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = Color(0xFFDCEBFF)
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "지출",
+                            style = NaedaTypography.labelMedium,
+                            color = Color.White.copy(alpha = 0.75f)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "-${"%,d".format(expenseTotal)}원",
+                            style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = Color(0xFFFFD9D0)
+                        )
+                    }
+                }
+                if (false) {
+                Spacer(modifier = Modifier.height(20.dp))
                 Text(
                     text = "현재 잔액",
                     style = NaedaTypography.labelMedium,
@@ -709,6 +878,7 @@ private fun TradeReportHeader(
                     style = NaedaTypography.displayMedium.copy(fontWeight = FontWeight.Bold),
                     color = Color.White
                 )
+                }
             }
         }
     }
@@ -932,6 +1102,77 @@ private fun TransactionDateHeader(date: String) {
             .fillMaxWidth()
             .background(Background)
             .padding(horizontal = 20.dp, vertical = 10.dp)
+    )
+}
+
+@Composable
+private fun RecentTradeTransactionRow(
+    item: TradeReportItem,
+    onClick: () -> Unit
+) {
+    val amountText = if (item.isIncome) {
+        "+${"%,d".format(item.amountValue)}원"
+    } else {
+        "-${"%,d".format(item.amountValue)}원"
+    }
+    val amountColor = if (item.isIncome) Color(0xFF307CBF) else Color(0xFFF2522E)
+    val subtitle = listOfNotNull(
+        item.time.takeIf { it.isNotBlank() },
+        item.category.takeIf { it.isNotBlank() }
+    ).joinToString(" · ")
+    val paymentInfo = listOfNotNull(
+        item.bankName.takeIf { it.isNotBlank() },
+        item.accountNumber.takeIf { it.isNotBlank() },
+        item.cardNumber.takeIf { it.isNotBlank() }
+    ).joinToString(" · ")
+        .ifBlank { "${item.balanceLabel} ${item.balanceAfter}" }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(SurfaceColor)
+            .clickable { onClick() }
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = item.title,
+                style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                color = OnBackground,
+                maxLines = 1
+            )
+
+            if (subtitle.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    style = NaedaTypography.labelSmall,
+                    color = OnSurfaceVariant,
+                    maxLines = 1
+                )
+            }
+
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = paymentInfo,
+                style = NaedaTypography.labelSmall,
+                color = OnSurfaceVariant,
+                maxLines = 1
+            )
+        }
+
+        Text(
+            text = amountText,
+            style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = amountColor
+        )
+    }
+
+    HorizontalDivider(
+        color = OutlineVariant,
+        thickness = 0.5.dp,
+        modifier = Modifier.padding(horizontal = 20.dp)
     )
 }
 
