@@ -15,7 +15,7 @@ public class RestClientConfig {
     @Value("${ai.service-token}")
     private String aiServiceToken;
 
-    @Value("${ai.timeout-seconds:12}")
+    @Value("${ai.timeout-seconds:20}")
     private int aiTimeoutSeconds;
 
     @Bean

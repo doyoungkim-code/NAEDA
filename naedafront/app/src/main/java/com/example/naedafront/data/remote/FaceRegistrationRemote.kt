@@ -14,6 +14,8 @@ import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Query
+import java.io.InterruptedIOException
+import java.net.SocketTimeoutException
 
 data class EnrollResponseDto(
     val success: Boolean,
@@ -210,13 +212,13 @@ object FaceRegistrationRepository {
 
         val initialFailure = initialResult.exceptionOrNull()
         if (initialFailure != null) {
-            val readable = toReadableException(initialFailure, "신분증 OCR 추출에 실패했습니다.")
+            val readable = toReadableOcrException(initialFailure, "신분증 OCR 추출에 실패했습니다.")
             if (isRecoverableOcrServiceError(readable)) {
                 delay(350L)
                 return runCatching {
                     service.extractResidentId(image = requestImagePart)
                 }.getOrElse { retryThrowable ->
-                    throw toReadableException(retryThrowable, "신분증 OCR 추출에 실패했습니다.")
+                    throw toReadableOcrException(retryThrowable, "신분증 OCR 추출에 실패했습니다.")
                 }
             }
             throw readable
@@ -382,6 +384,18 @@ object FaceRegistrationRepository {
             message = message,
             cause = throwable
         )
+    }
+
+    private fun toReadableOcrException(throwable: Throwable, fallback: String): Throwable {
+        return when (throwable) {
+            is SocketTimeoutException, is InterruptedIOException -> ApiRequestException(
+                errorCode = "OCR_TIMEOUT",
+                statusCode = 504,
+                message = "신분증 OCR 응답이 지연되고 있습니다. [OCR_TIMEOUT] (HTTP 504)",
+                cause = throwable
+            )
+            else -> toReadableException(throwable, fallback)
+        }
     }
 
     private fun isRecoverableOcrServiceError(throwable: Throwable): Boolean {

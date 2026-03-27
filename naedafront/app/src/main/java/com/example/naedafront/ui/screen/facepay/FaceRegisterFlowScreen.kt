@@ -27,6 +27,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
@@ -155,11 +157,15 @@ import com.google.mlkit.vision.face.FaceDetectorOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -190,6 +196,7 @@ private const val ID_CARD_ALLOWED_MISSES = 3
 private const val ID_CARD_REQUIRED_STABLE_MATCHES = 1
 private const val ID_CARD_OVERLAY_WIDTH_RATIO = 0.88f
 private const val ID_CARD_OVERLAY_ASPECT_RATIO = 1.586f
+private const val ID_CARD_GUIDE_ANALYSIS_PADDING_RATIO = 1.18f
 private const val ID_CARD_CROP_PADDING_RATIO = 1.12f
 private const val ID_CARD_CROP_JPEG_QUALITY = 94
 private const val OCR_STATUS_REVIEW_REQUIRED = "REVIEW_REQUIRED"
@@ -235,6 +242,27 @@ private data class IdCaptureAssessment(
     val key: String?,
     val warningMessage: String? = null
 )
+
+private data class DocumentGuideState(
+    val signature: IntArray,
+    val leftBoundary: Int,
+    val rightBoundary: Int,
+    val topBoundary: Int,
+    val bottomBoundary: Int,
+    val edgePresenceScore: Double
+)
+
+private data class DocumentGuideAssessment(
+    val canHold: Boolean,
+    val message: String,
+    val state: DocumentGuideState?
+)
+
+private enum class IdScanFailureReason {
+    OCR_RETRY,
+    OCR_RETAKE,
+    CAPTURE_FAILURE,
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -431,7 +459,7 @@ fun FaceRegisterFlowScreen(
                         tips = listOf(
                             "주민등록증 또는 운전면허증을 준비해 주세요.",
                             "신분증이 프레임 안에서 또렷하게 보이도록 맞춰주세요.",
-                            "같은 인식 결과가 2초 동안 유지되면 자동으로 다음 단계로 넘어갑니다."
+                            "신분증이 2초 동안 안정적으로 보이면 자동 촬영 후 정보를 추출합니다."
                         ),
                         primaryButtonText = "신분증 촬영 시작",
                         onPrimaryClick = { stage = RegisterStage.IdScanning }
@@ -1804,53 +1832,138 @@ private fun IdCardScanningStageContent(
     onExtracted: (ResidentIdExtractResponseDto) -> Unit,
     onError: (String?) -> Unit
 ) {
-    val scope = rememberCoroutineScope()
     var statusMessage by remember { mutableStateOf("신분증을 가이드 안에 맞춰주세요.") }
     var holdProgress by remember { mutableFloatStateOf(0f) }
     var requestInFlight by remember { mutableStateOf(false) }
-    val lastRequestAt = remember { AtomicLong(0L) }
+    var isCompleting by remember { mutableStateOf(false) }
     var holdStartedAt by remember { mutableStateOf(0L) }
-    var consecutiveRecoverableMisses by remember { mutableStateOf(0) }
-    var latestExtract by remember { mutableStateOf<ResidentIdExtractResponseDto?>(null) }
-    var stableExtractKey by remember { mutableStateOf<String?>(null) }
-    var stableExtractMatches by remember { mutableStateOf(0) }
+    var cameraController by remember { mutableStateOf<LifecycleCameraController?>(null) }
+    var previousGuideState by remember { mutableStateOf<DocumentGuideState?>(null) }
+    var blockedGuideState by remember { mutableStateOf<DocumentGuideState?>(null) }
+    var guideMissCount by remember { mutableStateOf(0) }
+    val captureCallbackExecutor = remember { Executors.newSingleThreadExecutor() }
+
+    DisposableEffect(captureCallbackExecutor) {
+        onDispose {
+            captureCallbackExecutor.shutdown()
+        }
+    }
 
     fun resetRecognition(message: String = "신분증을 가이드 안에 맞춰주세요.") {
         holdStartedAt = 0L
         holdProgress = 0f
-        consecutiveRecoverableMisses = 0
-        latestExtract = null
-        stableExtractKey = null
-        stableExtractMatches = 0
+        previousGuideState = null
+        guideMissCount = 0
         statusMessage = message
     }
 
-    LaunchedEffect(holdStartedAt, latestExtract) {
-        if (holdStartedAt == 0L || latestExtract == null) {
-            holdProgress = 0f
+    fun blockUntilGuideChanges(
+        message: String,
+        reason: IdScanFailureReason
+    ) {
+        holdStartedAt = 0L
+        holdProgress = 0f
+        blockedGuideState = previousGuideState
+        previousGuideState = null
+        guideMissCount = 0
+        statusMessage = when (reason) {
+            IdScanFailureReason.OCR_RETRY -> "$message 신분증 위치를 조금 조정한 뒤 다시 맞춰주세요."
+            IdScanFailureReason.OCR_RETAKE -> "$message 신분증을 잠시 뗐다가 다시 비춰주세요."
+            IdScanFailureReason.CAPTURE_FAILURE -> "촬영이 불안정했습니다. 신분증을 잠시 뗐다가 다시 맞춰주세요."
+        }
+    }
+
+    LaunchedEffect(holdStartedAt, requestInFlight, cameraController, isCompleting) {
+        if (holdStartedAt == 0L || requestInFlight || isCompleting) {
+            if (!requestInFlight && !isCompleting) {
+                holdProgress = 0f
+            }
             return@LaunchedEffect
         }
 
-        while (holdStartedAt != 0L && latestExtract != null) {
+        while (holdStartedAt != 0L && !requestInFlight && !isCompleting) {
             val progress = ((System.currentTimeMillis() - holdStartedAt).toFloat() / ID_CARD_HOLD_DURATION_MS)
                 .coerceIn(0f, 1f)
             holdProgress = progress
-            val assessment = latestExtract?.let(::assessResidentIdExtract)
             statusMessage = if (progress < 1f) {
-                if (assessment?.requiresReview == true) {
-                    "일부 항목을 다시 확인할 수 있도록 결과를 고정하는 중입니다."
-                } else {
-                    "신분증 정보를 읽는 중입니다. 흔들리지 않게 유지해 주세요."
-                }
+                "신분증이 안정적으로 보이는지 확인 중입니다. 그대로 유지해 주세요."
             } else {
-                "신분증 인식이 완료되었습니다."
+                "고해상도 사진을 촬영하는 중입니다."
             }
             onError(null)
 
             if (progress >= 1f) {
-                val extracted = latestExtract
-                resetRecognition("신분증 인식이 완료되었습니다.")
-                extracted?.let(onExtracted)
+                val controller = cameraController
+                if (controller == null) {
+                    resetRecognition("카메라를 준비하는 중입니다. 잠시만 기다려 주세요.")
+                    onError(null)
+                    break
+                }
+
+                requestInFlight = true
+                statusMessage = "고해상도 사진을 촬영하는 중입니다."
+                onError(null)
+
+                val capturedJpegs = runCatching { captureResidentIdJpegs(controller, captureCallbackExecutor) }
+                if (capturedJpegs.isFailure) {
+                    requestInFlight = false
+                    val message = capturedJpegs.exceptionOrNull()?.message ?: "신분증 촬영에 실패했습니다."
+                    blockUntilGuideChanges(message, IdScanFailureReason.CAPTURE_FAILURE)
+                    onError(message)
+                    break
+                }
+
+                statusMessage = "신분증 정보를 추출하는 중입니다."
+                val result = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val payload = capturedJpegs.getOrThrow()
+                        extractResidentIdWithFallback(
+                            croppedJpeg = payload.first,
+                            fullJpeg = payload.second
+                        )
+                    }
+                }
+                requestInFlight = false
+
+                result.onSuccess { extracted ->
+                    val provider = extracted.provider?.trim()?.lowercase()
+                    if (provider == "mock") {
+                        blockUntilGuideChanges("실제 OCR 서버가 아니라 mock 응답을 받았습니다.", IdScanFailureReason.OCR_RETAKE)
+                        onError("서버 OCR이 mock 모드입니다. AI 설정을 확인해 주세요.")
+                        return@onSuccess
+                    }
+
+                    val assessment = assessResidentIdExtract(extracted)
+                    val displayExtract = if (!assessment.canProceed && extracted.warnings.isEmpty()) {
+                        extracted.copy(
+                            extractionStatus = OCR_STATUS_REVIEW_REQUIRED,
+                            warnings = listOf(assessment.warningMessage ?: assessment.statusMessage)
+                        )
+                    } else {
+                        extracted
+                    }
+
+                    isCompleting = true
+                    holdStartedAt = 0L
+                    holdProgress = 1f
+                    statusMessage = "신분증 인식이 완료되었습니다."
+                    onError(null)
+                    onExtracted(displayExtract)
+                }.onFailure { throwable ->
+                    if (isRecoverableResidentIdError(throwable)) {
+                        blockUntilGuideChanges(
+                            buildRecoverableResidentIdMessage(throwable),
+                            IdScanFailureReason.OCR_RETRY
+                        )
+                        onError(null)
+                    } else {
+                        blockUntilGuideChanges(
+                            throwable.message ?: "신분증 OCR 추출에 실패했습니다.",
+                            IdScanFailureReason.OCR_RETAKE
+                        )
+                        onError(throwable.message ?: "신분증 OCR 추출에 실패했습니다.")
+                    }
+                }
                 break
             }
 
@@ -1893,118 +2006,49 @@ private fun IdCardScanningStageContent(
                 .fillMaxWidth()
                 .weight(1f)
                 .padding(horizontal = 16.dp),
+            onControllerReady = { cameraController = it },
             onFrame = { imageProxy ->
-                if (requestInFlight) {
+                if (requestInFlight || isCompleting) {
                     imageProxy.close()
                     return@DocumentCaptureCameraCard
                 }
 
-                val now = System.currentTimeMillis()
-                if (now - lastRequestAt.get() < ID_CARD_REQUEST_INTERVAL_MS) {
-                    imageProxy.close()
-                    return@DocumentCaptureCameraCard
-                }
-                lastRequestAt.set(now)
-
-                val jpegPayload = runCatching { prepareResidentIdJpegs(imageProxy) }
-                    .onFailure { throwable ->
-                        onError("신분증 프레임 변환 실패: ${throwable.message}")
-                    }
-                    .getOrNull()
+                val guideAssessment = assessDocumentGuideFrame(imageProxy, previousGuideState)
+                previousGuideState = guideAssessment.state
                 imageProxy.close()
 
-                if (jpegPayload == null) {
+                if (!guideAssessment.canHold) {
+                    if (holdStartedAt != 0L && guideMissCount < 4) {
+                        guideMissCount += 1
+                        statusMessage = "신분증을 그대로 유지해 주세요."
+                        onError(null)
+                        return@DocumentCaptureCameraCard
+                    }
+                    blockedGuideState = null
+                    resetRecognition(guideAssessment.message)
+                    onError(null)
                     return@DocumentCaptureCameraCard
                 }
+                guideMissCount = 0
 
-                requestInFlight = true
-                scope.launch {
-                    val result = withContext(Dispatchers.IO) {
-                        runCatching {
-                            extractResidentIdWithFallback(
-                                croppedJpeg = jpegPayload.first,
-                                fullJpeg = jpegPayload.second
-                            )
-                        }
-                    }
-                    requestInFlight = false
-
-                    result.onSuccess { extracted ->
-                        val provider = extracted.provider?.trim()?.lowercase()
-                        if (provider == "mock") {
-                            resetRecognition("실제 OCR 서버가 아니라 mock 응답을 받았습니다.")
-                            onError("서버 OCR이 mock 모드입니다. AI 설정을 확인해 주세요.")
-                            return@onSuccess
-                        }
-
-                        val assessment = assessResidentIdExtract(extracted)
-
-                        if (!assessment.canProceed) {
-                            if (holdStartedAt != 0L && consecutiveRecoverableMisses < ID_CARD_ALLOWED_MISSES) {
-                                consecutiveRecoverableMisses += 1
-                                statusMessage = assessment.warningMessage ?: assessment.statusMessage
-                                onError(null)
-                            } else {
-                                resetRecognition()
-                                onError(null)
-                            }
-                            return@onSuccess
-                        }
-
-                        val extractKey = assessment.key
-                        if (extractKey == null) {
-                            resetRecognition()
-                            onError(null)
-                            return@onSuccess
-                        }
-
-                        if (stableExtractKey != extractKey) {
-                            stableExtractKey = extractKey
-                            stableExtractMatches = 1
-                            holdStartedAt = 0L
-                            holdProgress = 0f
-                            latestExtract = extracted
-                            consecutiveRecoverableMisses = 0
-                            if (ID_CARD_REQUIRED_STABLE_MATCHES <= 1) {
-                                holdStartedAt = System.currentTimeMillis()
-                                statusMessage = assessment.warningMessage ?: assessment.statusMessage
-                                onError(null)
-                                return@onSuccess
-                            }
-                            statusMessage = assessment.warningMessage ?: assessment.statusMessage
-                            onError(null)
-                            return@onSuccess
-                        }
-
-                        stableExtractMatches += 1
-                        latestExtract = extracted
-                        consecutiveRecoverableMisses = 0
-                        if (stableExtractMatches < ID_CARD_REQUIRED_STABLE_MATCHES) {
-                            statusMessage = assessment.warningMessage ?: assessment.statusMessage
-                            onError(null)
-                            return@onSuccess
-                        }
-                        if (holdStartedAt == 0L) {
-                            holdStartedAt = System.currentTimeMillis()
-                        }
-                        statusMessage = assessment.warningMessage ?: assessment.statusMessage
-                        onError(null)
-                    }.onFailure { throwable ->
-                        if (isRecoverableResidentIdError(throwable)) {
-                            if (holdStartedAt != 0L && consecutiveRecoverableMisses < ID_CARD_ALLOWED_MISSES) {
-                                consecutiveRecoverableMisses += 1
-                                statusMessage = buildRecoverableResidentIdMessage(throwable)
-                            } else {
-                                resetRecognition(buildRecoverableResidentIdMessage(throwable))
-                            }
-                            onError(null)
-                            return@onFailure
-                        }
-
-                        resetRecognition()
-                        onError(throwable.message ?: "신분증 OCR 추출에 실패했습니다.")
-                    }
+                val blockedState = blockedGuideState
+                if (blockedState != null && guideAssessment.state != null && isDocumentGuideStateSimilar(blockedState, guideAssessment.state)) {
+                    holdStartedAt = 0L
+                    holdProgress = 0f
+                    statusMessage = "직전 인식이 실패했습니다. 신분증을 잠시 뗐다가 다시 맞춰주세요."
+                    onError(null)
+                    return@DocumentCaptureCameraCard
+                } else if (blockedState != null) {
+                    blockedGuideState = null
                 }
+
+                if (holdStartedAt == 0L) {
+                    holdStartedAt = System.currentTimeMillis()
+                    statusMessage = guideAssessment.message
+                } else if (holdProgress <= 0f) {
+                    statusMessage = guideAssessment.message
+                }
+                onError(null)
             },
             overlay = {
                 IdCaptureOverlay(
@@ -2071,7 +2115,9 @@ private fun IdCaptureOverlay(
                             )
                         }
                         Text(
-                            text = if (holdProgress > 0f) {
+                            text = if (isExtracting) {
+                                statusMessage
+                            } else if (holdProgress > 0f) {
                                 "신분증 인식 중 ${(holdProgress * 100).roundToInt()}%"
                             } else {
                                 statusMessage
@@ -3588,12 +3634,14 @@ private fun FaceRegistrationCameraCard(
 @Composable
 private fun DocumentCaptureCameraCard(
     modifier: Modifier,
+    onControllerReady: (LifecycleCameraController) -> Unit,
     onFrame: (ImageProxy) -> Unit,
     overlay: @Composable BoxScope.() -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val latestOnFrame by rememberUpdatedState(onFrame)
+    val latestOnControllerReady by rememberUpdatedState(onControllerReady)
     val executor = remember { Executors.newSingleThreadExecutor() }
     val cameraController = remember {
         LifecycleCameraController(context).apply {
@@ -3603,6 +3651,10 @@ private fun DocumentCaptureCameraCard(
             )
             imageAnalysisBackpressureStrategy = ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST
         }
+    }
+
+    LaunchedEffect(cameraController) {
+        latestOnControllerReady(cameraController)
     }
 
     DisposableEffect(cameraController, lifecycleOwner) {
@@ -3762,6 +3814,33 @@ private fun assessResidentIdExtract(extracted: ResidentIdExtractResponseDto): Id
         key = buildResidentIdExtractKey(extracted),
         warningMessage = firstWarning
     )
+}
+
+private fun shouldOpenIdConfirm(
+    extracted: ResidentIdExtractResponseDto,
+    assessment: IdCaptureAssessment
+): Boolean {
+    if (assessment.canProceed) {
+        return true
+    }
+    return extracted.documentMatched ||
+            !extracted.documentType.isNullOrBlank() ||
+            !extracted.name.isNullOrBlank() ||
+            !extracted.residentFront6.isNullOrBlank() ||
+            !extracted.residentBackFirst1.isNullOrBlank()
+}
+
+private fun isDocumentGuideStateSimilar(
+    previous: DocumentGuideState,
+    current: DocumentGuideState
+): Boolean {
+    val boundaryShift =
+        abs(previous.leftBoundary - current.leftBoundary) +
+            abs(previous.rightBoundary - current.rightBoundary) +
+            abs(previous.topBoundary - current.topBoundary) +
+            abs(previous.bottomBoundary - current.bottomBoundary)
+    val edgeRatio = current.edgePresenceScore / max(1.0, previous.edgePresenceScore)
+    return boundaryShift <= 4 && edgeRatio in 0.78..1.28
 }
 
 private fun buildResidentIdExtractKey(extracted: ResidentIdExtractResponseDto): String? {
@@ -3933,6 +4012,214 @@ private fun imageProxyToJpegBytes(imageProxy: ImageProxy): ByteArray {
     yuvImage.compressToJpeg(Rect(0, 0, imageProxy.width, imageProxy.height), 92, output)
     val jpegBytes = output.toByteArray()
     return rotateJpeg(jpegBytes, imageProxy.imageInfo.rotationDegrees)
+}
+
+private fun sampleDocumentGuideSignature(imageProxy: ImageProxy): IntArray? {
+    val plane = imageProxy.planes.firstOrNull() ?: return null
+    val buffer = plane.buffer.duplicate()
+    if (buffer.limit() <= 0) {
+        return null
+    }
+
+    val columns = 26
+    val rows = 16
+    var cropWidth = (imageProxy.width * ID_CARD_OVERLAY_WIDTH_RATIO * ID_CARD_GUIDE_ANALYSIS_PADDING_RATIO)
+        .roundToInt()
+        .coerceIn(1, imageProxy.width)
+    var cropHeight = (cropWidth / ID_CARD_OVERLAY_ASPECT_RATIO).roundToInt().coerceAtLeast(1)
+    if (cropHeight > imageProxy.height) {
+        cropHeight = imageProxy.height
+        cropWidth = min(imageProxy.width, (cropHeight * ID_CARD_OVERLAY_ASPECT_RATIO).roundToInt().coerceAtLeast(1))
+    }
+
+    val left = ((imageProxy.width - cropWidth) / 2).coerceAtLeast(0)
+    val top = ((imageProxy.height - cropHeight) / 2).coerceAtLeast(0)
+    val signature = IntArray(columns * rows)
+    val rowStride = plane.rowStride
+    val pixelStride = plane.pixelStride
+
+    for (row in 0 until rows) {
+        val sampleY = (top + ((row + 0.5f) * cropHeight / rows).roundToInt()).coerceIn(0, imageProxy.height - 1)
+        for (column in 0 until columns) {
+            val sampleX = (left + ((column + 0.5f) * cropWidth / columns).roundToInt()).coerceIn(0, imageProxy.width - 1)
+            val index = sampleY * rowStride + sampleX * pixelStride
+            signature[row * columns + column] = buffer.get(index).toInt() and 0xFF
+        }
+    }
+
+    return signature
+}
+
+private fun assessDocumentGuideFrame(
+    imageProxy: ImageProxy,
+    previousState: DocumentGuideState?
+): DocumentGuideAssessment {
+    val signature = sampleDocumentGuideSignature(imageProxy)
+        ?: return DocumentGuideAssessment(
+            canHold = false,
+            message = "신분증을 가이드 안에 맞춰주세요.",
+            state = null
+        )
+
+    val brightness = signature.average()
+    var edgeTotal = 0.0
+    var edgeCount = 0
+    val columns = 26
+    val rows = 16
+    for (row in 0 until rows) {
+        for (column in 0 until columns) {
+            val index = row * columns + column
+            if (column > 0) {
+                edgeTotal += abs(signature[index] - signature[index - 1]).toDouble()
+                edgeCount += 1
+            }
+            if (row > 0) {
+                edgeTotal += abs(signature[index] - signature[index - columns]).toDouble()
+                edgeCount += 1
+            }
+        }
+    }
+    val textureScore = if (edgeCount == 0) 0.0 else edgeTotal / edgeCount
+    val verticalEdges = DoubleArray(columns - 1)
+    val horizontalEdges = DoubleArray(rows - 1)
+    for (row in 0 until rows) {
+        for (column in 1 until columns) {
+            val index = row * columns + column
+            verticalEdges[column - 1] += abs(signature[index] - signature[index - 1]).toDouble()
+        }
+    }
+    for (column in 0 until columns) {
+        for (row in 1 until rows) {
+            val index = row * columns + column
+            horizontalEdges[row - 1] += abs(signature[index] - signature[index - columns]).toDouble()
+        }
+    }
+    for (index in verticalEdges.indices) {
+        verticalEdges[index] /= rows.toDouble()
+    }
+    for (index in horizontalEdges.indices) {
+        horizontalEdges[index] /= columns.toDouble()
+    }
+
+    val leftBoundaryRange = 2..8
+    val rightBoundaryRange = 15..22
+    val topBoundaryRange = 1..5
+    val bottomBoundaryRange = 9..13
+    val leftBoundaryIndex = leftBoundaryRange.maxByOrNull { verticalEdges[it] } ?: 0
+    val rightBoundaryIndex = rightBoundaryRange.maxByOrNull { verticalEdges[it] } ?: (columns - 2)
+    val topBoundaryIndex = topBoundaryRange.maxByOrNull { horizontalEdges[it] } ?: 0
+    val bottomBoundaryIndex = bottomBoundaryRange.maxByOrNull { horizontalEdges[it] } ?: (rows - 2)
+    val leftBoundaryStrength = verticalEdges[leftBoundaryIndex]
+    val rightBoundaryStrength = verticalEdges[rightBoundaryIndex]
+    val topBoundaryStrength = horizontalEdges[topBoundaryIndex]
+    val bottomBoundaryStrength = horizontalEdges[bottomBoundaryIndex]
+    val detectedWidthCells = (rightBoundaryIndex - leftBoundaryIndex).coerceAtLeast(1)
+    val detectedHeightCells = (bottomBoundaryIndex - topBoundaryIndex).coerceAtLeast(1)
+    val detectedAspectRatio = detectedWidthCells.toDouble() / detectedHeightCells.toDouble()
+    val edgePresenceScore = min(
+        min(leftBoundaryStrength, rightBoundaryStrength),
+        min(topBoundaryStrength, bottomBoundaryStrength)
+    )
+    val aspectDelta = abs(detectedAspectRatio - ID_CARD_OVERLAY_ASPECT_RATIO.toDouble())
+    var innerVerticalEdgeTotal = 0.0
+    var innerVerticalEdgeCount = 0
+    for (index in (leftBoundaryIndex + 1) until rightBoundaryIndex) {
+        innerVerticalEdgeTotal += verticalEdges[index]
+        innerVerticalEdgeCount += 1
+    }
+    var innerHorizontalEdgeTotal = 0.0
+    var innerHorizontalEdgeCount = 0
+    for (index in (topBoundaryIndex + 1) until bottomBoundaryIndex) {
+        innerHorizontalEdgeTotal += horizontalEdges[index]
+        innerHorizontalEdgeCount += 1
+    }
+    val innerEdgeScore = (
+        (if (innerVerticalEdgeCount == 0) 0.0 else innerVerticalEdgeTotal / innerVerticalEdgeCount) +
+            (if (innerHorizontalEdgeCount == 0) 0.0 else innerHorizontalEdgeTotal / innerHorizontalEdgeCount)
+        ) / 2.0
+    val borderToInteriorRatio = edgePresenceScore / max(1.0, innerEdgeScore)
+    val boundaryShift = previousState?.let {
+        abs(leftBoundaryIndex - it.leftBoundary) +
+            abs(rightBoundaryIndex - it.rightBoundary) +
+            abs(topBoundaryIndex - it.topBoundary) +
+            abs(bottomBoundaryIndex - it.bottomBoundary)
+    } ?: 0
+    val guideState = DocumentGuideState(
+        signature = signature,
+        leftBoundary = leftBoundaryIndex,
+        rightBoundary = rightBoundaryIndex,
+        topBoundary = topBoundaryIndex,
+        bottomBoundary = bottomBoundaryIndex,
+        edgePresenceScore = edgePresenceScore
+    )
+
+    return when {
+        brightness < 35.0 -> DocumentGuideAssessment(
+            canHold = false,
+            message = "너무 어둡습니다. 밝은 곳에서 다시 맞춰주세요.",
+            state = null
+        )
+        brightness > 240.0 -> DocumentGuideAssessment(
+            canHold = false,
+            message = "빛 반사가 강합니다. 각도를 조금만 조정해 주세요.",
+            state = null
+        )
+        textureScore < 5.5 -> DocumentGuideAssessment(
+            canHold = false,
+            message = "신분증을 더 가까이, 가이드에 꽉 차게 맞춰주세요.",
+            state = null
+        )
+        edgePresenceScore < 19.0 ||
+            borderToInteriorRatio < 1.35 ||
+            aspectDelta > 0.32 ||
+            detectedWidthCells !in 12..21 ||
+            detectedHeightCells !in 7..13 -> DocumentGuideAssessment(
+            canHold = false,
+            message = "주민등록증 또는 운전면허증을 가이드에 맞춰주세요.",
+            state = null
+        )
+        previousState != null && boundaryShift > 7 -> DocumentGuideAssessment(
+            canHold = false,
+            message = "흔들리지 않게 그대로 유지해 주세요.",
+            state = guideState
+        )
+        else -> DocumentGuideAssessment(
+            canHold = true,
+            message = "신분증을 그대로 유지해 주세요.",
+            state = guideState
+        )
+    }
+}
+
+private suspend fun captureResidentIdJpegs(
+    cameraController: LifecycleCameraController,
+    callbackExecutor: ExecutorService
+): Pair<ByteArray, ByteArray> = suspendCancellableCoroutine { continuation ->
+    cameraController.takePicture(
+        callbackExecutor,
+        object : ImageCapture.OnImageCapturedCallback() {
+            override fun onCaptureSuccess(image: ImageProxy) {
+                try {
+                    val payload = prepareResidentIdJpegs(image)
+                    image.close()
+                    if (continuation.isActive) {
+                        continuation.resume(payload)
+                    }
+                } catch (throwable: Throwable) {
+                    image.close()
+                    if (continuation.isActive) {
+                        continuation.resumeWithException(throwable)
+                    }
+                }
+            }
+
+            override fun onError(exception: ImageCaptureException) {
+                if (continuation.isActive) {
+                    continuation.resumeWithException(exception)
+                }
+            }
+        }
+    )
 }
 
 private fun prepareResidentIdJpegs(imageProxy: ImageProxy): Pair<ByteArray, ByteArray> {
