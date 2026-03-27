@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,7 +24,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
@@ -36,7 +34,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -131,12 +128,6 @@ fun PointHistoryScreen(
                 }
 
                 item {
-                    ProgressSection(
-                        point = uiState.pointBalance
-                    )
-                }
-
-                item {
                     PeriodSection(
                         selectedYear = uiState.selectedYear,
                         selectedMonth = uiState.selectedMonth,
@@ -208,7 +199,7 @@ private fun PointHistoryHeader(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(540.dp)
+            .height(430.dp)
             .background(primaryColor)
     ) {
         Canvas(
@@ -358,9 +349,10 @@ private fun PointHistoryHeader(
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(0.dp))
 
-            Box(
+            if (false) {
+                Box(
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
                     .clip(RoundedCornerShape(10.dp))
@@ -398,6 +390,7 @@ private fun PointHistoryHeader(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
+            }
             }
         }
     }

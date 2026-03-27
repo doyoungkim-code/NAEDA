@@ -202,6 +202,7 @@ private fun OrderHistoryBlock(
             ) {
                 Box(
                     modifier = Modifier
+                        .align(Alignment.CenterVertically)
                         .size(96.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant),

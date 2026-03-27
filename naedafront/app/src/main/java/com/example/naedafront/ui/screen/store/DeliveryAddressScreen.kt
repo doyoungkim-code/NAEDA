@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.foundation.layout.WindowInsets
@@ -49,6 +50,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -66,8 +68,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -102,8 +106,11 @@ fun DeliveryAddressScreen(
     val coroutineScope = rememberCoroutineScope()
     val orderRepository = remember { OrderRepository() }
 
+    var addressName by remember { mutableStateOf("\uC9D1") }
+    var isCustomAddressName by remember { mutableStateOf(false) }
     var recipientName by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
+    var phoneFieldValue by remember { mutableStateOf(TextFieldValue("")) }
     var postCode by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
     var detailAddress by remember { mutableStateOf("") }
@@ -111,6 +118,7 @@ fun DeliveryAddressScreen(
     var isCustomRequest by remember { mutableStateOf(false) }
     var saveAsDefault by remember { mutableStateOf(true) }
     var showAddressSearchSheet by remember { mutableStateOf(false) }
+    var showAddressCreatedDialog by remember { mutableStateOf(false) }
     var localErrorMessage by remember { mutableStateOf<String?>(null) }
     var isOrdering by remember { mutableStateOf(false) }
 
@@ -120,7 +128,11 @@ fun DeliveryAddressScreen(
                 recipientName = AuthPrefs.getUsername(context).orEmpty()
             }
             if (phone.isBlank()) {
-                phone = AuthPrefs.getPhone(context).orEmpty()
+                phone = formatPhoneNumber(AuthPrefs.getPhone(context).orEmpty())
+                phoneFieldValue = TextFieldValue(
+                    text = phone,
+                    selection = TextRange(phone.length)
+                )
             }
             viewModel.loadAddresses(userNo)
         } else {
@@ -164,10 +176,18 @@ fun DeliveryAddressScreen(
             else -> {
                 DeliveryAddressFormContent(
                     addresses = uiState.addresses,
+                    addressName = addressName,
+                    isCustomAddressName = isCustomAddressName,
+                    onAddressNameChange = { addressName = it },
+                    onCustomAddressNameChange = { isCustomAddressName = it },
                     recipientName = recipientName,
                     onRecipientNameChange = { recipientName = it },
-                    phone = phone,
-                    onPhoneChange = { phone = it },
+                    phoneValue = phoneFieldValue,
+                    onPhoneChange = {
+                        val formattedValue = formatPhoneTextFieldValue(it)
+                        phoneFieldValue = formattedValue
+                        phone = formattedValue.text
+                    },
                     postCode = postCode,
                     onPostCodeChange = { postCode = it },
                     address = address,
@@ -180,6 +200,11 @@ fun DeliveryAddressScreen(
                     onCustomRequestChange = { isCustomRequest = it },
                     saveAsDefault = saveAsDefault,
                     onSaveAsDefaultChange = { saveAsDefault = it },
+                    phoneErrorMessage = if (shouldShowPhoneFormatError(phone)) {
+                        "올바른 연락처 형식이 아닙니다."
+                    } else {
+                        null
+                    },
                     errorMessage = localErrorMessage ?: uiState.errorMessage,
                     isSubmitting = uiState.isSubmitting || isOrdering,
                     onSearchPostCodeClick = {
@@ -187,6 +212,16 @@ fun DeliveryAddressScreen(
                         showAddressSearchSheet = true
                     },
                     onSelectSavedAddress = { selected ->
+                        addressName = selected.addressName
+                        isCustomAddressName = selected.addressName.isNotBlank() &&
+                            selected.addressName != "\uC9D1" &&
+                            selected.addressName != "\uD68C\uC0AC"
+                        recipientName = selected.recipient
+                        phone = formatPhoneNumber(selected.phone)
+                        phoneFieldValue = TextFieldValue(
+                            text = phone,
+                            selection = TextRange(phone.length)
+                        )
                         postCode = selected.zipCode
                         address = selected.roadAddress
                         detailAddress = selected.detailAddress
@@ -197,8 +232,9 @@ fun DeliveryAddressScreen(
                     },
                     onCompleteClick = {
                         val selectedItem = StoreOrderDraftStore.selectedItem
+                        val isOrderFlow = selectedItem != null
 
-                        if (selectedItem == null) {
+                        if (false && selectedItem == null) {
                             localErrorMessage = "선택된 상품 정보가 없습니다. 상품 화면에서 다시 선택해주세요."
                             return@DeliveryAddressFormContent
                         }
@@ -209,36 +245,51 @@ fun DeliveryAddressScreen(
                         }
 
                         localErrorMessage = null
+                        val formattedPhone = formatPhoneNumber(phone)
+                        val normalizedPhone = normalizePhoneNumber(formattedPhone)
+
+                        if (!isValidPhoneNumber(formattedPhone)) {
+                            localErrorMessage = "올바른 연락처 형식이 아닙니다."
+                            return@DeliveryAddressFormContent
+                        }
+
+                        phone = formattedPhone
                         StoreOrderDraftStore.updateDeliveryRequest(deliveryRequest)
 
                         val existingAddress = uiState.addresses.firstOrNull { saved ->
                             saved.recipient.trim() == recipientName.trim() &&
-                                    saved.phone.trim() == phone.trim() &&
+                                    normalizePhoneNumber(saved.phone) == normalizedPhone &&
                                     saved.zipCode.trim() == postCode.trim() &&
                                     saved.roadAddress.trim() == address.trim() &&
                                     saved.detailAddress.trim() == detailAddress.trim()
                         }
 
                         if (existingAddress != null) {
+                            if (!isOrderFlow || selectedItem == null) {
+                                localErrorMessage = "이미 등록된 배송지입니다."
+                                return@DeliveryAddressFormContent
+                            }
+
+                            val orderItem = selectedItem ?: return@DeliveryAddressFormContent
                             coroutineScope.launch {
                                 isOrdering = true
 
                                 Log.d(
                                     "ORDER_FLOW",
-                                    "use existing address userNo=$userNo, productId=${selectedItem.id}, addressId=${existingAddress.addressId}"
+                                    "use existing address userNo=$userNo, productId=${orderItem.id}, addressId=${existingAddress.addressId}"
                                 )
 
                                 orderRepository.createOrder(
                                     userNo = userNo,
-                                    productId = selectedItem.id,
+                                    productId = orderItem.id,
                                     addressId = existingAddress.addressId
                                 ).onSuccess { orderResponse ->
-                                    StoreOrderDraftStore.buildCompletedOrder(
-                                        order = orderResponse,
-                                        address = existingAddress,
-                                        recipientName = recipientName,
-                                        phone = phone
-                                    )
+                                        StoreOrderDraftStore.buildCompletedOrder(
+                                            order = orderResponse,
+                                            address = existingAddress,
+                                            recipientName = recipientName,
+                                            phone = formattedPhone
+                                        )
                                     isOrdering = false
                                     onAddressSelected(existingAddress)
                                 }.onFailure { throwable ->
@@ -252,31 +303,38 @@ fun DeliveryAddressScreen(
 
                         viewModel.createAddress(
                             userNo = userNo,
+                            addressName = addressName,
                             recipientName = recipientName,
-                            phone = phone,
+                            phone = normalizedPhone,
                             postCode = postCode,
                             address = address,
                             detailAddress = detailAddress,
                             saveAsDefault = saveAsDefault,
                             onSuccess = { savedAddress ->
+                                if (!isOrderFlow || selectedItem == null) {
+                                    showAddressCreatedDialog = true
+                                    return@createAddress
+                                }
+
+                                val orderItem = selectedItem ?: return@createAddress
                                 coroutineScope.launch {
                                     isOrdering = true
 
                                     Log.d(
                                         "ORDER_FLOW",
-                                        "createOrder start userNo=$userNo, productId=${selectedItem.id}, addressId=${savedAddress.addressId}"
+                                        "createOrder start userNo=$userNo, productId=${orderItem.id}, addressId=${savedAddress.addressId}"
                                     )
 
                                     orderRepository.createOrder(
                                         userNo = userNo,
-                                        productId = selectedItem.id,
+                                        productId = orderItem.id,
                                         addressId = savedAddress.addressId
                                     ).onSuccess { orderResponse ->
                                         StoreOrderDraftStore.buildCompletedOrder(
                                             order = orderResponse,
                                             address = savedAddress,
                                             recipientName = recipientName,
-                                            phone = phone
+                                            phone = formattedPhone
                                         )
                                         isOrdering = false
                                         onAddressSelected(savedAddress)
@@ -316,6 +374,26 @@ fun DeliveryAddressScreen(
             }
         )
     }
+
+    if (showAddressCreatedDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddressCreatedDialog = false },
+            confirmButton = {
+                TextButton(onClick = { showAddressCreatedDialog = false }) {
+                    Text("확인")
+                }
+            },
+            title = {
+                Text(
+                    text = "배송지 등록 완료",
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            text = {
+                Text("배송지 정보가 등록되었습니다.")
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -348,10 +426,14 @@ private fun DeliveryAddressTopBar(
 @Composable
 private fun DeliveryAddressFormContent(
     addresses: List<AddressResponse>,
+    addressName: String,
+    isCustomAddressName: Boolean,
+    onAddressNameChange: (String) -> Unit,
+    onCustomAddressNameChange: (Boolean) -> Unit,
     recipientName: String,
     onRecipientNameChange: (String) -> Unit,
-    phone: String,
-    onPhoneChange: (String) -> Unit,
+    phoneValue: TextFieldValue,
+    onPhoneChange: (TextFieldValue) -> Unit,
     postCode: String,
     onPostCodeChange: (String) -> Unit,
     address: String,
@@ -364,6 +446,7 @@ private fun DeliveryAddressFormContent(
     onCustomRequestChange: (Boolean) -> Unit,
     saveAsDefault: Boolean,
     onSaveAsDefaultChange: (Boolean) -> Unit,
+    phoneErrorMessage: String?,
     errorMessage: String?,
     isSubmitting: Boolean,
     onSearchPostCodeClick: () -> Unit,
@@ -409,6 +492,24 @@ private fun DeliveryAddressFormContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        AddressNameSection(
+            value = addressName,
+            isCustomAddressName = isCustomAddressName,
+            onValueChange = onAddressNameChange,
+            onCustomAddressNameChange = onCustomAddressNameChange
+        )
+
+        if (false) {
+        InputSection(
+            label = "배송지명",
+            value = addressName,
+            placeholder = "예: 집, 회사",
+            onValueChange = onAddressNameChange
+        )
+        }
+
+        Spacer(modifier = Modifier.height(28.dp))
+
         InputSection(
             label = "수령인",
             value = recipientName,
@@ -420,9 +521,9 @@ private fun DeliveryAddressFormContent(
 
         InputSection(
             label = "연락처",
-            value = phone,
+            value = phoneValue,
             placeholder = "010-0000-0000",
-            keyboardType = KeyboardType.Phone,
+            errorMessage = phoneErrorMessage,
             onValueChange = onPhoneChange
         )
 
@@ -531,6 +632,316 @@ private fun DeliveryAddressFormContent(
         }
 
         Spacer(modifier = Modifier.height(18.dp))
+    }
+}
+
+@Composable
+private fun AddressNameSection(
+    value: String,
+    isCustomAddressName: Boolean,
+    onValueChange: (String) -> Unit,
+    onCustomAddressNameChange: (Boolean) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedNameText = when {
+        isCustomAddressName -> "\uC9C1\uC811\uC785\uB825"
+        value == "\uC9D1" || value == "\uD68C\uC0AC" -> value
+        else -> ""
+    }
+    val presetNames = listOf(
+        "\uC9D1",
+        "\uD68C\uC0AC",
+        "\uC9C1\uC811\uC785\uB825"
+    )
+
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = "\uBC30\uC1A1\uC9C0\uBA85",
+            color = LabelColor,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Box(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = true }
+            ) {
+                OutlinedTextField(
+                    value = selectedNameText,
+                    onValueChange = {},
+                    readOnly = true,
+                    enabled = false,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = {
+                        Text(
+                            text = "\uBC30\uC1A1\uC9C0\uBA85\uC744 \uC120\uD0DD\uD574\uC8FC\uC138\uC694",
+                            color = ValueColor,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    },
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        color = TitleColor,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    trailingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "open",
+                            tint = ValueColor
+                        )
+                    },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = ScreenBg,
+                        unfocusedContainerColor = ScreenBg,
+                        disabledContainerColor = ScreenBg,
+                        errorContainerColor = ScreenBg,
+                        focusedIndicatorColor = DividerColor,
+                        unfocusedIndicatorColor = DividerColor,
+                        disabledIndicatorColor = DividerColor,
+                        focusedTextColor = TitleColor,
+                        unfocusedTextColor = TitleColor,
+                        disabledTextColor = TitleColor,
+                        disabledPlaceholderColor = ValueColor,
+                        disabledTrailingIconColor = ValueColor,
+                        cursorColor = StorePrimary
+                    )
+                )
+            }
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                presetNames.forEach { item ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = item,
+                                color = TitleColor,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        },
+                        onClick = {
+                            expanded = false
+                            if (item == "\uC9C1\uC811\uC785\uB825") {
+                                onCustomAddressNameChange(true)
+                                if (value == "\uC9D1" || value == "\uD68C\uC0AC") {
+                                    onValueChange("")
+                                }
+                            } else {
+                                onCustomAddressNameChange(false)
+                                onValueChange(item)
+                            }
+                        }
+                    )
+                }
+            }
+        }
+
+        if (isCustomAddressName) {
+            Spacer(modifier = Modifier.height(14.dp))
+
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = {
+                    Text(
+                        text = "\uBC30\uC1A1\uC9C0\uBA85\uC744 \uC9C1\uC811 \uC785\uB825\uD574\uC8FC\uC138\uC694",
+                        color = ValueColor,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                },
+                singleLine = true,
+                textStyle = TextStyle(
+                    color = TitleColor,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                ),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = ScreenBg,
+                    unfocusedContainerColor = ScreenBg,
+                    disabledContainerColor = ScreenBg,
+                    errorContainerColor = ScreenBg,
+                    focusedIndicatorColor = DividerColor,
+                    unfocusedIndicatorColor = DividerColor,
+                    disabledIndicatorColor = DividerColor,
+                    focusedTextColor = TitleColor,
+                    unfocusedTextColor = TitleColor,
+                    focusedPlaceholderColor = ValueColor,
+                    unfocusedPlaceholderColor = ValueColor,
+                    cursorColor = StorePrimary
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun AddressNameSection(
+    value: String,
+    isCustomAddressName: Boolean,
+    onValueChange: (String) -> Unit,
+    onCustomAddressNameChange: (Boolean) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedNameText = when {
+        isCustomAddressName -> "\uC9C1\uC811\uC785\uB825"
+        value == "\uC9D1" || value == "\uD68C\uC0AC" -> value
+        else -> ""
+    }
+    val presetNames = listOf(
+        "\uC9D1",
+        "\uD68C\uC0AC",
+        "\uC9C1\uC811\uC785\uB825"
+    )
+
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = "등록된 배송지 선택",
+            color = LabelColor,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Box(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = true }
+            ) {
+                OutlinedTextField(
+                    value = selectedNameText,
+                    onValueChange = {},
+                    readOnly = true,
+                    enabled = false,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = {
+                        Text(
+                            text = "배송지를 선택해주세요",
+                            color = ValueColor,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    },
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    trailingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "expand",
+                            tint = ValueColor
+                        )
+                    },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.background,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                        disabledContainerColor = MaterialTheme.colorScheme.background,
+                        errorContainerColor = MaterialTheme.colorScheme.background,
+                        focusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                        disabledIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary
+                    )
+                )
+            }
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                presetNames.forEach { item ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = item,
+                                color = TitleColor,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        },
+                        onClick = {
+                            expanded = false
+                            if (item == "\uC9C1\uC811\uC785\uB825") {
+                                onCustomAddressNameChange(true)
+                                if (value == "\uC9D1" || value == "\uD68C\uC0AC") {
+                                    onValueChange("")
+                                }
+                            } else {
+                                onCustomAddressNameChange(false)
+                                onValueChange(item)
+                            }
+                        }
+                    )
+                }
+            }
+        }
+
+        if (isCustomAddressName) {
+            Spacer(modifier = Modifier.height(14.dp))
+
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = {
+                    Text(
+                        text = "\uBC30\uC1A1\uC9C0\uBA85\uC744 \uC9C1\uC811 \uC785\uB825\uD574\uC8FC\uC138\uC694",
+                        color = ValueColor,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                },
+                singleLine = true,
+                textStyle = TextStyle(
+                    color = TitleColor,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                ),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = ScreenBg,
+                    unfocusedContainerColor = ScreenBg,
+                    disabledContainerColor = ScreenBg,
+                    errorContainerColor = ScreenBg,
+                    focusedIndicatorColor = DividerColor,
+                    unfocusedIndicatorColor = DividerColor,
+                    disabledIndicatorColor = DividerColor,
+                    focusedTextColor = TitleColor,
+                    unfocusedTextColor = TitleColor,
+                    focusedPlaceholderColor = ValueColor,
+                    unfocusedPlaceholderColor = ValueColor,
+                    cursorColor = StorePrimary
+                )
+            )
+        }
     }
 }
 
@@ -681,10 +1092,80 @@ private fun SavedAddressDropdown(
 @Composable
 private fun InputSection(
     label: String,
+    value: TextFieldValue,
+    placeholder: String,
+    errorMessage: String? = null,
+    onValueChange: (TextFieldValue) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = label,
+            color = LabelColor,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            isError = errorMessage != null,
+            placeholder = {
+                Text(
+                    text = placeholder,
+                    color = ValueColor,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            },
+            singleLine = true,
+            textStyle = TextStyle(
+                color = TitleColor,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Medium
+            ),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = ScreenBg,
+                unfocusedContainerColor = ScreenBg,
+                disabledContainerColor = ScreenBg,
+                errorContainerColor = ScreenBg,
+                focusedIndicatorColor = DividerColor,
+                unfocusedIndicatorColor = DividerColor,
+                errorIndicatorColor = ErrorColor,
+                disabledIndicatorColor = DividerColor,
+                focusedTextColor = TitleColor,
+                unfocusedTextColor = TitleColor,
+                focusedPlaceholderColor = ValueColor,
+                unfocusedPlaceholderColor = ValueColor,
+                cursorColor = StorePrimary
+            ),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+        )
+
+        errorMessage?.let { message ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = message,
+                color = ErrorColor,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+@Composable
+private fun InputSection(
+    label: String,
     value: String,
     placeholder: String,
     keyboardType: KeyboardType = KeyboardType.Text,
     readOnly: Boolean = false,
+    errorMessage: String? = null,
     onValueChange: (String) -> Unit
 ) {
     Column(
@@ -703,6 +1184,7 @@ private fun InputSection(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
+            isError = errorMessage != null,
             placeholder = {
                 Text(
                     text = placeholder,
@@ -725,6 +1207,7 @@ private fun InputSection(
                 errorContainerColor = MaterialTheme.colorScheme.background,
                 focusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
                 unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                errorIndicatorColor = ErrorColor,
                 disabledIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
                 focusedTextColor = MaterialTheme.colorScheme.onSurface,
                 unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
@@ -734,6 +1217,16 @@ private fun InputSection(
             ),
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType)
         )
+
+        errorMessage?.let { message ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = message,
+                color = ErrorColor,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }
 
@@ -1150,5 +1643,61 @@ private fun AddressSearchResultItem(
                 fontWeight = FontWeight.Medium
             )
         }
+    }
+}
+
+private fun normalizePhoneNumber(value: String): String {
+    return value.filter { it.isDigit() }.take(11)
+}
+
+private fun formatPhoneNumber(value: String): String {
+    val digits = normalizePhoneNumber(value)
+    return when {
+        digits.length <= 3 -> digits
+        digits.length <= 7 -> "${digits.take(3)}-${digits.drop(3)}"
+        else -> "${digits.take(3)}-${digits.substring(3, 7)}-${digits.drop(7)}"
+    }
+}
+
+private fun formatPhoneTextFieldValue(value: TextFieldValue): TextFieldValue {
+    val digitsBeforeCursor = value.text
+        .take(value.selection.start.coerceAtMost(value.text.length))
+        .count { it.isDigit() }
+        .coerceAtMost(11)
+    val formatted = formatPhoneNumber(value.text)
+    val cursor = phoneCursorFromDigitCount(formatted, digitsBeforeCursor)
+    return TextFieldValue(
+        text = formatted,
+        selection = TextRange(cursor)
+    )
+}
+
+private fun phoneCursorFromDigitCount(formatted: String, digitCount: Int): Int {
+    if (digitCount <= 0) return 0
+
+    var seenDigits = 0
+    formatted.forEachIndexed { index, char ->
+        if (char.isDigit()) {
+            seenDigits++
+            if (seenDigits == digitCount) {
+                return index + 1
+            }
+        }
+    }
+
+    return formatted.length
+}
+
+private fun isValidPhoneNumber(value: String): Boolean {
+    return normalizePhoneNumber(value).matches(Regex("^01[0-9]\\d{8}$"))
+}
+
+private fun shouldShowPhoneFormatError(value: String): Boolean {
+    val digits = normalizePhoneNumber(value)
+    return when {
+        digits.isEmpty() -> false
+        digits.length >= 2 && digits.take(2) != "01" -> true
+        digits.length == 11 && !isValidPhoneNumber(value) -> true
+        else -> false
     }
 }

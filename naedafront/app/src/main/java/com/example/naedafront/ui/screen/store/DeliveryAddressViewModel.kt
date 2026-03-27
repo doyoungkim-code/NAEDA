@@ -51,7 +51,7 @@ class DeliveryAddressViewModel(
                         currentState.copy(
                             isLoading = false,
                             addresses = emptyList(),
-                            errorMessage = throwable.message ?: "주소 목록을 불러오지 못했습니다."
+                            errorMessage = throwable.message ?: "배송지 목록을 불러오지 못했습니다."
                         )
                     }
                 }
@@ -77,7 +77,7 @@ class DeliveryAddressViewModel(
                 .onFailure { throwable ->
                     _uiState.update { currentState ->
                         currentState.copy(
-                            errorMessage = throwable.message ?: "주소 정보를 불러오지 못했습니다."
+                            errorMessage = throwable.message ?: "배송지 정보를 불러오지 못했습니다."
                         )
                     }
                 }
@@ -93,7 +93,7 @@ class DeliveryAddressViewModel(
                 .onFailure { throwable ->
                     _uiState.update { currentState ->
                         currentState.copy(
-                            errorMessage = throwable.message ?: "주소를 삭제하지 못했습니다."
+                            errorMessage = throwable.message ?: "배송지를 삭제하지 못했습니다."
                         )
                     }
                 }
@@ -102,6 +102,7 @@ class DeliveryAddressViewModel(
 
     fun createAddress(
         userNo: Long,
+        addressName: String,
         recipientName: String,
         phone: String,
         postCode: String,
@@ -118,8 +119,12 @@ class DeliveryAddressViewModel(
                 )
             }
 
+            val resolvedAddressName = addressName.trim().ifBlank {
+                if (saveAsDefault) "기본 배송지" else recipientName.trim().ifBlank { "배송지" }
+            }
+
             val request = CreateAddressRequest(
-                addressName = if (saveAsDefault) "기본 배송지" else "배송지",
+                addressName = resolvedAddressName,
                 recipient = recipientName,
                 phone = phone,
                 roadAddress = address,
@@ -171,7 +176,7 @@ class DeliveryAddressViewModel(
                     _uiState.update { currentState ->
                         currentState.copy(
                             isSubmitting = false,
-                            errorMessage = throwable.message ?: "주소를 등록하지 못했습니다."
+                            errorMessage = throwable.message ?: "배송지 생성에 실패했습니다."
                         )
                     }
                 }

@@ -2,6 +2,7 @@ package com.example.naedafront.ui.screen.store
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -209,7 +210,7 @@ private fun OrderDetailContent(
                         contentDescription = order.productName,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(180.dp)
+                            .aspectRatio(1f)
                             .clip(RoundedCornerShape(16.dp)),
                         contentScale = ContentScale.Crop
                     )

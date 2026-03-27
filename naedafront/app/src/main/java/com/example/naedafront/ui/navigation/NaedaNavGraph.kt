@@ -209,7 +209,7 @@ fun NaedaNavGraph(
             DeliveryAddressScreen(
                 onBackClick = { navController.popBackStack() },
                 onSearchPostCodeClick = { },
-                onRequestClick = { },
+                onRequestClick = { navController.popBackStack() },
                 onAddressSelected = {
                     navController.navigateSingleTopTo(Screen.OrderComplete.route)
                 }
@@ -517,7 +517,12 @@ fun NaedaNavGraph(
                 onFaceReRegisterClick = { navController.navigateSingleTopTo(Screen.FaceRegister.route) },
                 onSecondaryAuthClick = { navController.navigateSingleTopTo(Screen.SecondaryAuthPin.route) },
                 onPinChangeClick = { navController.navigateSingleTopTo(Screen.Security.route) },
-                onDeliveryAddressClick = { navController.navigateSingleTopTo(Screen.DeliveryAddress.route) },
+                onDeliveryAddressClick = {
+                    StoreOrderDraftStore.selectedItem = null
+                    StoreOrderDraftStore.deliveryRequest = ""
+                    StoreOrderDraftStore.clearCompletedOrder()
+                    navController.navigateSingleTopTo(Screen.DeliveryAddress.route)
+                },
                 onOrderHistoryClick = { navController.navigateSingleTopTo(Screen.OrderHistory.route) },
                 onLogoutClick = {
                     AuthPrefs.clearSession(context)
