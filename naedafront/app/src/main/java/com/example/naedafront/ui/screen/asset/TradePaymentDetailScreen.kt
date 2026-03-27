@@ -49,10 +49,8 @@ fun TradePaymentDetailScreen(
         item.bankName.takeIf { it.isNotBlank() }?.let(::add)
         item.accountNumber.takeIf { it.isNotBlank() }?.let(::add)
     }.joinToString(" ").ifBlank { "계좌 정보 없음" }
-    val cardInfo = item.cardNumber.ifBlank { "-" }
     val detailFields = listOf(
         "결제 수단" to accountInfo,
-        "카드 번호" to cardInfo,
         "결제 시간" to (detail.createdAt?.toTradeDetailDateTime().orEmpty().ifBlank { "-" }),
         "적립 포인트" to (detail.earnedPoints?.let { "${tradeDetailAmount(it)}P" } ?: "적립 없음"),
         "거래 번호" to (detail.ssafyTransactionId ?: detail.paymentId.toString()),

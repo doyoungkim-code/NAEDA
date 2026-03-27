@@ -282,7 +282,6 @@ private fun AccountListHeader(count: Int, onRegisterNew: () -> Unit) {
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column {
             Text(

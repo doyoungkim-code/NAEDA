@@ -1427,15 +1427,14 @@ private fun TransactionRow(item: TransactionItem) {
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(999.dp))
-                            .background(Mint100)
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                            .background(Color(0xFFE8F0FF))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
                         Text(
                             text = badgeText,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = Mint900
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF4F74FF)
                         )
                     }
                 }
