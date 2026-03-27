@@ -297,14 +297,14 @@ private fun TableRow(
             text = col1,
             fontSize = 12.sp,
             fontWeight = if (isHeader) FontWeight.SemiBold else FontWeight.Medium,
-            color = if (isHeader) Color(0xFF202632) else Color(0xFF5E6776),
+            color = if (isHeader) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.width(64.dp)
         )
         Text(
             text = col2,
             fontSize = 12.sp,
             fontWeight = if (isHeader) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (isHeader) Color(0xFF202632) else Color(0xFF5E6776),
+            color = if (isHeader) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             lineHeight = 18.sp,
             modifier = Modifier.weight(1f)
         )
@@ -313,7 +313,7 @@ private fun TableRow(
             text = col3,
             fontSize = 12.sp,
             fontWeight = if (isHeader) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (isHeader) Color(0xFF202632) else Color(0xFF5E6776),
+            color = if (isHeader) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             lineHeight = 18.sp,
             modifier = Modifier.weight(0.8f)
         )
