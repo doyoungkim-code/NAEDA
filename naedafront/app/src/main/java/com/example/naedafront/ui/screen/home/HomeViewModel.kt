@@ -182,6 +182,7 @@ class HomeViewModel : ViewModel() {
                             content = f.description ?: "",
                             date = "$startDate ~ $endDate",
                             createdRaw = f.created ?: "",
+                            scheduleStartRaw = f.startDate ?: "",
                             imageUrl = f.imageUrl
                         )
                     )
@@ -205,6 +206,7 @@ class HomeViewModel : ViewModel() {
                             content = n.content ?: "",
                             date = created,
                             createdRaw = n.created ?: "",
+                            scheduleStartRaw = "",
                             imageUrl = null
                         )
                     )
