@@ -17,6 +17,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -79,8 +80,8 @@ fun NaedaChatFab(onClick: () -> Unit) {
             .background(
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        Color(0xFF00897B),
-                        Color(0xFF00635A)
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
                     ),
                     start = Offset(0f, 0f),
                     end = Offset(64f, 62f)

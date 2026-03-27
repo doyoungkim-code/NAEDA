@@ -80,14 +80,11 @@ import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.AssetAccountResponse
 import com.example.naedafront.data.remote.AssetCardResponse
 import com.example.naedafront.data.repository.CardRepository
-import com.example.naedafront.ui.theme.Background
 import com.example.naedafront.ui.theme.KronaOneFontFamily
 import com.example.naedafront.ui.theme.Mint100
 import com.example.naedafront.ui.theme.Mint900
 import com.example.naedafront.ui.theme.NaedaTheme
-import com.example.naedafront.ui.theme.OnBackground
 import com.example.naedafront.ui.theme.Success
-import com.example.naedafront.ui.theme.Surface
 import kotlinx.coroutines.delay
 
 data class TransactionItem(
@@ -197,7 +194,7 @@ fun HomeScreen(
                 unreadNotificationCount = uiState.unreadNotificationCount
             )
         },
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         Column(
@@ -255,12 +252,12 @@ fun HomeScreen(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp
                     ),
-                    color = OnBackground.copy(alpha = 0.4f)
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
                 )
                 Text(
                     text = "더보기",
                     style = MaterialTheme.typography.labelMedium,
-                    color = Mint900,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.clickable { onNoticeMoreClick() }
                 )
             }
@@ -299,12 +296,12 @@ fun HomeScreen(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp
                     ),
-                    color = OnBackground.copy(alpha = 0.4f)
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
                 )
                 Text(
                     text = "전체보기",
                     style = MaterialTheme.typography.labelMedium,
-                    color = Mint900,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.clickable { onViewAllTransactionsClick() }
                 )
             }
@@ -327,7 +324,7 @@ private fun SectionLabel(title: String) {
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.5.sp
         ),
-        color = OnBackground.copy(alpha = 0.4f),
+        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
         modifier = Modifier.padding(horizontal = 20.dp)
     )
 }
@@ -342,29 +339,21 @@ private fun NaedaHomeTopBar(
 ) {
     TopAppBar(
         title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Image(
-                    painter = painterResource(id = R.drawable.naeda_logo),
-                    contentDescription = "내다 캐릭터",
-                    modifier = Modifier.size(36.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "NAEDA",
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontFamily = KronaOneFontFamily,
-                        fontWeight = FontWeight.Normal,
-                        fontSize = 32.sp,
-                        letterSpacing = 1.sp
-                    ),
-                    color = Mint900
-                )
-            }
+            Text(
+                text = "NAEDA",
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontFamily = KronaOneFontFamily,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 32.sp,
+                    letterSpacing = 1.sp
+                ),
+                color = MaterialTheme.colorScheme.primary
+            )
         },
         actions = {
             Box {
                 IconButton(onClick = onAlarmClick) {
-                    Icon(Icons.Outlined.Notifications, contentDescription = "알림", tint = OnBackground)
+                    Icon(Icons.Outlined.Notifications, contentDescription = "알림", tint = MaterialTheme.colorScheme.onBackground)
                 }
                 if (unreadNotificationCount > 0L) {
                     val badgeText = if (unreadNotificationCount > 99L) "99+" else unreadNotificationCount.toString()
@@ -407,19 +396,19 @@ private fun NaedaHomeTopBar(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .background(Mint100.copy(alpha = 0.3f)),
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.Default.Person,
                         contentDescription = "프로필",
-                        tint = Mint900,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
             }
         },
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = Background),
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
         windowInsets = WindowInsets(0)
     )
 }
@@ -472,7 +461,7 @@ private fun GreetingSection(
         Text(
             text = today,
             style = MaterialTheme.typography.labelMedium,
-            color = OnBackground.copy(alpha = 0.45f)
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
@@ -480,7 +469,7 @@ private fun GreetingSection(
             style = MaterialTheme.typography.headlineSmall.copy(
                 fontWeight = FontWeight.Bold
             ),
-            color = OnBackground
+            color = MaterialTheme.colorScheme.onBackground
         )
     }
 }
@@ -640,7 +629,7 @@ private fun AssetCardPager(
                             .padding(horizontal = 3.dp)
                             .size(if (currentActualPage == index) 8.dp else 6.dp)
                             .background(
-                                color = if (currentActualPage == index) Mint900 else Mint900.copy(alpha = 0.25f),
+                                color = if (currentActualPage == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
                                 shape = CircleShape
                             )
                     )
@@ -822,7 +811,7 @@ private fun RegisterCardPrompt(onClick: () -> Unit) {
             .padding(horizontal = 20.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Mint900.copy(alpha = 0.08f)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
@@ -834,14 +823,14 @@ private fun RegisterCardPrompt(onClick: () -> Unit) {
             Icon(
                 Icons.Default.Add,
                 contentDescription = "카드 등록",
-                tint = Mint900,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(36.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "카드 등록하러 가기",
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = Mint900
+                color = MaterialTheme.colorScheme.primary
             )
         }
     }
@@ -869,7 +858,7 @@ private fun LinkAccountCard(onLinkAccountClick: () -> Unit) {
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Surface),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
@@ -882,13 +871,13 @@ private fun LinkAccountCard(onLinkAccountClick: () -> Unit) {
                 modifier = Modifier
                     .size(56.dp)
                     .clip(CircleShape)
-                    .background(Mint100.copy(alpha = 0.15f)),
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Default.AccountBalance,
                     contentDescription = null,
-                    tint = Mint900,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -900,7 +889,7 @@ private fun LinkAccountCard(onLinkAccountClick: () -> Unit) {
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold
                 ),
-                color = OnBackground
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -908,7 +897,7 @@ private fun LinkAccountCard(onLinkAccountClick: () -> Unit) {
             Text(
                 text = "계좌를 연결하면 잔액과 거래내역을\n한눈에 확인할 수 있어요",
                 style = MaterialTheme.typography.bodySmall,
-                color = OnBackground.copy(alpha = 0.5f),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                 textAlign = TextAlign.Center
             )
 
@@ -920,7 +909,7 @@ private fun LinkAccountCard(onLinkAccountClick: () -> Unit) {
                     .fillMaxWidth()
                     .height(44.dp),
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Icon(
                     Icons.Default.Add,
@@ -946,7 +935,7 @@ private fun FacePayBannerCard(onFacePaySettingClick: () -> Unit) {
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Mint900.copy(alpha = 0.08f)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
@@ -961,13 +950,13 @@ private fun FacePayBannerCard(onFacePaySettingClick: () -> Unit) {
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold
                     ),
-                    color = OnBackground
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "카드 없이도 어디서든 빠르게.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = OnBackground.copy(alpha = 0.55f)
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
                 )
                 Spacer(modifier = Modifier.height(14.dp))
                 Button(
@@ -977,7 +966,7 @@ private fun FacePayBannerCard(onFacePaySettingClick: () -> Unit) {
                         .height(40.dp),
                     shape = RoundedCornerShape(8.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Text(
                         "페이스 페이 설정",
@@ -1011,7 +1000,7 @@ private fun FacePayBenefitCard(
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Mint900.copy(alpha = 0.08f)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
@@ -1030,7 +1019,7 @@ private fun FacePayBenefitCard(
                             modifier = Modifier
                                 .size(20.dp)
                                 .clip(CircleShape)
-                                .background(Mint900),
+                                .background(MaterialTheme.colorScheme.primary),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -1046,7 +1035,7 @@ private fun FacePayBenefitCard(
                             style = MaterialTheme.typography.labelMedium.copy(
                                 fontWeight = FontWeight.SemiBold
                             ),
-                            color = Mint900
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
 
@@ -1057,13 +1046,13 @@ private fun FacePayBenefitCard(
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold
                     ),
-                    color = OnBackground
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "얼굴 등록이 완료되었어요. 필요한 경우 아래에서 얼굴 정보를 다시 등록할 수 있습니다.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = OnBackground.copy(alpha = 0.55f)
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -1071,7 +1060,7 @@ private fun FacePayBenefitCard(
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Medium
                     ),
-                    color = Mint900.copy(alpha = 0.7f),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
                     modifier = Modifier.clickable { onReRegisterClick() }
                 )
             }
@@ -1101,7 +1090,7 @@ private fun NoticeCard(
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Surface),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -1117,7 +1106,7 @@ private fun NoticeCard(
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Medium
                         ),
-                        color = OnBackground.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                     )
                 }
             } else {
@@ -1126,7 +1115,7 @@ private fun NoticeCard(
                     if (index < displayNotices.lastIndex) {
                         HorizontalDivider(
                             modifier = Modifier.padding(vertical = 8.dp),
-                            color = OnBackground.copy(alpha = 0.06f)
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.06f)
                         )
                     }
                 }
@@ -1165,7 +1154,7 @@ private fun NoticeRow(notice: NoticeItem, onClick: () -> Unit = {}) {
             style = MaterialTheme.typography.bodySmall.copy(
                 fontWeight = FontWeight.Medium
             ),
-            color = OnBackground,
+            color = MaterialTheme.colorScheme.onBackground,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
@@ -1176,7 +1165,7 @@ private fun NoticeRow(notice: NoticeItem, onClick: () -> Unit = {}) {
         Text(
             text = notice.date,
             style = MaterialTheme.typography.labelSmall,
-            color = OnBackground.copy(alpha = 0.45f)
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
         )
     }
 }
@@ -1193,7 +1182,7 @@ private fun SpendingAnalysisCard(
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Mint900.copy(alpha = 0.04f)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.04f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -1212,13 +1201,13 @@ private fun SpendingAnalysisCard(
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.SemiBold
                         ),
-                        color = OnBackground.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "결제 내역이 쌓이면\n맞춤 소비 분석을 보여드릴게요",
                         style = MaterialTheme.typography.bodySmall,
-                        color = OnBackground.copy(alpha = 0.4f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                         textAlign = TextAlign.Center
                     )
                 }
@@ -1238,14 +1227,14 @@ private fun SpendingAnalysisCard(
                         Text(
                             text = "${topCategory}에 가장 많이 썼어요",
                             style = MaterialTheme.typography.bodySmall,
-                            color = OnBackground.copy(alpha = 0.55f)
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
                         )
                         Text(
                             text = "₩${"%,d".format(topAmount)}원",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold
                             ),
-                            color = OnBackground
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                     }
                 }
@@ -1275,7 +1264,7 @@ private fun SpendingAnalysisCard(
                             Text(
                                 text = cat.label,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = OnBackground.copy(alpha = 0.6f),
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -1298,7 +1287,7 @@ private fun SpendingAnalysisCard(
                                 fontWeight = FontWeight.Medium,
                                 lineHeight = 18.sp
                             ),
-                            color = OnBackground
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                     }
                 }
@@ -1342,7 +1331,7 @@ private fun RecentTransactionsSection(
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Surface),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -1360,13 +1349,13 @@ private fun RecentTransactionsSection(
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.SemiBold
                         ),
-                        color = OnBackground.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "내다 페이스페이로\n첫 결제를 해보세요!",
                         style = MaterialTheme.typography.bodySmall,
-                        color = OnBackground.copy(alpha = 0.4f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                         textAlign = TextAlign.Center
                     )
                 }
@@ -1385,7 +1374,7 @@ private fun TransactionRow(item: TransactionItem) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(Surface)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1399,7 +1388,7 @@ private fun TransactionRow(item: TransactionItem) {
             Icon(
                 item.icon,
                 contentDescription = null,
-                tint = if (item.isIncome) Success else OnBackground.copy(alpha = 0.7f),
+                tint = if (item.isIncome) Success else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -1417,7 +1406,7 @@ private fun TransactionRow(item: TransactionItem) {
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.SemiBold
                     ),
-                    color = OnBackground,
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.weight(1f, fill = false),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -1426,7 +1415,7 @@ private fun TransactionRow(item: TransactionItem) {
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(999.dp))
-                            .background(Mint100)
+                            .background(MaterialTheme.colorScheme.primaryContainer)
                             .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
                         Text(
@@ -1434,7 +1423,7 @@ private fun TransactionRow(item: TransactionItem) {
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold
                             ),
-                            color = Mint900
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -1443,7 +1432,7 @@ private fun TransactionRow(item: TransactionItem) {
             Text(
                 text = item.subTitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = OnBackground.copy(alpha = 0.45f),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1454,7 +1443,7 @@ private fun TransactionRow(item: TransactionItem) {
             style = MaterialTheme.typography.bodyMedium.copy(
                 fontWeight = FontWeight.Bold
             ),
-            color = if (item.isIncome) Success else OnBackground
+            color = if (item.isIncome) Success else MaterialTheme.colorScheme.onBackground
         )
     }
 }

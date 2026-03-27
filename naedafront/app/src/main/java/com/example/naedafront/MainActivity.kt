@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
@@ -52,8 +54,16 @@ class MainActivity : ComponentActivity() {
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
         setContent {
-            NaedaTheme {
-                NaedaApp()
+            val isDarkMode = remember { mutableStateOf(AuthPrefs.isDarkMode(this)) }
+
+            NaedaTheme(darkTheme = isDarkMode.value) {
+                NaedaApp(
+                    isDarkMode = isDarkMode.value,
+                    onDarkModeChange = { enabled ->
+                        isDarkMode.value = enabled
+                        AuthPrefs.setDarkMode(this@MainActivity, enabled)
+                    }
+                )
             }
         }
 
@@ -81,7 +91,10 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun NaedaApp() {
+fun NaedaApp(
+    isDarkMode: Boolean = false,
+    onDarkModeChange: (Boolean) -> Unit = {}
+) {
     val context = LocalContext.current
     val startDestination = remember {
         if (AuthPrefs.hasSession(context)) Screen.Home.route else Screen.Welcome.route
@@ -104,7 +117,7 @@ fun NaedaApp() {
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = com.example.naedafront.ui.theme.Background,
+        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets.statusBars,
         bottomBar = {
             if (showBottomBar) {
@@ -123,7 +136,9 @@ fun NaedaApp() {
         NaedaNavGraph(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding),
+            isDarkMode = isDarkMode,
+            onDarkModeChange = onDarkModeChange
         )
     }
 }

@@ -102,12 +102,12 @@ fun SignUpVerifyScreen(
                         }
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = Background
+                        containerColor = MaterialTheme.colorScheme.background
                     ),
                     windowInsets = WindowInsets(0)
                 )
             },
-            containerColor = Background,
+            containerColor = MaterialTheme.colorScheme.background,
             contentWindowInsets = WindowInsets(0)
         ) { innerPadding ->
             Column(
@@ -195,8 +195,8 @@ fun SignUpVerifyScreen(
                     enabled = isValid && remainingSeconds > 0,
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Mint900,
-                        disabledContainerColor = Mint900.copy(alpha = 0.38f)
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
                     )
                 ) {
                     Text(

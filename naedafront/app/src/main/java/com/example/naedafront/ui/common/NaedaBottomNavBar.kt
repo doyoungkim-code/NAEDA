@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import com.example.naedafront.ui.navigation.Screen
-import com.example.naedafront.ui.theme.Background
 import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Map
@@ -55,7 +54,7 @@ fun NaedaBottomNavBar(
     }
 
     NavigationBar(
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         tonalElevation = 0.dp,
         windowInsets = WindowInsets(0)
     ) {
@@ -93,8 +92,8 @@ fun NaedaBottomNavBar(
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.primary,
                     selectedTextColor = MaterialTheme.colorScheme.primary,
-                    unselectedIconColor = Color(0xFF9E9E9E),
-                    unselectedTextColor = Color(0xFF9E9E9E),
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                 )
             )

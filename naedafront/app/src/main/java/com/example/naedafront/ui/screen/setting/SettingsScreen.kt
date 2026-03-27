@@ -38,6 +38,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,7 +48,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.naedafront.ui.theme.Background
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,19 +62,22 @@ fun SettingsScreen(
 ) {
     val scrollState = rememberScrollState()
 
+    val backgroundColor = MaterialTheme.colorScheme.background
+
     Scaffold(
-        containerColor = Background,
+        containerColor = backgroundColor,
         contentWindowInsets = WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
                         text = "설정",
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Background
+                    containerColor = backgroundColor
                 ),
                 windowInsets = WindowInsets(0)
             )
@@ -83,7 +86,7 @@ fun SettingsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Background)
+                .background(backgroundColor)
                 .padding(innerPadding)
                 .padding(horizontal = 20.dp)
                 .verticalScroll(scrollState)
@@ -151,7 +154,7 @@ private fun SectionTitle(
         text = title,
         fontSize = 14.sp,
         fontWeight = FontWeight.Medium,
-        color = Color(0xFF9AA3AF)
+        color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 }
 
@@ -162,7 +165,7 @@ private fun SettingsCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 0.dp
     ) {
         Column(
@@ -176,7 +179,6 @@ private fun SettingsCard(
 private fun SettingsArrowRow(
     icon: ImageVector,
     title: String,
-    titleColor: Color = Color(0xFF202632),
     onClick: () -> Unit
 ) {
     Row(
@@ -194,7 +196,7 @@ private fun SettingsArrowRow(
             text = title,
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium,
-            color = titleColor
+            color = MaterialTheme.colorScheme.onSurface
         )
 
         Spacer(modifier = Modifier.weight(1f))
@@ -202,7 +204,7 @@ private fun SettingsArrowRow(
         Icon(
             imageVector = Icons.Outlined.ChevronRight,
             contentDescription = null,
-            tint = Color(0xFFB2BAC6),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(22.dp)
         )
     }
@@ -216,13 +218,13 @@ private fun LeadingIcon(
         modifier = Modifier
             .size(42.dp)
             .clip(RoundedCornerShape(14.dp))
-            .background(Color(0xFFF5F7FA)),
+            .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = Color(0xFF6B7280),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(22.dp)
         )
     }
@@ -249,7 +251,7 @@ private fun SettingsToggleRow(
             text = title,
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium,
-            color = Color(0xFF202632)
+            color = MaterialTheme.colorScheme.onSurface
         )
 
         Spacer(modifier = Modifier.weight(1f))
@@ -261,7 +263,7 @@ private fun SettingsToggleRow(
                 checkedThumbColor = Color.White,
                 checkedTrackColor = Color(0xFF0FA37F),
                 uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = Color(0xFFD1D5DB)
+                uncheckedTrackColor = MaterialTheme.colorScheme.outline
             )
         )
     }
@@ -272,6 +274,6 @@ private fun CardDivider() {
     HorizontalDivider(
         modifier = Modifier.padding(horizontal = 16.dp),
         thickness = 1.dp,
-        color = Color(0xFFF0F2F5)
+        color = MaterialTheme.colorScheme.outlineVariant
     )
 }

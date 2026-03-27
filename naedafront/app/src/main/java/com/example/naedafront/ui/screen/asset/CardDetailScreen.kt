@@ -61,15 +61,11 @@ import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.response.CardResponse
 import com.example.naedafront.data.repository.CardRepository
 import com.example.naedafront.data.repository.CardTransactionItemData
-import com.example.naedafront.ui.theme.Background
+import androidx.compose.material3.MaterialTheme
 import com.example.naedafront.ui.theme.Mint500
+import com.example.naedafront.ui.theme.Mint700
 import com.example.naedafront.ui.theme.Mint900
 import com.example.naedafront.ui.theme.NaedaTypography
-import com.example.naedafront.ui.theme.OnBackground
-import com.example.naedafront.ui.theme.OnSurfaceVariant
-import com.example.naedafront.ui.theme.OutlineVariant
-import com.example.naedafront.ui.theme.Surface as SurfaceColor
-import com.example.naedafront.ui.theme.SurfaceVariant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -358,7 +354,7 @@ fun CardDetailScreen(
     }
 
     Scaffold(
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         LazyColumn(
@@ -411,7 +407,7 @@ fun CardDetailScreen(
                                 .padding(vertical = 64.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = Mint900)
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -427,7 +423,7 @@ fun CardDetailScreen(
                             Text(
                                 text = uiState.error,
                                 style = NaedaTypography.bodyMedium,
-                                color = OnSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -444,7 +440,7 @@ fun CardDetailScreen(
                             Text(
                                 text = if (searchQuery.isBlank()) "거래내역이 없어요" else "검색 결과가 없습니다.",
                                 style = NaedaTypography.bodyMedium,
-                                color = OnSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -486,7 +482,7 @@ private fun CardDetailHeader(
     isSearchMode: Boolean,
     onSearchToggle: () -> Unit
 ) {
-    val gradientColors = card?.cardGradient() ?: (Mint900 to Mint500)
+    val gradientColors = card?.cardGradient() ?: (MaterialTheme.colorScheme.primary to MaterialTheme.colorScheme.primary)
 
     Box(
         modifier = Modifier
@@ -585,14 +581,14 @@ private fun CardSearchBar(
         placeholder = {
             Text(
                 text = "거래내역 검색",
-                color = OnSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         },
         leadingIcon = {
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = null,
-                tint = Mint900
+                tint = MaterialTheme.colorScheme.primary
             )
         },
         trailingIcon = {
@@ -601,20 +597,20 @@ private fun CardSearchBar(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "검색어 지우기",
-                        tint = OnSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
         },
         shape = RoundedCornerShape(14.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Mint900,
-            unfocusedBorderColor = OutlineVariant,
-            focusedTextColor = OnBackground,
-            unfocusedTextColor = OnBackground,
-            cursorColor = Mint900,
-            focusedContainerColor = SurfaceColor,
-            unfocusedContainerColor = SurfaceColor
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+            focusedTextColor = MaterialTheme.colorScheme.onBackground,
+            unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+            cursorColor = MaterialTheme.colorScheme.primary,
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface
         )
     )
 }
@@ -627,7 +623,7 @@ private fun CardFilterRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SurfaceColor)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -635,13 +631,13 @@ private fun CardFilterRow(
         Text(
             text = "거래내역",
             style = NaedaTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
-            color = OnBackground
+            color = MaterialTheme.colorScheme.onBackground
         )
 
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
-                .background(SurfaceVariant)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
                 .clickable { onPeriodClick() }
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -650,18 +646,18 @@ private fun CardFilterRow(
             Text(
                 text = selectedPeriod,
                 style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = Mint900
+                color = MaterialTheme.colorScheme.primary
             )
             Icon(
                 imageVector = Icons.Default.ArrowDownward,
                 contentDescription = null,
-                tint = Mint900,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(12.dp)
             )
         }
     }
 
-    HorizontalDivider(color = OutlineVariant, thickness = 1.dp)
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 }
 
 @Composable
@@ -673,7 +669,7 @@ private fun CardCategoryFilterRow(
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SurfaceColor)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(bottom = 12.dp),
         contentPadding = PaddingValues(horizontal = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -684,20 +680,20 @@ private fun CardCategoryFilterRow(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(if (isSelected) Mint900 else SurfaceVariant)
+                    .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
                     .clickable { onSelect(category) }
                     .padding(horizontal = 14.dp, vertical = 7.dp)
             ) {
                 Text(
                     text = category,
                     style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = if (isSelected) Color.White else OnSurfaceVariant
+                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
     }
 
-    HorizontalDivider(color = OutlineVariant, thickness = 1.dp)
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 }
 
 @Composable
@@ -705,10 +701,10 @@ private fun TransactionDateHeader(date: String) {
     Text(
         text = date,
         style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-        color = OnSurfaceVariant,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier
             .fillMaxWidth()
-            .background(Background)
+            .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 20.dp, vertical = 10.dp)
     )
 }
@@ -723,9 +719,9 @@ private fun CardTransactionRow(
     } else {
         "-${formatAmount(item.amount)}원"
     }
-    val amountColor = if (item.isCanceled) Color(0xFF1F8F5F) else OnBackground
+    val amountColor = if (item.isCanceled) Color(0xFF1F8F5F) else MaterialTheme.colorScheme.onBackground
     val iconBackground = if (item.isCanceled) Color(0xFFDFF7E8) else Color(0xFFDCEBFF)
-    val iconTint = if (item.isCanceled) Color(0xFF1F8F5F) else Mint900
+    val iconTint = if (item.isCanceled) Color(0xFF1F8F5F) else MaterialTheme.colorScheme.primary
     val subtitle = listOfNotNull(
         item.time.takeIf { it.isNotBlank() },
         item.category.takeIf { it.isNotBlank() }
@@ -734,7 +730,7 @@ private fun CardTransactionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SurfaceColor)
+            .background(MaterialTheme.colorScheme.surface)
             .clickable { onClick() }
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -760,7 +756,7 @@ private fun CardTransactionRow(
             Text(
                 text = item.merchantName.ifBlank { "가맹점 정보 없음" },
                 style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                color = OnBackground,
+                color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1
             )
 
@@ -769,7 +765,7 @@ private fun CardTransactionRow(
                 Text(
                     text = subtitle,
                     style = NaedaTypography.labelSmall,
-                    color = OnSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1
                 )
             }
@@ -778,7 +774,7 @@ private fun CardTransactionRow(
             Text(
                 text = "적립 포인트 ${formatAmount(item.estimatedPoints)}P",
                 style = NaedaTypography.labelSmall,
-                color = OnSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -790,7 +786,7 @@ private fun CardTransactionRow(
     }
 
     HorizontalDivider(
-        color = OutlineVariant,
+        color = MaterialTheme.colorScheme.outlineVariant,
         thickness = 0.5.dp,
         modifier = Modifier.padding(horizontal = 20.dp)
     )
@@ -840,13 +836,13 @@ private fun DetailRow(
         Text(
             text = label,
             style = NaedaTypography.labelSmall,
-            color = OnSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = value,
             style = NaedaTypography.bodyMedium,
-            color = OnBackground
+            color = MaterialTheme.colorScheme.onBackground
         )
     }
 }
@@ -862,7 +858,7 @@ private fun CardPeriodPickerDialog(
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         MaterialSurface(
             shape = RoundedCornerShape(20.dp),
-            color = SurfaceColor,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 8.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -870,7 +866,7 @@ private fun CardPeriodPickerDialog(
                 Text(
                     text = "기간 선택",
                     style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = OnBackground,
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(horizontal = 24.dp)
                 )
 
@@ -892,7 +888,7 @@ private fun CardPeriodPickerDialog(
                             style = NaedaTypography.bodyMedium.copy(
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                             ),
-                            color = if (isSelected) Mint900 else OnBackground
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
                         )
 
                         if (isSelected) {
@@ -900,13 +896,13 @@ private fun CardPeriodPickerDialog(
                                 modifier = Modifier
                                     .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(Mint900)
+                                    .background(MaterialTheme.colorScheme.primary)
                             )
                         }
                     }
 
                     HorizontalDivider(
-                        color = OutlineVariant,
+                        color = MaterialTheme.colorScheme.outlineVariant,
                         thickness = 0.5.dp,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
@@ -921,7 +917,7 @@ private fun CardPeriodPickerDialog(
                     Text(
                         text = "취소",
                         style = NaedaTypography.labelLarge,
-                        color = OnSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -1042,6 +1038,6 @@ private fun CardHeaderUi.cardGradient(): Pair<Color, Color> {
         "hana" in issuer || "하나" in issuer -> Color(0xFF00695C) to Color(0xFF26A69A)
         "woori" in issuer || "우리" in issuer -> Color(0xFF0D47A1) to Color(0xFF42A5F5)
         "hyundai" in issuer || "현대" in issuer -> Color(0xFF263238) to Color(0xFF546E7A)
-        else -> Mint900 to Mint500
+        else -> Mint900 to Mint700
     }
 }

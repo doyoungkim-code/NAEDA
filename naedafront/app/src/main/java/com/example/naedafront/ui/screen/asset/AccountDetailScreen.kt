@@ -58,15 +58,10 @@ import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.AssetRepository
 import com.example.naedafront.data.remote.PaymentResponse
 import com.example.naedafront.data.remote.response.PaymentDetailResponse
-import com.example.naedafront.ui.theme.Background
+import androidx.compose.material3.MaterialTheme
 import com.example.naedafront.ui.theme.Mint500
 import com.example.naedafront.ui.theme.Mint900
 import com.example.naedafront.ui.theme.NaedaTypography
-import com.example.naedafront.ui.theme.OnBackground
-import com.example.naedafront.ui.theme.OnSurfaceVariant
-import com.example.naedafront.ui.theme.OutlineVariant
-import com.example.naedafront.ui.theme.Surface as SurfaceColor
-import com.example.naedafront.ui.theme.SurfaceVariant
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
@@ -155,7 +150,7 @@ fun AccountDetailScreen(
         filteredTransactions.groupBy { it.date }.toSortedMap(reverseOrder())
     }
 
-    Scaffold(containerColor = Background, contentWindowInsets = WindowInsets(0)) { innerPadding ->
+    Scaffold(containerColor = MaterialTheme.colorScheme.background, contentWindowInsets = WindowInsets(0)) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -217,7 +212,7 @@ fun AccountDetailScreen(
                         Text(
                             text = if (searchQuery.isBlank()) "거래내역이 없어요" else "검색 결과가 없습니다.",
                             style = NaedaTypography.bodyMedium,
-                            color = OnSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -299,7 +294,7 @@ fun AccountDetailScreen(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = Mint900)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
         )
@@ -377,7 +372,7 @@ private fun AccountDetailHeader(
             .fillMaxWidth()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Mint900, Mint500)
+                    colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary)
                 )
             )
             .padding(bottom = 28.dp)
@@ -460,14 +455,14 @@ private fun AccountSearchBar(
         placeholder = {
             Text(
                 text = "거래내역 검색",
-                color = OnSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         },
         leadingIcon = {
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = null,
-                tint = Mint900
+                tint = MaterialTheme.colorScheme.primary
             )
         },
         trailingIcon = {
@@ -476,20 +471,20 @@ private fun AccountSearchBar(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "검색어 지우기",
-                        tint = OnSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
         },
         shape = RoundedCornerShape(14.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Mint900,
-            unfocusedBorderColor = OutlineVariant,
-            focusedTextColor = OnBackground,
-            unfocusedTextColor = OnBackground,
-            cursorColor = Mint900,
-            focusedContainerColor = SurfaceColor,
-            unfocusedContainerColor = SurfaceColor
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+            focusedTextColor = MaterialTheme.colorScheme.onBackground,
+            unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+            cursorColor = MaterialTheme.colorScheme.primary,
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface
         )
     )
 }
@@ -502,7 +497,7 @@ private fun PeriodFilterRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SurfaceColor)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -510,12 +505,12 @@ private fun PeriodFilterRow(
         Text(
             text = "거래내역",
             style = NaedaTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
-            color = OnBackground
+            color = MaterialTheme.colorScheme.onBackground
         )
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
-                .background(SurfaceVariant)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
                 .clickable { onPeriodClick() }
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -524,18 +519,18 @@ private fun PeriodFilterRow(
             Text(
                 text = selectedPeriod,
                 style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = Mint900
+                color = MaterialTheme.colorScheme.primary
             )
             Icon(
                 imageVector = Icons.Default.ArrowDownward,
                 contentDescription = null,
-                tint = Mint900,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(12.dp)
             )
         }
     }
 
-    HorizontalDivider(color = OutlineVariant, thickness = 1.dp)
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 }
 
 @Composable
@@ -547,7 +542,7 @@ private fun CategoryFilterRow(
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SurfaceColor)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(bottom = 12.dp),
         contentPadding = PaddingValues(horizontal = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -557,20 +552,20 @@ private fun CategoryFilterRow(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(if (isSelected) Mint900 else SurfaceVariant)
+                    .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
                     .clickable { onSelect(category) }
                     .padding(horizontal = 14.dp, vertical = 7.dp)
             ) {
                 Text(
                     text = category,
                     style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = if (isSelected) Color.White else OnSurfaceVariant
+                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
     }
 
-    HorizontalDivider(color = OutlineVariant, thickness = 1.dp)
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 }
 
 @Composable
@@ -578,10 +573,10 @@ private fun TransactionDateHeader(date: String) {
     Text(
         text = date,
         style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-        color = OnSurfaceVariant,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier
             .fillMaxWidth()
-            .background(Background)
+            .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 20.dp, vertical = 10.dp)
     )
 }
@@ -607,7 +602,7 @@ private fun TransactionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SurfaceColor)
+            .background(MaterialTheme.colorScheme.surface)
             .clickable { onClick() }
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -624,7 +619,7 @@ private fun TransactionRow(
             Icon(
                 imageVector = if (isDeposit) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
                 contentDescription = null,
-                tint = if (isDeposit) Color(0xFF1F8F5F) else Mint900,
+                tint = if (isDeposit) Color(0xFF1F8F5F) else MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -635,7 +630,7 @@ private fun TransactionRow(
             Text(
                 text = title,
                 style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                color = OnBackground,
+                color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1
             )
 
@@ -644,7 +639,7 @@ private fun TransactionRow(
                 Text(
                     text = subtitle,
                     style = NaedaTypography.labelSmall,
-                    color = OnSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1
                 )
             }
@@ -657,19 +652,19 @@ private fun TransactionRow(
                     "거래 후 잔액 ${"%,d".format(item.balanceAfter)}원"
                 },
                 style = NaedaTypography.labelSmall,
-                color = OnSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
         Text(
             text = if (isDeposit) "+${"%,d".format(item.amount)}원" else "-${"%,d".format(item.amount)}원",
             style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = if (isDeposit) Color(0xFF1F8F5F) else OnBackground
+            color = if (isDeposit) Color(0xFF1F8F5F) else MaterialTheme.colorScheme.onBackground
         )
     }
 
     HorizontalDivider(
-        color = OutlineVariant,
+        color = MaterialTheme.colorScheme.outlineVariant,
         thickness = 0.5.dp,
         modifier = Modifier.padding(horizontal = 20.dp)
     )
@@ -757,13 +752,13 @@ private fun DetailRow(
         Text(
             text = label,
             style = NaedaTypography.labelSmall,
-            color = OnSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = value,
             style = NaedaTypography.bodyMedium,
-            color = OnBackground
+            color = MaterialTheme.colorScheme.onBackground
         )
     }
 }
@@ -777,7 +772,7 @@ private fun PeriodPickerDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(20.dp),
-            color = SurfaceColor,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 8.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -785,7 +780,7 @@ private fun PeriodPickerDialog(
                 Text(
                     text = "기간 선택",
                     style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = OnBackground,
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(horizontal = 24.dp)
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -805,19 +800,19 @@ private fun PeriodPickerDialog(
                             style = NaedaTypography.bodyMedium.copy(
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                             ),
-                            color = if (isSelected) Mint900 else OnBackground
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
                         )
                         if (isSelected) {
                             Box(
                                 modifier = Modifier
                                     .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(Mint900)
+                                    .background(MaterialTheme.colorScheme.primary)
                             )
                         }
                     }
                     HorizontalDivider(
-                        color = OutlineVariant,
+                        color = MaterialTheme.colorScheme.outlineVariant,
                         thickness = 0.5.dp,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
@@ -831,7 +826,7 @@ private fun PeriodPickerDialog(
                     Text(
                         text = "취소",
                         style = NaedaTypography.labelLarge,
-                        color = OnSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }

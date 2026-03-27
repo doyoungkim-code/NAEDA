@@ -43,7 +43,7 @@ fun NaedaBadge(
         BadgeType.SUCCESS -> Success.copy(alpha = 0.12f) to Success
         BadgeType.WARNING -> Warning.copy(alpha = 0.15f) to Warning.copy(red = 0.7f, green = 0.55f, blue = 0f)
         BadgeType.ERROR -> Error.copy(alpha = 0.12f) to Error
-        BadgeType.INFO -> Mint500.copy(alpha = 0.12f) to Mint500
+        BadgeType.INFO -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) to MaterialTheme.colorScheme.primary
         BadgeType.POINT -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.primary
     }
 

@@ -7,6 +7,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -53,33 +54,41 @@ private val NaedaLightColorScheme = lightColorScheme(
     outlineVariant = OutlineVariant, // #E8E8E8
 )
 
-// 다크 테마 — 일단 기본 구조만 잡아둠 (나중에 필요하면 커스텀)
+// 다크 테마 — #0D1A1A 기반 틸 계열
 private val NaedaDarkColorScheme = darkColorScheme(
-    primary = Mint200,               // 밝은 민트 (다크에서 눈에 잘 띄게)
-    onPrimary = Mint900,
-    primaryContainer = Mint700,
+    primary = Mint400,               // #00E3CC 밝은 민트 (다크에서 눈에 잘 띄게)
+    onPrimary = DarkBackground,
+    primaryContainer = Color(0xFF0F3D35),
     onPrimaryContainer = Mint100,
 
     secondary = Blue400,
-    onSecondary = Navy900,
-    secondaryContainer = Navy900,
+    onSecondary = DarkBackground,
+    secondaryContainer = Color(0xFF162D3D),
     onSecondaryContainer = Blue300,
 
     tertiary = Sky400,
-    onTertiary = Navy900,
+    onTertiary = DarkBackground,
 
-    error = Error,
-    onError = OnPrimary,
+    error = Color(0xFFFF6B6B),
+    onError = DarkBackground,
+    errorContainer = Color(0xFF3D1616),
+    onErrorContainer = Color(0xFFFF6B6B),
 
-    background = Navy900,
-    onBackground = OnPrimary,
-    surface = Navy900.copy(red = 0.05f, green = 0.15f, blue = 0.28f),
-    onSurface = OnPrimary,
-    surfaceVariant = Navy900.copy(red = 0.08f, green = 0.18f, blue = 0.32f),
-    onSurfaceVariant = Blue300,
+    background = DarkBackground,          // #0D1A1A
+    onBackground = DarkOnBackground,      // #E2ECEC
+    surface = DarkSurface,                // #152626
+    onSurface = DarkOnSurface,            // #DAE6E6
+    surfaceVariant = DarkSurfaceVariant,  // #1E3232
+    onSurfaceVariant = DarkOnSurfaceVariant, // #87A0A0
 
-    outline = Blue600.copy(alpha = 0.5f),
-    outlineVariant = Navy900.copy(alpha = 0.8f),
+    outline = DarkOutline,                // #2D4A4A
+    outlineVariant = DarkOutlineVariant,  // #1F3636
+
+    inverseSurface = Color(0xFFDAE6E6),
+    inverseOnSurface = DarkBackground,
+    inversePrimary = Mint900,
+
+    scrim = Color.Black,
 )
 
 @Composable
@@ -87,7 +96,6 @@ fun NaedaTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
-    // 현재는 라이트 모드만 사용 (금융 앱 특성상 라이트 우선)
     val colorScheme = if (darkTheme) NaedaDarkColorScheme else NaedaLightColorScheme
 
     // 상태바 색상 설정

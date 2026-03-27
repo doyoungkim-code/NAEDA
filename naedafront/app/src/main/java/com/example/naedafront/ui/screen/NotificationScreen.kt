@@ -49,13 +49,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.NotificationRepository
 import com.example.naedafront.data.remote.NotificationResponse
-import com.example.naedafront.ui.theme.Background
+import androidx.compose.material3.MaterialTheme
 import com.example.naedafront.ui.theme.Mint900
 import com.example.naedafront.ui.theme.NaedaTypography
-import com.example.naedafront.ui.theme.OnBackground
-import com.example.naedafront.ui.theme.OnSurfaceVariant
-import com.example.naedafront.ui.theme.OutlineVariant
-import com.example.naedafront.ui.theme.Surface
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -183,7 +179,7 @@ fun NotificationScreen(
     }
 
     Scaffold(
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -197,7 +193,7 @@ fun NotificationScreen(
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "뒤로가기",
-                            tint = OnBackground
+                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
                 },
@@ -208,13 +204,13 @@ fun NotificationScreen(
                     ) {
                         Text(
                             text = "모두 읽음",
-                            color = if (uiState.unreadCount > 0L) Mint900 else OnSurfaceVariant,
+                            color = if (uiState.unreadCount > 0L) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
                         )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Background
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         },
@@ -228,7 +224,7 @@ fun NotificationScreen(
                         .padding(innerPadding),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = Mint900)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -242,7 +238,7 @@ fun NotificationScreen(
                     Text(
                         text = "알림을 불러오지 못했습니다.",
                         style = NaedaTypography.bodyMedium,
-                        color = OnSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -257,7 +253,7 @@ fun NotificationScreen(
                     Text(
                         text = "읽지 않은 알림이 없습니다.",
                         style = NaedaTypography.bodyMedium,
-                        color = OnSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -294,7 +290,7 @@ private fun NotificationRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (isRead) Background else Surface)
+            .background(if (isRead) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.surface)
             .clickable(enabled = !isRead, onClick = onClick)
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.Top
@@ -307,7 +303,7 @@ private fun NotificationRow(
                     when (notification.type?.uppercase()) {
                         "PAYMENT" -> Color(0xFFDCEBFF)
                         "SECURITY" -> Color(0xFFFFEBEE)
-                        else -> Mint900.copy(alpha = 0.1f)
+                        else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                     }
                 ),
             contentAlignment = Alignment.Center
@@ -318,7 +314,7 @@ private fun NotificationRow(
                 tint = when (notification.type?.uppercase()) {
                     "PAYMENT" -> Color(0xFF1565C0)
                     "SECURITY" -> Color(0xFFE53935)
-                    else -> Mint900
+                    else -> MaterialTheme.colorScheme.primary
                 },
                 modifier = Modifier.size(20.dp)
             )
@@ -337,14 +333,14 @@ private fun NotificationRow(
                     style = NaedaTypography.bodyMedium.copy(
                         fontWeight = if (isRead) FontWeight.Normal else FontWeight.SemiBold
                     ),
-                    color = OnBackground,
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = notification.sent?.formatSentTime() ?: "",
                     style = NaedaTypography.labelSmall,
-                    color = OnSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -353,7 +349,7 @@ private fun NotificationRow(
             Text(
                 text = notification.body ?: "",
                 style = NaedaTypography.bodySmall,
-                color = OnSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -363,14 +359,14 @@ private fun NotificationRow(
                 modifier = Modifier
                     .size(8.dp)
                     .clip(CircleShape)
-                    .background(Mint900)
+                    .background(MaterialTheme.colorScheme.primary)
                     .align(Alignment.CenterVertically)
             )
         }
     }
 
     HorizontalDivider(
-        color = OutlineVariant,
+        color = MaterialTheme.colorScheme.outlineVariant,
         thickness = 0.5.dp
     )
 }

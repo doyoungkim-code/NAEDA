@@ -54,7 +54,7 @@ fun ChatScreen(
         modifier = Modifier
             .fillMaxSize()
             .imePadding()
-            .background(Background)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         TopAppBar(
             windowInsets = WindowInsets(0, 0, 0, 0),
@@ -64,7 +64,7 @@ fun ChatScreen(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
-                            .background(Mint100.copy(alpha = 0.3f)),
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
@@ -85,7 +85,7 @@ fun ChatScreen(
                         Text(
                             text = "구미 생활 AI 도우미",
                             style = MaterialTheme.typography.labelSmall,
-                            color = OnBackground.copy(alpha = 0.5f)
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                         )
                     }
                 }
@@ -96,9 +96,9 @@ fun ChatScreen(
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Surface,
-                titleContentColor = OnBackground,
-                navigationIconContentColor = OnBackground
+                containerColor = MaterialTheme.colorScheme.background,
+                titleContentColor = MaterialTheme.colorScheme.onBackground,
+                navigationIconContentColor = MaterialTheme.colorScheme.onBackground
             )
         )
 
@@ -154,7 +154,7 @@ private fun WelcomeMessage(
             modifier = Modifier
                 .size(64.dp)
                 .clip(CircleShape)
-                .background(Mint100.copy(alpha = 0.2f)),
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)),
             contentAlignment = Alignment.Center
         ) {
             Image(
@@ -167,13 +167,13 @@ private fun WelcomeMessage(
         Text(
             text = "안녕하세요! 토미봇이에요",
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            color = OnBackground
+            color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = "구미 맛집, 카페, 축제부터 생활 정보까지!",
             style = MaterialTheme.typography.bodySmall,
-            color = OnBackground.copy(alpha = 0.5f)
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
         )
         Spacer(modifier = Modifier.height(16.dp))
         val suggestions = listOf("구미 맛집 추천해줘", "카페 어디 좋아?", "요즘 축제 있어?")
@@ -185,14 +185,14 @@ private fun WelcomeMessage(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Mint900.copy(alpha = 0.08f))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
                         .clickable { onSuggestionClick(suggestion) }
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     Text(
                         text = suggestion,
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                        color = Mint900
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -212,7 +212,7 @@ private fun ChatBubble(message: ChatMessage) {
                 modifier = Modifier
                     .size(28.dp)
                     .clip(CircleShape)
-                    .background(Mint100.copy(alpha = 0.3f)),
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
@@ -234,7 +234,7 @@ private fun ChatBubble(message: ChatMessage) {
                         bottomEnd = if (isUser) 4.dp else 16.dp
                     )
                 )
-                .background(if (isUser) Mint900 else Mint50)
+                .background(if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer)
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
             if (message.isLoading) {
@@ -243,7 +243,7 @@ private fun ChatBubble(message: ChatMessage) {
                 Text(
                     text = message.content,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (isUser) Color.White else OnBackground,
+                    color = if (isUser) Color.White else MaterialTheme.colorScheme.onBackground,
                     lineHeight = 20.sp
                 )
             }
@@ -273,7 +273,7 @@ private fun TypingIndicator() {
                 modifier = Modifier
                     .size(8.dp)
                     .clip(CircleShape)
-                    .background(OnBackground.copy(alpha = alpha * (1f - index * 0.2f)))
+                    .background(MaterialTheme.colorScheme.onBackground.copy(alpha = alpha * (1f - index * 0.2f)))
             )
         }
     }
@@ -291,7 +291,7 @@ private fun ChatInputBar(
         modifier = Modifier
             .fillMaxWidth()
             // .drawBehind { ... }  <-- 선을 그리는 이 코드를 제거합니다!
-            .background(Surface) // 전체 배경색
+            .background(MaterialTheme.colorScheme.surface) // 전체 배경색
             .padding(vertical = 8.dp, horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -304,22 +304,22 @@ private fun ChatInputBar(
                 Text(
                     "메시지를 입력하세요",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Mint900.copy(alpha = 0.4f)
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
                 )
             },
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = Mint900.copy(alpha = 0.08f),
-                unfocusedContainerColor = Mint900.copy(alpha = 0.08f),
+                focusedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                unfocusedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
                 disabledIndicatorColor = Color.Transparent,
-                focusedTextColor = OnBackground,
-                unfocusedTextColor = OnBackground
+                focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                unfocusedTextColor = MaterialTheme.colorScheme.onBackground
             ),
             shape = RoundedCornerShape(50.dp),
             singleLine = false,
             maxLines = 4,
-            textStyle = MaterialTheme.typography.bodyMedium.copy(color = OnBackground)
+            textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onBackground)
         )
 
         Spacer(modifier = Modifier.width(8.dp))
@@ -331,12 +331,12 @@ private fun ChatInputBar(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(if (isEnabled) Mint900 else OnBackground.copy(alpha = 0.1f))
+                .background(if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f))
         ) {
             Icon(
                 Icons.AutoMirrored.Filled.Send,
                 contentDescription = "보내기",
-                tint = if (isEnabled) Color.White else OnBackground.copy(alpha = 0.3f),
+                tint = if (isEnabled) Color.White else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f),
                 modifier = Modifier.size(20.dp)
             )
         }

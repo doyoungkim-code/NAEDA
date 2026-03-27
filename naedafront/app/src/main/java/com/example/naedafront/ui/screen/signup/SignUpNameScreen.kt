@@ -105,12 +105,12 @@ fun SignUpNameScreen(
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Background
+                    containerColor = MaterialTheme.colorScheme.background
                 ),
                 windowInsets = WindowInsets(0)
             )
         },
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         Column(
@@ -167,10 +167,10 @@ fun SignUpNameScreen(
                     ),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Mint500,
-                        focusedLabelColor = Mint500,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                        cursorColor = Mint500
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
 
@@ -184,8 +184,8 @@ fun SignUpNameScreen(
                     enabled = isNameValid,
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Mint900,
-                        disabledContainerColor = Mint900.copy(alpha = 0.38f)
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
                     )
                 ) {
                     Text(

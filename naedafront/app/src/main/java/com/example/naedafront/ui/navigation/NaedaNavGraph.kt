@@ -83,7 +83,9 @@ import com.example.naedafront.ui.screen.store.StoreOrderDraftStore
 fun NaedaNavGraph(
     navController: NavHostController,
     startDestination: String = Screen.Scan.route,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isDarkMode: Boolean = false,
+    onDarkModeChange: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val signUpViewModel: SignUpViewModel = viewModel()
@@ -292,7 +294,7 @@ fun NaedaNavGraph(
         }
 
         composable(Screen.More.route) {
-            SettingsTabContent(navController)
+            SettingsTabContent(navController, isDarkMode, onDarkModeChange)
         }
 
         composable(Screen.FaceRegister.route) {
@@ -541,6 +543,8 @@ fun NaedaNavGraph(
 
         composable(Screen.Settings.route) {
             SettingsScreen(
+                isDarkMode = isDarkMode,
+                onDarkModeChange = onDarkModeChange,
                 onNotificationClick = { navController.navigateSingleTopTo(Screen.NotificationSettings.route) },
                 onTermsClick = { navController.navigateSingleTopTo(Screen.TermsOfService.route) },
                 onPrivacyClick = { navController.navigateSingleTopTo(Screen.PrivacyPolicy.route) },
@@ -777,11 +781,15 @@ private fun AssetTabContent(
 
 @Composable
 private fun SettingsTabContent(
-    navController: NavHostController
+    navController: NavHostController,
+    isDarkMode: Boolean = false,
+    onDarkModeChange: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
 
     SettingsScreen(
+        isDarkMode = isDarkMode,
+        onDarkModeChange = onDarkModeChange,
         onNotificationClick = { navController.navigateSingleTopTo(Screen.NotificationSettings.route) },
         onTermsClick = { navController.navigateSingleTopTo(Screen.TermsOfService.route) },
         onPrivacyClick = { navController.navigateSingleTopTo(Screen.PrivacyPolicy.route) },

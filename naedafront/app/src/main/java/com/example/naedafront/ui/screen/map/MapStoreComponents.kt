@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,7 +51,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.naedafront.R
 import com.example.naedafront.data.remote.MapStoreResponseDto
-import com.example.naedafront.ui.theme.Mint50
 import com.example.naedafront.ui.theme.Mint500
 import com.example.naedafront.ui.theme.Navy900
 import com.example.naedafront.ui.theme.OnBackground
@@ -98,7 +98,7 @@ fun StoreClusterBottomSheet(
                         .width(48.dp)
                         .height(5.dp)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(Color(0xFFD1D5DB))
+                        .background(MaterialTheme.colorScheme.outline)
                 )
             }
 
@@ -111,7 +111,7 @@ fun StoreClusterBottomSheet(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = if (sortedStores.size == 1) "식당 정보" else "주변 식당 리스트",
-                        color = Color(0xFF1F2937),
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -132,7 +132,7 @@ fun StoreClusterBottomSheet(
 
                 Text(
                     text = "총 ${sortedStores.size}개",
-                    color = Color(0xFF94A3B8),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -198,7 +198,7 @@ fun StoreDetailBottomSheet(
                         .width(48.dp)
                         .height(5.dp)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(Color(0xFFD1D5DB))
+                        .background(MaterialTheme.colorScheme.outline)
                 )
             }
 
@@ -218,7 +218,7 @@ fun StoreDetailBottomSheet(
                 text = store.storeName,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
-                color = Navy900
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -234,7 +234,7 @@ fun StoreDetailBottomSheet(
                     StoreMetaChip("FACE PAY", background = Color(0xFFE8F0FF), content = Color(0xFF4F74FF))
                 }
                 if (store.isLocalBusiness) {
-                    StoreMetaChip("구미 로컬", background = Mint50, content = Mint500)
+                    StoreMetaChip("구미 로컬", background = MaterialTheme.colorScheme.primaryContainer, content = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -244,11 +244,11 @@ fun StoreDetailBottomSheet(
                 text = store.description?.takeIf { it.isNotBlank() } ?: "등록된 설명이 없습니다.",
                 fontSize = 15.sp,
                 lineHeight = 22.sp,
-                color = OnSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(18.dp))
-            HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
             Spacer(modifier = Modifier.height(18.dp))
 
             StoreDetailLine("주소", store.roadAddress ?: store.numberAddress ?: "주소 정보 없음")
@@ -299,7 +299,7 @@ private fun StoreMapListRow(
                     fontSize = 17.sp,
                     lineHeight = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF222B45),
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -318,14 +318,14 @@ private fun StoreMapListRow(
                         text = if (store.rating > 0.0) String.format("%.1f", store.rating) else "평점 없음",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF475569)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     toMapCategoryLabel(store.categoryName)?.let {
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "· $it",
                             fontSize = 14.sp,
-                            color = Color(0xFF64748B)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -336,7 +336,7 @@ private fun StoreMapListRow(
                     text = store.roadAddress ?: store.numberAddress ?: "주소 정보 없음",
                     fontSize = 13.sp,
                     lineHeight = 19.sp,
-                    color = Color(0xFF64748B),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -351,7 +351,7 @@ private fun StoreMapListRow(
                             StoreMetaChip("FACE PAY", background = Color(0xFFE8F0FF), content = Color(0xFF4F74FF))
                         }
                         if (store.isLocalBusiness) {
-                            StoreMetaChip("구미 로컬", background = Mint50, content = Mint500)
+                            StoreMetaChip("구미 로컬", background = MaterialTheme.colorScheme.primaryContainer, content = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -360,7 +360,7 @@ private fun StoreMapListRow(
         }
 
         Spacer(modifier = Modifier.height(14.dp))
-        HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
     }
 }
 
@@ -485,14 +485,14 @@ private fun StoreDetailLine(
             text = label,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF94A3B8)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = value,
             fontSize = 15.sp,
             lineHeight = 21.sp,
-            color = OnBackground
+            color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(modifier = Modifier.height(14.dp))
     }

@@ -141,12 +141,12 @@ fun SignUpPasswordScreen(
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Background
+                    containerColor = MaterialTheme.colorScheme.background
                 ),
                 windowInsets = WindowInsets(0)
             )
         },
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         Column(
@@ -219,10 +219,10 @@ fun SignUpPasswordScreen(
                     ),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Mint500,
-                        focusedLabelColor = Mint500,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                        cursorColor = Mint500
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
 
@@ -255,7 +255,7 @@ fun SignUpPasswordScreen(
                         if (isConfirmPasswordNotBlank && isPasswordMatched) {
                             Text(
                                 text = "비밀번호가 일치합니다.",
-                                color = Mint900
+                                color = MaterialTheme.colorScheme.primary
                             )
                         } else if (isConfirmPasswordNotBlank && !isPasswordMatched) {
                             Text(
@@ -273,10 +273,10 @@ fun SignUpPasswordScreen(
                     ),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Mint500,
-                        focusedLabelColor = Mint500,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                        cursorColor = Mint500
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
 
@@ -290,8 +290,8 @@ fun SignUpPasswordScreen(
                     enabled = isPasswordNotBlank && isConfirmPasswordNotBlank,
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Mint900,
-                        disabledContainerColor = Mint900.copy(alpha = 0.38f)
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
                     )
                 ) {
                     Text(

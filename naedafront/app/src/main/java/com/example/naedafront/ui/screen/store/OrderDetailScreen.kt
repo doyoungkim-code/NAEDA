@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -42,7 +43,6 @@ import com.example.naedafront.data.remote.response.AddressResponse
 import com.example.naedafront.data.remote.response.OrderResponse
 import com.example.naedafront.data.remote.response.ProductResponse
 import com.example.naedafront.data.remote.response.UserMeResponse
-import com.example.naedafront.ui.theme.Background
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -58,7 +58,7 @@ fun OrderDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Background)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         OrderDetailTopBar(onBackClick = onBackClick)
 
@@ -93,7 +93,7 @@ fun OrderDetailScreen(
                 ) {
                     Text(
                         text = "주문 정보가 없습니다.",
-                        color = Color(0xFF667085),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -120,7 +120,7 @@ private fun OrderDetailTopBar(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surface)
     ) {
         Row(
             modifier = Modifier
@@ -138,13 +138,13 @@ private fun OrderDetailTopBar(
 
             Text(
                 text = "주문배송조회",
-                color = Color(0xFF111827),
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
         }
 
-        HorizontalDivider(color = Color(0xFFE5E7EB))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 
@@ -171,7 +171,7 @@ private fun OrderDetailContent(
     ) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(
@@ -219,7 +219,7 @@ private fun OrderDetailContent(
 
                 Text(
                     text = product?.productName ?: order.productName,
-                    color = Color(0xFF111827),
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -228,7 +228,7 @@ private fun OrderDetailContent(
 
                 Text(
                     text = "주문일시 ${formatOrderDate(order.orderAt)}",
-                    color = Color(0xFF667085),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -237,7 +237,7 @@ private fun OrderDetailContent(
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = product.description,
-                        color = Color(0xFF667085),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -257,7 +257,7 @@ private fun OrderDetailContent(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(
@@ -302,14 +302,14 @@ private fun SectionTitle(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = Color(0xFF344054)
+            tint = MaterialTheme.colorScheme.onSurface
         )
 
         Spacer(modifier = Modifier.size(8.dp))
 
         Text(
             text = title,
-            color = Color(0xFF111827),
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 17.sp,
             fontWeight = FontWeight.Bold
         )
@@ -326,7 +326,7 @@ private fun DetailInfoRow(
     ) {
         Text(
             text = label,
-            color = Color(0xFF98A2B3),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium
         )
@@ -335,7 +335,7 @@ private fun DetailInfoRow(
 
         Text(
             text = value,
-            color = Color(0xFF344054),
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium
         )
