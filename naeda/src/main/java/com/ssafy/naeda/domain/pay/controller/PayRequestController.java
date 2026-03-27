@@ -78,6 +78,7 @@ public class PayRequestController {
                 request.getPin(),
                 request.getPhoneMiddleDigits(),
                 request.getFaceStatus(),
+                request.getLivenessPassed(),
                 request.getSelectedAuthMethod(),
                 request.getSignatureConfirmed()
         );

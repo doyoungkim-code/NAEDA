@@ -99,10 +99,23 @@ DOCUMENT_NAME_STOPWORDS = {
     ),
 }
 RESIDENT_NUMBER_PATTERNS = (
-    r"(\d{6})\s*[-]?\s*([1-4])[\d\*xX●•Oo]{6}",
-    r"(\d{6})\s*[-]?\s*([1-4])",
+    r"(\d{6})\s*[-\-ㅡ—~]?\s*([1-4])[\d\*xX●•Oo]{6}",
+    r"(\d{6})\s*[-\-ㅡ—~]?\s*([1-4])",
 )
 NAME_DIRECT_PATTERN = re.compile(r"(?:성명|이름)\s*[:：]?\s*([가-힣\s]{2,10})")
+
+# OCR이 흔히 혼동하는 문자 → 숫자 매핑
+_OCR_DIGIT_REPLACEMENTS = {
+    "O": "0", "o": "0", "Q": "0",
+    "I": "1", "l": "1", "i": "1", "|": "1",
+    "Z": "2", "z": "2",
+    "S": "5", "s": "5",
+    "B": "8", "b": "6",
+    "G": "6", "g": "9",
+    "T": "7",
+    "A": "4",
+}
+_OCR_DIGIT_PATTERN = re.compile(r"[OoQIli|ZzSsBbGgTA]")
 RETAKE_REQUIRED = "RETAKE_REQUIRED"
 REVIEW_REQUIRED = "REVIEW_REQUIRED"
 SUCCESS = "SUCCESS"
@@ -175,15 +188,20 @@ def _decode_image(image_raw: bytes) -> np.ndarray:
     return bgr
 
 
-def _resize_for_ocr(image: np.ndarray, min_dimension: int = 1400) -> np.ndarray:
+def _resize_for_ocr(image: np.ndarray, min_dimension: int = 1000, max_dimension: int = 2400) -> np.ndarray:
     height, width = image.shape[:2]
     longest = max(height, width)
-    if longest >= min_dimension:
-        return image
-    scale = min_dimension / float(longest)
-    resized_width = max(1, int(round(width * scale)))
-    resized_height = max(1, int(round(height * scale)))
-    return cv2.resize(image, (resized_width, resized_height), interpolation=cv2.INTER_CUBIC)
+    if longest < min_dimension:
+        scale = min_dimension / float(longest)
+        resized_width = max(1, int(round(width * scale)))
+        resized_height = max(1, int(round(height * scale)))
+        return cv2.resize(image, (resized_width, resized_height), interpolation=cv2.INTER_CUBIC)
+    if longest > max_dimension:
+        scale = max_dimension / float(longest)
+        resized_width = max(1, int(round(width * scale)))
+        resized_height = max(1, int(round(height * scale)))
+        return cv2.resize(image, (resized_width, resized_height), interpolation=cv2.INTER_AREA)
+    return image
 
 
 def _order_quad_points(points: np.ndarray) -> np.ndarray:
@@ -201,14 +219,19 @@ def _detect_document_corners(bgr: np.ndarray) -> np.ndarray | None:
     height, width = bgr.shape[:2]
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    edges = cv2.Canny(blurred, 40, 130)
-    edges = cv2.dilate(edges, np.ones((3, 3), dtype=np.uint8), iterations=1)
-    edges = cv2.erode(edges, np.ones((3, 3), dtype=np.uint8), iterations=1)
-    contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    # 여러 Canny 임계값으로 시도하여 다양한 조명 조건 대응
+    all_contours = []
+    for low, high in ((30, 100), (40, 130), (60, 180)):
+        edges = cv2.Canny(blurred, low, high)
+        edges = cv2.dilate(edges, np.ones((3, 3), dtype=np.uint8), iterations=1)
+        edges = cv2.erode(edges, np.ones((3, 3), dtype=np.uint8), iterations=1)
+        found, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        all_contours.extend(found)
+    contours = all_contours
 
     best_corners: np.ndarray | None = None
     best_score = 0.0
-    min_area = float(height * width) * 0.18
+    min_area = float(height * width) * 0.12
 
     for contour in contours:
         area = cv2.contourArea(contour)
@@ -247,7 +270,7 @@ def _detect_document_corners(bgr: np.ndarray) -> np.ndarray | None:
             best_score = score
             best_corners = ordered
 
-    if best_score < 0.42:
+    if best_score < 0.35:
         return None
     return best_corners
 
@@ -261,8 +284,17 @@ def _normalize_document_image(bgr: np.ndarray) -> np.ndarray | None:
     width_bottom = np.linalg.norm(corners[2] - corners[3])
     height_left = np.linalg.norm(corners[3] - corners[0])
     height_right = np.linalg.norm(corners[2] - corners[1])
-    max_width = max(1, int(round(max(width_top, width_bottom))))
-    max_height = max(1, int(round(max(height_left, height_right))))
+    w = max(width_top, width_bottom)
+    h = max(height_left, height_right)
+
+    # 신분증은 가로가 긴 문서 — quad 좌표가 세로로 잡혔으면 w/h를 교환해서 가로로 보정
+    if h > w:
+        # 코너를 한 칸씩 회전시켜 가로 방향으로 재매핑
+        corners = np.array([corners[3], corners[0], corners[1], corners[2]], dtype=np.float32)
+        w, h = h, w
+
+    max_width = max(1, int(round(w)))
+    max_height = max(1, int(round(h)))
     destination = np.array(
         [
             [0.0, 0.0],
@@ -276,23 +308,31 @@ def _normalize_document_image(bgr: np.ndarray) -> np.ndarray | None:
     warped = cv2.warpPerspective(bgr, matrix, (max_width, max_height))
     if warped.size == 0:
         return None
-    if warped.shape[0] > warped.shape[1]:
-        warped = cv2.rotate(warped, cv2.ROTATE_90_CLOCKWISE)
     return warped
 
 
 def _preprocess_variants_for_ocr(bgr: np.ndarray) -> list[tuple[str, np.ndarray]]:
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+
+    # 변형 1: 원본 컬러
+    # 변형 2: 단순 그레이스케일 정규화 (독립 경로)
     normalized = cv2.normalize(gray, None, 0, 255, cv2.NORM_MINMAX)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(normalized)
-    denoised = cv2.fastNlMeansDenoising(clahe, None, h=9, templateWindowSize=7, searchWindowSize=21)
+
+    # 변형 3: CLAHE 대비 강화 (독립 경로)
+    clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8)).apply(gray)
+
+    # 변형 4: 디노이즈 + 샤프닝 (독립 경로)
+    denoised = cv2.fastNlMeansDenoising(gray, None, h=10, templateWindowSize=7, searchWindowSize=21)
     sharpened = cv2.filter2D(
         denoised,
         -1,
         np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]], dtype=np.float32),
     )
+
+    # 변형 5: 적응형 이진화 (그레이스케일에서 직접, 독립 경로)
+    blurred_for_thresh = cv2.GaussianBlur(gray, (3, 3), 0)
     threshold = cv2.adaptiveThreshold(
-        sharpened,
+        blurred_for_thresh,
         255,
         cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
         cv2.THRESH_BINARY,
@@ -300,12 +340,17 @@ def _preprocess_variants_for_ocr(bgr: np.ndarray) -> list[tuple[str, np.ndarray]
         9,
     )
 
+    # 변형 6: Otsu 이진화 (조명 불균일 대응, 독립 경로)
+    blurred_for_otsu = cv2.GaussianBlur(gray, (5, 5), 0)
+    _, otsu = cv2.threshold(blurred_for_otsu, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
     variants = [
         ("color", bgr.copy()),
         ("normalized", cv2.cvtColor(normalized, cv2.COLOR_GRAY2BGR)),
-        ("denoised", cv2.cvtColor(denoised, cv2.COLOR_GRAY2BGR)),
-        ("clahe_sharpened", cv2.cvtColor(sharpened, cv2.COLOR_GRAY2BGR)),
-        ("threshold", cv2.cvtColor(threshold, cv2.COLOR_GRAY2BGR)),
+        ("clahe", cv2.cvtColor(clahe, cv2.COLOR_GRAY2BGR)),
+        ("denoised_sharp", cv2.cvtColor(sharpened, cv2.COLOR_GRAY2BGR)),
+        ("adaptive_thresh", cv2.cvtColor(threshold, cv2.COLOR_GRAY2BGR)),
+        ("otsu", cv2.cvtColor(otsu, cv2.COLOR_GRAY2BGR)),
     ]
     return [(name, _resize_for_ocr(image)) for name, image in variants]
 
@@ -473,10 +518,15 @@ def _detect_document_type(
     return best_document_type, best_score
 
 
+def _correct_ocr_digits(text: str) -> str:
+    return _OCR_DIGIT_PATTERN.sub(lambda m: _OCR_DIGIT_REPLACEMENTS.get(m.group(), m.group()), text)
+
+
 def _extract_resident_number(entries: list[dict[str, Any]]) -> tuple[str | None, str | None, float]:
     best_match: tuple[str, str, float] | None = None
     joined = " ".join(entry["text"] for entry in entries)
 
+    # 1차: 원본 텍스트에서 매칭
     for entry in entries:
         text = entry["text"]
         for pattern in RESIDENT_NUMBER_PATTERNS:
@@ -490,12 +540,39 @@ def _extract_resident_number(entries: list[dict[str, Any]]) -> tuple[str | None,
     if best_match is not None:
         return best_match
 
+    # 2차: OCR 오인식 문자 보정 후 매칭 (개별 entry)
+    for entry in entries:
+        corrected = _correct_ocr_digits(entry["text"])
+        if corrected == entry["text"]:
+            continue
+        for pattern in RESIDENT_NUMBER_PATTERNS:
+            match = re.search(pattern, corrected)
+            if match:
+                confidence = min(0.94, 0.55 + entry["confidence"] * 0.30)
+                candidate = (match.group(1), match.group(2), confidence)
+                if best_match is None or candidate[2] > best_match[2]:
+                    best_match = candidate
+
+    if best_match is not None:
+        return best_match
+
+    # 3차: 원본 joined 텍스트에서 매칭
     for pattern in RESIDENT_NUMBER_PATTERNS:
         match = re.search(pattern, joined)
         if match:
             digit_entries = [entry["confidence"] for entry in entries if re.search(r"\d", entry["text"] or "")]
             confidence = min(0.94, 0.56 + (sum(digit_entries) / len(digit_entries) if digit_entries else 0.0) * 0.3)
             return match.group(1), match.group(2), confidence
+
+    # 4차: 보정된 joined 텍스트에서 매칭
+    corrected_joined = _correct_ocr_digits(joined)
+    if corrected_joined != joined:
+        for pattern in RESIDENT_NUMBER_PATTERNS:
+            match = re.search(pattern, corrected_joined)
+            if match:
+                digit_entries = [entry["confidence"] for entry in entries if re.search(r"\d", entry["text"] or "")]
+                confidence = min(0.88, 0.46 + (sum(digit_entries) / len(digit_entries) if digit_entries else 0.0) * 0.3)
+                return match.group(1), match.group(2), confidence
 
     return None, None, 0.0
 
@@ -544,11 +621,12 @@ def _extract_name(entries: list[dict[str, Any]], document_type: str | None) -> t
         if not any(label in entry["text"] for label in NAME_LABELS):
             continue
 
+        row_tolerance = max(24.0, entry["height"] * 2.0)
         same_row = [
             other
             for other in entries[index + 1 :]
-            if abs(other["center_y"] - entry["center_y"]) <= max(18.0, entry["height"] * 1.5)
-            and other["left"] >= entry["right"] - 16.0
+            if abs(other["center_y"] - entry["center_y"]) <= row_tolerance
+            and other["left"] >= entry["right"] - 24.0
             and not _contains_resident_number(other["text"])
         ]
         same_row.sort(key=lambda other: other["left"])
@@ -672,8 +750,21 @@ def _build_extraction_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
         "resident_number_confidence",
     )
 
-    resident_front6 = resident_number[:6] if resident_number else None
-    resident_back_first1 = resident_number[6:] if resident_number else None
+    resident_front6 = resident_number[:6] if resident_number and len(resident_number) >= 6 else None
+    resident_back_first1 = resident_number[6:] if resident_number and len(resident_number) >= 7 else None
+
+    # 부분 결과 보완: front6만 투표 결과에 있고 back1이 없으면 개별 결과에서 찾기
+    if resident_front6 and not resident_back_first1:
+        for result in filtered_results:
+            if result.get("resident_back_first1") and result.get("resident_front6") == resident_front6:
+                resident_back_first1 = result["resident_back_first1"]
+                break
+        if not resident_back_first1:
+            for result in filtered_results:
+                if result.get("resident_back_first1"):
+                    resident_back_first1 = result["resident_back_first1"]
+                    resident_number_confidence = min(resident_number_confidence, float(result.get("resident_number_confidence") or 0.0))
+                    break
 
     warnings: list[str] = []
     status = SUCCESS
@@ -754,11 +845,12 @@ def _extract_with_paddle_provider(image_raw: bytes) -> dict[str, Any]:
                 continue
 
             parsed = _extract_fields_from_entries(entries)
-            parsed["resident_number_key"] = (
-                f'{parsed["resident_front6"]}{parsed["resident_back_first1"]}'
-                if parsed.get("resident_front6") and parsed.get("resident_back_first1")
-                else None
-            )
+            if parsed.get("resident_front6") and parsed.get("resident_back_first1"):
+                parsed["resident_number_key"] = f'{parsed["resident_front6"]}{parsed["resident_back_first1"]}'
+            elif parsed.get("resident_front6"):
+                parsed["resident_number_key"] = parsed["resident_front6"]
+            else:
+                parsed["resident_number_key"] = None
             parsed_results.append(parsed)
 
     if not parsed_results:

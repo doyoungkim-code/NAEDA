@@ -114,6 +114,7 @@ public class PayFacadeService {
                                              String pin,
                                              String phoneMiddleDigits,
                                              FaceMatchStatus faceStatus,
+                                             Boolean livenessPassed,
                                              AuthMethod selectedAuthMethod,
                                              Boolean signatureConfirmed) {
 
@@ -196,6 +197,7 @@ public class PayFacadeService {
                     user,
                     amount,
                     faceStatus,
+                    livenessPassed,
                     selectedAuthMethod,
                     pin,
                     phoneMiddleDigits,
@@ -222,7 +224,7 @@ public class PayFacadeService {
                     .status(PayStatus.FAILED)
                     .authMethod(paymentMethod.getMethodType().name())
                     .authLevel(authValidation.authLevel())
-                    .livenessPass(true)
+                    .livenessPass(Boolean.TRUE.equals(livenessPassed))
                     .pinVerified(pinVerified)
                     .fdsScore(fdsResult.getAnomalyScore())
                     .fdsAction(fdsResult.getAction().name())
@@ -313,12 +315,16 @@ public class PayFacadeService {
     private FaceAuthValidation validateFaceAuth(User user,
                                                 Long amount,
                                                 FaceMatchStatus faceStatus,
+                                                Boolean livenessPassed,
                                                 AuthMethod selectedAuthMethod,
                                                 String pin,
                                                 String phoneMiddleDigits,
                                                 Boolean signatureConfirmed) {
         if (faceStatus == null || faceStatus == FaceMatchStatus.NO_MATCH) {
             throw new BadRequestException("얼굴을 다시 인식해 주세요.");
+        }
+        if (!Boolean.TRUE.equals(livenessPassed)) {
+            throw new BadRequestException("생체 인증이 필요합니다.");
         }
 
         boolean pinVerified = false;

@@ -44,6 +44,7 @@ fun PaymentProcessingScreen(
     pin: String?,
     phoneMiddleDigits: String?,
     faceStatus: String?,
+    livenessPassed: Boolean,
     selectedAuthMethod: String?,
     signatureConfirmed: Boolean,
     amount: Long,
@@ -71,6 +72,7 @@ fun PaymentProcessingScreen(
                 pin = pin,
                 phoneMiddleDigits = phoneMiddleDigits,
                 faceStatus = faceStatus,
+                livenessPassed = livenessPassed,
                 selectedAuthMethod = selectedAuthMethod,
                 signatureConfirmed = signatureConfirmed
             )
@@ -142,6 +144,7 @@ private fun processPaymentRequest(
     pin: String?,
     phoneMiddleDigits: String?,
     faceStatus: String?,
+    livenessPassed: Boolean,
     selectedAuthMethod: String?,
     signatureConfirmed: Boolean
 ): PaymentResult? {
@@ -152,6 +155,7 @@ private fun processPaymentRequest(
             if (!pin.isNullOrBlank()) put("pin", pin)
             if (!phoneMiddleDigits.isNullOrBlank()) put("phoneMiddleDigits", phoneMiddleDigits)
             if (!faceStatus.isNullOrBlank()) put("faceStatus", faceStatus)
+            put("livenessPassed", livenessPassed)
             if (!selectedAuthMethod.isNullOrBlank()) put("selectedAuthMethod", selectedAuthMethod)
             put("signatureConfirmed", signatureConfirmed)
         }
