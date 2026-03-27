@@ -48,10 +48,7 @@ import com.example.naedafront.data.remote.NoticeApiResponse
 import com.example.naedafront.data.repository.NoticeRepository
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
-import com.example.naedafront.ui.theme.Background
 import com.example.naedafront.ui.theme.Mint900
-import com.example.naedafront.ui.theme.OnBackground
-import com.example.naedafront.ui.theme.Surface
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,12 +108,12 @@ fun NoticeDetailScreen(
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Background
+                    containerColor = MaterialTheme.colorScheme.background
                 ),
                 windowInsets = WindowInsets(0)
             )
         },
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         if (isLoading) {
@@ -129,7 +126,7 @@ fun NoticeDetailScreen(
                 Text(
                     text = "불러오는 중...",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = OnBackground.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                 )
             }
         } else {
@@ -143,7 +140,7 @@ fun NoticeDetailScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Surface),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
@@ -171,7 +168,7 @@ fun NoticeDetailScreen(
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Bold
                             ),
-                            color = OnBackground
+                            color = MaterialTheme.colorScheme.onBackground
                         )
 
                         // Image (festival only)
@@ -195,13 +192,13 @@ fun NoticeDetailScreen(
                                 Icon(
                                     Icons.Default.CalendarMonth,
                                     contentDescription = null,
-                                    tint = OnBackground.copy(alpha = 0.45f),
+                                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
                                     modifier = Modifier.padding(end = 6.dp)
                                 )
                                 Text(
                                     text = dateInfo,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = OnBackground.copy(alpha = 0.55f)
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
                                 )
                             }
                         }
@@ -213,20 +210,20 @@ fun NoticeDetailScreen(
                                 Icon(
                                     Icons.Default.LocationOn,
                                     contentDescription = null,
-                                    tint = Mint900,
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.padding(end = 6.dp)
                                 )
                                 Text(
                                     text = location!!,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = OnBackground.copy(alpha = 0.55f)
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
                                 )
                             }
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        HorizontalDivider(color = OnBackground.copy(alpha = 0.08f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f))
 
                         Spacer(modifier = Modifier.height(16.dp))
 
@@ -234,7 +231,7 @@ fun NoticeDetailScreen(
                         Text(
                             text = content.ifBlank { "내용이 없습니다." },
                             style = MaterialTheme.typography.bodyMedium,
-                            color = OnBackground.copy(alpha = 0.8f),
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                             lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
                         )
                     }

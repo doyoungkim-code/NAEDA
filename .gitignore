@@ -26,6 +26,10 @@ $RECYCLE.BIN/
 venv/
 env/
 **/.gradle-user/
+**/.gradle-local/
+**/.gradle-tmp/
+.gradle-local/
+.gradle-tmp/
 **/.pytest_cache/
 **/__pycache__/
 **/.venv/

@@ -31,12 +31,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.material3.MaterialTheme
 import com.example.naedafront.ui.common.NaedaTopBar
 import com.example.naedafront.ui.screen.signup.NumberKeypad
-import com.example.naedafront.ui.theme.Background
 import com.example.naedafront.ui.theme.Mint500
 import com.example.naedafront.ui.theme.NaedaFontFamily
-import com.example.naedafront.ui.theme.OnBackground
 
 @Composable
 fun SecondaryAuthPinScreen(
@@ -50,7 +49,7 @@ fun SecondaryAuthPinScreen(
     val isSaving = uiState.isUpdatingSecondaryAuth
 
     Scaffold(
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             NaedaTopBar(
                 title = "현재 PIN 입력",
@@ -63,7 +62,7 @@ fun SecondaryAuthPinScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Background)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
         ) {
             Column(
@@ -76,7 +75,7 @@ fun SecondaryAuthPinScreen(
 
                 Text(
                     text = "2차 인증을 사용하려면\n현재 PIN 번호를 입력해주세요",
-                    color = OnBackground,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontSize = 24.sp,
                     lineHeight = 32.sp,
                     fontWeight = FontWeight.Bold,
@@ -88,7 +87,7 @@ fun SecondaryAuthPinScreen(
 
                 Text(
                     text = "등록된 6자리 PIN이 확인되면\n2차 인증이 활성화됩니다",
-                    color = Color(0xFF7B8494),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 14.sp,
                     lineHeight = 22.sp,
                     fontFamily = NaedaFontFamily,
@@ -112,8 +111,8 @@ fun SecondaryAuthPinScreen(
                                 .background(
                                     when {
                                         errorMessage != null -> Color(0xFFE53935)
-                                        isFilled -> Mint500
-                                        else -> Color(0xFFDDE2EA)
+                                        isFilled -> MaterialTheme.colorScheme.primary
+                                        else -> MaterialTheme.colorScheme.outline
                                     }
                                 )
                         )
@@ -128,7 +127,7 @@ fun SecondaryAuthPinScreen(
                         errorMessage != null -> errorMessage.orEmpty()
                         else -> "현재 사용 중인 PIN 번호를 입력하세요"
                     },
-                    color = if (errorMessage != null) Color(0xFFE53935) else Color(0xFF7B8494),
+                    color = if (errorMessage != null) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 13.sp,
                     fontFamily = NaedaFontFamily,
                     textAlign = TextAlign.Center
@@ -172,7 +171,7 @@ fun SecondaryAuthPinScreen(
                             errorMessage = null
                         }
                     },
-                    textColor = OnBackground
+                    textColor = MaterialTheme.colorScheme.onBackground
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))

@@ -135,17 +135,11 @@ import com.example.naedafront.data.remote.PayLimitResponseDto
 import com.example.naedafront.data.remote.ResidentIdExtractResponseDto
 import com.example.naedafront.data.remote.ResidentIdVerifyResponseDto
 import com.example.naedafront.ui.screen.signup.NumberKeypad
-import com.example.naedafront.ui.theme.Background
 import com.example.naedafront.ui.theme.Error
 import com.example.naedafront.ui.theme.Mint100
-import com.example.naedafront.ui.theme.Mint50
 import com.example.naedafront.ui.theme.Mint500
 import com.example.naedafront.ui.theme.Mint900
 import com.example.naedafront.ui.theme.NaedaFontFamily
-import com.example.naedafront.ui.theme.OnBackground
-import com.example.naedafront.ui.theme.OnSurfaceVariant
-import com.example.naedafront.ui.theme.Outline
-import com.example.naedafront.ui.theme.SurfaceVariant
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.PathEffect
@@ -398,7 +392,7 @@ fun FaceRegisterFlowScreen(
     }
 
     Scaffold(
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         Box(
@@ -564,20 +558,33 @@ private fun RegistrationOverlayActionButton(
     darkBackground: Boolean,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier.size(44.dp),
-        shape = CircleShape,
-        color = if (darkBackground) Color.Black.copy(alpha = 0.34f) else Color.White.copy(alpha = 0.94f),
-        shadowElevation = if (darkBackground) 0.dp else 6.dp
-    ) {
+    if (darkBackground) {
+        Surface(
+            modifier = modifier.size(44.dp),
+            shape = CircleShape,
+            color = Color.Black.copy(alpha = 0.34f),
+            shadowElevation = 0.dp
+        ) {
+            IconButton(
+                onClick = onClick,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = contentDescription,
+                    tint = Color.White
+                )
+            }
+        }
+    } else {
         IconButton(
             onClick = onClick,
-            modifier = Modifier.fillMaxSize()
+            modifier = modifier.size(44.dp)
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
-                tint = if (darkBackground) Color.White else OnBackground
+                tint = MaterialTheme.colorScheme.onBackground
             )
         }
     }
@@ -631,7 +638,7 @@ private fun PermissionRequestContentReal(
                         Box(
                             modifier = Modifier
                                 .size(100.dp)
-                                .background(Mint500, CircleShape),
+                                .background(MaterialTheme.colorScheme.primary, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -652,7 +659,7 @@ private fun PermissionRequestContentReal(
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = 26.sp,
-            color = OnBackground,
+            color = MaterialTheme.colorScheme.onBackground,
             lineHeight = 34.sp
         )
         Spacer(modifier = Modifier.height(12.dp))
@@ -663,7 +670,7 @@ private fun PermissionRequestContentReal(
                 "페이스페이 등록을 위해\n카메라 권한을 허용해 주세요.",
             fontFamily = NaedaFontFamily,
             fontSize = 15.sp,
-            color = OnSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             lineHeight = 24.sp
         )
         Spacer(modifier = Modifier.weight(1f))
@@ -673,7 +680,7 @@ private fun PermissionRequestContentReal(
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
         ) {
             Text(
                 text = if (isPermanentlyDenied) "설정으로 이동" else "권한 허용하기",
@@ -702,7 +709,7 @@ private fun IntroStageContent(onStartClick: () -> Unit) {
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = 26.sp,
-            color = OnBackground,
+            color = MaterialTheme.colorScheme.onBackground,
             lineHeight = 34.sp
         )
         Spacer(modifier = Modifier.height(24.dp))
@@ -755,7 +762,7 @@ private fun IntroStageContent(onStartClick: () -> Unit) {
                         text = "지갑, 휴대폰 두고 나와도\n결제할 수 있어요",
                         fontFamily = NaedaFontFamily,
                         fontSize = 15.sp,
-                        color = OnBackground,
+                        color = MaterialTheme.colorScheme.onBackground,
                         textAlign = TextAlign.Center,
                         lineHeight = 24.sp
                     )
@@ -769,7 +776,7 @@ private fun IntroStageContent(onStartClick: () -> Unit) {
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.SemiBold,
             fontSize = 15.sp,
-            color = OnBackground
+            color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(modifier = Modifier.height(12.dp))
         listOf("매장 기기에", "얼굴을 인식하면 결제완료!").forEachIndexed { index, step ->
@@ -782,7 +789,7 @@ private fun IntroStageContent(onStartClick: () -> Unit) {
                 Box(
                     modifier = Modifier
                         .size(26.dp)
-                        .background(Mint500, CircleShape),
+                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -797,7 +804,7 @@ private fun IntroStageContent(onStartClick: () -> Unit) {
                     text = step,
                     fontFamily = NaedaFontFamily,
                     fontSize = 15.sp,
-                    color = OnBackground
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
         }
@@ -808,7 +815,7 @@ private fun IntroStageContent(onStartClick: () -> Unit) {
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
         ) {
             Text(
                 text = "페이스페이 시작하기",
@@ -823,7 +830,7 @@ private fun IntroStageContent(onStartClick: () -> Unit) {
             text = "NADA PAY  •  SECURE CORE",
             fontFamily = NaedaFontFamily,
             fontSize = 11.sp,
-            color = OnSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
         Spacer(modifier = Modifier.height(24.dp))
@@ -848,7 +855,7 @@ private fun FaceGuideStageContent(onStartClick: () -> Unit) {
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = 24.sp,
-            color = OnBackground,
+            color = MaterialTheme.colorScheme.onBackground,
             lineHeight = 32.sp
         )
         Spacer(modifier = Modifier.height(6.dp))
@@ -877,6 +884,7 @@ private fun FaceGuideStageContent(onStartClick: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // 점선 원 + 2겹 원 + 얼굴 아이콘
+                    val dashedCircleColor = Color(0xFF009688)
                     Box(
                         modifier = Modifier
                             .size(160.dp)
@@ -884,7 +892,7 @@ private fun FaceGuideStageContent(onStartClick: () -> Unit) {
                                 val radius = size.minDimension / 2f
                                 val dashEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 9f), 0f)
                                 drawCircle(
-                                    color = Color(0xFF009688),
+                                    color = dashedCircleColor,
                                     radius = radius - 2.dp.toPx(),
                                     style = Stroke(width = 2.dp.toPx(), pathEffect = dashEffect)
                                 )
@@ -918,7 +926,7 @@ private fun FaceGuideStageContent(onStartClick: () -> Unit) {
                     // 안내 칩
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.surface,
                         shadowElevation = 2.dp
                     ) {
                         Row(
@@ -929,14 +937,14 @@ private fun FaceGuideStageContent(onStartClick: () -> Unit) {
                             Icon(
                                 imageVector = Icons.Default.PhotoCamera,
                                 contentDescription = null,
-                                tint = OnSurfaceVariant,
+                                tint = Color(0xFF5B9E94),
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
                                 text = "정면을 바라봐 주세요",
                                 fontFamily = NaedaFontFamily,
                                 fontSize = 13.sp,
-                                color = OnBackground
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                         }
                     }
@@ -978,15 +986,15 @@ private fun FaceGuideStageContent(onStartClick: () -> Unit) {
                         text = text,
                         fontFamily = NaedaFontFamily,
                         fontSize = 14.sp,
-                        color = OnBackground,
+                        color = MaterialTheme.colorScheme.onBackground,
                         lineHeight = 22.sp
                     )
                 }
-                // 체크 뱃지 (Mint500 배경)
+                // 체크 뱃지
                 Box(
                     modifier = Modifier
                         .size(28.dp)
-                        .background(Mint500, CircleShape),
+                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -998,7 +1006,7 @@ private fun FaceGuideStageContent(onStartClick: () -> Unit) {
                 }
             }
             if (index < tipItems.lastIndex) {
-                HorizontalDivider(color = Outline)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
             }
         }
 
@@ -1009,7 +1017,7 @@ private fun FaceGuideStageContent(onStartClick: () -> Unit) {
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
         ) {
             Text(
                 text = "등록 시작하기",
@@ -1056,7 +1064,7 @@ private fun RegistrationMessageScreen(
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = 26.sp,
-            color = OnBackground,
+            color = MaterialTheme.colorScheme.onBackground,
             lineHeight = 34.sp
         )
         Spacer(modifier = Modifier.height(12.dp))
@@ -1064,7 +1072,7 @@ private fun RegistrationMessageScreen(
             text = description,
             fontFamily = NaedaFontFamily,
             fontSize = 15.sp,
-            color = OnSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             lineHeight = 24.sp
         )
         Spacer(modifier = Modifier.weight(1f))
@@ -1074,7 +1082,7 @@ private fun RegistrationMessageScreen(
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
         ) {
             Text(
                 text = primaryButtonText,
@@ -1108,7 +1116,7 @@ private fun RegistrationChecklistScreen(
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(20.dp))
-                .background(Mint50)
+                .background(MaterialTheme.colorScheme.primaryContainer)
                 .padding(horizontal = 16.dp, vertical = 6.dp)
         ) {
             Text(
@@ -1116,7 +1124,7 @@ private fun RegistrationChecklistScreen(
                 fontFamily = NaedaFontFamily,
                 fontWeight = FontWeight.Medium,
                 fontSize = 13.sp,
-                color = Mint500
+                color = MaterialTheme.colorScheme.primary
             )
         }
 
@@ -1128,7 +1136,7 @@ private fun RegistrationChecklistScreen(
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = 26.sp,
-            color = OnBackground,
+            color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center,
             lineHeight = 34.sp
         )
@@ -1145,7 +1153,7 @@ private fun RegistrationChecklistScreen(
             Box(
                 modifier = Modifier
                     .size(144.dp)
-                    .background(Mint500, CircleShape),
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -1167,7 +1175,7 @@ private fun RegistrationChecklistScreen(
             Icon(
                 imageVector = Icons.Default.Info,
                 contentDescription = null,
-                tint = Mint500,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(16.dp)
             )
             Text(
@@ -1175,7 +1183,7 @@ private fun RegistrationChecklistScreen(
                 fontFamily = NaedaFontFamily,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 15.sp,
-                color = OnBackground
+                color = MaterialTheme.colorScheme.onBackground
             )
         }
         Spacer(modifier = Modifier.height(10.dp))
@@ -1184,7 +1192,7 @@ private fun RegistrationChecklistScreen(
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Normal,
             fontSize = 14.sp,
-            color = OnSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             lineHeight = 24.sp
         )
@@ -1199,7 +1207,7 @@ private fun RegistrationChecklistScreen(
                         .height(4.dp)
                         .width(if (i < 2) 32.dp else 16.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(if (i < 2) Mint500 else SurfaceVariant)
+                        .background(if (i < 2) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
                 )
             }
         }
@@ -1212,7 +1220,7 @@ private fun RegistrationChecklistScreen(
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
         ) {
             Text(
                 text = primaryButtonText,
@@ -1251,7 +1259,7 @@ private fun PinDotsReal(pinLength: Int) {
                 modifier = Modifier
                     .size(14.dp)
                     .background(
-                        color = if (index < pinLength) Mint500 else Color.White.copy(alpha = 0.18f),
+                        color = if (index < pinLength) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.18f),
                         shape = CircleShape
                     )
             )
@@ -1815,7 +1823,7 @@ private fun FaceCaptureOverlay(
                             .size(if (index == currentIndex) 14.dp else 8.dp)
                             .background(
                                 color = when {
-                                    index < currentIndex  -> Mint500
+                                    index < currentIndex  -> MaterialTheme.colorScheme.primary
                                     index == currentIndex -> Color.White
                                     else                  -> Color.White.copy(alpha = 0.25f)
                                 },
@@ -2077,7 +2085,7 @@ private fun IdCaptureOverlay(
                 .aspectRatio(1.586f)
                 .border(
                     width = 2.dp,
-                    color = if (isRecognizing || isExtracting) Mint500 else Color.White.copy(alpha = 0.8f),
+                    color = if (isRecognizing || isExtracting) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.8f),
                     shape = RoundedCornerShape(20.dp)
                 )
         )
@@ -2103,14 +2111,14 @@ private fun IdCaptureOverlay(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
                                 strokeWidth = 2.dp,
-                                color = Mint500
+                                color = MaterialTheme.colorScheme.primary
                             )
                         } else {
                             CircularProgressIndicator(
                                 progress = { holdProgress },
                                 modifier = Modifier.size(18.dp),
                                 strokeWidth = 2.dp,
-                                color = Mint500,
+                                color = MaterialTheme.colorScheme.primary,
                                 trackColor = Color.White.copy(alpha = 0.18f)
                             )
                         }
@@ -2132,7 +2140,7 @@ private fun IdCaptureOverlay(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(7.dp),
-                        color = Mint500,
+                        color = MaterialTheme.colorScheme.primary,
                         trackColor = Color.White.copy(alpha = 0.18f)
                     )
                     Text(
@@ -2183,7 +2191,7 @@ private fun IdConfirmStageContent(
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = 26.sp,
-            color = OnBackground,
+            color = MaterialTheme.colorScheme.onBackground,
             lineHeight = 34.sp
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -2191,7 +2199,7 @@ private fun IdConfirmStageContent(
             text = "이름과 주민등록번호 앞 6자리, 뒤 첫 1자리만 사용합니다.",
             fontFamily = NaedaFontFamily,
             fontSize = 14.sp,
-            color = OnSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             lineHeight = 22.sp
         )
 
@@ -2201,7 +2209,7 @@ private fun IdConfirmStageContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Mint50)
+                    .background(MaterialTheme.colorScheme.primaryContainer)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -2212,7 +2220,7 @@ private fun IdConfirmStageContent(
                     Icon(
                         imageVector = Icons.Default.Info,
                         contentDescription = null,
-                        tint = Mint500,
+                        tint = MaterialTheme.colorScheme.primaryContainer,
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
@@ -2220,7 +2228,7 @@ private fun IdConfirmStageContent(
                         fontFamily = NaedaFontFamily,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,
-                        color = OnBackground
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
                 reviewMessages.forEach { warning ->
@@ -2228,7 +2236,7 @@ private fun IdConfirmStageContent(
                         text = "• $warning",
                         fontFamily = NaedaFontFamily,
                         fontSize = 13.sp,
-                        color = OnSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 19.sp
                     )
                 }
@@ -2243,7 +2251,7 @@ private fun IdConfirmStageContent(
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Medium,
             fontSize = 14.sp,
-            color = OnSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(8.dp))
         androidx.compose.material3.OutlinedTextField(
@@ -2253,10 +2261,10 @@ private fun IdConfirmStageContent(
             singleLine = true,
             shape = RoundedCornerShape(14.dp),
             colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Mint500,
-                unfocusedBorderColor = Outline,
-                focusedTextColor = OnBackground,
-                unfocusedTextColor = OnBackground
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                unfocusedTextColor = MaterialTheme.colorScheme.onBackground
             )
         )
 
@@ -2268,7 +2276,7 @@ private fun IdConfirmStageContent(
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Medium,
             fontSize = 14.sp,
-            color = OnSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -2278,23 +2286,23 @@ private fun IdConfirmStageContent(
                 modifier = Modifier.weight(1f),
                 singleLine = true,
                 placeholder = {
-                    Text("앞 6자리", color = OnSurfaceVariant,
+                    Text("앞 6자리", color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontFamily = NaedaFontFamily, fontSize = 14.sp)
                 },
                 shape = RoundedCornerShape(14.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Mint500,
-                    unfocusedBorderColor = Outline,
-                    focusedTextColor = OnBackground,
-                    unfocusedTextColor = OnBackground
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                 )
             )
             Text(
                 text = "-",
                 modifier = Modifier.align(Alignment.CenterVertically),
                 fontSize = 20.sp,
-                color = OnSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Bold
             )
             androidx.compose.material3.OutlinedTextField(
@@ -2303,16 +2311,16 @@ private fun IdConfirmStageContent(
                 modifier = Modifier.weight(0.5f),
                 singleLine = true,
                 placeholder = {
-                    Text("뒤 1자리", color = OnSurfaceVariant,
+                    Text("뒤 1자리", color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontFamily = NaedaFontFamily, fontSize = 14.sp)
                 },
                 shape = RoundedCornerShape(14.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Mint500,
-                    unfocusedBorderColor = Outline,
-                    focusedTextColor = OnBackground,
-                    unfocusedTextColor = OnBackground
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                 )
             )
         }
@@ -2324,7 +2332,7 @@ private fun IdConfirmStageContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(14.dp))
-                .background(SurfaceVariant)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
                 .padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -2332,14 +2340,14 @@ private fun IdConfirmStageContent(
             Icon(
                 imageVector = Icons.Default.Info,
                 contentDescription = null,
-                tint = Mint500,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(18.dp)
             )
             Text(
                 text = "입력하신 정보는 본인 확인을 위해서만 사용되며 안전하게 암호화됩니다.",
                 fontFamily = NaedaFontFamily,
                 fontSize = 13.sp,
-                color = OnSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 20.sp
             )
         }
@@ -2386,7 +2394,7 @@ private fun IdConfirmStageContent(
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
@@ -2421,7 +2429,7 @@ private fun LabeledField(
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Medium,
             fontSize = 14.sp,
-            color = OnSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
@@ -2434,8 +2442,8 @@ private fun LabeledField(
                 keyboardType = if (label.contains("주민번호")) KeyboardType.Number else KeyboardType.Text
             ),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Mint500,
-                unfocusedBorderColor = Outline
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
             )
         )
     }
@@ -2511,7 +2519,7 @@ private fun PaymentMethodSelectStageContent(
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = 26.sp,
-            color = OnBackground,
+            color = MaterialTheme.colorScheme.onBackground,
             lineHeight = 34.sp
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -2519,7 +2527,7 @@ private fun PaymentMethodSelectStageContent(
             text = "계좌 또는 카드 중 하나를 대표 결제수단으로 등록합니다. 나중에 지갑 탭에서 다시 변경할 수 있어요.",
             fontFamily = NaedaFontFamily,
             fontSize = 14.sp,
-            color = OnSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             lineHeight = 22.sp
         )
 
@@ -2528,7 +2536,7 @@ private fun PaymentMethodSelectStageContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
-                .background(SurfaceVariant)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
                 .padding(4.dp)
         ) {
             listOf("계좌", "카드").forEachIndexed { index, label ->
@@ -2537,7 +2545,7 @@ private fun PaymentMethodSelectStageContent(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(if (selected) Color.White else Color.Transparent)
+                        .background(if (selected) MaterialTheme.colorScheme.surface else Color.Transparent)
                         .clickable(enabled = !isLoading && !isSubmitting) { selectedTab = index }
                         .padding(vertical = 12.dp),
                     contentAlignment = Alignment.Center
@@ -2547,7 +2555,7 @@ private fun PaymentMethodSelectStageContent(
                         fontFamily = NaedaFontFamily,
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                         fontSize = 14.sp,
-                        color = if (selected) Mint900 else OnSurfaceVariant
+                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -2562,7 +2570,7 @@ private fun PaymentMethodSelectStageContent(
                     .weight(1f),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = Mint500)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else if (currentItems.isEmpty()) {
             Box(
@@ -2570,7 +2578,7 @@ private fun PaymentMethodSelectStageContent(
                     .fillMaxWidth()
                     .weight(1f)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(SurfaceVariant)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .padding(24.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -2578,7 +2586,7 @@ private fun PaymentMethodSelectStageContent(
                     text = "선택할 수 있는 ${if (selectedTab == 0) "계좌" else "카드"}가 없어요.",
                     fontFamily = NaedaFontFamily,
                     fontSize = 15.sp,
-                    color = OnSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     lineHeight = 22.sp
                 )
@@ -2610,7 +2618,7 @@ private fun PaymentMethodSelectStageContent(
             text = "선택 후에는 결제 한도와 PIN 2차 인증 설정이 이어집니다.",
             fontFamily = NaedaFontFamily,
             fontSize = 13.sp,
-            color = OnSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             lineHeight = 20.sp
         )
         Spacer(modifier = Modifier.height(20.dp))
@@ -2629,7 +2637,7 @@ private fun PaymentMethodSelectStageContent(
                         onSelectionComplete(paymentMethodId)
                     },
                     enabled = !isSubmitting,
-                    colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
                 ) {
                     Text(
                         text = "선택",
@@ -2643,7 +2651,7 @@ private fun PaymentMethodSelectStageContent(
                     onClick = { pendingSelection = null },
                     enabled = !isSubmitting
                 ) {
-                    Text("취소", fontFamily = NaedaFontFamily, color = OnSurfaceVariant)
+                    Text("취소", fontFamily = NaedaFontFamily, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
             title = {
@@ -2651,7 +2659,7 @@ private fun PaymentMethodSelectStageContent(
                     text = "대표 결제수단으로 설정할까요?",
                     fontFamily = NaedaFontFamily,
                     fontWeight = FontWeight.Bold,
-                    color = OnBackground
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             },
             text = {
@@ -2660,17 +2668,17 @@ private fun PaymentMethodSelectStageContent(
                         text = item.title,
                         fontFamily = NaedaFontFamily,
                         fontWeight = FontWeight.SemiBold,
-                        color = OnBackground
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
                         text = item.subtitle,
                         fontFamily = NaedaFontFamily,
-                        color = OnSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 20.sp
                     )
                 }
             },
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(20.dp)
         )
     }
@@ -2690,7 +2698,7 @@ private fun PaymentMethodSelectCard(
             .clip(RoundedCornerShape(18.dp))
             .clickable(enabled = enabled && item.selectable, onClick = onClick),
         shape = RoundedCornerShape(18.dp),
-        color = if (item.isDefault) Mint50 else Color.White,
+        color = if (item.isDefault) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
         shadowElevation = 1.dp
     ) {
         Row(
@@ -2703,13 +2711,13 @@ private fun PaymentMethodSelectCard(
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(if (item.type == FacePaySelectableType.ACCOUNT) Mint100 else Color(0xFFFFF3D8)),
+                    .background(if (item.type == FacePaySelectableType.ACCOUNT) MaterialTheme.colorScheme.primaryContainer else Color(0xFFFFF3D8)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = if (item.type == FacePaySelectableType.ACCOUNT) Icons.Default.SwapVert else Icons.Default.CreditCard,
                     contentDescription = null,
-                    tint = if (item.type == FacePaySelectableType.ACCOUNT) Mint900 else Color(0xFFCC8B00),
+                    tint = if (item.type == FacePaySelectableType.ACCOUNT) MaterialTheme.colorScheme.primary else Color(0xFFCC8B00),
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -2723,14 +2731,14 @@ private fun PaymentMethodSelectCard(
                         fontFamily = NaedaFontFamily,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp,
-                        color = OnBackground
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     if (item.isDefault) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(999.dp))
-                                .background(Mint500)
+                                .background(MaterialTheme.colorScheme.primary)
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
@@ -2748,7 +2756,7 @@ private fun PaymentMethodSelectCard(
                     text = item.subtitle,
                     fontFamily = NaedaFontFamily,
                     fontSize = 13.sp,
-                    color = OnSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 20.sp
                 )
             }
@@ -2759,7 +2767,7 @@ private fun PaymentMethodSelectCard(
                     fontFamily = NaedaFontFamily,
                     fontWeight = FontWeight.Medium,
                     fontSize = 12.sp,
-                    color = Mint500
+                    color = MaterialTheme.colorScheme.primary
                 )
                 if (!item.selectable) {
                     Spacer(modifier = Modifier.height(4.dp))
@@ -2827,7 +2835,7 @@ private fun PaymentLimitSetupStageContent(
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = 26.sp,
-            color = OnBackground,
+            color = MaterialTheme.colorScheme.onBackground,
             lineHeight = 34.sp
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -2835,7 +2843,7 @@ private fun PaymentLimitSetupStageContent(
             text = "대표 결제수단으로 사용할 때 적용될 1일 한도와 1회 한도를 설정합니다.",
             fontFamily = NaedaFontFamily,
             fontSize = 14.sp,
-            color = OnSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             lineHeight = 22.sp
         )
 
@@ -2848,7 +2856,7 @@ private fun PaymentLimitSetupStageContent(
                     .height(260.dp),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = Mint500)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else {
             LimitInputField(
@@ -2869,7 +2877,7 @@ private fun PaymentLimitSetupStageContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .background(SurfaceVariant)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .padding(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -2877,14 +2885,14 @@ private fun PaymentLimitSetupStageContent(
                 Icon(
                     imageVector = Icons.Default.Info,
                     contentDescription = null,
-                    tint = Mint500,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
                 )
                 Text(
                     text = "월 한도는 현재 설정값 ${formatWon(monthlyLimit)}을 유지합니다.",
                     fontFamily = NaedaFontFamily,
                     fontSize = 13.sp,
-                    color = OnSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 20.sp
                 )
             }
@@ -2925,7 +2933,7 @@ private fun PaymentLimitSetupStageContent(
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
             ) {
                 Text(
                     text = if (isSaving) "한도 저장 중..." else "한도 저장하고 다음",
@@ -2952,7 +2960,7 @@ private fun LimitInputField(
         fontFamily = NaedaFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 14.sp,
-        color = OnSurfaceVariant
+        color = MaterialTheme.colorScheme.onSurfaceVariant
     )
     Spacer(modifier = Modifier.height(8.dp))
     OutlinedTextField(
@@ -2963,7 +2971,7 @@ private fun LimitInputField(
         placeholder = {
             Text(
                 text = placeholder,
-                color = OnSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontFamily = NaedaFontFamily,
                 fontSize = 14.sp
             )
@@ -2973,16 +2981,16 @@ private fun LimitInputField(
                 text = "원",
                 fontFamily = NaedaFontFamily,
                 fontSize = 13.sp,
-                color = OnSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         shape = RoundedCornerShape(14.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Mint500,
-            unfocusedBorderColor = Outline,
-            focusedTextColor = OnBackground,
-            unfocusedTextColor = OnBackground
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+            focusedTextColor = MaterialTheme.colorScheme.onBackground,
+            unfocusedTextColor = MaterialTheme.colorScheme.onBackground
         )
     )
 }
@@ -3074,7 +3082,7 @@ private fun PinChoiceStageContent(
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(20.dp))
-                .background(Mint50)
+                .background(MaterialTheme.colorScheme.primaryContainer)
                 .padding(horizontal = 16.dp, vertical = 6.dp)
         ) {
             Text(
@@ -3082,7 +3090,7 @@ private fun PinChoiceStageContent(
                 fontFamily = NaedaFontFamily,
                 fontWeight = FontWeight.Medium,
                 fontSize = 13.sp,
-                color = Mint500
+                color = MaterialTheme.colorScheme.primary
             )
         }
 
@@ -3093,7 +3101,7 @@ private fun PinChoiceStageContent(
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = 26.sp,
-            color = OnBackground,
+            color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center,
             lineHeight = 34.sp
         )
@@ -3110,7 +3118,7 @@ private fun PinChoiceStageContent(
             Box(
                 modifier = Modifier
                     .size(136.dp)
-                    .background(Mint500, CircleShape),
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -3132,7 +3140,7 @@ private fun PinChoiceStageContent(
             Icon(
                 imageVector = Icons.Default.Info,
                 contentDescription = null,
-                tint = Mint500,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(16.dp)
             )
             Text(
@@ -3140,7 +3148,7 @@ private fun PinChoiceStageContent(
                 fontFamily = NaedaFontFamily,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 15.sp,
-                color = OnBackground
+                color = MaterialTheme.colorScheme.onBackground
             )
         }
         Spacer(modifier = Modifier.height(10.dp))
@@ -3149,7 +3157,7 @@ private fun PinChoiceStageContent(
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Normal,
             fontSize = 14.sp,
-            color = OnSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             lineHeight = 22.sp
         )
@@ -3163,7 +3171,7 @@ private fun PinChoiceStageContent(
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
         ) {
             Text(
                 if (isSaving) "설정 저장 중..." else "2차 인증 사용하기",
@@ -3185,7 +3193,7 @@ private fun PinChoiceStageContent(
                 fontFamily = NaedaFontFamily,
                 fontWeight = FontWeight.Normal,
                 fontSize = 15.sp,
-                color = OnSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .clickable(enabled = !isSaving) { onSkip() }
                     .padding(vertical = 12.dp, horizontal = 24.dp)
@@ -3310,7 +3318,7 @@ private fun CurrentPinStageContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Background)
+            .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -3320,7 +3328,7 @@ private fun CurrentPinStageContent(
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(20.dp))
-                .background(Mint50)
+                .background(MaterialTheme.colorScheme.primaryContainer)
                 .padding(horizontal = 16.dp, vertical = 6.dp)
         ) {
             Text(
@@ -3328,7 +3336,7 @@ private fun CurrentPinStageContent(
                 fontFamily = NaedaFontFamily,
                 fontWeight = FontWeight.Medium,
                 fontSize = 13.sp,
-                color = Mint500
+                color = MaterialTheme.colorScheme.primary
             )
         }
 
@@ -3339,7 +3347,7 @@ private fun CurrentPinStageContent(
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = 26.sp,
-            color = OnBackground,
+            color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center,
             lineHeight = 34.sp
         )
@@ -3348,7 +3356,7 @@ private fun CurrentPinStageContent(
             text = "페이스페이 2차 인증을 사용하려면\n현재 계정 PIN 확인이 필요합니다.",
             fontFamily = NaedaFontFamily,
             fontSize = 14.sp,
-            color = OnSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             lineHeight = 22.sp
         )
@@ -3362,8 +3370,8 @@ private fun CurrentPinStageContent(
                     modifier = Modifier
                         .size(14.dp)
                         .background(
-                            color = if (index < currentPin.length) Mint500
-                            else Color(0xFFE0E0E0),
+                            color = if (index < currentPin.length) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outline,
                             shape = CircleShape
                         )
                 )
@@ -3382,7 +3390,7 @@ private fun CurrentPinStageContent(
                 }
             },
             onDeleteClick = { if (currentPin.isNotEmpty()) currentPin = currentPin.dropLast(1) },
-            textColor = OnBackground
+            textColor = MaterialTheme.colorScheme.onBackground
         )
         Spacer(modifier = Modifier.height(36.dp))
     }
@@ -3415,7 +3423,7 @@ private fun SavingStageContent() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Background),
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -3425,13 +3433,13 @@ private fun SavingStageContent() {
             Box(
                 modifier = Modifier
                     .size(160.dp)
-                    .background(Mint500.copy(alpha = glowAlpha), CircleShape),
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = glowAlpha), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
                         .size(120.dp)
-                        .background(Mint500, CircleShape),
+                        .background(MaterialTheme.colorScheme.primary, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(
@@ -3452,15 +3460,15 @@ private fun SavingStageContent() {
                     fontFamily = NaedaFontFamily,
                     fontWeight = FontWeight.Bold,
                     fontSize = 22.sp,
-                    color = OnBackground
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(".", fontSize = 24.sp, color = Mint500.copy(alpha = dotAlpha1), fontWeight = FontWeight.Bold)
-                    Text(".", fontSize = 24.sp, color = Mint500.copy(alpha = dotAlpha2), fontWeight = FontWeight.Bold)
-                    Text(".", fontSize = 24.sp, color = Mint500.copy(alpha = dotAlpha3), fontWeight = FontWeight.Bold)
+                    Text(".", fontSize = 24.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = dotAlpha1), fontWeight = FontWeight.Bold)
+                    Text(".", fontSize = 24.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = dotAlpha2), fontWeight = FontWeight.Bold)
+                    Text(".", fontSize = 24.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = dotAlpha3), fontWeight = FontWeight.Bold)
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -3468,7 +3476,7 @@ private fun SavingStageContent() {
                     fontFamily = NaedaFontFamily,
                     fontWeight = FontWeight.Normal,
                     fontSize = 14.sp,
-                    color = OnSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -3501,7 +3509,7 @@ private fun SuccessStageContent(
                 Box(
                     modifier = Modifier
                         .size(116.dp)
-                        .background(Mint500, CircleShape),
+                        .background(MaterialTheme.colorScheme.primary, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -3519,7 +3527,7 @@ private fun SuccessStageContent(
                 fontFamily = NaedaFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 24.sp,
-                color = OnBackground,
+                color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(12.dp))
@@ -3527,7 +3535,7 @@ private fun SuccessStageContent(
                 text = if (secondaryAuthEnabled) "얼굴 등록과 신분증 확인이 완료되었고 PIN 2차 인증 사용도 저장되었습니다." else "얼굴 등록과 신분증 확인이 완료되었습니다. PIN 2차 인증은 사용 안 함으로 저장되었습니다.",
                 fontFamily = NaedaFontFamily,
                 fontSize = 15.sp,
-                color = OnSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 lineHeight = 22.sp
             )
@@ -3538,7 +3546,7 @@ private fun SuccessStageContent(
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
             ) {
                 Text(
                     "홈으로 이동",

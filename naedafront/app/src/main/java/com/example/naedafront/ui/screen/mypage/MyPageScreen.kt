@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Edit
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Switch
+import com.example.naedafront.ui.theme.Mint900
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -46,8 +48,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
-import com.example.naedafront.ui.theme.Background
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -79,7 +81,7 @@ fun MyPageScreen(
         viewModel.fetchMyInfo(context)
     }
 
-    val bgColor = Background
+    val bgColor = MaterialTheme.colorScheme.background
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -94,7 +96,7 @@ fun MyPageScreen(
                         Icon(
                             imageVector = Icons.Outlined.Settings,
                             contentDescription = "설정",
-                            tint = Color(0xFF67707E)
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -236,7 +238,7 @@ private fun QuickOrderDeliveryCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(24.dp),
         tonalElevation = 0.dp,
         shadowElevation = 0.dp
@@ -271,20 +273,20 @@ private fun QuickOrderDeliveryCard(
                     text = "배송 조회",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF1F2937)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "주문 내역과 배송 상태를 확인하세요",
                     fontSize = 13.sp,
-                    color = Color(0xFF7B8494)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = "이동",
-                tint = Color(0xFFB8BEC8),
+                tint = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(22.dp)
             )
         }
@@ -296,7 +298,7 @@ private fun SectionTitle(text: String) {
     Text(
         text = text,
         fontSize = 14.sp,
-        color = Color(0xFFB0B7C3),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         fontWeight = FontWeight.Medium
     )
 }
@@ -316,50 +318,19 @@ private fun ProfileHeader(
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box {
-                Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFF6CFC3)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(width = 28.dp, height = 40.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFF5F5F5))
-                            .border(
-                                width = 1.dp,
-                                color = Color(0xFFE4E4E7),
-                                shape = RoundedCornerShape(8.dp)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "카드",
-                            fontSize = 7.sp,
-                            color = Color(0xFF9CA3AF)
-                        )
-                    }
-                }
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .size(22.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF0F8B72))
-                        .border(2.dp, Color.White, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Edit,
-                        contentDescription = "프로필 편집",
-                        tint = Color.White,
-                        modifier = Modifier.size(11.dp)
-                    )
-                }
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "프로필",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp)
+                )
             }
 
             Spacer(modifier = Modifier.width(16.dp))
@@ -369,23 +340,21 @@ private fun ProfileHeader(
                     text = userName,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF1F2937)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = userEmail,
                     fontSize = 13.sp,
-                    color = Color(0xFF7B8494)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
 
         Row(
             modifier = Modifier
-                .clip(RoundedCornerShape(999.dp))
-                .background(Color(0xFFFFF1F1))
                 .clickable(enabled = !isLogoutLoading, onClick = onLogoutClick)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(end = 8.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -411,7 +380,7 @@ private fun MenuSectionCard(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(24.dp),
         tonalElevation = 0.dp,
         shadowElevation = 0.dp
@@ -423,7 +392,7 @@ private fun MenuSectionCard(
                 if (index != items.lastIndex) {
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 20.dp),
-                        color = Color(0xFFF1F3F5),
+                        color = MaterialTheme.colorScheme.outlineVariant,
                         thickness = 1.dp
                     )
                 }
@@ -463,7 +432,7 @@ private fun MyPageMenuRow(
         Text(
             text = item.title,
             fontSize = 16.sp,
-            color = item.textColor,
+            color = if (item.textColor == Color.Unspecified) MaterialTheme.colorScheme.onSurface else item.textColor,
             fontWeight = FontWeight.Medium
         )
 
@@ -474,7 +443,7 @@ private fun MyPageMenuRow(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = "이동",
-                    tint = Color(0xFFB8BEC8),
+                    tint = MaterialTheme.colorScheme.outline,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -490,10 +459,10 @@ private fun MyPageMenuRow(
                     enabled = trailing.enabled,
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
-                        checkedTrackColor = Color(0xFF16A36A),
+                        checkedTrackColor = Mint900,
                         uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = Color(0xFFD5D9E0),
-                        uncheckedBorderColor = Color(0xFFD5D9E0)
+                        uncheckedTrackColor = MaterialTheme.colorScheme.outline,
+                        uncheckedBorderColor = MaterialTheme.colorScheme.outline
                     )
                 )
             }
@@ -516,7 +485,7 @@ private data class MyPageMenuItemData(
     val icon: ImageVector,
     val iconBg: Color,
     val iconTint: Color,
-    val textColor: Color = Color(0xFF1F2937),
+    val textColor: Color = Color.Unspecified,
     val enabled: Boolean = true,
     val trailingType: MyPageMenuTrailing = MyPageMenuTrailing.Chevron,
     val onClick: () -> Unit = {}

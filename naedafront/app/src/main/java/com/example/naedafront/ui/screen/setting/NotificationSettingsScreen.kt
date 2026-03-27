@@ -1,6 +1,7 @@
 package com.example.naedafront.ui.screen.setting
 
 import androidx.compose.foundation.background
+import com.example.naedafront.ui.theme.Mint900
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,7 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.naedafront.AuthPrefs
-import com.example.naedafront.ui.theme.Background
+import androidx.compose.material3.MaterialTheme
 import com.example.naedafront.data.remote.NotificationRepository
 import com.example.naedafront.data.remote.NotificationSettingRequest
 import kotlinx.coroutines.launch
@@ -105,7 +106,7 @@ fun NotificationSettingsScreen(
     }
 
     Scaffold(
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
@@ -124,7 +125,7 @@ fun NotificationSettingsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Background
+                    containerColor = MaterialTheme.colorScheme.background
                 ),
                 windowInsets = WindowInsets(0)
             )
@@ -133,7 +134,7 @@ fun NotificationSettingsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Background)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
                 .padding(horizontal = 20.dp)
         ) {
@@ -151,7 +152,7 @@ fun NotificationSettingsScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.surface,
                     shadowElevation = 0.dp
                 ) {
                     Column(modifier = Modifier.padding(vertical = 4.dp)) {
@@ -178,7 +179,7 @@ fun NotificationSettingsScreen(
                     text = "알림 유형",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF9AA3AF)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
@@ -186,7 +187,7 @@ fun NotificationSettingsScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.surface,
                     shadowElevation = 0.dp
                 ) {
                     Column(modifier = Modifier.padding(vertical = 4.dp)) {
@@ -264,13 +265,13 @@ private fun NotificationToggleRow(
             modifier = Modifier
                 .size(42.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .background(Color(0xFFF5F7FA)),
+                .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = Color(0xFF6B7280),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(22.dp)
             )
         }
@@ -282,12 +283,12 @@ private fun NotificationToggleRow(
                 text = title,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF202632)
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = description,
                 fontSize = 13.sp,
-                color = Color(0xFF9AA3AF)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -298,9 +299,9 @@ private fun NotificationToggleRow(
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = Color(0xFF0FA37F),
+                checkedTrackColor = Mint900,
                 uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = Color(0xFFD1D5DB)
+                uncheckedTrackColor = MaterialTheme.colorScheme.outline
             )
         )
     }
@@ -311,6 +312,6 @@ private fun CardDivider() {
     HorizontalDivider(
         modifier = Modifier.padding(horizontal = 16.dp),
         thickness = 1.dp,
-        color = Color(0xFFF0F2F5)
+        color = MaterialTheme.colorScheme.outlineVariant
     )
 }

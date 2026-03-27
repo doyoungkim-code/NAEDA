@@ -57,14 +57,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.example.naedafront.ui.theme.Background
+import androidx.compose.material3.MaterialTheme
 import com.example.naedafront.ui.theme.Error
 import com.example.naedafront.ui.theme.Mint900
 import com.example.naedafront.ui.theme.NaedaTypography
-import com.example.naedafront.ui.theme.OnBackground
-import com.example.naedafront.ui.theme.OnSurfaceVariant
-import com.example.naedafront.ui.theme.Outline
-import com.example.naedafront.ui.theme.Surface as SurfaceColor
 
 data class AccountItem(
     val id: String,
@@ -119,7 +115,7 @@ fun AccountListScreen(
     var targetAccount by remember { mutableStateOf<AccountItem?>(null) }
 
     Scaffold(
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -134,12 +130,12 @@ fun AccountListScreen(
                             Icon(
                                 imageVector = Icons.Default.ArrowBack,
                                 contentDescription = "뒤로가기",
-                                tint = OnBackground
+                                tint = MaterialTheme.colorScheme.onBackground
                             )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = SurfaceColor),
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 windowInsets = WindowInsets(0)
             )
         },
@@ -208,7 +204,7 @@ private fun AccountTabRow(
     tabs: List<String>,
     onTabSelected: (Int) -> Unit
 ) {
-    MaterialSurface(color = SurfaceColor, shadowElevation = 1.dp) {
+    MaterialSurface(color = MaterialTheme.colorScheme.background, shadowElevation = 0.dp) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -228,7 +224,7 @@ private fun AccountTabRow(
                         style = NaedaTypography.labelLarge.copy(
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                         ),
-                        color = if (isSelected) Mint900 else OnSurfaceVariant
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Box(
@@ -236,7 +232,7 @@ private fun AccountTabRow(
                             .fillMaxWidth(0.5f)
                             .height(2.dp)
                             .clip(RoundedCornerShape(1.dp))
-                            .background(if (isSelected) Mint900 else Color.Transparent)
+                            .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
                     )
                 }
             }
@@ -288,29 +284,12 @@ private fun AccountListHeader(count: Int, onRegisterNew: () -> Unit) {
             Text(
                 text = "등록된 계좌",
                 style = NaedaTypography.labelMedium,
-                color = OnSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 text = "총 ${count}개",
                 style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                color = OnBackground
-            )
-        }
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable { onRegisterNew() }
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = "계좌 추가",
-                tint = Mint900,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(2.dp))
-            Text(
-                text = "추가하기",
-                style = NaedaTypography.labelMedium,
-                color = Mint900
+                color = MaterialTheme.colorScheme.onBackground
             )
         }
     }
@@ -331,7 +310,7 @@ private fun AccountListItem(
             .padding(horizontal = 16.dp, vertical = 4.dp)
             .clickable { onAccountClick() },
         shape = RoundedCornerShape(14.dp),
-        color = SurfaceColor,
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 1.dp,
         tonalElevation = 0.dp
     ) {
@@ -350,7 +329,7 @@ private fun AccountListItem(
                     Text(
                         text = account.bankName,
                         style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = OnBackground,
+                        color = MaterialTheme.colorScheme.onBackground,
                         maxLines = 1
                     )
                     if (account.isPrimary) {
@@ -367,7 +346,7 @@ private fun AccountListItem(
                 Text(
                     text = "${account.accountName} · ${account.accountNumber}",
                     style = NaedaTypography.labelMedium,
-                    color = OnSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -382,14 +361,14 @@ private fun AccountListItem(
                         Icon(
                             imageVector = Icons.Default.MoreVert,
                             contentDescription = "더보기",
-                            tint = OnSurfaceVariant,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp)
                         )
                     }
                     DropdownMenu(
                         expanded = isMenuExpanded,
                         onDismissRequest = onMenuToggle,
-                        modifier = Modifier.background(SurfaceColor)
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                     ) {
                         if (!account.isPrimary) {
                             DropdownMenuItem(
@@ -397,7 +376,7 @@ private fun AccountListItem(
                                     Text(
                                         "대표계좌 변경",
                                         style = NaedaTypography.bodyMedium,
-                                        color = OnBackground
+                                        color = MaterialTheme.colorScheme.onBackground
                                     )
                                 },
                                 onClick = onSetPrimary
@@ -529,7 +508,7 @@ private fun AccountPassbookListItem(
                             DropdownMenu(
                                 expanded = isMenuExpanded,
                                 onDismissRequest = onMenuToggle,
-                                modifier = Modifier.background(SurfaceColor)
+                                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                             ) {
                                 if (!account.isPrimary) {
                                     DropdownMenuItem(
@@ -537,7 +516,7 @@ private fun AccountPassbookListItem(
                                             Text(
                                                 "대표계좌로 설정",
                                                 style = NaedaTypography.bodyMedium,
-                                                color = OnBackground
+                                                color = MaterialTheme.colorScheme.onBackground
                                             )
                                         },
                                         onClick = onSetPrimary
@@ -744,7 +723,7 @@ private fun AccountPassbookCardLikeListItem(
                             DropdownMenu(
                                 expanded = isMenuExpanded,
                                 onDismissRequest = onMenuToggle,
-                                modifier = Modifier.background(SurfaceColor)
+                                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                             ) {
                                 if (!account.isPrimary) {
                                     DropdownMenuItem(
@@ -853,12 +832,12 @@ private fun AccountInfoNotice() {
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
-        Text(text = "ⓘ", style = NaedaTypography.labelSmall, color = OnSurfaceVariant)
+        Text(text = "ⓘ", style = NaedaTypography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(modifier = Modifier.width(6.dp))
         Text(
             text = "계좌를 해지하시려면 해당 금융사 앱 또는 영업점을 이용해 주세요.\n등록된 정보는 안전한 보안 통신을 통해 관리되며, 서비스 이용 이외의 목적으로 사용되지 않습니다.",
             style = NaedaTypography.labelSmall,
-            color = OnSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             lineHeight = 18.sp
         )
     }
@@ -892,12 +871,12 @@ private fun CardListContent(
                     Text(
                         text = "등록된 카드",
                         style = NaedaTypography.labelMedium,
-                        color = OnSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = "총 ${cards.size}개",
                         style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = OnBackground
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
                 Row(
@@ -907,14 +886,14 @@ private fun CardListContent(
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = "카드 추가",
-                        tint = Mint900,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     Text(
                         text = "추가하기",
                         style = NaedaTypography.labelMedium,
-                        color = Mint900
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -944,12 +923,12 @@ private fun CardListContent(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 16.dp)
             ) {
-                Text(text = "ⓘ", style = NaedaTypography.labelSmall, color = OnSurfaceVariant)
+                Text(text = "ⓘ", style = NaedaTypography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "카드를 해지하시려면 해당 카드사 앱 또는 고객센터를 이용해 주세요.\n등록된 정보는 안전한 보안 통신을 통해 관리되며, 서비스 이용 이외의 목적으로 사용되지 않습니다.",
                     style = NaedaTypography.labelSmall,
-                    color = OnSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 18.sp
                 )
             }
@@ -1070,7 +1049,7 @@ private fun CardListItem(
                         DropdownMenu(
                             expanded = isMenuExpanded,
                             onDismissRequest = onMenuToggle,
-                            modifier = Modifier.background(SurfaceColor)
+                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                         ) {
                             if (!card.isPrimary) {
                                 DropdownMenuItem(
@@ -1168,20 +1147,20 @@ private fun AccountDeleteDialog(
     Dialog(onDismissRequest = onDismiss) {
         MaterialSurface(
             shape = RoundedCornerShape(20.dp),
-            color = SurfaceColor,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 8.dp
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Text(
                     text = "계좌를 목록에서 삭제할까요?",
                     style = NaedaTypography.titleMedium,
-                    color = OnBackground
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "삭제 후에도 실제 계좌는 해지되지 않아요.",
                     style = NaedaTypography.bodyMedium,
-                    color = OnSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(20.dp))
                 Row(
@@ -1212,20 +1191,20 @@ private fun CardDeleteDialog(
     Dialog(onDismissRequest = onDismiss) {
         MaterialSurface(
             shape = RoundedCornerShape(20.dp),
-            color = SurfaceColor,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 8.dp
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Text(
                     text = "카드를 목록에서 삭제할까요?",
                     style = NaedaTypography.titleMedium,
-                    color = OnBackground
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "삭제 후에도 실제 카드는 해지되지 않아요.",
                     style = NaedaTypography.bodyMedium,
-                    color = OnSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(20.dp))
                 Row(

@@ -7,6 +7,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -19,8 +20,8 @@ private val NaedaLightColorScheme = lightColorScheme(
     // Primary — 앱의 메인 색상 (버튼, FAB, 강조)
     primary = Mint900,               // #00635A 딥 그린
     onPrimary = OnPrimary,           // 흰색 텍스트
-    primaryContainer = Mint100,      // #44E3D3 연한 민트 (선택된 상태 배경)
-    onPrimaryContainer = Mint900,    // #00635A 딥 그린
+    primaryContainer = Mint900,       // #00635A 딥 그린 (버튼 fill)
+    onPrimaryContainer = OnPrimary,  // 흰색 (버튼 위 텍스트)
 
     // Secondary — 보조 색상 (칩, 필터, 토글)
     secondary = Blue600,             // #307CBF 미디엄 블루
@@ -53,33 +54,41 @@ private val NaedaLightColorScheme = lightColorScheme(
     outlineVariant = OutlineVariant, // #E8E8E8
 )
 
-// 다크 테마 — 일단 기본 구조만 잡아둠 (나중에 필요하면 커스텀)
+// 다크 테마 — 순수 블랙 계열
 private val NaedaDarkColorScheme = darkColorScheme(
-    primary = Mint200,               // 밝은 민트 (다크에서 눈에 잘 띄게)
-    onPrimary = Mint900,
-    primaryContainer = Mint700,
-    onPrimaryContainer = Mint100,
+    primary = Color(0xFFFCFFFF),      // #FCFFFF (텍스트/아이콘용)
+    onPrimary = DarkBackground,
+    primaryContainer = Color(0xFF1A3A35), // 어두운 초록 (버튼 fill용)
+    onPrimaryContainer = Color(0xFFFCFFFF),
 
     secondary = Blue400,
-    onSecondary = Navy900,
-    secondaryContainer = Navy900,
+    onSecondary = DarkBackground,
+    secondaryContainer = Color(0xFF1A2A3A),
     onSecondaryContainer = Blue300,
 
     tertiary = Sky400,
-    onTertiary = Navy900,
+    onTertiary = DarkBackground,
 
-    error = Error,
-    onError = OnPrimary,
+    error = Color(0xFFFF6B6B),
+    onError = DarkBackground,
+    errorContainer = Color(0xFF3A1A1A),
+    onErrorContainer = Color(0xFFFF6B6B),
 
-    background = Navy900,
-    onBackground = OnPrimary,
-    surface = Navy900.copy(red = 0.05f, green = 0.15f, blue = 0.28f),
-    onSurface = OnPrimary,
-    surfaceVariant = Navy900.copy(red = 0.08f, green = 0.18f, blue = 0.32f),
-    onSurfaceVariant = Blue300,
+    background = DarkBackground,          // #000000
+    onBackground = DarkOnBackground,      // #E5E5E7
+    surface = DarkSurface,                // #1C1C1E
+    onSurface = DarkOnSurface,            // #E5E5E7
+    surfaceVariant = DarkSurfaceVariant,  // #2C2C2E
+    onSurfaceVariant = DarkOnSurfaceVariant, // #8E8E93
 
-    outline = Blue600.copy(alpha = 0.5f),
-    outlineVariant = Navy900.copy(alpha = 0.8f),
+    outline = DarkOutline,                // #38383A
+    outlineVariant = DarkOutlineVariant,  // #2C2C2E
+
+    inverseSurface = Color(0xFFE5E5E7),
+    inverseOnSurface = DarkBackground,
+    inversePrimary = Mint900,
+
+    scrim = Color.Black,
 )
 
 @Composable
@@ -87,7 +96,6 @@ fun NaedaTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
-    // 현재는 라이트 모드만 사용 (금융 앱 특성상 라이트 우선)
     val colorScheme = if (darkTheme) NaedaDarkColorScheme else NaedaLightColorScheme
 
     // 상태바 색상 설정

@@ -17,6 +17,7 @@ object AuthPrefs {
 
     private const val KEY_ACCESS_TOKEN = "access_token"
     private const val KEY_REFRESH_TOKEN = "refresh_token"
+    private const val KEY_DARK_MODE = "is_dark_mode"
 
     fun isLoggedIn(context: Context): Boolean =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -151,6 +152,17 @@ object AuthPrefs {
             .edit()
             .putBoolean(KEY_FACE_REGISTERED, faceRegistered)
             .putBoolean(KEY_SECONDARY_AUTH_ENABLED, secondaryAuthEnabled)
+            .apply()
+    }
+
+    fun isDarkMode(context: Context): Boolean =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_DARK_MODE, false)
+
+    fun setDarkMode(context: Context, value: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_DARK_MODE, value)
             .apply()
     }
 

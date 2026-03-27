@@ -52,7 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import com.example.naedafront.ui.theme.Background
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -60,7 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
-private val StoreGreen = Color(0xFF005E54)
+// MaterialTheme.colorScheme.primary replaced by MaterialTheme.colorScheme.primary
 
 private enum class HistoryFilterType(val label: String) {
     ALL("전체"),
@@ -106,14 +106,14 @@ fun PointHistoryScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Background)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         if (uiState.isLoading) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = StoreGreen)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else {
             LazyColumn(
@@ -194,11 +194,13 @@ private fun PointHistoryHeader(
     point: Long,
     onBackClick: () -> Unit
 ) {
+    val primaryColor = MaterialTheme.colorScheme.primaryContainer
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(430.dp)
-            .background(StoreGreen)
+            .background(primaryColor)
     ) {
         Canvas(
             modifier = Modifier
@@ -229,7 +231,7 @@ private fun PointHistoryHeader(
             drawPath(
                 path = path,
                 brush = Brush.verticalGradient(
-                    colors = listOf(StoreGreen, StoreGreen)
+                    colors = listOf(primaryColor, primaryColor)
                 )
             )
         }
@@ -354,7 +356,7 @@ private fun PointHistoryHeader(
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF202C49))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Text(
@@ -371,20 +373,20 @@ private fun PointHistoryHeader(
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFFE9EEF0))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .padding(horizontal = 18.dp, vertical = 18.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = Icons.Default.Lock,
                     contentDescription = "lock",
-                    tint = Color(0xFF94A3B8),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "구미사랑상품권으로 전환하기",
-                    color = Color(0xFF94A3B8),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -409,7 +411,7 @@ private fun ProgressSection(
         Text(
             text = "${progressPercent}% 완료",
             modifier = Modifier.align(Alignment.End),
-            color = StoreGreen,
+            color = MaterialTheme.colorScheme.primary,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold
         )
@@ -431,7 +433,7 @@ private fun ProgressSection(
                 modifier = Modifier
                     .weight(1f)
                     .height(3.dp)
-                    .background(StoreGreen)
+                    .background(MaterialTheme.colorScheme.primaryContainer)
             )
 
             ProgressNode(
@@ -445,7 +447,7 @@ private fun ProgressSection(
                 modifier = Modifier
                     .weight(1f)
                     .height(3.dp)
-                    .background(if (point >= 10_000L) StoreGreen else Color(0xFFD8DEE6))
+                    .background(if (point >= 10_000L) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.outlineVariant)
             )
 
             ProgressNode(
@@ -466,18 +468,18 @@ private fun ProgressNode(
     faded: Boolean
 ) {
     val circleBg = when {
-        faded -> Color(0xFFF0F3F6)
-        selected -> StoreGreen
+        faded -> MaterialTheme.colorScheme.surfaceVariant
+        selected -> MaterialTheme.colorScheme.primaryContainer
         else -> Color.White
     }
 
     val textColor = when {
-        faded -> Color(0xFFB8C3D1)
-        selected -> StoreGreen
-        else -> Color(0xFF667085)
+        faded -> MaterialTheme.colorScheme.outline
+        selected -> MaterialTheme.colorScheme.onPrimaryContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
-    val topTextColor = if (faded) Color(0xFFB8C3D1) else Color.White
+    val topTextColor = if (faded) MaterialTheme.colorScheme.outline else Color.White
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
@@ -489,7 +491,7 @@ private fun ProgressNode(
                 .background(circleBg)
                 .border(
                     width = if (selected || faded) 0.dp else 1.dp,
-                    color = Color(0xFFD0D5DD),
+                    color = MaterialTheme.colorScheme.outline,
                     shape = CircleShape
                 ),
             contentAlignment = Alignment.Center
@@ -535,7 +537,7 @@ private fun PeriodSection(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(999.dp))
-                    .background(StoreGreen)
+                    .background(MaterialTheme.colorScheme.primaryContainer)
                     .padding(horizontal = 18.dp, vertical = 11.dp)
             ) {
                 Text(
@@ -549,7 +551,7 @@ private fun PeriodSection(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(999.dp))
-                    .background(StoreGreen)
+                    .background(MaterialTheme.colorScheme.primaryContainer)
                     .padding(horizontal = 18.dp, vertical = 11.dp)
             ) {
                 Text(
@@ -567,14 +569,14 @@ private fun PeriodSection(
             modifier = Modifier
                 .size(42.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFF0F2F5))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
                 .clickable(onClick = onFilterClick),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Tune,
                 contentDescription = "filter",
-                tint = Color(0xFF64748B),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -599,7 +601,7 @@ private fun SummaryCard(
             .fillMaxWidth()
             .padding(horizontal = 22.dp, vertical = 8.dp),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
@@ -607,7 +609,7 @@ private fun SummaryCard(
         ) {
             Text(
                 text = periodLabel,
-                color = Color(0xFF98A2B3),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -623,14 +625,14 @@ private fun SummaryCard(
                 ) {
                     Text(
                         text = "총 적립",
-                        color = Color(0xFF94A3B8),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "+%,d P".format(totalEarned),
-                        color = StoreGreen,
+                        color = MaterialTheme.colorScheme.primary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
@@ -640,7 +642,7 @@ private fun SummaryCard(
                     modifier = Modifier
                         .width(1.dp)
                         .height(42.dp)
-                        .background(Color(0xFFEAECEF))
+                        .background(MaterialTheme.colorScheme.outlineVariant)
                 )
 
                 Column(
@@ -651,14 +653,14 @@ private fun SummaryCard(
                 ) {
                     Text(
                         text = "총 사용",
-                        color = Color(0xFF94A3B8),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "-%,d P".format(totalUsed),
-                        color = Color(0xFF344054),
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
@@ -678,7 +680,7 @@ private fun HistoryTitleRow() {
     ) {
         Text(
             text = "상세 내역",
-            color = Color(0xFF101828),
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 22.sp,
             fontWeight = FontWeight.ExtraBold
         )
@@ -707,12 +709,12 @@ private fun HistoryRow(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFF0F2F5)),
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = item.iconText,
-                    color = Color(0xFF64748B),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -725,7 +727,7 @@ private fun HistoryRow(
             ) {
                 Text(
                     text = item.title,
-                    color = if (item.positive) Color(0xFF111827) else Color(0xFF98A2B3),
+                    color = if (item.positive) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -735,7 +737,7 @@ private fun HistoryRow(
                 Row {
                     Text(
                         text = item.dateText,
-                        color = Color(0xFF98A2B3),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -743,7 +745,7 @@ private fun HistoryRow(
                     if (item.detailText.isNotBlank()) {
                         Text(
                             text = " · ${item.detailText}",
-                            color = Color(0xFF98A2B3),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -753,7 +755,7 @@ private fun HistoryRow(
 
             Text(
                 text = item.pointText,
-                color = if (item.positive) StoreGreen else Color(0xFF98A2B3),
+                color = if (item.positive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.ExtraBold
             )
@@ -761,7 +763,7 @@ private fun HistoryRow(
 
         HorizontalDivider(
             thickness = 1.dp,
-            color = Color(0xFFEEF1F4)
+            color = MaterialTheme.colorScheme.outlineVariant
         )
     }
 }
@@ -778,7 +780,7 @@ private fun EmptyHistorySection(
     ) {
         Text(
             text = message,
-            color = Color(0xFF98A2B3),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold
         )
@@ -798,7 +800,7 @@ private fun FilterBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color(0xFFF7F7F7),
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
         dragHandle = {
             Box(
                 modifier = Modifier
@@ -806,7 +808,7 @@ private fun FilterBottomSheet(
                     .width(52.dp)
                     .height(6.dp)
                     .clip(RoundedCornerShape(999.dp))
-                    .background(Color(0xFFD1D5DB))
+                    .background(MaterialTheme.colorScheme.outline)
             )
         },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
@@ -819,7 +821,7 @@ private fun FilterBottomSheet(
         ) {
             Text(
                 text = "필터 설정",
-                color = Color(0xFF111827),
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold
             )
@@ -832,7 +834,7 @@ private fun FilterBottomSheet(
                 onClick = { onSelectFilter(HistoryFilterType.ALL) }
             )
 
-            HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 
             FilterOptionRow(
                 title = "적립",
@@ -840,7 +842,7 @@ private fun FilterBottomSheet(
                 onClick = { onSelectFilter(HistoryFilterType.EARN) }
             )
 
-            HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 
             FilterOptionRow(
                 title = "사용",
@@ -857,7 +859,7 @@ private fun FilterBottomSheet(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF00695C),
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = Color.White
                 )
             ) {
@@ -888,7 +890,7 @@ private fun PeriodBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color(0xFFF7F7F7),
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
         dragHandle = {
             Box(
                 modifier = Modifier
@@ -896,7 +898,7 @@ private fun PeriodBottomSheet(
                     .width(52.dp)
                     .height(6.dp)
                     .clip(RoundedCornerShape(999.dp))
-                    .background(Color(0xFFD1D5DB))
+                    .background(MaterialTheme.colorScheme.outline)
             )
         },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
@@ -909,7 +911,7 @@ private fun PeriodBottomSheet(
         ) {
             Text(
                 text = "기간 설정",
-                color = Color(0xFF111827),
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold
             )
@@ -918,7 +920,7 @@ private fun PeriodBottomSheet(
 
             Text(
                 text = "연도",
-                color = Color(0xFF6B7280),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -941,7 +943,7 @@ private fun PeriodBottomSheet(
 
             Text(
                 text = "월",
-                color = Color(0xFF6B7280),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -976,7 +978,7 @@ private fun PeriodBottomSheet(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF00695C),
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = Color.White
                 )
             ) {
@@ -999,13 +1001,13 @@ private fun SelectChip(
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(999.dp))
-            .background(if (selected) StoreGreen else Color(0xFFEFF2F6))
+            .background(if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
             .clickable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 11.dp)
     ) {
         Text(
             text = text,
-            color = if (selected) Color.White else Color(0xFF64748B),
+            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold
         )
@@ -1027,7 +1029,7 @@ private fun FilterOptionRow(
     ) {
         Text(
             text = title,
-            color = if (selected) Color(0xFF00695C) else Color(0xFF6B7280),
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 15.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
         )
@@ -1038,7 +1040,7 @@ private fun FilterOptionRow(
             Icon(
                 imageVector = Icons.Default.CheckCircleOutline,
                 contentDescription = "selected",
-                tint = Color(0xFF00695C),
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp)
             )
         }

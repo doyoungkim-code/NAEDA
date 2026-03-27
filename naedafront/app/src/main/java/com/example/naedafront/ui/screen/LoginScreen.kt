@@ -55,7 +55,7 @@ import com.example.naedafront.ui.theme.Mint500
 import com.example.naedafront.ui.theme.Mint900
 import kotlinx.coroutines.launch
 
-private val FieldBackground = Color(0xFFF5F5F5)
+// Colors resolved at composition time via MaterialTheme.colorScheme
 private val HintColor = Color(0xFFBDBDBD)
 
 @Composable
@@ -165,7 +165,7 @@ fun LoginScreen(
                     fontFamily = KronaOneFontFamily,
                     fontWeight = FontWeight.Normal,
                     fontSize = 36.sp,
-                    color = Mint900,
+                    color = MaterialTheme.colorScheme.primary,
                     letterSpacing = 3.sp
                 )
             }
@@ -221,14 +221,14 @@ fun LoginScreen(
                 } else null,
                 singleLine = true,
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = FieldBackground,
-                    unfocusedContainerColor = FieldBackground,
-                    errorContainerColor = FieldBackground,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
                     errorIndicatorColor = Color.Transparent,
-                    focusedLabelColor = Mint500,
-                    cursorColor = Mint500,
+                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                    cursorColor = MaterialTheme.colorScheme.primary,
                 )
             )
 
@@ -285,14 +285,14 @@ fun LoginScreen(
                 } else null,
                 singleLine = true,
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = FieldBackground,
-                    unfocusedContainerColor = FieldBackground,
-                    errorContainerColor = FieldBackground,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
                     errorIndicatorColor = Color.Transparent,
-                    focusedLabelColor = Mint500,
-                    cursorColor = Mint500,
+                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                    cursorColor = MaterialTheme.colorScheme.primary,
                 )
             )
 
@@ -314,7 +314,7 @@ fun LoginScreen(
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Mint900),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
             ) {
                 if (isLoading) {
