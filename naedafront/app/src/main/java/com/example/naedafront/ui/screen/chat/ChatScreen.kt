@@ -44,7 +44,8 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val canSendMessage = userNo != null && userNo > 0L && inputText.isNotBlank() && !uiState.isLoading
 
-    LaunchedEffect(uiState.messages.size) {
+    val lastMessage = uiState.messages.lastOrNull()
+    LaunchedEffect(uiState.messages.size, lastMessage?.content) {
         if (uiState.messages.isNotEmpty()) {
             listState.animateScrollToItem(uiState.messages.size - 1)
         }
