@@ -29,4 +29,9 @@ async def extract_resident_id(
         resident_back_first1=result["residentBackFirst1"],
         provider=result["provider"],
         confidence=result["confidence"],
+        document_confidence=result["documentConfidence"],
+        name_confidence=result["nameConfidence"],
+        resident_number_confidence=result["residentNumberConfidence"],
+        extraction_status=result["extractionStatus"],
+        warnings=result["warnings"],
     )
