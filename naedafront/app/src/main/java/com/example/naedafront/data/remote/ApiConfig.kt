@@ -158,7 +158,8 @@ object ApiConfig {
             path != "/api/auth/signup" &&
             path != "/api/auth/refresh" &&
             path != "/api/auth/check-email" &&
-            path != "/api/auth/check-phone"
+            path != "/api/auth/check-phone" &&
+            !path.startsWith("/api/auth/password-reset")
     }
 
     private fun shouldAttemptTokenRefresh(request: Request, responseCode: Int): Boolean {
@@ -167,7 +168,8 @@ object ApiConfig {
             path == "/api/auth/signup" ||
             path == "/api/auth/refresh" ||
             path == "/api/auth/check-email" ||
-            path == "/api/auth/check-phone"
+            path == "/api/auth/check-phone" ||
+            path.startsWith("/api/auth/password-reset")
         return !isAuthEndpoint && (responseCode == 401 || responseCode == 403)
     }
 }
