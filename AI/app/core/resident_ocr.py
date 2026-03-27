@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from functools import lru_cache
@@ -12,10 +13,36 @@ from app.core.config import get_settings
 from app.core.errors import AIServiceError
 from app.core.upload_validation import validate_image_bytes
 
+logger = logging.getLogger(__name__)
+
 SUPPORTED_DOCUMENT_TYPES = {"RESIDENT_ID", "DRIVER_LICENSE"}
 DOCUMENT_KEYWORDS = {
     "RESIDENT_ID": ("주민등록증", "주민등록", "민등록증"),
     "DRIVER_LICENSE": ("운전면허증", "운전면허", "면허증"),
+}
+DOCUMENT_HINT_KEYWORDS = {
+    "RESIDENT_ID": (
+        "주민등록",
+        "민등록",
+        "현주소",
+        "등록기준지",
+        "세대주",
+        "세대원",
+        "주소지",
+    ),
+    "DRIVER_LICENSE": (
+        "면허번호",
+        "적성검사",
+        "적성검사기간",
+        "경찰청",
+        "1종",
+        "2종",
+        "보통",
+        "대형",
+        "소형",
+        "특수",
+        "원동기",
+    ),
 }
 NAME_LABELS = ("성명", "이름")
 COMMON_NAME_STOPWORDS = (
@@ -111,9 +138,14 @@ def _clean_name_candidate(value: str | None) -> str:
 
 
 def _document_stopwords(document_type: str | None) -> tuple[str, ...]:
+    keyword_fragments = tuple(
+        keyword
+        for keywords in DOCUMENT_KEYWORDS.values()
+        for keyword in keywords
+    )
     if document_type is None:
-        return COMMON_NAME_STOPWORDS
-    return COMMON_NAME_STOPWORDS + DOCUMENT_NAME_STOPWORDS.get(document_type, ())
+        return COMMON_NAME_STOPWORDS + keyword_fragments
+    return COMMON_NAME_STOPWORDS + keyword_fragments + DOCUMENT_NAME_STOPWORDS.get(document_type, ())
 
 
 def _contains_name_stopword(candidate: str, document_type: str | None) -> bool:
@@ -126,6 +158,13 @@ def _is_plausible_name_piece(value: str, document_type: str | None) -> bool:
 
 def _is_plausible_name(value: str, document_type: str | None) -> bool:
     return bool(re.fullmatch(r"[가-힣]{2,5}", value)) and not _contains_name_stopword(value, document_type)
+
+
+def _sanitize_name(value: str | None, document_type: str | None) -> str | None:
+    cleaned = _clean_name_candidate(value)
+    if not cleaned or not _is_plausible_name(cleaned, document_type):
+        return None
+    return cleaned
 
 
 def _decode_image(image_raw: bytes) -> np.ndarray:
@@ -147,12 +186,108 @@ def _resize_for_ocr(image: np.ndarray, min_dimension: int = 1400) -> np.ndarray:
     return cv2.resize(image, (resized_width, resized_height), interpolation=cv2.INTER_CUBIC)
 
 
+def _order_quad_points(points: np.ndarray) -> np.ndarray:
+    rect = np.zeros((4, 2), dtype=np.float32)
+    sums = points.sum(axis=1)
+    diffs = np.diff(points, axis=1).reshape(-1)
+    rect[0] = points[np.argmin(sums)]
+    rect[2] = points[np.argmax(sums)]
+    rect[1] = points[np.argmin(diffs)]
+    rect[3] = points[np.argmax(diffs)]
+    return rect
+
+
+def _detect_document_corners(bgr: np.ndarray) -> np.ndarray | None:
+    height, width = bgr.shape[:2]
+    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    edges = cv2.Canny(blurred, 40, 130)
+    edges = cv2.dilate(edges, np.ones((3, 3), dtype=np.uint8), iterations=1)
+    edges = cv2.erode(edges, np.ones((3, 3), dtype=np.uint8), iterations=1)
+    contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+
+    best_corners: np.ndarray | None = None
+    best_score = 0.0
+    min_area = float(height * width) * 0.18
+
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        if area < min_area:
+            continue
+
+        perimeter = cv2.arcLength(contour, True)
+        if perimeter <= 0:
+            continue
+
+        approx = cv2.approxPolyDP(contour, 0.02 * perimeter, True)
+        if len(approx) == 4:
+            corners = approx.reshape(4, 2).astype(np.float32)
+        else:
+            rect = cv2.minAreaRect(contour)
+            box = cv2.boxPoints(rect)
+            corners = np.array(box, dtype=np.float32)
+
+        ordered = _order_quad_points(corners)
+        width_top = np.linalg.norm(ordered[1] - ordered[0])
+        width_bottom = np.linalg.norm(ordered[2] - ordered[3])
+        height_left = np.linalg.norm(ordered[3] - ordered[0])
+        height_right = np.linalg.norm(ordered[2] - ordered[1])
+        warped_width = max(width_top, width_bottom)
+        warped_height = max(height_left, height_right)
+        if warped_width <= 0 or warped_height <= 0:
+            continue
+
+        aspect_ratio = max(warped_width, warped_height) / max(1.0, min(warped_width, warped_height))
+        aspect_penalty = min(1.0, abs(aspect_ratio - 1.58) / 0.9)
+        area_ratio = min(1.0, area / (float(height * width) * 0.65))
+        rectangularity = min(1.0, area / max(1.0, warped_width * warped_height))
+        score = area_ratio * 0.55 + (1.0 - aspect_penalty) * 0.25 + rectangularity * 0.20
+
+        if score > best_score:
+            best_score = score
+            best_corners = ordered
+
+    if best_score < 0.42:
+        return None
+    return best_corners
+
+
+def _normalize_document_image(bgr: np.ndarray) -> np.ndarray | None:
+    corners = _detect_document_corners(bgr)
+    if corners is None:
+        return None
+
+    width_top = np.linalg.norm(corners[1] - corners[0])
+    width_bottom = np.linalg.norm(corners[2] - corners[3])
+    height_left = np.linalg.norm(corners[3] - corners[0])
+    height_right = np.linalg.norm(corners[2] - corners[1])
+    max_width = max(1, int(round(max(width_top, width_bottom))))
+    max_height = max(1, int(round(max(height_left, height_right))))
+    destination = np.array(
+        [
+            [0.0, 0.0],
+            [max_width - 1.0, 0.0],
+            [max_width - 1.0, max_height - 1.0],
+            [0.0, max_height - 1.0],
+        ],
+        dtype=np.float32,
+    )
+    matrix = cv2.getPerspectiveTransform(corners, destination)
+    warped = cv2.warpPerspective(bgr, matrix, (max_width, max_height))
+    if warped.size == 0:
+        return None
+    if warped.shape[0] > warped.shape[1]:
+        warped = cv2.rotate(warped, cv2.ROTATE_90_CLOCKWISE)
+    return warped
+
+
 def _preprocess_variants_for_ocr(bgr: np.ndarray) -> list[tuple[str, np.ndarray]]:
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
     normalized = cv2.normalize(gray, None, 0, 255, cv2.NORM_MINMAX)
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(normalized)
+    denoised = cv2.fastNlMeansDenoising(clahe, None, h=9, templateWindowSize=7, searchWindowSize=21)
     sharpened = cv2.filter2D(
-        clahe,
+        denoised,
         -1,
         np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]], dtype=np.float32),
     )
@@ -166,7 +301,9 @@ def _preprocess_variants_for_ocr(bgr: np.ndarray) -> list[tuple[str, np.ndarray]
     )
 
     variants = [
+        ("color", bgr.copy()),
         ("normalized", cv2.cvtColor(normalized, cv2.COLOR_GRAY2BGR)),
+        ("denoised", cv2.cvtColor(denoised, cv2.COLOR_GRAY2BGR)),
         ("clahe_sharpened", cv2.cvtColor(sharpened, cv2.COLOR_GRAY2BGR)),
         ("threshold", cv2.cvtColor(threshold, cv2.COLOR_GRAY2BGR)),
     ]
@@ -186,6 +323,7 @@ def _get_paddle_ocr():
     try:
         from paddleocr import PaddleOCR  # type: ignore
     except ImportError as exc:
+        logger.exception("PaddleOCR import failed")
         raise AIServiceError(
             status_code=503,
             code="OCR_UNAVAILABLE",
@@ -199,6 +337,7 @@ def _get_paddle_ocr():
             show_log=False,
         )
     except Exception as exc:
+        logger.exception("PaddleOCR initialization failed")
         raise AIServiceError(
             status_code=503,
             code="OCR_UNAVAILABLE",
@@ -284,16 +423,48 @@ def _flatten_ocr_entries(result) -> list[dict[str, Any]]:
     return entries
 
 
-def _detect_document_type(entries: list[dict[str, Any]]) -> tuple[str | None, float]:
+def _score_document_keywords(entries: list[dict[str, Any]], keywords: tuple[str, ...], base: float, slope: float) -> float:
+    score = 0.0
+    for keyword in keywords:
+        normalized_keyword = _normalize_text(keyword)
+        best_confidence = 0.0
+        for entry in entries:
+            if normalized_keyword in entry["normalized_text"]:
+                best_confidence = max(best_confidence, float(entry["confidence"] or 0.0))
+        if best_confidence > 0.0:
+            score += base + best_confidence * slope
+    return min(0.99, score)
+
+
+def _entries_contain_name_label(entries: list[dict[str, Any]]) -> bool:
+    return any(any(label in entry["text"] for label in NAME_LABELS) for entry in entries)
+
+
+def _detect_document_type(
+    entries: list[dict[str, Any]],
+    *,
+    resident_number_present: bool,
+    name_present: bool,
+) -> tuple[str | None, float]:
     scores = {document_type: 0.0 for document_type in DOCUMENT_KEYWORDS}
-    for entry in entries:
-        normalized = entry["normalized_text"]
-        confidence = entry["confidence"]
-        for document_type, keywords in DOCUMENT_KEYWORDS.items():
-            for keyword in keywords:
-                normalized_keyword = _normalize_text(keyword)
-                if normalized_keyword in normalized:
-                    scores[document_type] = max(scores[document_type], min(0.99, 0.72 + confidence * 0.28))
+    header_scores = {
+        document_type: _score_document_keywords(entries, keywords, 0.72, 0.22)
+        for document_type, keywords in DOCUMENT_KEYWORDS.items()
+    }
+    hint_scores = {
+        document_type: _score_document_keywords(entries, keywords, 0.16, 0.08)
+        for document_type, keywords in DOCUMENT_HINT_KEYWORDS.items()
+    }
+
+    for document_type in scores:
+        scores[document_type] = max(header_scores[document_type], hint_scores[document_type])
+        if resident_number_present and scores[document_type] >= 0.16:
+            scores[document_type] = min(0.96, scores[document_type] + 0.08)
+        if name_present and scores[document_type] >= 0.16:
+            scores[document_type] = min(0.96, scores[document_type] + 0.05)
+
+    if scores["RESIDENT_ID"] <= 0.0 and resident_number_present and (_entries_contain_name_label(entries) or hint_scores["RESIDENT_ID"] > 0.0):
+        scores["RESIDENT_ID"] = 0.56 if name_present else 0.48
 
     best_document_type = max(scores, key=scores.get, default=None)
     best_score = scores.get(best_document_type, 0.0) if best_document_type else 0.0
@@ -424,9 +595,18 @@ def _extract_name(entries: list[dict[str, Any]], document_type: str | None) -> t
 
 
 def _extract_fields_from_entries(entries: list[dict[str, Any]]) -> dict[str, Any]:
-    document_type, document_confidence = _detect_document_type(entries)
     resident_front6, resident_back_first1, resident_number_confidence = _extract_resident_number(entries)
-    name, name_confidence = _extract_name(entries, document_type)
+    provisional_document_type, _ = _detect_document_type(
+        entries,
+        resident_number_present=resident_front6 is not None and resident_back_first1 is not None,
+        name_present=False,
+    )
+    name, name_confidence = _extract_name(entries, provisional_document_type)
+    document_type, document_confidence = _detect_document_type(
+        entries,
+        resident_number_present=resident_front6 is not None and resident_back_first1 is not None,
+        name_present=name is not None,
+    )
     return {
         "document_type": document_type,
         "document_confidence": document_confidence,
@@ -477,14 +657,15 @@ def _vote_text_field(results: list[dict[str, Any]], field_name: str, confidence_
 def _build_extraction_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
     settings = get_settings()
     document_type, document_confidence = _vote_document_type(results)
-    if document_type not in SUPPORTED_DOCUMENT_TYPES:
-        return _retake_result("주민등록증 또는 운전면허증 상단 문구가 잘 보이도록 신분증을 프레임 중앙에 맞춰주세요.")
-
+    document_matched = document_type in SUPPORTED_DOCUMENT_TYPES
     filtered_results = [result for result in results if result.get("document_type") == document_type]
     if not filtered_results:
         filtered_results = results
 
     name, name_confidence = _vote_text_field(filtered_results, "name", "name_confidence")
+    name = _sanitize_name(name, document_type)
+    if name is None:
+        name_confidence = 0.0
     resident_number, resident_number_confidence = _vote_text_field(
         filtered_results,
         "resident_number_key",
@@ -497,9 +678,17 @@ def _build_extraction_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
     warnings: list[str] = []
     status = SUCCESS
 
+    if not document_matched:
+        if resident_front6 or resident_back_first1 or name:
+            warnings.append("문서 종류를 확실히 구분하지 못했습니다. 확인 화면에서 신분증 정보를 다시 확인해 주세요.")
+            status = REVIEW_REQUIRED
+        else:
+            return _retake_result("주민등록증 또는 운전면허증이 가이드 안에 또렷하게 보이도록 맞춰주세요.")
+
     if document_confidence < 0.78:
         warnings.append("문서 종류 인식 신뢰도가 낮습니다. 신분증을 정면으로 맞춰주세요.")
-        status = REVIEW_REQUIRED
+        if status == SUCCESS:
+            status = REVIEW_REQUIRED
 
     if resident_front6 is None or resident_back_first1 is None:
         warnings.append("주민등록번호 일부를 다시 인식해 주세요.")
@@ -524,7 +713,7 @@ def _build_extraction_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
 
     return {
         "documentType": document_type,
-        "documentMatched": True,
+        "documentMatched": document_matched,
         "name": name,
         "residentFront6": resident_front6,
         "residentBackFirst1": resident_back_first1,
@@ -540,31 +729,46 @@ def _build_extraction_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
 
 def _extract_with_paddle_provider(image_raw: bytes) -> dict[str, Any]:
     bgr = _decode_image(image_raw)
-    variants = _preprocess_variants_for_ocr(bgr)
     ocr = _get_paddle_ocr()
     parsed_results: list[dict[str, Any]] = []
+    inference_failures = 0
+    candidate_images: list[tuple[str, np.ndarray]] = [("full", bgr)]
+    normalized_document = _normalize_document_image(bgr)
+    if normalized_document is not None:
+        candidate_images.insert(0, ("document", normalized_document))
 
-    for _, image in variants:
-        try:
-            result = ocr.ocr(image, cls=True)
-        except AIServiceError:
-            raise
-        except Exception as exc:
-            raise AIServiceError(status_code=503, code="OCR_UNAVAILABLE", message="PaddleOCR inference failed") from exc
+    for source_name, source_image in candidate_images:
+        variants = _preprocess_variants_for_ocr(source_image)
+        for variant_name, image in variants:
+            try:
+                result = ocr.ocr(image, cls=True)
+            except AIServiceError:
+                raise
+            except Exception:
+                inference_failures += 1
+                logger.exception("PaddleOCR inference failed for source=%s variant=%s", source_name, variant_name)
+                continue
 
-        entries = _flatten_ocr_entries(result)
-        if not entries:
-            continue
+            entries = _flatten_ocr_entries(result)
+            if not entries:
+                continue
 
-        parsed = _extract_fields_from_entries(entries)
-        parsed["resident_number_key"] = (
-            f'{parsed["resident_front6"]}{parsed["resident_back_first1"]}'
-            if parsed.get("resident_front6") and parsed.get("resident_back_first1")
-            else None
-        )
-        parsed_results.append(parsed)
+            parsed = _extract_fields_from_entries(entries)
+            parsed["resident_number_key"] = (
+                f'{parsed["resident_front6"]}{parsed["resident_back_first1"]}'
+                if parsed.get("resident_front6") and parsed.get("resident_back_first1")
+                else None
+            )
+            parsed_results.append(parsed)
 
     if not parsed_results:
+        if inference_failures > 0:
+            logger.warning(
+                "ID card OCR inference failed for %s variants and produced no parsed results",
+                inference_failures,
+            )
+            return _retake_result("신분증 인식이 불안정합니다. 신분증을 더 가까이 맞추고 그대로 유지해 주세요.")
+        logger.warning("ID card OCR parsed no text entries from any preprocessing variant")
         return _retake_result("신분증에서 텍스트를 읽지 못했습니다. 신분증을 더 크게 맞추고 빛 반사를 줄여주세요.")
 
     return _build_extraction_summary(parsed_results)
@@ -587,6 +791,7 @@ async def extract_resident_id_fields(upload_file: UploadFile) -> dict[str, Any]:
         if provider == "paddleocr":
             return _extract_with_paddle_provider(image_raw)
 
+        logger.error("ID card OCR provider is not configured: provider=%s", provider)
         raise AIServiceError(
             status_code=503,
             code="OCR_UNAVAILABLE",
