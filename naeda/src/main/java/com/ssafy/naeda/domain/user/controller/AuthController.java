@@ -1,10 +1,7 @@
 package com.ssafy.naeda.domain.user.controller;
 
-import com.ssafy.naeda.domain.user.dto.request.LoginRequest;
-import com.ssafy.naeda.domain.user.dto.request.RefreshTokenRequest;
-import com.ssafy.naeda.domain.user.dto.request.SignupRequest;
-import com.ssafy.naeda.domain.user.dto.response.LoginResponse;
-import com.ssafy.naeda.domain.user.dto.response.SignupResponse;
+import com.ssafy.naeda.domain.user.dto.request.*;
+import com.ssafy.naeda.domain.user.dto.response.*;
 import com.ssafy.naeda.domain.user.service.AuthService;
 import com.ssafy.naeda.global.exception.AuthenticationFailedException;
 import com.ssafy.naeda.global.exception.DuplicateException;
@@ -133,6 +130,46 @@ public class AuthController {
         }
         String accessToken = authHeader.substring(7);
         authService.logout(request, accessToken);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/password-reset/request")
+    @Operation(summary = "비밀번호 재설정 요청", description = "이메일로 6자리 인증 코드를 발급합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "인증 코드 발급 성공"),
+            @ApiResponse(responseCode = "404", description = "등록되지 않은 이메일",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<PasswordResetCodeResponse> requestPasswordReset(
+            @Valid @RequestBody PasswordResetRequestDto request) {
+        PasswordResetCodeResponse response = authService.requestPasswordReset(request.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/password-reset/verify")
+    @Operation(summary = "비밀번호 재설정 코드 검증", description = "발급된 인증 코드를 검증하고 비밀번호 변경용 토큰을 발급합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "코드 검증 성공"),
+            @ApiResponse(responseCode = "400", description = "인증 코드 불일치 또는 만료",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<PasswordResetVerifyResponse> verifyPasswordResetCode(
+            @Valid @RequestBody PasswordResetVerifyRequest request) {
+        PasswordResetVerifyResponse response = authService.verifyPasswordResetCode(
+                request.getUserId(), request.getCode());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/password-reset/confirm")
+    @Operation(summary = "비밀번호 재설정 확인", description = "검증 토큰과 새 비밀번호로 비밀번호를 변경합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "비밀번호 변경 성공"),
+            @ApiResponse(responseCode = "400", description = "유효하지 않거나 만료된 토큰",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<Void> confirmPasswordReset(
+            @Valid @RequestBody PasswordResetConfirmRequest request) {
+        authService.confirmPasswordReset(request.getToken(), request.getNewPassword());
         return ResponseEntity.ok().build();
     }
 }

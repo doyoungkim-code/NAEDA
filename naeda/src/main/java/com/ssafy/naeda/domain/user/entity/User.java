@@ -89,4 +89,8 @@ public class User {
         this.fcmToken = null;
     }
 
+    public void updatePassword(String password) {
+        this.password = password;
+    }
+
 }
