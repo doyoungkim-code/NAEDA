@@ -49,7 +49,7 @@ spring:
 ai:
   base-url: ${AI_BASE_URL:http://localhost:8000}
   service-token: ${AI_SERVICE_TOKEN:dev-internal-token}
-  timeout-seconds: ${AI_TIMEOUT_SECONDS:5}
+  timeout-seconds: ${AI_TIMEOUT_SECONDS:20}
 
 face:
   threshold:

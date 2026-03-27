@@ -37,6 +37,11 @@ public class ResidentIdVerifyService {
                 .residentBackFirst1(ocrResponse.getResidentBackFirst1())
                 .provider(ocrResponse.getProvider())
                 .confidence(ocrResponse.getConfidence())
+                .documentConfidence(ocrResponse.getDocumentConfidence())
+                .nameConfidence(ocrResponse.getNameConfidence())
+                .residentNumberConfidence(ocrResponse.getResidentNumberConfidence())
+                .extractionStatus(ocrResponse.getExtractionStatus())
+                .warnings(ocrResponse.getWarnings())
                 .build();
     }
 

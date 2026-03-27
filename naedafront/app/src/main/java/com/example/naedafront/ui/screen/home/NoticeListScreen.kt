@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,6 +49,11 @@ import androidx.compose.ui.unit.dp
 import com.example.naedafront.data.repository.NoticeRepository
 import com.example.naedafront.ui.theme.Mint900
 
+private enum class NoticeSortOption(val label: String) {
+    REGISTERED("등록순"),
+    SCHEDULE("일정순")
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoticeListScreen(
@@ -56,6 +62,7 @@ fun NoticeListScreen(
 ) {
     var notices by remember { mutableStateOf<List<NoticeItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var selectedSort by remember { mutableStateOf(NoticeSortOption.REGISTERED) }
 
     LaunchedEffect(Unit) {
         val items = mutableListOf<NoticeItem>()
@@ -75,6 +82,7 @@ fun NoticeListScreen(
                             content = f.description ?: "",
                             date = "$startDate ~ $endDate",
                             createdRaw = f.created ?: "",
+                            scheduleStartRaw = f.startDate ?: "",
                             imageUrl = f.imageUrl
                         )
                     )
@@ -96,6 +104,7 @@ fun NoticeListScreen(
                             content = n.content ?: "",
                             date = created,
                             createdRaw = n.modified ?: n.created ?: "",
+                            scheduleStartRaw = "",
                             imageUrl = null
                         )
                     )
@@ -105,6 +114,10 @@ fun NoticeListScreen(
 
         notices = items.sortedByDescending { it.createdRaw }
         isLoading = false
+    }
+
+    val sortedNotices = remember(notices, selectedSort) {
+        sortNoticeItems(notices, selectedSort)
     }
 
     Scaffold(
@@ -166,7 +179,14 @@ fun NoticeListScreen(
             ) {
                 item { Spacer(modifier = Modifier.height(4.dp)) }
 
-                items(notices) { notice ->
+                item {
+                    NoticeSortSelector(
+                        selectedSort = selectedSort,
+                        onSortSelected = { selectedSort = it }
+                    )
+                }
+
+                items(sortedNotices) { notice ->
                     NoticeListItem(
                         notice = notice,
                         onClick = { onItemClick(notice.type, notice.id) }
@@ -175,6 +195,61 @@ fun NoticeListScreen(
 
                 item { Spacer(modifier = Modifier.height(16.dp)) }
             }
+        }
+    }
+}
+
+@Composable
+private fun NoticeSortSelector(
+    selectedSort: NoticeSortOption,
+    onSortSelected: (NoticeSortOption) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            NoticeSortOption.entries.forEach { option ->
+                FilterChip(
+                    selected = selectedSort == option,
+                    onClick = { onSortSelected(option) },
+                    label = {
+                        Text(
+                            text = option.label,
+                            fontWeight = if (selectedSort == option) FontWeight.SemiBold else FontWeight.Medium
+                        )
+                    }
+                )
+            }
+        }
+    }
+}
+
+private fun sortNoticeItems(
+    notices: List<NoticeItem>,
+    sortOption: NoticeSortOption
+): List<NoticeItem> {
+    return when (sortOption) {
+        NoticeSortOption.REGISTERED -> notices.sortedWith(
+            compareByDescending<NoticeItem> { it.createdRaw.ifBlank { it.scheduleStartRaw } }
+                .thenByDescending { it.id }
+        )
+
+        NoticeSortOption.SCHEDULE -> {
+            val scheduled = notices
+                .filter { it.scheduleStartRaw.isNotBlank() }
+                .sortedWith(
+                    compareByDescending<NoticeItem> { it.scheduleStartRaw }
+                        .thenByDescending { it.createdRaw }
+                        .thenByDescending { it.id }
+                )
+            val unscheduled = notices
+                .filter { it.scheduleStartRaw.isBlank() }
+                .sortedWith(
+                    compareByDescending<NoticeItem> { it.createdRaw }
+                        .thenByDescending { it.id }
+                )
+            scheduled + unscheduled
         }
     }
 }

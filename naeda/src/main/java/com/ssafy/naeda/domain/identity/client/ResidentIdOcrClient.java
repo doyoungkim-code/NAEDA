@@ -58,15 +58,8 @@ public class ResidentIdOcrClient {
                     })
                     .body(ResidentIdOcrResponse.class);
 
-            if (response == null || response.getName() == null || response.getResidentFront6() == null
-                    || response.getResidentBackFirst1() == null) {
+            if (response == null) {
                 throw new BadRequestException("신분증 OCR 결과가 올바르지 않습니다.");
-            }
-            if (!response.isDocumentMatched()) {
-                throw new BadRequestException("주민등록증 또는 운전면허증을 인식하지 못했습니다.");
-            }
-            if (!isSupportedDocumentType(response.getDocumentType())) {
-                throw new BadRequestException("지원하지 않는 신분증 종류입니다.");
             }
             return response;
         } catch (BadRequestException | SsafyApiException e) {
@@ -95,9 +88,5 @@ public class ResidentIdOcrClient {
                     new SsafyApiException(code, message != null ? message : "신분증 OCR 서비스를 사용할 수 없습니다.");
             default -> new SsafyApiException("OCR_UNAVAILABLE", "신분증 OCR 서비스를 사용할 수 없습니다.");
         };
-    }
-
-    private boolean isSupportedDocumentType(String documentType) {
-        return "RESIDENT_ID".equals(documentType) || "DRIVER_LICENSE".equals(documentType);
     }
 }

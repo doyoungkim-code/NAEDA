@@ -5,6 +5,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import kotlinx.coroutines.delay
 import retrofit2.HttpException
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -13,6 +14,8 @@ import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Query
+import java.io.InterruptedIOException
+import java.net.SocketTimeoutException
 
 data class EnrollResponseDto(
     val success: Boolean,
@@ -37,7 +40,12 @@ data class ResidentIdExtractResponseDto(
     val residentFront6: String? = null,
     val residentBackFirst1: String? = null,
     val provider: String? = null,
-    val confidence: Double = 0.0
+    val confidence: Double = 0.0,
+    val documentConfidence: Double = 0.0,
+    val nameConfidence: Double = 0.0,
+    val residentNumberConfidence: Double = 0.0,
+    val extractionStatus: String? = null,
+    val warnings: List<String> = emptyList()
 )
 
 data class ResidentIdConfirmRequestBody(
@@ -197,13 +205,26 @@ object FaceRegistrationRepository {
     }
 
     suspend fun extractResidentId(imageBytes: ByteArray): ResidentIdExtractResponseDto {
-        return runCatching {
-            service.extractResidentId(
-                image = imagePart(imageBytes, "id-card.jpg")
-            )
-        }.getOrElse { throwable ->
-            throw toReadableException(throwable, "신분증 OCR 추출에 실패했습니다.")
+        val requestImagePart = imagePart(imageBytes, "id-card.jpg")
+        val initialResult = runCatching {
+            service.extractResidentId(image = requestImagePart)
         }
+
+        val initialFailure = initialResult.exceptionOrNull()
+        if (initialFailure != null) {
+            val readable = toReadableOcrException(initialFailure, "신분증 OCR 추출에 실패했습니다.")
+            if (isRecoverableOcrServiceError(readable)) {
+                delay(350L)
+                return runCatching {
+                    service.extractResidentId(image = requestImagePart)
+                }.getOrElse { retryThrowable ->
+                    throw toReadableOcrException(retryThrowable, "신분증 OCR 추출에 실패했습니다.")
+                }
+            }
+            throw readable
+        }
+
+        return initialResult.getOrThrow()
     }
 
     suspend fun checkHeadPose(expectedDirection: String, imageBytes: ByteArray): HeadPoseCheckResponseDto {
@@ -363,5 +384,29 @@ object FaceRegistrationRepository {
             message = message,
             cause = throwable
         )
+    }
+
+    private fun toReadableOcrException(throwable: Throwable, fallback: String): Throwable {
+        return when (throwable) {
+            is SocketTimeoutException, is InterruptedIOException -> ApiRequestException(
+                errorCode = "OCR_TIMEOUT",
+                statusCode = 504,
+                message = "신분증 OCR 응답이 지연되고 있습니다. [OCR_TIMEOUT] (HTTP 504)",
+                cause = throwable
+            )
+            else -> toReadableException(throwable, fallback)
+        }
+    }
+
+    private fun isRecoverableOcrServiceError(throwable: Throwable): Boolean {
+        if (throwable !is ApiRequestException) {
+            return false
+        }
+        val code = throwable.errorCode?.trim()?.uppercase()
+        return throwable.statusCode in setOf(502, 503, 504) ||
+                code == "OCR_UNAVAILABLE" ||
+                code == "OCR_TIMEOUT" ||
+                code == "AI_TIMEOUT" ||
+                code == "AI_UNAVAILABLE"
     }
 }

@@ -5,6 +5,7 @@ import com.ssafy.naeda.domain.identity.dto.response.ResidentIdExtractResponse;
 import com.ssafy.naeda.domain.identity.dto.response.ResidentIdVerifyResponse;
 import com.ssafy.naeda.domain.identity.service.ResidentIdVerifyService;
 import java.security.Principal;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,6 +43,11 @@ class ResidentIdVerifyControllerTest {
                         .residentBackFirst1("1")
                         .provider("mock")
                         .confidence(0.95d)
+                        .documentConfidence(0.96d)
+                        .nameConfidence(0.84d)
+                        .residentNumberConfidence(0.98d)
+                        .extractionStatus("REVIEW_REQUIRED")
+                        .warnings(List.of("이름 인식 신뢰도가 낮습니다."))
                         .build()
         );
 
@@ -53,6 +59,7 @@ class ResidentIdVerifyControllerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getDocumentType()).isEqualTo("RESIDENT_ID");
         assertThat(response.getBody().getName()).isEqualTo("홍길동");
+        assertThat(response.getBody().getExtractionStatus()).isEqualTo("REVIEW_REQUIRED");
     }
 
     @Test
