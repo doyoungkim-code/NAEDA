@@ -284,8 +284,17 @@ def _normalize_document_image(bgr: np.ndarray) -> np.ndarray | None:
     width_bottom = np.linalg.norm(corners[2] - corners[3])
     height_left = np.linalg.norm(corners[3] - corners[0])
     height_right = np.linalg.norm(corners[2] - corners[1])
-    max_width = max(1, int(round(max(width_top, width_bottom))))
-    max_height = max(1, int(round(max(height_left, height_right))))
+    w = max(width_top, width_bottom)
+    h = max(height_left, height_right)
+
+    # 신분증은 가로가 긴 문서 — quad 좌표가 세로로 잡혔으면 w/h를 교환해서 가로로 보정
+    if h > w:
+        # 코너를 한 칸씩 회전시켜 가로 방향으로 재매핑
+        corners = np.array([corners[3], corners[0], corners[1], corners[2]], dtype=np.float32)
+        w, h = h, w
+
+    max_width = max(1, int(round(w)))
+    max_height = max(1, int(round(h)))
     destination = np.array(
         [
             [0.0, 0.0],
@@ -299,8 +308,6 @@ def _normalize_document_image(bgr: np.ndarray) -> np.ndarray | None:
     warped = cv2.warpPerspective(bgr, matrix, (max_width, max_height))
     if warped.size == 0:
         return None
-    if warped.shape[0] > warped.shape[1]:
-        warped = cv2.rotate(warped, cv2.ROTATE_90_CLOCKWISE)
     return warped
 
 
