@@ -232,3 +232,42 @@ def test_resident_id_ocr_ignores_driver_license_class_text_for_name(monkeypatch)
     assert data["name"] == "성경훈"
     assert data["extractionStatus"] == "REVIEW_REQUIRED"
     assert data["warnings"]
+
+
+def test_resident_id_ocr_returns_retake_result_when_no_text_detected(monkeypatch):
+    monkeypatch.setenv("RESIDENT_OCR_PROVIDER", "paddleocr")
+
+    fake_module = types.ModuleType("paddleocr")
+
+    class FakePaddleOCR:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        def ocr(self, image, cls=True):
+            return []
+
+    fake_module.PaddleOCR = FakePaddleOCR
+    monkeypatch.setitem(sys.modules, "paddleocr", fake_module)
+
+    from app.core.config import get_settings
+    from app.core import resident_ocr
+
+    get_settings.cache_clear()
+    resident_ocr._get_paddle_ocr.cache_clear()
+    try:
+        response = client.post(
+            "/internal/v1/ocr/id-card/extract",
+            headers=AUTH_HEADER,
+            files={"image": ("card.png", valid_png_bytes(), "image/png")},
+        )
+    finally:
+        get_settings.cache_clear()
+        resident_ocr._get_paddle_ocr.cache_clear()
+        sys.modules.pop("paddleocr", None)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["documentMatched"] is False
+    assert data["documentType"] is None
+    assert data["extractionStatus"] == "RETAKE_REQUIRED"
+    assert data["warnings"]

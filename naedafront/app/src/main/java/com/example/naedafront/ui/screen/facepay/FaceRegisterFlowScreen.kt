@@ -186,7 +186,7 @@ private val faceCaptureSequence = listOf(
 private const val ID_CARD_HOLD_DURATION_MS = 2000L
 private const val ID_CARD_REQUEST_INTERVAL_MS = 650L
 private const val ID_CARD_ALLOWED_MISSES = 1
-private const val ID_CARD_REQUIRED_STABLE_MATCHES = 2
+private const val ID_CARD_REQUIRED_STABLE_MATCHES = 1
 private const val ID_CARD_OVERLAY_WIDTH_RATIO = 0.88f
 private const val ID_CARD_OVERLAY_ASPECT_RATIO = 1.586f
 private const val ID_CARD_CROP_JPEG_QUALITY = 94
@@ -399,7 +399,7 @@ fun FaceRegisterFlowScreen(
 
                     is RegisterStage.IdScanning -> IdCardScanningStageContent(
                         onExtracted = { extracted -> stage = RegisterStage.IdConfirm(extracted) },
-                        onError = { }
+                        onError = { globalError = it }
                     )
 
                     is RegisterStage.IdConfirm -> IdConfirmStageContent(
@@ -1859,21 +1859,26 @@ private fun IdCardScanningStageContent(
                 }
                 lastRequestAt.set(now)
 
-                val jpegBytes = runCatching { prepareResidentIdJpeg(imageProxy) }
+                val jpegPayload = runCatching { prepareResidentIdJpegs(imageProxy) }
                     .onFailure { throwable ->
                         onError("신분증 프레임 변환 실패: ${throwable.message}")
                     }
                     .getOrNull()
                 imageProxy.close()
 
-                if (jpegBytes == null) {
+                if (jpegPayload == null) {
                     return@DocumentCaptureCameraCard
                 }
 
                 requestInFlight = true
                 scope.launch {
                     val result = withContext(Dispatchers.IO) {
-                        runCatching { FaceRegistrationRepository.extractResidentId(jpegBytes) }
+                        runCatching {
+                            extractResidentIdWithFallback(
+                                croppedJpeg = jpegPayload.first,
+                                fullJpeg = jpegPayload.second
+                            )
+                        }
                     }
                     requestInFlight = false
 
@@ -1890,7 +1895,7 @@ private fun IdCardScanningStageContent(
                         if (!assessment.canProceed) {
                             if (holdStartedAt != 0L && consecutiveRecoverableMisses < ID_CARD_ALLOWED_MISSES) {
                                 consecutiveRecoverableMisses += 1
-                                statusMessage = assessment.statusMessage
+                                statusMessage = assessment.warningMessage ?: assessment.statusMessage
                                 onError(null)
                             } else {
                                 resetRecognition()
@@ -1913,7 +1918,13 @@ private fun IdCardScanningStageContent(
                             holdProgress = 0f
                             latestExtract = extracted
                             consecutiveRecoverableMisses = 0
-                            statusMessage = "같은 인식 결과를 한 번 더 확인하는 중입니다."
+                            if (ID_CARD_REQUIRED_STABLE_MATCHES <= 1) {
+                                holdStartedAt = System.currentTimeMillis()
+                                statusMessage = assessment.warningMessage ?: assessment.statusMessage
+                                onError(null)
+                                return@onSuccess
+                            }
+                            statusMessage = assessment.warningMessage ?: assessment.statusMessage
                             onError(null)
                             return@onSuccess
                         }
@@ -1922,14 +1933,14 @@ private fun IdCardScanningStageContent(
                         latestExtract = extracted
                         consecutiveRecoverableMisses = 0
                         if (stableExtractMatches < ID_CARD_REQUIRED_STABLE_MATCHES) {
-                            statusMessage = "같은 인식 결과를 한 번 더 확인하는 중입니다."
+                            statusMessage = assessment.warningMessage ?: assessment.statusMessage
                             onError(null)
                             return@onSuccess
                         }
                         if (holdStartedAt == 0L) {
                             holdStartedAt = System.currentTimeMillis()
                         }
-                        statusMessage = assessment.statusMessage
+                        statusMessage = assessment.warningMessage ?: assessment.statusMessage
                         onError(null)
                     }.onFailure { throwable ->
                         if (throwable is ApiRequestException && throwable.statusCode == 400) {
@@ -1950,6 +1961,7 @@ private fun IdCardScanningStageContent(
             },
             overlay = {
                 IdCaptureOverlay(
+                    statusMessage = statusMessage,
                     holdProgress = holdProgress,
                     isExtracting = requestInFlight,
                     isRecognizing = requestInFlight || holdStartedAt != 0L || holdProgress > 0f
@@ -1961,6 +1973,7 @@ private fun IdCardScanningStageContent(
 
 @Composable
 private fun IdCaptureOverlay(
+    statusMessage: String,
     holdProgress: Float,
     isExtracting: Boolean,
     isRecognizing: Boolean
@@ -2014,7 +2027,7 @@ private fun IdCaptureOverlay(
                             text = if (holdProgress > 0f) {
                                 "신분증 인식 중 ${(holdProgress * 100).roundToInt()}%"
                             } else {
-                                "신분증 정보를 읽는 중입니다..."
+                                statusMessage
                             },
                             color = Color.White,
                             fontFamily = NaedaFontFamily,
@@ -3645,8 +3658,9 @@ private fun assessResidentIdExtract(extracted: ResidentIdExtractResponseDto): Id
     val hasName = !extracted.name.isNullOrBlank()
     val status = extracted.extractionStatus?.trim()?.uppercase().orEmpty()
     val firstWarning = extracted.warnings.firstOrNull { it.isNotBlank() }
+    val hasDocumentType = !extracted.documentType.isNullOrBlank()
 
-    if (!extracted.documentMatched) {
+    if (!extracted.documentMatched && !hasDocumentType) {
         return IdCaptureAssessment(
             canProceed = false,
             requiresReview = false,
@@ -3656,7 +3670,7 @@ private fun assessResidentIdExtract(extracted: ResidentIdExtractResponseDto): Id
         )
     }
 
-    if (status == OCR_STATUS_RETAKE_REQUIRED || !hasResidentNumber) {
+    if (status == OCR_STATUS_RETAKE_REQUIRED && !hasDocumentType) {
         return IdCaptureAssessment(
             canProceed = false,
             requiresReview = false,
@@ -3667,15 +3681,17 @@ private fun assessResidentIdExtract(extracted: ResidentIdExtractResponseDto): Id
     }
 
     val requiresReview = status == OCR_STATUS_REVIEW_REQUIRED ||
+            status == OCR_STATUS_RETAKE_REQUIRED ||
             !hasName ||
+            !hasResidentNumber ||
             extracted.warnings.isNotEmpty() ||
-            (extracted.nameConfidence in 0.0..0.779)
+            (hasName && extracted.nameConfidence in 0.0..0.779)
 
     return IdCaptureAssessment(
         canProceed = true,
         requiresReview = requiresReview,
         statusMessage = if (requiresReview) {
-            "일부 항목을 다시 확인할 수 있도록 결과를 고정하는 중입니다."
+            "일부 항목이 비어 있어도 확인 화면에서 직접 수정할 수 있습니다."
         } else {
             "신분증 정보를 읽는 중입니다. 흔들리지 않게 유지해 주세요."
         },
@@ -3686,11 +3702,13 @@ private fun assessResidentIdExtract(extracted: ResidentIdExtractResponseDto): Id
 
 private fun buildResidentIdExtractKey(extracted: ResidentIdExtractResponseDto): String? {
     val documentType = extracted.documentType?.trim()?.uppercase() ?: return null
-    val residentFront6 = extracted.residentFront6?.trim() ?: return null
-    val residentBackFirst1 = extracted.residentBackFirst1?.trim() ?: return null
-    val normalizedName = extracted.name?.trim().orEmpty()
-    val status = extracted.extractionStatus?.trim()?.uppercase().orEmpty()
-    return listOf(documentType, residentFront6, residentBackFirst1, normalizedName, status).joinToString("|")
+    val residentFront6 = extracted.residentFront6?.trim().orEmpty()
+    val residentBackFirst1 = extracted.residentBackFirst1?.trim().orEmpty()
+    return if (residentFront6.length == 6 && residentBackFirst1.length == 1) {
+        listOf(documentType, residentFront6, residentBackFirst1).joinToString("|")
+    } else {
+        documentType
+    }
 }
 
 private fun isFaceCentered(face: Face, frameWidth: Int, frameHeight: Int): Boolean {
@@ -3824,9 +3842,29 @@ private fun imageProxyToJpegBytes(imageProxy: ImageProxy): ByteArray {
     return rotateJpeg(jpegBytes, imageProxy.imageInfo.rotationDegrees)
 }
 
-private fun prepareResidentIdJpeg(imageProxy: ImageProxy): ByteArray {
+private fun prepareResidentIdJpegs(imageProxy: ImageProxy): Pair<ByteArray, ByteArray> {
     val fullJpeg = imageProxyToJpegBytes(imageProxy)
-    return cropDocumentJpeg(fullJpeg)
+    return cropDocumentJpeg(fullJpeg) to fullJpeg
+}
+
+private suspend fun extractResidentIdWithFallback(
+    croppedJpeg: ByteArray,
+    fullJpeg: ByteArray
+): ResidentIdExtractResponseDto {
+    val croppedResult = runCatching { FaceRegistrationRepository.extractResidentId(croppedJpeg) }
+    val croppedExtract = croppedResult.getOrNull()
+    if (croppedExtract != null) {
+        val status = croppedExtract.extractionStatus?.trim()?.uppercase().orEmpty()
+        if (status != OCR_STATUS_RETAKE_REQUIRED || croppedExtract.documentMatched) {
+            return croppedExtract
+        }
+    }
+
+    if (croppedResult.exceptionOrNull() !is ApiRequestException && croppedExtract != null) {
+        return croppedExtract
+    }
+
+    return FaceRegistrationRepository.extractResidentId(fullJpeg)
 }
 
 private fun cropDocumentJpeg(jpegBytes: ByteArray): ByteArray {
