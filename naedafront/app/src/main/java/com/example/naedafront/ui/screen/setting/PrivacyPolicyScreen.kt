@@ -39,7 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.naedafront.ui.theme.Background
+import androidx.compose.material3.MaterialTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,7 +49,7 @@ fun PrivacyPolicyScreen(
     val scrollState = rememberScrollState()
 
     Scaffold(
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
@@ -68,7 +68,7 @@ fun PrivacyPolicyScreen(
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Background
+                    containerColor = MaterialTheme.colorScheme.background
                 ),
                 windowInsets = WindowInsets(0)
             )
@@ -77,7 +77,7 @@ fun PrivacyPolicyScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Background)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
                 .padding(horizontal = 20.dp)
         ) {
@@ -86,7 +86,7 @@ fun PrivacyPolicyScreen(
             Text(
                 text = "생체 정보(얼굴 벡터)와 주민등록번호 처리에 대한 법적 고지가 핵심입니다.",
                 fontSize = 13.sp,
-                color = Color(0xFF9AA3AF)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -102,7 +102,7 @@ fun PrivacyPolicyScreen(
                         text = "회사는 다음의 목적을 위해 최소한의 개인정보를 수집합니다.",
                         fontSize = 14.sp,
                         lineHeight = 22.sp,
-                        color = Color(0xFF5E6776)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))
@@ -111,7 +111,7 @@ fun PrivacyPolicyScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFF9FAFB)
+                        color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Column {
                             TableRow(
@@ -177,7 +177,7 @@ fun PrivacyPolicyScreen(
                         text = "서비스 제공을 위해 아래와 같이 정보를 제공합니다.",
                         fontSize = 14.sp,
                         lineHeight = 22.sp,
-                        color = Color(0xFF5E6776)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     BulletItem(
@@ -225,7 +225,7 @@ private fun SectionCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 0.dp
     ) {
         Column(
@@ -235,7 +235,7 @@ private fun SectionCard(
                 text = title,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF202632)
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(12.dp))
             content()
@@ -249,7 +249,7 @@ private fun BulletItem(title: String?, body: String) {
         Text(
             text = "\u2022",
             fontSize = 14.sp,
-            color = Color(0xFF5E6776)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.width(8.dp))
         if (title != null) {
@@ -258,13 +258,13 @@ private fun BulletItem(title: String?, body: String) {
                     text = title,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF202632)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = body,
                     fontSize = 14.sp,
                     lineHeight = 22.sp,
-                    color = Color(0xFF5E6776)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         } else {
@@ -272,7 +272,7 @@ private fun BulletItem(title: String?, body: String) {
                 text = body,
                 fontSize = 14.sp,
                 lineHeight = 22.sp,
-                color = Color(0xFF5E6776)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -289,7 +289,7 @@ private fun TableRow(
         modifier = Modifier
             .fillMaxWidth()
             .then(
-                if (isHeader) Modifier.background(Color(0xFFEEF0F3)) else Modifier
+                if (isHeader) Modifier.background(MaterialTheme.colorScheme.surfaceVariant) else Modifier
             )
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
@@ -297,14 +297,14 @@ private fun TableRow(
             text = col1,
             fontSize = 12.sp,
             fontWeight = if (isHeader) FontWeight.SemiBold else FontWeight.Medium,
-            color = if (isHeader) Color(0xFF202632) else Color(0xFF5E6776),
+            color = if (isHeader) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.width(64.dp)
         )
         Text(
             text = col2,
             fontSize = 12.sp,
             fontWeight = if (isHeader) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (isHeader) Color(0xFF202632) else Color(0xFF5E6776),
+            color = if (isHeader) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             lineHeight = 18.sp,
             modifier = Modifier.weight(1f)
         )
@@ -313,7 +313,7 @@ private fun TableRow(
             text = col3,
             fontSize = 12.sp,
             fontWeight = if (isHeader) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (isHeader) Color(0xFF202632) else Color(0xFF5E6776),
+            color = if (isHeader) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             lineHeight = 18.sp,
             modifier = Modifier.weight(0.8f)
         )
@@ -324,6 +324,6 @@ private fun TableRow(
 private fun TableDivider() {
     HorizontalDivider(
         thickness = 1.dp,
-        color = Color(0xFFE5E7EB)
+        color = MaterialTheme.colorScheme.outlineVariant
     )
 }

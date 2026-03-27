@@ -47,11 +47,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.naedafront.data.remote.response.OrderResponse
-import com.example.naedafront.ui.theme.Background
 import coil.compose.AsyncImage
 import java.text.NumberFormat
 import java.util.Locale
@@ -73,7 +73,7 @@ fun OrderHistoryScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Background)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         OrderHistoryTopBar(onBackClick = onBackClick)
 
@@ -108,7 +108,7 @@ fun OrderHistoryScreen(
                 ) {
                     Text(
                         text = "주문 내역이 없습니다.",
-                        color = Color(0xFF667085),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -149,7 +149,7 @@ private fun OrderHistoryTopBar(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Background)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         CenterAlignedTopAppBar(
             title = {
@@ -167,7 +167,7 @@ private fun OrderHistoryTopBar(
                 }
             },
             colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                containerColor = Background
+                containerColor = MaterialTheme.colorScheme.background
             ),
             windowInsets = WindowInsets(0)
         )
@@ -185,7 +185,7 @@ private fun OrderHistoryBlock(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -205,7 +205,7 @@ private fun OrderHistoryBlock(
                         .align(Alignment.CenterVertically)
                         .size(96.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFFF2F4F7)),
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
                     if (imageUrl.isNotBlank()) {
@@ -219,7 +219,7 @@ private fun OrderHistoryBlock(
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.ReceiptLong,
                             contentDescription = null,
-                            tint = Color(0xFF98A2B3),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(32.dp)
                         )
                     }
@@ -250,7 +250,7 @@ private fun OrderHistoryBlock(
 
                     Text(
                         text = order.productName,
-                        color = Color(0xFF111827),
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -294,7 +294,7 @@ private fun InfoRow(
     Row(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = label,
-            color = Color(0xFF98A2B3),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium
         )
@@ -303,7 +303,7 @@ private fun InfoRow(
 
         Text(
             text = value,
-            color = Color(0xFF344054),
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium
         )

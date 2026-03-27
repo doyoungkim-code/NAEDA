@@ -42,7 +42,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBarDefaults
-import com.example.naedafront.ui.theme.Background
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -54,6 +53,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
+import com.example.naedafront.ui.theme.Mint900
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -65,6 +65,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -75,7 +76,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.naedafront.ui.theme.Background
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.response.AddressResponse
@@ -83,13 +83,8 @@ import com.example.naedafront.data.remote.response.NaverGeocodeAddress
 import com.example.naedafront.data.repository.OrderRepository
 import kotlinx.coroutines.launch
 
-private val StorePrimary = Color(0xFF00695C)
+// Theme colors are now accessed via MaterialTheme.colorScheme inside composables
 private val StoreMint = Color(0xFF20D5BE)
-private val ScreenBg = Background
-private val DividerColor = Color(0xFFE3E8EF)
-private val LabelColor = Color(0xFFB2BCCB)
-private val ValueColor = Color(0xFF6B7280)
-private val TitleColor = Color(0xFF111827)
 private val ErrorColor = Color(0xFFD92D20)
 
 @Composable
@@ -149,7 +144,7 @@ fun DeliveryAddressScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ScreenBg)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         DeliveryAddressTopBar(
             onBackClick = onBackClick
@@ -175,7 +170,7 @@ fun DeliveryAddressScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = StorePrimary)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -423,7 +418,7 @@ private fun DeliveryAddressTopBar(
             }
         },
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-            containerColor = Background
+            containerColor = MaterialTheme.colorScheme.background
         ),
         windowInsets = WindowInsets(0)
     )
@@ -472,7 +467,7 @@ private fun DeliveryAddressFormContent(
 
         Text(
             text = if (addresses.isEmpty()) "등록된 주소가 없습니다." else "배송지 정보를 입력하거나 기존 배송지를 선택하세요.",
-            color = TitleColor,
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold
         )
@@ -481,7 +476,7 @@ private fun DeliveryAddressFormContent(
 
         Text(
             text = "배송에 사용할 주소를 입력해주세요.",
-            color = ValueColor,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium
         )
@@ -577,7 +572,7 @@ private fun DeliveryAddressFormContent(
         ) {
             Text(
                 text = "기본 배송지로 저장",
-                color = ValueColor,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -589,9 +584,9 @@ private fun DeliveryAddressFormContent(
                 onCheckedChange = onSaveAsDefaultChange,
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
-                    checkedTrackColor = StoreMint,
+                    checkedTrackColor = Mint900,
                     uncheckedThumbColor = Color.White,
-                    uncheckedTrackColor = Color(0xFFD7DEE8),
+                    uncheckedTrackColor = MaterialTheme.colorScheme.outline,
                     uncheckedBorderColor = Color.Transparent,
                     checkedBorderColor = Color.Transparent
                 )
@@ -618,7 +613,7 @@ private fun DeliveryAddressFormContent(
                 .height(62.dp),
             shape = RoundedCornerShape(18.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = StorePrimary,
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = Color.White
             )
         ) {
@@ -664,8 +659,8 @@ private fun AddressNameSection(
         modifier = Modifier.fillMaxWidth()
     ) {
         Text(
-            text = "\uBC30\uC1A1\uC9C0\uBA85",
-            color = LabelColor,
+            text = "등록된 배송지 선택",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium
         )
@@ -688,39 +683,39 @@ private fun AddressNameSection(
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = {
                         Text(
-                            text = "\uBC30\uC1A1\uC9C0\uBA85\uC744 \uC120\uD0DD\uD574\uC8FC\uC138\uC694",
-                            color = ValueColor,
+                            text = "배송지를 선택해주세요",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Medium
                         )
                     },
                     singleLine = true,
                     textStyle = TextStyle(
-                        color = TitleColor,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Medium
                     ),
                     trailingIcon = {
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowDown,
-                            contentDescription = "open",
-                            tint = ValueColor
+                            contentDescription = "expand",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     },
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = ScreenBg,
-                        unfocusedContainerColor = ScreenBg,
-                        disabledContainerColor = ScreenBg,
-                        errorContainerColor = ScreenBg,
-                        focusedIndicatorColor = DividerColor,
-                        unfocusedIndicatorColor = DividerColor,
-                        disabledIndicatorColor = DividerColor,
-                        focusedTextColor = TitleColor,
-                        unfocusedTextColor = TitleColor,
-                        disabledTextColor = TitleColor,
-                        disabledPlaceholderColor = ValueColor,
-                        disabledTrailingIconColor = ValueColor,
-                        cursorColor = StorePrimary
+                        focusedContainerColor = MaterialTheme.colorScheme.background,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                        disabledContainerColor = MaterialTheme.colorScheme.background,
+                        errorContainerColor = MaterialTheme.colorScheme.background,
+                        focusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                        disabledIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
             }
@@ -734,7 +729,7 @@ private fun AddressNameSection(
                         text = {
                             Text(
                                 text = item,
-                                color = TitleColor,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Medium
                             )
@@ -766,30 +761,30 @@ private fun AddressNameSection(
                 placeholder = {
                     Text(
                         text = "\uBC30\uC1A1\uC9C0\uBA85\uC744 \uC9C1\uC811 \uC785\uB825\uD574\uC8FC\uC138\uC694",
-                        color = ValueColor,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
                     )
                 },
                 singleLine = true,
                 textStyle = TextStyle(
-                    color = TitleColor,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium
                 ),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = ScreenBg,
-                    unfocusedContainerColor = ScreenBg,
-                    disabledContainerColor = ScreenBg,
-                    errorContainerColor = ScreenBg,
-                    focusedIndicatorColor = DividerColor,
-                    unfocusedIndicatorColor = DividerColor,
-                    disabledIndicatorColor = DividerColor,
-                    focusedTextColor = TitleColor,
-                    unfocusedTextColor = TitleColor,
-                    focusedPlaceholderColor = ValueColor,
-                    unfocusedPlaceholderColor = ValueColor,
-                    cursorColor = StorePrimary
+                    focusedContainerColor = MaterialTheme.colorScheme.background,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                    disabledContainerColor = MaterialTheme.colorScheme.background,
+                    errorContainerColor = MaterialTheme.colorScheme.background,
+                    focusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                    unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                    disabledIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    cursorColor = MaterialTheme.colorScheme.primary
                 )
             )
         }
@@ -810,7 +805,7 @@ private fun SavedAddressDropdown(
     ) {
         Text(
             text = "등록된 배송지 선택",
-            color = LabelColor,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium
         )
@@ -834,14 +829,14 @@ private fun SavedAddressDropdown(
                     placeholder = {
                         Text(
                             text = "배송지를 선택해주세요",
-                            color = ValueColor,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Medium
                         )
                     },
                     singleLine = true,
                     textStyle = TextStyle(
-                        color = TitleColor,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Medium
                     ),
@@ -849,23 +844,23 @@ private fun SavedAddressDropdown(
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowDown,
                             contentDescription = "expand",
-                            tint = ValueColor
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     },
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = ScreenBg,
-                        unfocusedContainerColor = ScreenBg,
-                        disabledContainerColor = ScreenBg,
-                        errorContainerColor = ScreenBg,
-                        focusedIndicatorColor = DividerColor,
-                        unfocusedIndicatorColor = DividerColor,
-                        disabledIndicatorColor = DividerColor,
-                        focusedTextColor = TitleColor,
-                        unfocusedTextColor = TitleColor,
-                        disabledTextColor = TitleColor,
-                        disabledPlaceholderColor = ValueColor,
-                        disabledTrailingIconColor = ValueColor,
-                        cursorColor = StorePrimary
+                        focusedContainerColor = MaterialTheme.colorScheme.background,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                        disabledContainerColor = MaterialTheme.colorScheme.background,
+                        errorContainerColor = MaterialTheme.colorScheme.background,
+                        focusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                        disabledIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
             }
@@ -890,7 +885,7 @@ private fun SavedAddressDropdown(
                                     },
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    color = TitleColor,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -901,7 +896,7 @@ private fun SavedAddressDropdown(
                                     text = "${item.zipCode} ${item.roadAddress}",
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    color = ValueColor,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium
                                 )
@@ -928,7 +923,7 @@ private fun SavedAddressDropdown(
                                 Icon(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = "delete",
-                                    tint = ValueColor,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -940,6 +935,7 @@ private fun SavedAddressDropdown(
     }
 }
 
+
 @Composable
 private fun InputSection(
     label: String,
@@ -948,62 +944,52 @@ private fun InputSection(
     errorMessage: String? = null,
     onValueChange: (TextFieldValue) -> Unit
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = label,
-            color = LabelColor,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium
         )
-
         Spacer(modifier = Modifier.height(10.dp))
-
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth(),
-            isError = errorMessage != null,
             placeholder = {
                 Text(
                     text = placeholder,
-                    color = ValueColor,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Medium
                 )
             },
             singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             textStyle = TextStyle(
-                color = TitleColor,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Medium
             ),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = ScreenBg,
-                unfocusedContainerColor = ScreenBg,
-                disabledContainerColor = ScreenBg,
-                errorContainerColor = ScreenBg,
-                focusedIndicatorColor = DividerColor,
-                unfocusedIndicatorColor = DividerColor,
-                errorIndicatorColor = ErrorColor,
-                disabledIndicatorColor = DividerColor,
-                focusedTextColor = TitleColor,
-                unfocusedTextColor = TitleColor,
-                focusedPlaceholderColor = ValueColor,
-                unfocusedPlaceholderColor = ValueColor,
-                cursorColor = StorePrimary
+                focusedContainerColor = MaterialTheme.colorScheme.background,
+                unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                disabledContainerColor = MaterialTheme.colorScheme.background,
+                errorContainerColor = MaterialTheme.colorScheme.background,
+                focusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                disabledIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                cursorColor = MaterialTheme.colorScheme.primary
             ),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+            modifier = Modifier.fillMaxWidth()
         )
-
-        errorMessage?.let { message ->
-            Spacer(modifier = Modifier.height(8.dp))
+        if (errorMessage != null) {
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = message,
-                color = ErrorColor,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium
+                text = errorMessage,
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 12.sp
             )
         }
     }
@@ -1024,7 +1010,7 @@ private fun InputSection(
     ) {
         Text(
             text = label,
-            color = LabelColor,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium
         )
@@ -1039,7 +1025,7 @@ private fun InputSection(
             placeholder = {
                 Text(
                     text = placeholder,
-                    color = ValueColor,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -1047,24 +1033,24 @@ private fun InputSection(
             singleLine = true,
             readOnly = readOnly,
             textStyle = TextStyle(
-                color = TitleColor,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Medium
             ),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = ScreenBg,
-                unfocusedContainerColor = ScreenBg,
-                disabledContainerColor = ScreenBg,
-                errorContainerColor = ScreenBg,
-                focusedIndicatorColor = DividerColor,
-                unfocusedIndicatorColor = DividerColor,
+                focusedContainerColor = MaterialTheme.colorScheme.background,
+                unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                disabledContainerColor = MaterialTheme.colorScheme.background,
+                errorContainerColor = MaterialTheme.colorScheme.background,
+                focusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
                 errorIndicatorColor = ErrorColor,
-                disabledIndicatorColor = DividerColor,
-                focusedTextColor = TitleColor,
-                unfocusedTextColor = TitleColor,
-                focusedPlaceholderColor = ValueColor,
-                unfocusedPlaceholderColor = ValueColor,
-                cursorColor = StorePrimary
+                disabledIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                cursorColor = MaterialTheme.colorScheme.primary
             ),
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType)
         )
@@ -1092,7 +1078,7 @@ private fun PostCodeSection(
     ) {
         Text(
             text = "우편번호",
-            color = LabelColor,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium
         )
@@ -1111,30 +1097,30 @@ private fun PostCodeSection(
                 placeholder = {
                     Text(
                         text = "우편번호",
-                        color = ValueColor,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Medium
                     )
                 },
                 singleLine = true,
                 textStyle = TextStyle(
-                    color = TitleColor,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Medium
                 ),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = ScreenBg,
-                    unfocusedContainerColor = ScreenBg,
-                    disabledContainerColor = ScreenBg,
-                    errorContainerColor = ScreenBg,
-                    focusedIndicatorColor = DividerColor,
-                    unfocusedIndicatorColor = DividerColor,
-                    disabledIndicatorColor = DividerColor,
-                    focusedTextColor = TitleColor,
-                    unfocusedTextColor = TitleColor,
-                    focusedPlaceholderColor = ValueColor,
-                    unfocusedPlaceholderColor = ValueColor,
-                    cursorColor = StorePrimary
+                    focusedContainerColor = MaterialTheme.colorScheme.background,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                    disabledContainerColor = MaterialTheme.colorScheme.background,
+                    errorContainerColor = MaterialTheme.colorScheme.background,
+                    focusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                    unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                    disabledIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    cursorColor = MaterialTheme.colorScheme.primary
                 ),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
@@ -1185,7 +1171,7 @@ private fun DeliveryRequestSection(
     ) {
         Text(
             text = "배송 요청사항",
-            color = LabelColor,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium
         )
@@ -1209,14 +1195,14 @@ private fun DeliveryRequestSection(
                     placeholder = {
                         Text(
                             text = "배송 요청사항을 선택해주세요",
-                            color = ValueColor,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Medium
                         )
                     },
                     singleLine = true,
                     textStyle = TextStyle(
-                        color = TitleColor,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Medium
                     ),
@@ -1224,23 +1210,23 @@ private fun DeliveryRequestSection(
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowDown,
                             contentDescription = "open",
-                            tint = ValueColor
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     },
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = ScreenBg,
-                        unfocusedContainerColor = ScreenBg,
-                        disabledContainerColor = ScreenBg,
-                        errorContainerColor = ScreenBg,
-                        focusedIndicatorColor = DividerColor,
-                        unfocusedIndicatorColor = DividerColor,
-                        disabledIndicatorColor = DividerColor,
-                        focusedTextColor = TitleColor,
-                        unfocusedTextColor = TitleColor,
-                        disabledTextColor = TitleColor,
-                        disabledPlaceholderColor = ValueColor,
-                        disabledTrailingIconColor = ValueColor,
-                        cursorColor = StorePrimary
+                        focusedContainerColor = MaterialTheme.colorScheme.background,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                        disabledContainerColor = MaterialTheme.colorScheme.background,
+                        errorContainerColor = MaterialTheme.colorScheme.background,
+                        focusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                        disabledIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
             }
@@ -1254,7 +1240,7 @@ private fun DeliveryRequestSection(
                         text = {
                             Text(
                                 text = item,
-                                color = TitleColor,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Medium
                             )
@@ -1284,7 +1270,7 @@ private fun DeliveryRequestSection(
                 placeholder = {
                     Text(
                         text = "배송 요청사항을 직접 입력해주세요",
-                        color = ValueColor,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -1292,23 +1278,23 @@ private fun DeliveryRequestSection(
                 singleLine = false,
                 minLines = 3,
                 textStyle = TextStyle(
-                    color = TitleColor,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium
                 ),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = ScreenBg,
-                    unfocusedContainerColor = ScreenBg,
-                    disabledContainerColor = ScreenBg,
-                    errorContainerColor = ScreenBg,
-                    focusedIndicatorColor = DividerColor,
-                    unfocusedIndicatorColor = DividerColor,
-                    disabledIndicatorColor = DividerColor,
-                    focusedTextColor = TitleColor,
-                    unfocusedTextColor = TitleColor,
-                    focusedPlaceholderColor = ValueColor,
-                    unfocusedPlaceholderColor = ValueColor,
-                    cursorColor = StorePrimary
+                    focusedContainerColor = MaterialTheme.colorScheme.background,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                    disabledContainerColor = MaterialTheme.colorScheme.background,
+                    errorContainerColor = MaterialTheme.colorScheme.background,
+                    focusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                    unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                    disabledIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    cursorColor = MaterialTheme.colorScheme.primary
                 )
             )
         }
@@ -1328,7 +1314,7 @@ private fun AddressSearchBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color.White
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
@@ -1338,7 +1324,7 @@ private fun AddressSearchBottomSheet(
         ) {
             Text(
                 text = "주소 검색",
-                color = TitleColor,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -1352,7 +1338,7 @@ private fun AddressSearchBottomSheet(
                 placeholder = {
                     Text(
                         text = "도로명 주소를 입력해주세요",
-                        color = ValueColor
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 singleLine = true,
@@ -1364,7 +1350,7 @@ private fun AddressSearchBottomSheet(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "search",
-                            tint = StorePrimary
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 },
@@ -1376,13 +1362,13 @@ private fun AddressSearchBottomSheet(
                     onSearch = { onSearch() }
                 ),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = ScreenBg,
-                    unfocusedContainerColor = ScreenBg,
-                    disabledContainerColor = ScreenBg,
-                    errorContainerColor = ScreenBg,
-                    focusedIndicatorColor = DividerColor,
-                    unfocusedIndicatorColor = DividerColor,
-                    cursorColor = StorePrimary
+                    focusedContainerColor = MaterialTheme.colorScheme.background,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                    disabledContainerColor = MaterialTheme.colorScheme.background,
+                    errorContainerColor = MaterialTheme.colorScheme.background,
+                    focusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                    unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                    cursorColor = MaterialTheme.colorScheme.primary
                 )
             )
 
@@ -1396,7 +1382,7 @@ private fun AddressSearchBottomSheet(
                             .height(220.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = StorePrimary)
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 }
 
@@ -1425,7 +1411,7 @@ private fun AddressSearchBottomSheet(
                     ) {
                         Text(
                             text = "주소를 검색해주세요.",
-                            color = ValueColor,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -1462,7 +1448,7 @@ private fun AddressSearchResultItem(
             .fillMaxWidth()
             .border(
                 width = 1.dp,
-                color = DividerColor,
+                color = MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(14.dp)
             )
             .clickable(onClick = onClick)
@@ -1471,7 +1457,7 @@ private fun AddressSearchResultItem(
         if (item.postalCode().isNotBlank()) {
             Text(
                 text = item.postalCode(),
-                color = StorePrimary,
+                color = MaterialTheme.colorScheme.primary,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -1480,7 +1466,7 @@ private fun AddressSearchResultItem(
 
         Text(
             text = item.roadAddress.ifBlank { item.jibunAddress },
-            color = TitleColor,
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold
         )
@@ -1489,7 +1475,7 @@ private fun AddressSearchResultItem(
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = item.jibunAddress,
-                color = ValueColor,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )

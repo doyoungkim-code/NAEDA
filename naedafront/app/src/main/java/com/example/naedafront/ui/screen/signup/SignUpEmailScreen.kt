@@ -19,6 +19,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -136,12 +137,12 @@ fun SignUpEmailScreen(
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Background
+                    containerColor = MaterialTheme.colorScheme.background
                 ),
                 windowInsets = WindowInsets(0)
             )
         },
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         Column(
@@ -199,10 +200,10 @@ fun SignUpEmailScreen(
                     ),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Mint500,
-                        focusedLabelColor = Mint500,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                        cursorColor = Mint500
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
 
@@ -216,8 +217,8 @@ fun SignUpEmailScreen(
                     enabled = isEmailNotBlank && !isChecking,
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Mint900,
-                        disabledContainerColor = Mint900.copy(alpha = 0.38f)
+                        containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White,
+                        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
                     )
                 ) {
                     Text(

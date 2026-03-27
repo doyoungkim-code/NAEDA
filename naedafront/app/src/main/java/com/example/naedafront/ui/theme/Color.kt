@@ -41,3 +41,13 @@ val OnSecondary = Color(0xFFFFFFFF)  // Secondary 버튼 위 텍스트
 
 val Outline = Color(0xFFD9D9D9)      // 테두리, 구분선
 val OutlineVariant = Color(0xFFE8E8E8) // 연한 구분선
+
+// ── Dark Theme (순수 검은색 계열) ──
+val DarkBackground = Color(0xFF000000)      // 전체 배경 (순수 블랙)
+val DarkSurface = Color(0xFF1C1C1E)         // 카드, 시트 배경
+val DarkSurfaceVariant = Color(0xFF2C2C2E)  // 보조 표면 (입력 필드, 칩)
+val DarkOnBackground = Color(0xFFE5E5E7)    // 배경 위 텍스트
+val DarkOnSurface = Color(0xFFE5E5E7)       // 카드 위 텍스트
+val DarkOnSurfaceVariant = Color(0xFF8E8E93) // 보조 텍스트 (힌트, 부제)
+val DarkOutline = Color(0xFF38383A)         // 테두리, 구분선
+val DarkOutlineVariant = Color(0xFF2C2C2E)  // 연한 구분선

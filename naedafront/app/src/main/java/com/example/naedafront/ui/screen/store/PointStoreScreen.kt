@@ -53,7 +53,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import com.example.naedafront.ui.theme.Background
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -178,7 +178,7 @@ fun PointStoreScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Background)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
@@ -227,7 +227,7 @@ fun PointStoreScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator(
-                            color = Color(0xFF006B60)
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -243,7 +243,7 @@ fun PointStoreScreen(
                     ) {
                         Text(
                             text = uiState.errorMessage ?: "데이터를 불러오지 못했습니다.",
-                            color = Color(0xFF667085),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -259,7 +259,7 @@ fun PointStoreScreen(
                     ) {
                         Text(
                             text = "등록된 상품이 없습니다.",
-                            color = Color(0xFF98A2B3),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -335,11 +335,15 @@ private fun PointStoreHeader(
     errorMessage: String?,
     onHistoryClick: () -> Unit
 ) {
+    val headerColor = MaterialTheme.colorScheme.primaryContainer
+    val waveColor1 = Color(0xFF1F7D72)
+    val waveColor2 = Color(0xFF0F645B)
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(236.dp)
-            .background(Color(0xFF005E54))
+            .background(headerColor)
     ) {
         Canvas(
             modifier = Modifier
@@ -370,10 +374,7 @@ private fun PointStoreHeader(
             drawPath(
                 path = path,
                 brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF1F7D72),
-                        Color(0xFF0F645B)
-                    )
+                    colors = listOf(waveColor1, waveColor2)
                 )
             )
         }
@@ -402,7 +403,7 @@ private fun PointStoreHeader(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F2F4)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 when (walletStatus) {
@@ -414,7 +415,7 @@ private fun PointStoreHeader(
                             contentAlignment = Alignment.Center
                         ) {
                             CircularProgressIndicator(
-                                color = Color(0xFF006B60)
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -427,12 +428,12 @@ private fun PointStoreHeader(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             CircularProgressIndicator(
-                                color = Color(0xFF006B60)
+                                color = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.height(14.dp))
                             Text(
                                 text = "포인트 지갑을 생성하는 중입니다.",
-                                color = Color(0xFF344054),
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -449,7 +450,7 @@ private fun PointStoreHeader(
                             Column {
                                 Text(
                                     text = "사용 가능한 포인트",
-                                    color = Color(0xFF98A2B3),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium
                                 )
@@ -459,14 +460,14 @@ private fun PointStoreHeader(
                                 Row(verticalAlignment = Alignment.Bottom) {
                                     Text(
                                         text = "%,d".format(point),
-                                        color = Color(0xFF006B60),
+                                        color = MaterialTheme.colorScheme.primary,
                                         fontSize = 24.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = "P",
-                                        color = Color(0xFF006B60),
+                                        color = MaterialTheme.colorScheme.primary,
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -477,7 +478,7 @@ private fun PointStoreHeader(
 
                             Text(
                                 text = "내역보기",
-                                color = Color(0xFF667085),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.clickable(onClick = onHistoryClick)
@@ -493,7 +494,7 @@ private fun PointStoreHeader(
                         ) {
                             Text(
                                 text = "포인트 정보를 불러오지 못했습니다.",
-                                color = Color(0xFF101828),
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -502,7 +503,7 @@ private fun PointStoreHeader(
 
                             Text(
                                 text = errorMessage ?: "잠시 후 다시 시도해 주세요.",
-                                color = Color(0xFF667085),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
                                 lineHeight = 22.sp
@@ -523,8 +524,8 @@ private fun CategoryChip(
     verticalPadding: Dp = 12.dp,
     onClick: () -> Unit
 ) {
-    val bgColor = if (selected) Color(0xFF006B60) else Color(0xFFECEEF1)
-    val textColor = if (selected) Color.White else Color(0xFF7B8794)
+    val bgColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+    val textColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
 
     Box(
         modifier = Modifier
@@ -554,7 +555,7 @@ private fun ProductCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF2F4F7)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column {
@@ -570,12 +571,12 @@ private fun ProductCard(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(MaterialTheme.colorScheme.surface)
                     .padding(horizontal = 12.dp, vertical = 12.dp)
             ) {
                 Text(
                     text = item.brand,
-                    color = Color(0xFF98A2B3),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
@@ -586,7 +587,7 @@ private fun ProductCard(
 
                 Text(
                     text = item.title,
-                    color = Color(0xFF101828),
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -597,7 +598,7 @@ private fun ProductCard(
 
                 Text(
                     text = "%,d P".format(item.pricePoint),
-                    color = Color(0xFF006B60),
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold
                 )
@@ -617,7 +618,7 @@ private fun ProductImage(
 ) {
     Box(
         modifier = modifier
-            .background(Color(0xFFF2F4F7)),
+            .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center
     ) {
         if (imageUrl.isNotBlank()) {
@@ -632,7 +633,7 @@ private fun ProductImage(
         } else {
             Text(
                 text = thumbnailLabel,
-                color = Color(0xFF98A2B3),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -667,7 +668,7 @@ private fun StoreItemDetailDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(24.dp),
-            color = Color.White
+            color = MaterialTheme.colorScheme.surface
         ) {
             Column(
                 modifier = Modifier
@@ -680,7 +681,7 @@ private fun StoreItemDetailDialog(
                 ) {
                     Text(
                         text = "상품 상세",
-                        color = Color(0xFF101828),
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -691,7 +692,7 @@ private fun StoreItemDetailDialog(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "close",
-                            tint = Color(0xFF667085)
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -713,7 +714,7 @@ private fun StoreItemDetailDialog(
 
                 Text(
                     text = item.brand,
-                    color = Color(0xFF98A2B3),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -722,7 +723,7 @@ private fun StoreItemDetailDialog(
 
                 Text(
                     text = item.title,
-                    color = Color(0xFF101828),
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -731,7 +732,7 @@ private fun StoreItemDetailDialog(
 
                 Text(
                     text = item.description.ifBlank { "상품 설명이 없습니다." },
-                    color = Color(0xFF475467),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     lineHeight = 22.sp
@@ -751,7 +752,7 @@ private fun StoreItemDetailDialog(
 
                 Text(
                     text = "%,d P".format(item.pricePoint),
-                    color = Color(0xFF006B60),
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.ExtraBold
                 )
@@ -763,8 +764,8 @@ private fun StoreItemDetailDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF006B60),
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     ),
                     enabled = item.stockQuantity > 0
                 ) {
@@ -787,19 +788,19 @@ private fun InfoChip(
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(14.dp))
-            .background(Color(0xFFF2F4F7))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         Text(
             text = label,
-            color = Color(0xFF98A2B3),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = value,
-            color = Color(0xFF101828),
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold
         )

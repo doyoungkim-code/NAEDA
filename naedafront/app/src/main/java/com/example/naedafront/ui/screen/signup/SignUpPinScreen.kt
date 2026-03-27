@@ -52,12 +52,8 @@ import com.example.naedafront.ui.common.SignUpProgressBar
 import com.example.naedafront.data.remote.AuthRepository
 import com.example.naedafront.data.remote.LoginResult
 import com.example.naedafront.data.repository.PointRepository
-import com.example.naedafront.ui.theme.Background
-import com.example.naedafront.ui.theme.Mint50
 import com.example.naedafront.ui.theme.Mint500
 import com.example.naedafront.ui.theme.NaedaFontFamily
-import com.example.naedafront.ui.theme.OnBackground
-import com.example.naedafront.ui.theme.OnSurfaceVariant
 import kotlinx.coroutines.delay
 
 private val PinError = Color(0xFFF2522E)
@@ -182,7 +178,7 @@ fun SignUpPinScreen(
                         text = if (isConfirming) "PIN 확인" else "PIN 설정",
                         fontFamily = NaedaFontFamily,
                         fontWeight = FontWeight.SemiBold,
-                        color = OnBackground
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 },
                 navigationIcon = {
@@ -203,17 +199,17 @@ fun SignUpPinScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "뒤로가기",
-                            tint = OnBackground
+                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
                 },
                 windowInsets = WindowInsets(0),
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Background
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         },
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         Column(
@@ -245,7 +241,7 @@ fun SignUpPinScreen(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
-                            .background(Mint50)
+                            .background(MaterialTheme.colorScheme.primaryContainer)
                             .padding(horizontal = 16.dp, vertical = 6.dp)
                     ) {
                         Text(
@@ -253,7 +249,7 @@ fun SignUpPinScreen(
                             fontFamily = NaedaFontFamily,
                             fontWeight = FontWeight.Medium,
                             fontSize = 13.sp,
-                            color = Mint500
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
 
@@ -268,7 +264,7 @@ fun SignUpPinScreen(
                         fontFamily = NaedaFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 26.sp,
-                        color = OnBackground,
+                        color = MaterialTheme.colorScheme.onBackground,
                         textAlign = TextAlign.Center,
                         lineHeight = 34.sp
                     )
@@ -283,7 +279,7 @@ fun SignUpPinScreen(
                         },
                         fontFamily = NaedaFontFamily,
                         fontSize = 14.sp,
-                        color = OnSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         lineHeight = 22.sp
                     )
@@ -330,7 +326,7 @@ fun SignUpPinScreen(
                         ) {
                             Spacer(modifier = Modifier.height(12.dp))
                             CircularProgressIndicator(
-                                color = Mint500,
+                                color = MaterialTheme.colorScheme.primary,
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.height(8.dp))
@@ -338,7 +334,7 @@ fun SignUpPinScreen(
                                 text = "회원가입 처리 중입니다...",
                                 fontFamily = NaedaFontFamily,
                                 fontSize = 13.sp,
-                                color = OnSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -354,8 +350,8 @@ fun SignUpPinScreen(
                                     .background(
                                         color = when {
                                             hasPinMismatchError -> PinError
-                                            index < currentPin.length -> Mint500
-                                            else -> Color(0xFFE0E0E0)
+                                            index < currentPin.length -> MaterialTheme.colorScheme.primary
+                                            else -> MaterialTheme.colorScheme.outline
                                         },
                                         shape = CircleShape
                                     )
@@ -368,7 +364,7 @@ fun SignUpPinScreen(
                 NumberKeypad(
                     onNumberClick = { onNumberInput(it) },
                     onDeleteClick = { onDelete() },
-                    textColor = OnBackground
+                    textColor = MaterialTheme.colorScheme.onBackground
                 )
 
                 Spacer(modifier = Modifier.height(36.dp))

@@ -41,7 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.naedafront.ui.theme.Background
+import androidx.compose.material3.MaterialTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,7 +51,7 @@ fun TermsOfServiceScreen(
     val scrollState = rememberScrollState()
 
     Scaffold(
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
@@ -70,7 +70,7 @@ fun TermsOfServiceScreen(
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Background
+                    containerColor = MaterialTheme.colorScheme.background
                 ),
                 windowInsets = WindowInsets(0)
             )
@@ -79,7 +79,7 @@ fun TermsOfServiceScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Background)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
                 .padding(horizontal = 20.dp)
         ) {
@@ -88,7 +88,7 @@ fun TermsOfServiceScreen(
             Text(
                 text = "이 약관은 서비스 이용 방법과 포인트 환불 불가 정책, 페이스페이 책임 소재 등을 명시합니다.",
                 fontSize = 13.sp,
-                color = Color(0xFF9AA3AF)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -161,7 +161,7 @@ private fun ArticleCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 0.dp
     ) {
         Column(
@@ -171,7 +171,7 @@ private fun ArticleCard(
                 text = title,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF202632)
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(12.dp))
             content()
@@ -185,7 +185,7 @@ private fun ArticleBody(text: String) {
         text = text,
         fontSize = 14.sp,
         lineHeight = 22.sp,
-        color = Color(0xFF5E6776)
+        color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 }
 
@@ -193,14 +193,14 @@ private fun ArticleBody(text: String) {
 private fun DefinitionItem(term: String, description: String) {
     Text(
         text = buildAnnotatedString {
-            withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = Color(0xFF202632))) {
+            withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)) {
                 append(term)
             }
             append("\n$description")
         },
         fontSize = 14.sp,
         lineHeight = 22.sp,
-        color = Color(0xFF5E6776)
+        color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 }
 
@@ -210,14 +210,14 @@ private fun BulletItem(text: String) {
         Text(
             text = "\u2022",
             fontSize = 14.sp,
-            color = Color(0xFF5E6776)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = text,
             fontSize = 14.sp,
             lineHeight = 22.sp,
-            color = Color(0xFF5E6776)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

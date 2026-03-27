@@ -59,13 +59,9 @@ import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.ApiRequestException
 import com.example.naedafront.data.remote.FaceRegistrationRepository
 import com.example.naedafront.ui.screen.signup.NumberKeypad
-import com.example.naedafront.ui.theme.Background
-import com.example.naedafront.ui.theme.Mint50
 import com.example.naedafront.ui.theme.Mint500
 import com.example.naedafront.ui.theme.Mint900
 import com.example.naedafront.ui.theme.NaedaFontFamily
-import com.example.naedafront.ui.theme.OnBackground
-import com.example.naedafront.ui.theme.OnSurfaceVariant
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -256,15 +252,15 @@ fun PinChangeScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "뒤로가기",
-                            tint = OnBackground
+                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Background),
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 windowInsets = WindowInsets(0)
             )
         },
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         when (step) {
@@ -479,7 +475,7 @@ fun PinChangeScreen(
                                     pin = pin.dropLast(1)
                                 }
                             },
-                            textColor = OnBackground
+                            textColor = MaterialTheme.colorScheme.onBackground
                         )
 
                         Spacer(modifier = Modifier.height(36.dp))
@@ -513,7 +509,7 @@ private fun PasswordVerifyContent(
             fontFamily = NaedaFontFamily,
             fontSize = 26.sp,
             fontWeight = FontWeight.Bold,
-            color = OnBackground,
+            color = MaterialTheme.colorScheme.onBackground,
             lineHeight = 34.sp
         )
 
@@ -523,7 +519,7 @@ private fun PasswordVerifyContent(
             text = "PIN 번호를 잊은 경우\n로그인 비밀번호로 본인 확인을 진행합니다.",
             fontFamily = NaedaFontFamily,
             fontSize = 14.sp,
-            color = OnSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             lineHeight = 22.sp
         )
 
@@ -550,10 +546,10 @@ private fun PasswordVerifyContent(
                 }
             },
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Mint500,
-                focusedLabelColor = Mint500,
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                focusedLabelColor = MaterialTheme.colorScheme.primary,
                 unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                cursorColor = Mint500
+                cursorColor = MaterialTheme.colorScheme.primary
             )
         )
 
@@ -577,8 +573,8 @@ private fun PasswordVerifyContent(
             enabled = password.isNotBlank() && !isSaving,
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Mint900,
-                disabledContainerColor = Mint900.copy(alpha = 0.38f)
+                containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White,
+                disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
             )
         ) {
             Text(
@@ -646,7 +642,7 @@ private fun PinEntryContent(
                     .clip(RoundedCornerShape(20.dp))
                     .background(
                         if (isLocked && step == PinChangeStep.CURRENT_PIN) Color(0xFFFDECEA)
-                        else Mint50
+                        else MaterialTheme.colorScheme.primaryContainer
                     )
                     .padding(horizontal = 16.dp, vertical = 6.dp)
             ) {
@@ -655,7 +651,7 @@ private fun PinEntryContent(
                     fontFamily = NaedaFontFamily,
                     fontWeight = FontWeight.Medium,
                     fontSize = 13.sp,
-                    color = if (isLocked && step == PinChangeStep.CURRENT_PIN) Color(0xFFF2522E) else Mint500
+                    color = if (isLocked && step == PinChangeStep.CURRENT_PIN) Color(0xFFF2522E) else MaterialTheme.colorScheme.primary
                 )
             }
 
@@ -666,7 +662,7 @@ private fun PinEntryContent(
                 fontFamily = NaedaFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 26.sp,
-                color = OnBackground,
+                color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center,
                 lineHeight = 34.sp
             )
@@ -677,7 +673,7 @@ private fun PinEntryContent(
                 text = description,
                 fontFamily = NaedaFontFamily,
                 fontSize = 14.sp,
-                color = if (isLocked && step == PinChangeStep.CURRENT_PIN) Color(0xFFF2522E) else OnSurfaceVariant,
+                color = if (isLocked && step == PinChangeStep.CURRENT_PIN) Color(0xFFF2522E) else MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 lineHeight = 22.sp
             )
@@ -700,7 +696,7 @@ private fun PinEntryContent(
                     fontFamily = NaedaFontFamily,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Mint500,
+                    color = MaterialTheme.colorScheme.primary,
                     textDecoration = TextDecoration.Underline,
                     modifier = Modifier.clickable(onClick = onForgotPinClick)
                 )
@@ -714,7 +710,7 @@ private fun PinEntryContent(
                         modifier = Modifier
                             .size(14.dp)
                             .background(
-                                color = if (index < pinLength) Mint500 else Color(0xFFE0E0E0),
+                                color = if (index < pinLength) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
                                 shape = CircleShape
                             )
                     )
@@ -728,7 +724,7 @@ private fun PinEntryContent(
                     text = "현재 실패 횟수: $failCount/$MAX_PIN_ATTEMPTS",
                     fontFamily = NaedaFontFamily,
                     fontSize = 12.sp,
-                    color = OnSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

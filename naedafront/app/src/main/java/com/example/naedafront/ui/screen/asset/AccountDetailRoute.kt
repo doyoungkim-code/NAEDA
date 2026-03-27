@@ -84,7 +84,7 @@ fun AccountDetailRoute(
         }
 
         is AccountDetailUiState.Error -> {
-            Scaffold(containerColor = Background, contentWindowInsets = WindowInsets(0)) { innerPadding ->
+            Scaffold(containerColor = MaterialTheme.colorScheme.background, contentWindowInsets = WindowInsets(0)) { innerPadding ->
                 Box(
                     modifier = Modifier
                         .fillMaxSize()

@@ -24,11 +24,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.naedafront.ui.theme.Background
 import com.example.naedafront.ui.theme.Mint500
 import com.example.naedafront.ui.theme.NaedaFontFamily
-import com.example.naedafront.ui.theme.OnBackground
-import com.example.naedafront.ui.theme.OnSurfaceVariant
 
 private data class FaqItem(
     val question: String,
@@ -83,15 +80,15 @@ fun CustomerCenterScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "뒤로가기",
-                            tint = OnBackground
+                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Background),
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 windowInsets = WindowInsets(0)
             )
         },
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         Column(
@@ -106,7 +103,7 @@ fun CustomerCenterScreen(
             // ── 전화 문의 카드 ──
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(20.dp)
             ) {
                 Row(
@@ -129,7 +126,7 @@ fun CustomerCenterScreen(
                         Icon(
                             imageVector = Icons.Default.Phone,
                             contentDescription = "전화",
-                            tint = Mint500,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -142,7 +139,7 @@ fun CustomerCenterScreen(
                             fontFamily = NaedaFontFamily,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp,
-                            color = OnBackground
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
@@ -150,14 +147,14 @@ fun CustomerCenterScreen(
                             fontFamily = NaedaFontFamily,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Mint500
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "평일 09:00 ~ 18:00 (점심 12:00 ~ 13:00)",
                             fontFamily = NaedaFontFamily,
                             fontSize = 12.sp,
-                            color = OnSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -171,14 +168,14 @@ fun CustomerCenterScreen(
                 fontFamily = NaedaFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp,
-                color = OnBackground
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(20.dp)
             ) {
                 Column {
@@ -187,7 +184,7 @@ fun CustomerCenterScreen(
                         if (index != faqList.lastIndex) {
                             HorizontalDivider(
                                 modifier = Modifier.padding(horizontal = 20.dp),
-                                color = Color(0xFFF1F3F5),
+                                color = MaterialTheme.colorScheme.outlineVariant,
                                 thickness = 1.dp
                             )
                         }
@@ -219,7 +216,7 @@ private fun FaqRow(faq: FaqItem) {
                 fontFamily = NaedaFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
-                color = Mint500
+                color = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
@@ -227,13 +224,13 @@ private fun FaqRow(faq: FaqItem) {
                 fontFamily = NaedaFontFamily,
                 fontWeight = FontWeight.Medium,
                 fontSize = 15.sp,
-                color = OnBackground,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.weight(1f)
             )
             Icon(
                 imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                 contentDescription = if (expanded) "접기" else "펼치기",
-                tint = OnSurfaceVariant,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -243,7 +240,7 @@ private fun FaqRow(faq: FaqItem) {
                 text = faq.answer,
                 fontFamily = NaedaFontFamily,
                 fontSize = 14.sp,
-                color = OnSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 22.sp,
                 modifier = Modifier.padding(top = 12.dp, start = 22.dp)
             )

@@ -16,3 +16,5 @@
 local.properties
 app/build/
 *.hprof
+.gradle-local/
+.gradle-tmp/
