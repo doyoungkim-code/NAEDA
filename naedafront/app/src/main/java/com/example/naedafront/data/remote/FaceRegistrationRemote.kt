@@ -37,7 +37,12 @@ data class ResidentIdExtractResponseDto(
     val residentFront6: String? = null,
     val residentBackFirst1: String? = null,
     val provider: String? = null,
-    val confidence: Double = 0.0
+    val confidence: Double = 0.0,
+    val documentConfidence: Double = 0.0,
+    val nameConfidence: Double = 0.0,
+    val residentNumberConfidence: Double = 0.0,
+    val extractionStatus: String? = null,
+    val warnings: List<String> = emptyList()
 )
 
 data class ResidentIdConfirmRequestBody(

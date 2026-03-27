@@ -116,6 +116,7 @@ data class NoticeItem(
     val content: String = "",
     val date: String,
     val createdRaw: String = "",
+    val scheduleStartRaw: String = "",
     val imageUrl : String?
 )
 
