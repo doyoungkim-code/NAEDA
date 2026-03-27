@@ -106,7 +106,7 @@ fun NoticeListScreen(
                             title = n.title ?: "",
                             content = n.content ?: "",
                             date = created,
-                            createdRaw = n.created ?: "",
+                            createdRaw = n.modified ?: n.created ?: "",
                             scheduleStartRaw = "",
                             imageUrl = null
                         )
@@ -115,7 +115,7 @@ fun NoticeListScreen(
             }
             .onFailure { Log.e("NoticeList", "공지사항 로드 실패: ${it.message}") }
 
-        notices = items
+        notices = items.sortedByDescending { it.createdRaw }
         isLoading = false
     }
 

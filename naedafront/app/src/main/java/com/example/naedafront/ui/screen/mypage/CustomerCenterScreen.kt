@@ -113,7 +113,7 @@ fun CustomerCenterScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:010-0000-0000"))
+                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:010-5191-8793"))
                             context.startActivity(intent)
                         }
                         .padding(20.dp),
@@ -146,7 +146,7 @@ fun CustomerCenterScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "010-0000-0000",
+                            text = "010-5191-8793",
                             fontFamily = NaedaFontFamily,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,

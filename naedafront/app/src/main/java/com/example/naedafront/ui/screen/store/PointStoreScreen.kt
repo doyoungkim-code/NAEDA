@@ -1,5 +1,6 @@
 package com.example.naedafront.ui.screen.store
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,17 +17,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -39,15 +39,18 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import com.example.naedafront.ui.theme.Background
@@ -56,11 +59,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import kotlinx.coroutines.launch
 
 private data class StoreCategory(
     val id: String,
@@ -107,6 +113,8 @@ fun PointStoreScreen(
     var selectedCategory by remember { mutableStateOf("all") }
     var selectedItem by remember { mutableStateOf<StoreItem?>(null) }
     var showInsufficientPointDialog by remember { mutableStateOf(false) }
+    val gridState = rememberLazyGridState()
+    val coroutineScope = rememberCoroutineScope()
 
     val saleItems = uiState.items.filter { it.status == "ON_SALE" }
 
@@ -137,7 +145,35 @@ fun PointStoreScreen(
         }
 
         else -> saleItems
+    }.sortedWith(
+        compareBy<StoreItem> { it.title.trim() }
+            .thenBy { it.brand.trim() }
+    )
+
+    val collapseFraction by remember {
+        derivedStateOf {
+            when {
+                gridState.firstVisibleItemIndex > 0 -> 1f
+                else -> (gridState.firstVisibleItemScrollOffset / 180f).coerceIn(0f, 1f)
+            }
+        }
     }
+    val headerHeight by animateDpAsState(
+        targetValue = lerp(236.dp, 18.dp, collapseFraction),
+        label = "pointStoreHeaderHeight"
+    )
+    val categoryRowVerticalPadding by animateDpAsState(
+        targetValue = if (collapseFraction > 0.5f) 8.dp else 10.dp,
+        label = "pointStoreCategoryRowPadding"
+    )
+    val chipHorizontalPadding by animateDpAsState(
+        targetValue = if (collapseFraction > 0.5f) 16.dp else 20.dp,
+        label = "pointStoreCategoryChipHorizontalPadding"
+    )
+    val chipVerticalPadding by animateDpAsState(
+        targetValue = if (collapseFraction > 0.5f) 9.dp else 12.dp,
+        label = "pointStoreCategoryChipVerticalPadding"
+    )
 
     Box(
         modifier = Modifier
@@ -147,25 +183,39 @@ fun PointStoreScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            PointStoreHeader(
-                walletStatus = uiState.walletStatus,
-                point = uiState.pointBalance,
-                errorMessage = uiState.errorMessage,
-                onHistoryClick = onHistoryClick
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(headerHeight)
+                    .clipToBounds()
+            ) {
+                PointStoreHeader(
+                    walletStatus = uiState.walletStatus,
+                    point = uiState.pointBalance,
+                    errorMessage = uiState.errorMessage,
+                    onHistoryClick = onHistoryClick
+                )
+            }
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .padding(horizontal = 16.dp, vertical = categoryRowVerticalPadding),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 categories.forEach { category ->
                     CategoryChip(
                         text = category.label,
                         selected = selectedCategory == category.id,
-                        onClick = { selectedCategory = category.id }
+                        horizontalPadding = chipHorizontalPadding,
+                        verticalPadding = chipVerticalPadding,
+                        onClick = {
+                            selectedCategory = category.id
+                            coroutineScope.launch {
+                                gridState.scrollToItem(0)
+                            }
+                        }
                     )
                 }
             }
@@ -219,6 +269,7 @@ fun PointStoreScreen(
                 else -> {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
+                        state = gridState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
                             start = 16.dp,
@@ -468,6 +519,8 @@ private fun PointStoreHeader(
 private fun CategoryChip(
     text: String,
     selected: Boolean,
+    horizontalPadding: Dp = 20.dp,
+    verticalPadding: Dp = 12.dp,
     onClick: () -> Unit
 ) {
     val bgColor = if (selected) Color(0xFF006B60) else Color(0xFFECEEF1)
@@ -479,7 +532,7 @@ private fun CategoryChip(
             .clip(RoundedCornerShape(999.dp))
             .background(bgColor)
             .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -534,7 +587,7 @@ private fun ProductCard(
                 Text(
                     text = item.title,
                     color = Color(0xFF101828),
-                    fontSize = 16.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -545,7 +598,7 @@ private fun ProductCard(
                 Text(
                     text = "%,d P".format(item.pricePoint),
                     color = Color(0xFF006B60),
-                    fontSize = 16.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold
                 )
             }
@@ -559,7 +612,8 @@ private fun ProductImage(
     thumbnailLabel: String,
     modifier: Modifier = Modifier,
     badge: String? = null,
-    contentScale: ContentScale = ContentScale.Crop
+    contentScale: ContentScale = ContentScale.Crop,
+    imagePadding: Dp = 0.dp
 ) {
     Box(
         modifier = modifier
@@ -570,7 +624,9 @@ private fun ProductImage(
             AsyncImage(
                 model = imageUrl,
                 contentDescription = thumbnailLabel,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(imagePadding),
                 contentScale = contentScale
             )
         } else {
@@ -649,7 +705,8 @@ private fun StoreItemDetailDialog(
                         .fillMaxWidth()
                         .aspectRatio(1f)
                         .clip(RoundedCornerShape(18.dp)),
-                    contentScale = ContentScale.Fit
+                    contentScale = ContentScale.Fit,
+                    imagePadding = 12.dp
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))

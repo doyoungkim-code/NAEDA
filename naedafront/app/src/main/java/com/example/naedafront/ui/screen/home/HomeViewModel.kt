@@ -205,7 +205,7 @@ class HomeViewModel : ViewModel() {
                             title = n.title ?: "",
                             content = n.content ?: "",
                             date = created,
-                            createdRaw = n.created ?: "",
+                            createdRaw = n.modified ?: n.created ?: "",
                             scheduleStartRaw = "",
                             imageUrl = null
                         )
@@ -316,21 +316,21 @@ private fun PaymentResponse.toTransactionItem(): TransactionItem {
 
 private fun String.formatDateTime(): String {
     return try {
-        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
+        // 마이크로초 제거: "2026-03-20T17:17:41.841531" → "2026-03-20T17:17:41"
+        val trimmed = this.substringBefore(".").let {
+            if (it.length >= 19) it.substring(0, 19) else it
         }
-        val date = inputFormat.parse(this) ?: return this
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+        val date = inputFormat.parse(trimmed) ?: return this
         val cal = Calendar.getInstance().apply { time = date }
 
+        val year = cal.get(Calendar.YEAR)
         val month = cal.get(Calendar.MONTH) + 1
         val day = cal.get(Calendar.DAY_OF_MONTH)
         val hour24 = cal.get(Calendar.HOUR_OF_DAY)
         val minute = cal.get(Calendar.MINUTE)
-        val ampm = if (hour24 < 12) "오전" else "오후"
-        val hour12 = hour24 % 12
-        val displayHour = if (hour12 == 0) 12 else hour12
 
-        "${month}월 ${day}일 $ampm $displayHour:${"%02d".format(minute)}"
+        "${year}.${"%02d".format(month)}.${"%02d".format(day)} ${"%02d".format(hour24)}:${"%02d".format(minute)}"
     } catch (e: Exception) {
         this
     }

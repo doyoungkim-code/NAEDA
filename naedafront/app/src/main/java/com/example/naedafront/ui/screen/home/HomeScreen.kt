@@ -1229,7 +1229,7 @@ private fun SpendingAnalysisCard(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFFF6B35).copy(alpha = 0.15f)),
+                            .background(Color.Black.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Text("🍽️", fontSize = 18.sp)
@@ -1290,7 +1290,7 @@ private fun SpendingAnalysisCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Mint100.copy(alpha = 0.6f))
+                            .background(Color.White.copy(alpha = 0.06f))
                             .padding(horizontal = 12.dp, vertical = 10.dp)
                     ) {
                         Text(
@@ -1387,7 +1387,7 @@ private fun TransactionRow(item: TransactionItem) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(Surface)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 4.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
