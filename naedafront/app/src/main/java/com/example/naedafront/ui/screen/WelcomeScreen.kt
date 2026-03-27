@@ -62,7 +62,7 @@ fun WelcomeScreen(
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            Mint500.copy(alpha = 0.12f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                             MaterialTheme.colorScheme.surface
                         )
                     )
@@ -178,7 +178,7 @@ fun WelcomeScreen(
                         .height(56.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Mint900
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
                     ),
                     elevation = ButtonDefaults.buttonElevation(0.dp)
                 ) {
@@ -207,7 +207,7 @@ fun WelcomeScreen(
                         text = "로그인",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Mint900,
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.clickable { onLoginClick() }
                     )
                 }

@@ -36,24 +36,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.naedafront.ui.theme.Background
 import coil.compose.AsyncImage
 import java.text.NumberFormat
 import java.util.Locale
 
-private val CompletePrimary = Color(0xFF00695C)
+// Theme colors are now accessed via MaterialTheme.colorScheme inside composables
 private val CompleteMint = Color(0xFF20D5BE)
-private val CompleteBg = Background
-private val CompleteBorder = Color(0xFFE3E8EF)
-private val CompleteLabel = Color(0xFF94A3B8)
-private val CompleteText = Color(0xFF111827)
-private val CompleteSubText = Color(0xFF667085)
 
 @Composable
 fun OrderCompleteScreen(
@@ -71,7 +66,7 @@ fun OrderCompleteScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(CompleteBg)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         OrderCompleteTopBar(
             onCloseClick = onCloseClick
@@ -96,7 +91,7 @@ fun OrderCompleteScreen(
 
             Text(
                 text = "상품 준비가 시작되면 배송지 변경이 어려울 수 있습니다.\n문의사항은 고객센터로 연락해 주세요.",
-                color = Color(0xFFB1BAC8),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 lineHeight = 22.sp,
@@ -112,7 +107,7 @@ fun OrderCompleteScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(CompleteBg)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
                 .navigationBarsPadding()
         ) {
@@ -123,7 +118,7 @@ fun OrderCompleteScreen(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = CompletePrimary,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = Color.White
                 )
             ) {
@@ -143,12 +138,12 @@ fun OrderCompleteScreen(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = CompleteText
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface
                 ),
                 border = BorderStroke(
                     width = 1.dp,
-                    color = Color(0xFFDCE3EB)
+                    color = MaterialTheme.colorScheme.outline
                 )
             ) {
                 Text(
@@ -168,7 +163,7 @@ private fun OrderCompleteTopBar(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surface)
             .statusBarsPadding()
     ) {
         Box(
@@ -193,7 +188,7 @@ private fun OrderCompleteTopBar(
 
                 Text(
                     text = "주문 완료",
-                    color = CompleteText,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -208,7 +203,7 @@ private fun OrderCompleteTopBar(
                 Icon(
                     imageVector = Icons.Outlined.Close,
                     contentDescription = "close",
-                    tint = CompleteSubText,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -217,7 +212,7 @@ private fun OrderCompleteTopBar(
         HorizontalDivider(
             modifier = Modifier.align(Alignment.BottomCenter),
             thickness = 1.dp,
-            color = CompleteBorder
+            color = MaterialTheme.colorScheme.outlineVariant
         )
     }
 }
@@ -229,7 +224,7 @@ private fun OrderCompleteSummarySection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 24.dp, vertical = 26.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -237,7 +232,7 @@ private fun OrderCompleteSummarySection(
             modifier = Modifier
                 .size(192.dp)
                 .clip(RoundedCornerShape(18.dp))
-                .background(Color(0xFFF1F5F9)),
+                .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center
         ) {
             if (orderInfo.imageUrl.isNotBlank()) {
@@ -250,7 +245,7 @@ private fun OrderCompleteSummarySection(
             } else {
                 Text(
                     text = orderInfo.thumbnailLabel.ifBlank { "상품" },
-                    color = Color(0xFF9CA3AF),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -270,7 +265,7 @@ private fun OrderCompleteSummarySection(
 
         Text(
             text = orderInfo.productName,
-            color = CompleteText,
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 22.sp,
             fontWeight = FontWeight.ExtraBold
         )
@@ -279,7 +274,7 @@ private fun OrderCompleteSummarySection(
 
         Text(
             text = "주문번호: ${orderInfo.orderNumber}",
-            color = CompleteLabel,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium
         )
@@ -305,7 +300,7 @@ private fun DeliveryInfoSection(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(
@@ -322,7 +317,7 @@ private fun DeliveryInfoSection(
                 ) {
                     Text(
                         text = "주소",
-                        color = CompleteLabel,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -331,7 +326,7 @@ private fun DeliveryInfoSection(
 
                     Text(
                         text = buildAddressText(orderInfo),
-                        color = CompleteText,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
                         lineHeight = 26.sp
@@ -366,7 +361,7 @@ private fun PaymentAmountSection(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(
@@ -378,7 +373,7 @@ private fun PaymentAmountSection(
                 ) {
                     Text(
                         text = "총 결제 금액",
-                        color = CompleteText,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -387,7 +382,7 @@ private fun PaymentAmountSection(
 
                     Text(
                         text = formatWon(orderInfo.totalPaymentAmount),
-                        color = CompleteText,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
@@ -409,7 +404,7 @@ private fun SectionTitle(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = CompleteLabel,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -417,7 +412,7 @@ private fun SectionTitle(
 
         Text(
             text = title,
-            color = CompleteText,
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold
         )
@@ -435,7 +430,7 @@ private fun KeyValueRow(
     ) {
         Text(
             text = label,
-            color = CompleteLabel,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium
         )
@@ -444,7 +439,7 @@ private fun KeyValueRow(
 
         Text(
             text = value,
-            color = CompleteText,
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium
         )

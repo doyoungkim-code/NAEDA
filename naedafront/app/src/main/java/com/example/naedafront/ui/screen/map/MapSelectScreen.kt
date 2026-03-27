@@ -60,6 +60,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -104,9 +105,8 @@ import com.example.naedafront.data.remote.RecommendResponseDto
 import com.example.naedafront.data.remote.StoreMapRepository
 import com.example.naedafront.ui.common.NaedaButton
 import com.example.naedafront.ui.common.NaedaButtonType
-import com.example.naedafront.ui.theme.Background
-import com.example.naedafront.ui.theme.Mint50
 import com.example.naedafront.ui.theme.Mint500
+import com.example.naedafront.ui.theme.Mint900
 import com.example.naedafront.ui.theme.Navy900
 import com.example.naedafront.ui.theme.OnBackground
 import com.example.naedafront.ui.theme.OnSurfaceVariant
@@ -587,7 +587,7 @@ fun MapSelectScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFF3F4F6))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
     ) {
         NaverRestaurantMapScreen(
             stores = filteredMapStores,
@@ -667,8 +667,8 @@ fun MapSelectScreen(
             )
         }
 
-        // 식당 탭 캐릭터
-        if (selectedTabIndex == 0) {
+        // 식당 탭 캐릭터 (상세보기 열려있으면 숨김)
+        if (selectedTabIndex == 0 && selectedStoreDetail == null && selectedStoreCluster.isEmpty()) {
             Image(
                 painter = painterResource(id = R.drawable.map_restaurant),
                 contentDescription = null,
@@ -797,14 +797,14 @@ private fun TopMapHeader(
                     onClick = onBack,
                     modifier = Modifier.size(40.dp),
                     shape = CircleShape,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.surface,
                     shadowElevation = 6.dp
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "뒤로가기",
-                            tint = Color(0xFF30384A)
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -838,13 +838,13 @@ private fun MapRegionGuideHint(
             text = "지역명을 터치해 맛집을 알아보세요!",
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
-            color = Color(0xFF374151)
+            color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = "확대하면 글씨와 지도를 크게 볼 수 있습니다.",
             fontSize = 11.sp,
-            color = Color(0xFF9CA3AF)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -857,7 +857,7 @@ private fun LocationPermissionDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = Background,
+            color = MaterialTheme.colorScheme.background,
             shadowElevation = 16.dp
         ) {
             Column(
@@ -870,13 +870,13 @@ private fun LocationPermissionDialog(
                     modifier = Modifier
                         .size(64.dp)
                         .clip(CircleShape)
-                        .background(Mint50),
+                        .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Filled.MyLocation,
                         contentDescription = null,
-                        tint = Mint500,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(30.dp)
                     )
                 }
@@ -887,14 +887,14 @@ private fun LocationPermissionDialog(
                     text = "내 주변 식당을 바로 찾을게요",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Navy900
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = "현재 위치를 기준으로 식당 지도를 보여주려면 위치 권한이 필요합니다. 허용하면 내 주변 식당으로 지도가 바로 이동합니다.",
-                    color = OnSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 15.sp,
                     lineHeight = 22.sp,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -931,7 +931,7 @@ private fun LocationPermissionHintCard(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(28.dp),
-        color = Background.copy(alpha = 0.96f),
+        color = MaterialTheme.colorScheme.background.copy(alpha = 0.96f),
         shadowElevation = 12.dp
     ) {
         Column(
@@ -942,13 +942,13 @@ private fun LocationPermissionHintCard(
                 modifier = Modifier
                     .size(56.dp)
                     .clip(CircleShape)
-                    .background(Mint50),
+                    .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Filled.MyLocation,
                     contentDescription = null,
-                    tint = Mint500
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
 
@@ -958,14 +958,14 @@ private fun LocationPermissionHintCard(
                 text = "위치 권한이 필요합니다",
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp,
-                color = OnBackground
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = "권한을 허용하면 지금 위치를 기준으로 식당 지도를 바로 보여드립니다.",
-                color = OnSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -993,7 +993,7 @@ private fun StoreMapStatusOverlay(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(28.dp),
-        color = Background.copy(alpha = 0.96f),
+        color = MaterialTheme.colorScheme.background.copy(alpha = 0.96f),
         shadowElevation = 12.dp
     ) {
         Column(
@@ -1001,7 +1001,7 @@ private fun StoreMapStatusOverlay(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             CircularProgressIndicator(
-                color = Mint500,
+                color = MaterialTheme.colorScheme.primary,
                 strokeWidth = 3.dp,
                 modifier = Modifier.size(32.dp)
             )
@@ -1012,14 +1012,14 @@ private fun StoreMapStatusOverlay(
                 text = title,
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp,
-                color = OnBackground
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = message,
-                color = OnSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -1045,14 +1045,14 @@ private fun CurrentLocationFab(
         onClick = onClick,
         modifier = modifier.size(56.dp),
         shape = CircleShape,
-        color = Background.copy(alpha = 0.96f),
+        color = MaterialTheme.colorScheme.background.copy(alpha = 0.96f),
         shadowElevation = 12.dp
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 imageVector = Icons.Filled.GpsFixed,
                 contentDescription = "현재 위치로 이동",
-                tint = Mint500,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp)
             )
         }
@@ -1071,7 +1071,7 @@ private fun StoreMapFilterButton(
         onClick = onClick,
         modifier = modifier,
         shape = RoundedCornerShape(24.dp),
-        color = if (isActive) Mint500 else Background.copy(alpha = 0.96f),
+        color = if (isActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
         shadowElevation = 12.dp
     ) {
         Row(
@@ -1082,12 +1082,12 @@ private fun StoreMapFilterButton(
             Icon(
                 imageVector = Icons.Outlined.Tune,
                 contentDescription = "지도 필터",
-                tint = if (isActive) Color.White else Navy900,
+                tint = if (isActive) Color.White else MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(18.dp)
             )
             Text(
                 text = if (isActive) "필터 $activeFilterCount" else "필터",
-                color = if (isActive) Color.White else Navy900,
+                color = if (isActive) Color.White else MaterialTheme.colorScheme.onSurface,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -1129,7 +1129,7 @@ private fun StoreMapFilterDialog(
                     .fillMaxWidth()
                     .heightIn(max = maxHeight * 0.92f),
                 shape = RoundedCornerShape(28.dp),
-                color = Background,
+                color = MaterialTheme.colorScheme.background,
                 shadowElevation = 16.dp
             ) {
                 Box(
@@ -1152,18 +1152,18 @@ private fun StoreMapFilterDialog(
                                     text = "지도 필터",
                                     fontSize = 22.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Navy900
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                             Surface(
                                 onClick = { onApply(pendingState) },
                                 shape = RoundedCornerShape(16.dp),
-                                color = Mint500
+                                color = MaterialTheme.colorScheme.primaryContainer
                             ) {
                                 Text(
                                     text = "확인",
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -1178,13 +1178,13 @@ private fun StoreMapFilterDialog(
                         ) {
                             StoreMapFilterSummaryChip(
                                 text = "카테고리 · $selectedCategoryLabel",
-                                background = Color(0xFFF3F4FF),
-                                contentColor = Color(0xFF4C51BF)
+                                background = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                             StoreMapFilterSummaryChip(
                                 text = facePayFilterLabel,
-                                background = if (facePayOnly) Color(0xFFE7F6EF) else Color(0xFFF8FAFC),
-                                contentColor = if (facePayOnly) Mint500 else Navy900
+                                background = if (facePayOnly) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = if (facePayOnly) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                             )
                             if (pendingState != StoreMapFilterState()) {
                                 StoreMapFilterActionChip(
@@ -1198,7 +1198,7 @@ private fun StoreMapFilterDialog(
 
                         Surface(
                             shape = RoundedCornerShape(22.dp),
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.surface
                         ) {
                             Column(
                                 modifier = Modifier
@@ -1215,7 +1215,7 @@ private fun StoreMapFilterDialog(
                                             text = "카테고리",
                                             fontSize = 15.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = OnBackground
+                                            color = MaterialTheme.colorScheme.onBackground
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                     }
@@ -1230,8 +1230,8 @@ private fun StoreMapFilterDialog(
                                             .onSizeChanged { categoryFieldWidth = it.width },
                                         onClick = { categoryDropdownExpanded = !categoryDropdownExpanded },
                                         shape = RoundedCornerShape(18.dp),
-                                        color = Color.White,
-                                        border = BorderStroke(1.dp, Mint500)
+                                        color = MaterialTheme.colorScheme.surface,
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
                                     ) {
                                         Row(
                                             modifier = Modifier
@@ -1245,14 +1245,14 @@ private fun StoreMapFilterDialog(
                                                     text = "카테고리 선택",
                                                     fontSize = 11.sp,
                                                     fontWeight = FontWeight.SemiBold,
-                                                    color = OnSurfaceVariant
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                                 Spacer(modifier = Modifier.height(3.dp))
                                                 Text(
                                                     text = selectedCategoryLabel,
                                                     fontSize = 15.sp,
                                                     fontWeight = FontWeight.SemiBold,
-                                                    color = Navy900
+                                                    color = MaterialTheme.colorScheme.onSurface
                                                 )
                                             }
 
@@ -1260,7 +1260,7 @@ private fun StoreMapFilterDialog(
                                                 text = if (categoryDropdownExpanded) "▴" else "▾",
                                                 fontSize = 16.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Mint500
+                                                color = MaterialTheme.colorScheme.primary
                                             )
                                         }
                                     }
@@ -1271,7 +1271,7 @@ private fun StoreMapFilterDialog(
                                         modifier = Modifier
                                             .heightIn(max = 288.dp)
                                             .width(with(density) { categoryFieldWidth.toDp() })
-                                            .background(Color.White)
+                                            .background(MaterialTheme.colorScheme.surface)
                                     ) {
                                         StoreMapFilterDropdownItem(
                                             label = "전체",
@@ -1300,7 +1300,7 @@ private fun StoreMapFilterDialog(
 
                         Surface(
                             shape = RoundedCornerShape(22.dp),
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.surface
                         ) {
                             Column(
                                 modifier = Modifier
@@ -1316,14 +1316,20 @@ private fun StoreMapFilterDialog(
                                             text = "페이스페이 매장만 보기",
                                             fontSize = 15.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = OnBackground
+                                            color = MaterialTheme.colorScheme.onBackground
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                     }
 
                                     Switch(
                                         checked = facePayOnly,
-                                        onCheckedChange = { facePayOnly = it }
+                                        onCheckedChange = { facePayOnly = it },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = Color.White,
+                                            checkedTrackColor = Mint900,
+                                            uncheckedThumbColor = Color.White,
+                                            uncheckedTrackColor = MaterialTheme.colorScheme.outline
+                                        )
                                     )
                                 }
                             }
@@ -1364,14 +1370,14 @@ private fun StoreMapFilterActionChip(
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(14.dp))
-            .background(Color.White)
-            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 7.dp)
     ) {
         Text(
             text = text,
-            color = Navy900,
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold
         )
@@ -1385,11 +1391,11 @@ private fun StoreMapFilterDropdownItem(
     onClick: () -> Unit
 ) {
     DropdownMenuItem(
-        modifier = Modifier.background(if (selected) Mint50 else Color.White),
+        modifier = Modifier.background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface),
         text = {
             Text(
                 text = label,
-                color = if (selected) Mint500 else Navy900,
+                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                 fontSize = 14.sp,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
             )
@@ -1407,8 +1413,8 @@ private fun SegmentedTabs(
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(24.dp))
-            .background(Color.White)
-            .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(24.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
             .padding(4.dp)
     ) {
         items.forEachIndexed { index, label ->
@@ -1423,7 +1429,7 @@ private fun SegmentedTabs(
             ) {
                 Text(
                     text = label,
-                    color = if (selected) Color.White else Color(0xFF8A94A6),
+                    color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -1445,7 +1451,7 @@ private fun BottomStoreSheet(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        color = Color(0xFFF7F7F8),
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 14.dp
     ) {
         Column(
@@ -1465,7 +1471,7 @@ private fun BottomStoreSheet(
                         .width(48.dp)
                         .height(5.dp)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(Color(0xFFD1D5DB))
+                        .background(MaterialTheme.colorScheme.outline)
                 )
             }
 
@@ -1478,7 +1484,7 @@ private fun BottomStoreSheet(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "${region.label} 맛집 리스트",
-                        color = Color(0xFF1F2937),
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -1495,7 +1501,7 @@ private fun BottomStoreSheet(
 
                 Text(
                     text = "총 ${totalCount}개",
-                    color = Color(0xFF94A3B8),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -1556,7 +1562,7 @@ private fun RecommendBottomSheet(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        color = Color(0xFFF7F7F8),
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 14.dp
     ) {
         Column(
@@ -1576,7 +1582,7 @@ private fun RecommendBottomSheet(
                         .width(48.dp)
                         .height(5.dp)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(Color(0xFFD1D5DB))
+                        .background(MaterialTheme.colorScheme.outline)
                 )
             }
 
@@ -1589,7 +1595,7 @@ private fun RecommendBottomSheet(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "$regionLabel 맛집 리스트",
-                        color = Color(0xFF1F2937),
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -1606,7 +1612,7 @@ private fun RecommendBottomSheet(
 
                 Text(
                     text = "총 ${filteredStores.size}개",
-                    color = Color(0xFF94A3B8),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -1671,7 +1677,7 @@ private fun RecommendBottomSheet(
                                 Text(
                                     text = if (selectedCategory != null) "해당 카테고리의 맛집이 없습니다."
                                            else "이 지역에 등록된 맛집이 없습니다.",
-                                    color = Color(0xFF94A3B8),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontSize = 14.sp
                                 )
                             }
@@ -1706,8 +1712,8 @@ private fun CategoryFilterChip(
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
-            .background(if (selected) Color(0xFF5B5CEB) else Color.White)
-            .border(1.dp, if (selected) Color(0xFF5B5CEB) else Color(0xFFD1D5DB), RoundedCornerShape(20.dp))
+            .background(if (selected) Color(0xFF5B5CEB) else MaterialTheme.colorScheme.surface)
+            .border(1.dp, if (selected) Color(0xFF5B5CEB) else MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 7.dp)
     ) {
@@ -1715,7 +1721,7 @@ private fun CategoryFilterChip(
             text = label,
             fontSize = 13.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = if (selected) Color.White else Color(0xFF4B5563)
+            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -1770,7 +1776,7 @@ private fun RecommendStoreRow(
                     fontSize = 17.sp,
                     lineHeight = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF222B45),
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1789,14 +1795,14 @@ private fun RecommendStoreRow(
                         text = String.format("%.1f", store.rating),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF475569)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     if (!store.categoryName.isNullOrBlank()) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "· ${toMapCategoryLabel(store.categoryName)}",
                             fontSize = 14.sp,
-                            color = Color(0xFF64748B)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -1811,14 +1817,14 @@ private fun RecommendStoreRow(
                         Text(
                             text = "방문 ${store.visitCount}회",
                             fontSize = 13.sp,
-                            color = Color(0xFF64748B)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     if (!store.roadAddress.isNullOrBlank()) {
                         Text(
                             text = store.roadAddress,
                             fontSize = 13.sp,
-                            color = Color(0xFF94A3B8),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -1828,7 +1834,7 @@ private fun RecommendStoreRow(
         }
 
         Spacer(modifier = Modifier.height(14.dp))
-        HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
     }
 }
 
@@ -1876,7 +1882,7 @@ private fun StoreListRow(
                     fontSize = 17.sp,
                     lineHeight = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF222B45),
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1895,18 +1901,18 @@ private fun StoreListRow(
                         text = "4.8",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF475569)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = " (1,204)",
                         fontSize = 14.sp,
-                        color = Color(0xFF94A3B8)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "· ${restaurant.category}",
                         fontSize = 14.sp,
-                        color = Color(0xFF64748B)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -1923,7 +1929,7 @@ private fun StoreListRow(
                             Text(
                                 text = tag,
                                 fontSize = 13.sp,
-                                color = Color(0xFF64748B)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -1932,7 +1938,7 @@ private fun StoreListRow(
         }
 
         Spacer(modifier = Modifier.height(14.dp))
-        HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
     }
 }
 
@@ -1995,7 +2001,7 @@ private fun PopularRestaurantMapTab(
         Box(
             modifier = modifier
                 .fillMaxSize()
-                .background(Color(0xFFF3F4F6))
+                .background(Color(0xFFFCFFFF))
                 .clickable(
                 indication = null,
                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }

@@ -28,15 +28,8 @@ import com.example.naedafront.data.remote.AssetRepository
 import com.example.naedafront.data.remote.CardProductResponse
 import com.example.naedafront.data.remote.CardRegisterRequest
 import com.example.naedafront.data.remote.AssetAccountResponse
-import com.example.naedafront.ui.theme.Mint50
 import com.example.naedafront.ui.theme.Mint900
 import com.example.naedafront.ui.theme.NaedaTypography
-import com.example.naedafront.ui.theme.OnBackground
-import com.example.naedafront.ui.theme.OnSurfaceVariant
-import com.example.naedafront.ui.theme.Outline
-import com.example.naedafront.ui.theme.OutlineVariant
-import com.example.naedafront.ui.theme.Surface
-import com.example.naedafront.ui.theme.SurfaceVariant
 import kotlinx.coroutines.launch
 
 // ─────────────────────────────────────────────
@@ -54,7 +47,7 @@ fun RegisterAssetScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Surface)
+            .background(MaterialTheme.colorScheme.surface)
     ) {
         Row(
             modifier = Modifier
@@ -66,18 +59,18 @@ fun RegisterAssetScreen(
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "닫기",
-                    tint = OnSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Text(
                 text = title,
                 style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = OnBackground,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.weight(1f)
             )
         }
 
-        HorizontalDivider(color = OutlineVariant, thickness = 0.5.dp)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
 
         if (initialTab == 0) {
             AccountInfoContent()
@@ -102,7 +95,7 @@ fun RegisterAssetDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(24.dp),
-            color = Surface,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 8.dp,
             modifier = Modifier
                 .fillMaxWidth()
@@ -119,19 +112,19 @@ fun RegisterAssetDialog(
                     Text(
                         text = title,
                         style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = OnBackground,
+                        color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.weight(1f)
                     )
                     IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "닫기",
-                            tint = OnSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
-                HorizontalDivider(color = OutlineVariant, thickness = 0.5.dp)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
 
                 if (initialTab == 0) {
                     AccountInfoContent()
@@ -163,7 +156,7 @@ private fun AccountInfoContent() {
         Text(
             text = "새 계좌를 추가하려면 SSAFY 금융 시스템에서\n계좌를 개설한 후 앱을 새로고침 해주세요.",
             style = NaedaTypography.bodySmall,
-            color = OnSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             lineHeight = 20.sp
         )
     }
@@ -215,7 +208,7 @@ private fun CardRegisterForm(onRegisterComplete: () -> Unit) {
 
     if (isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = Mint900)
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         }
         return
     }
@@ -229,12 +222,12 @@ private fun CardRegisterForm(onRegisterComplete: () -> Unit) {
             Text(
                 text = loadError!!,
                 style = NaedaTypography.bodyMedium,
-                color = OnSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(12.dp))
             Button(
                 onClick = { loadTick++ },
-                colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White)
             ) {
                 Text("다시 시도")
             }
@@ -253,7 +246,7 @@ private fun CardRegisterForm(onRegisterComplete: () -> Unit) {
         Text(
             text = "카드 상품을 선택하고\n결제 정보를 입력해주세요",
             style = NaedaTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
-            color = OnBackground,
+            color = MaterialTheme.colorScheme.onBackground,
             lineHeight = 24.sp
         )
 
@@ -279,7 +272,7 @@ private fun CardRegisterForm(onRegisterComplete: () -> Unit) {
             Text(
                 text = "유형: ${selectedProduct!!.cardTypeName ?: if (selectedProduct!!.cardTypeCode == "1") "신용카드" else "체크카드"}",
                 style = NaedaTypography.labelSmall,
-                color = Mint900
+                color = MaterialTheme.colorScheme.primary
             )
         }
 
@@ -355,8 +348,8 @@ private fun CardRegisterForm(onRegisterComplete: () -> Unit) {
                 .height(54.dp),
             shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Mint900,
-                disabledContainerColor = Outline,
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                disabledContainerColor = MaterialTheme.colorScheme.outline,
                 contentColor = Color.White,
                 disabledContentColor = Color.White
             )
@@ -389,7 +382,7 @@ private fun FieldLabel(text: String) {
     Text(
         text = text,
         style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-        color = OnBackground
+        color = MaterialTheme.colorScheme.onBackground
     )
 }
 
@@ -409,8 +402,8 @@ private fun InlineDropdown(
                 .fillMaxWidth()
                 .height(52.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(SurfaceVariant)
-                .border(1.dp, if (expanded) Mint900 else if (isEmpty) OutlineVariant else Mint900, RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .border(1.dp, if (expanded) MaterialTheme.colorScheme.primary else if (isEmpty) MaterialTheme.colorScheme.outlineVariant else MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
                 .clickable { onExpandChange(!expanded) }
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -419,13 +412,13 @@ private fun InlineDropdown(
             Text(
                 text = if (isEmpty) placeholder else value,
                 style = NaedaTypography.bodyMedium,
-                color = if (isEmpty) OnSurfaceVariant else OnBackground,
+                color = if (isEmpty) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.weight(1f)
             )
             Icon(
                 imageVector = Icons.Default.ArrowDropDown,
                 contentDescription = null,
-                tint = OnSurfaceVariant
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -434,7 +427,7 @@ private fun InlineDropdown(
             onDismissRequest = { onExpandChange(false) },
             modifier = Modifier
                 .fillMaxWidth(0.85f)
-                .background(Surface)
+                .background(MaterialTheme.colorScheme.surface)
         ) {
             items.forEachIndexed { index, item ->
                 DropdownMenuItem(
@@ -442,14 +435,14 @@ private fun InlineDropdown(
                         Text(
                             text = item,
                             style = NaedaTypography.bodyMedium,
-                            color = OnBackground
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                     },
                     onClick = { onSelect(index) }
                 )
                 if (index < items.lastIndex) {
                     HorizontalDivider(
-                        color = OutlineVariant,
+                        color = MaterialTheme.colorScheme.outlineVariant,
                         thickness = 0.5.dp,
                         modifier = Modifier.padding(horizontal = 8.dp)
                     )
@@ -465,19 +458,19 @@ private fun InfoBox(text: String) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(Mint50)
+            .background(MaterialTheme.colorScheme.primaryContainer)
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Text(
             text = "ⓘ",
             style = NaedaTypography.labelSmall,
-            color = Mint900
+            color = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = text,
             style = NaedaTypography.labelSmall,
-            color = Mint900,
+            color = MaterialTheme.colorScheme.primary,
             lineHeight = 18.sp
         )
     }

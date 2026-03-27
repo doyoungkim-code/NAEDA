@@ -47,10 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.naedafront.data.repository.NoticeRepository
-import com.example.naedafront.ui.theme.Background
 import com.example.naedafront.ui.theme.Mint900
-import com.example.naedafront.ui.theme.OnBackground
-import com.example.naedafront.ui.theme.Surface
 
 private enum class NoticeSortOption(val label: String) {
     REGISTERED("등록순"),
@@ -138,12 +135,12 @@ fun NoticeListScreen(
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Background
+                    containerColor = MaterialTheme.colorScheme.background
                 ),
                 windowInsets = WindowInsets(0)
             )
         },
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
         if (isLoading) {
@@ -156,7 +153,7 @@ fun NoticeListScreen(
                 Text(
                     text = "불러오는 중...",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = OnBackground.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                 )
             }
         } else if (notices.isEmpty()) {
@@ -169,7 +166,7 @@ fun NoticeListScreen(
                 Text(
                     text = "등록된 소식이 없습니다.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = OnBackground.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                 )
             }
         } else {
@@ -267,7 +264,7 @@ private fun NoticeListItem(
             .fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Surface),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -294,7 +291,7 @@ private fun NoticeListItem(
                 Text(
                     text = notice.date,
                     style = MaterialTheme.typography.labelSmall,
-                    color = OnBackground.copy(alpha = 0.45f)
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
                 )
             }
 
@@ -305,7 +302,7 @@ private fun NoticeListItem(
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.SemiBold
                 ),
-                color = OnBackground,
+                color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
@@ -315,7 +312,7 @@ private fun NoticeListItem(
                 Text(
                     text = notice.content,
                     style = MaterialTheme.typography.bodySmall,
-                    color = OnBackground.copy(alpha = 0.55f),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )

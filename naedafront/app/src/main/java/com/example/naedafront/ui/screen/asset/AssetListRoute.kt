@@ -31,7 +31,6 @@ import com.example.naedafront.data.remote.AssetCardResponse
 import com.example.naedafront.data.remote.AssetPayMethodResponse
 import com.example.naedafront.data.remote.AssetRepository
 import com.example.naedafront.ui.common.LoadingIndicator
-import com.example.naedafront.ui.theme.Background
 import kotlinx.coroutines.launch
 
 private sealed interface AssetListUiState {
@@ -125,7 +124,7 @@ fun AccountListRoute(
         }
 
         is AssetListUiState.Error -> {
-            Scaffold(containerColor = Background, contentWindowInsets = WindowInsets(0)) { innerPadding ->
+            Scaffold(containerColor = MaterialTheme.colorScheme.background, contentWindowInsets = WindowInsets(0)) { innerPadding ->
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
