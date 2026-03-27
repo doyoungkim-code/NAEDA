@@ -2,6 +2,7 @@ package com.ssafy.naeda.domain.user.service;
 
 import com.ssafy.naeda.domain.face.exception.FaceException;
 import com.ssafy.naeda.domain.face.service.FaceRegistrationSessionService;
+import com.ssafy.naeda.domain.identity.service.ResidentIdVerificationSessionService;
 import com.ssafy.naeda.domain.pay.dto.request.PayLimitRequest;
 import com.ssafy.naeda.domain.pay.service.PayLimitService;
 import com.ssafy.naeda.domain.pay.service.PayMethodService;
@@ -25,6 +26,7 @@ public class FacePaySettingsService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final FaceRegistrationSessionService faceRegistrationSessionService;
+    private final ResidentIdVerificationSessionService residentIdVerificationSessionService;
     private final PayMethodService payMethodService;
     private final PayLimitService payLimitService;
 
@@ -45,6 +47,9 @@ public class FacePaySettingsService {
         boolean hasPendingRegistration = faceRegistrationSessionService.hasActiveSession(userId);
         if (hasPendingRegistration) {
             validateRegistrationRequest(request);
+            if (!residentIdVerificationSessionService.isConfirmed(userId)) {
+                throw new BadRequestException("신분증 확인을 먼저 완료해주세요.");
+            }
             if (!faceRegistrationSessionService.isRegistrationReady(userId)) {
                 throw new FaceException(com.ssafy.naeda.domain.face.exception.FaceErrorCode.REGISTRATION_INCOMPLETE);
             }
@@ -63,6 +68,7 @@ public class FacePaySettingsService {
 
         if (hasPendingRegistration) {
             faceRegistrationSessionService.clearSession(userId);
+            residentIdVerificationSessionService.clearSession(userId);
         }
 
         String message = enableSecondaryAuth

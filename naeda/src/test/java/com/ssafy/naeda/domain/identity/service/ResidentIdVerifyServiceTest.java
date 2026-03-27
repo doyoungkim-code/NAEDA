@@ -20,8 +20,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class ResidentIdVerifyServiceTest {
@@ -37,6 +39,9 @@ class ResidentIdVerifyServiceTest {
 
     @Mock
     private FaceInputValidator faceInputValidator;
+
+    @Mock
+    private ResidentIdVerificationSessionService residentIdVerificationSessionService;
 
     @Test
     @DisplayName("OCR 추출 결과를 그대로 확인 화면에 전달한다")
@@ -57,6 +62,7 @@ class ResidentIdVerifyServiceTest {
         given(residentIdOcrClient.extractResidentId(any())).willReturn(response);
 
         ResidentIdExtractResponse result = residentIdVerifyService.extract(
+                "user-1",
                 new MockMultipartFile("image", "card.jpg", "image/jpeg", new byte[]{1, 2, 3})
         );
 
@@ -72,11 +78,13 @@ class ResidentIdVerifyServiceTest {
         assertThat(result.getResidentNumberConfidence()).isEqualTo(0.97d);
         assertThat(result.getExtractionStatus()).isEqualTo("REVIEW_REQUIRED");
         assertThat(result.getWarnings()).containsExactly("이름 인식 신뢰도가 낮습니다.");
+        verify(residentIdVerificationSessionService).recordExtraction("user-1", true);
     }
 
     @Test
     @DisplayName("이름과 주민번호 7자리가 모두 일치하면 확인 성공")
     void confirm_success() {
+        given(residentIdVerificationSessionService.hasActiveExtraction("user-1")).willReturn(true);
         given(userRepository.findByUserId("user-1")).willReturn(Optional.of(
                 User.builder()
                         .userId("user-1")
@@ -96,11 +104,13 @@ class ResidentIdVerifyServiceTest {
         assertThat(result.isNameMatched()).isTrue();
         assertThat(result.isResidentNoMatched()).isTrue();
         assertThat(result.getNextAction()).isEqualTo("CONTINUE_FACEPAY_REGISTRATION");
+        verify(residentIdVerificationSessionService).markConfirmed("user-1");
     }
 
     @Test
     @DisplayName("주민번호 7자리가 불일치하면 재입력 응답")
     void confirm_residentNoMismatch() {
+        given(residentIdVerificationSessionService.hasActiveExtraction("user-1")).willReturn(true);
         given(userRepository.findByUserId("user-1")).willReturn(Optional.of(
                 User.builder()
                         .userId("user-1")
@@ -120,6 +130,17 @@ class ResidentIdVerifyServiceTest {
         assertThat(result.isNameMatched()).isTrue();
         assertThat(result.isResidentNoMatched()).isFalse();
         assertThat(result.getNextAction()).isEqualTo("RETRY_CONFIRM");
+        verify(residentIdVerificationSessionService).resetConfirmation("user-1");
+    }
+
+    @Test
+    @DisplayName("OCR 추출 세션이 없으면 확인 단계로 진행할 수 없다")
+    void confirm_requiresRecentOcrExtraction() {
+        given(residentIdVerificationSessionService.hasActiveExtraction("user-1")).willReturn(false);
+
+        assertThatThrownBy(() -> residentIdVerifyService.confirm("user-1", request("홍길동", "900101", "1")))
+                .isInstanceOf(com.ssafy.naeda.global.exception.BadRequestException.class)
+                .hasMessage("OCR로 인식한 신분증 정보를 먼저 확인해주세요.");
     }
 
     private static ResidentIdConfirmRequest request(String name, String front6, String back1) {

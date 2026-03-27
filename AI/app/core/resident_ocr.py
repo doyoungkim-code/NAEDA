@@ -34,11 +34,16 @@ NAME_STOPWORDS = (
     "세대주", "세대원", "보통", "대형", "소형", "특수", "원동기",
     "종보통", "종대형", "종소형", "면허번호", "적성검사",
 )
-RESIDENT_NUMBER_PATTERNS = (
-    r"(\d{6})\s*[-\-ㅡ—~]?\s*([1-4])[\d\*xX●•Oo]{6}",
-    r"(\d{6})\s*[-\-ㅡ—~]?\s*([1-4])",
+RESIDENT_NUMBER_FULL_PATTERNS = (
+    r"(?<!\d)(\d{6})\s*[-\-ㅡ—~]?\s*([1-4])[\d\*xX●•Oo]{6}(?!\d)",
+)
+RESIDENT_NUMBER_SHORT_PATTERNS = (
+    r"(?<!\d)(\d{6})\s*[-\-ㅡ—~]?\s*([1-4])(?!\d)",
 )
 NAME_DIRECT_RE = re.compile(r"(?:성명|이름)\s*[:：]?\s*([가-힣\s]{2,10})")
+DRIVER_LICENSE_NUMBER_RE = re.compile(
+    r"(?<!\d)\d{2}\s*[-\-ㅡ—~]\s*\d{2}\s*[-\-ㅡ—~]\s*\d{6}\s*[-\-ㅡ—~]\s*\d{2}(?!\d)"
+)
 SUCCESS = "SUCCESS"
 REVIEW_REQUIRED = "REVIEW_REQUIRED"
 RETAKE_REQUIRED = "RETAKE_REQUIRED"
@@ -62,7 +67,28 @@ def _is_name_piece(value: str) -> bool:
 
 
 def _has_resident_number(text: str) -> bool:
-    return any(re.search(p, text or "") for p in RESIDENT_NUMBER_PATTERNS)
+    return any(re.search(p, text or "") for p in (*RESIDENT_NUMBER_FULL_PATTERNS, *RESIDENT_NUMBER_SHORT_PATTERNS))
+
+
+def _looks_like_driver_license_number(text: str) -> bool:
+    compact = _strip(text)
+    return "면허번호" in compact or bool(DRIVER_LICENSE_NUMBER_RE.search(compact))
+
+
+def _allows_short_resident_number(text: str) -> bool:
+    compact = _strip(text)
+    if _looks_like_driver_license_number(compact):
+        return False
+    digit_count = sum(ch.isdigit() for ch in compact)
+    return digit_count <= 7
+
+
+def _match_resident_number(text: str, patterns: tuple[str, ...]) -> tuple[str | None, str | None]:
+    for pattern in patterns:
+        m = re.search(pattern, text or "")
+        if m:
+            return m.group(1), m.group(2)
+    return None, None
 
 
 # ── 이미지 처리 ───────────────────────────────────────────────────────
@@ -185,20 +211,37 @@ def _detect_doc_type(entries: list[dict[str, Any]]) -> tuple[str | None, float]:
 
 # ── 주민번호 추출 ─────────────────────────────────────────────────────
 def _extract_resident_number(entries: list[dict[str, Any]]) -> tuple[str | None, str | None, float]:
-    # 개별 entry에서 먼저 시도
+    # 1. 개별 entry에서 주민번호 전체(13자리/마스킹 포함) 패턴 우선 추출
     for entry in entries:
-        for pattern in RESIDENT_NUMBER_PATTERNS:
-            m = re.search(pattern, entry["text"])
-            if m:
-                return m.group(1), m.group(2), min(0.99, 0.6 + entry["conf"] * 0.35)
+        front6, back1 = _match_resident_number(entry["text"], RESIDENT_NUMBER_FULL_PATTERNS)
+        if front6 and back1:
+            return front6, back1, min(0.99, 0.6 + entry["conf"] * 0.35)
 
-    # 전체 텍스트 합쳐서 시도
+    # 2. 전체 텍스트를 합쳐서 주민번호 전체 패턴 추출
     joined = " ".join(e["text"] for e in entries)
-    for pattern in RESIDENT_NUMBER_PATTERNS:
-        m = re.search(pattern, joined)
-        if m:
-            avg_conf = sum(e["conf"] for e in entries) / max(1, len(entries))
-            return m.group(1), m.group(2), min(0.9, 0.5 + avg_conf * 0.3)
+    front6, back1 = _match_resident_number(joined, RESIDENT_NUMBER_FULL_PATTERNS)
+    if front6 and back1:
+        avg_conf = sum(e["conf"] for e in entries) / max(1, len(entries))
+        return front6, back1, min(0.9, 0.5 + avg_conf * 0.3)
+
+    # 3. 짧은 패턴은 문맥이 짧고 면허번호 형식이 아닌 경우에만 허용
+    for entry in entries:
+        if not _allows_short_resident_number(entry["text"]):
+            continue
+        front6, back1 = _match_resident_number(entry["text"], RESIDENT_NUMBER_SHORT_PATTERNS)
+        if front6 and back1:
+            return front6, back1, min(0.95, 0.55 + entry["conf"] * 0.35)
+
+    for window_size in (2, 3, 4):
+        for start in range(0, max(0, len(entries) - window_size + 1)):
+            window = entries[start:start + window_size]
+            window_text = " ".join(e["text"] for e in window)
+            if not _allows_short_resident_number(window_text):
+                continue
+            front6, back1 = _match_resident_number(window_text, RESIDENT_NUMBER_SHORT_PATTERNS)
+            if front6 and back1:
+                avg_conf = sum(e["conf"] for e in window) / len(window)
+                return front6, back1, min(0.88, 0.45 + avg_conf * 0.3)
 
     return None, None, 0.0
 

@@ -55,6 +55,14 @@ dist/
 build/
 out/
 target/
+.gradle/
+**/.gradle/
+.gradle-user-home/
+**/.gradle-user-home/
+.android/
+**/.android/
+.kotlin/
+**/.kotlin/
 
 # Logs
 *.log

@@ -1942,7 +1942,14 @@ private fun IdCardScanningStageContent(
                     }
 
                     val assessment = assessResidentIdExtract(extracted)
-                    val displayExtract = if (!assessment.canProceed && extracted.warnings.isEmpty()) {
+                    if (!assessment.canProceed) {
+                        val message = assessment.warningMessage ?: assessment.statusMessage
+                        blockUntilGuideChanges(message, IdScanFailureReason.OCR_RETAKE)
+                        onError(message)
+                        return@onSuccess
+                    }
+
+                    val displayExtract = if (assessment.requiresReview && extracted.warnings.isEmpty()) {
                         extracted.copy(
                             extractionStatus = OCR_STATUS_REVIEW_REQUIRED,
                             warnings = listOf(assessment.warningMessage ?: assessment.statusMessage)
@@ -3780,34 +3787,39 @@ private fun assessResidentIdExtract(extracted: ResidentIdExtractResponseDto): Id
     val hasName = !extracted.name.isNullOrBlank()
     val status = extracted.extractionStatus?.trim()?.uppercase().orEmpty()
     val firstWarning = extracted.warnings.firstOrNull { it.isNotBlank() }
-    val hasDocumentType = !extracted.documentType.isNullOrBlank()
-    val hasCoreIdentity = hasResidentNumber || (hasName && hasDocumentType)
+    val hasSupportedDocument = extracted.documentMatched && !extracted.documentType.isNullOrBlank()
 
-    if (!extracted.documentMatched && !hasDocumentType && !hasCoreIdentity) {
+    if (!hasSupportedDocument) {
         return IdCaptureAssessment(
             canProceed = false,
             requiresReview = false,
-            statusMessage = "주민등록증 또는 운전면허증이 가이드 안에 또렷하게 보이도록 맞춰주세요.",
+            statusMessage = firstWarning ?: "주민등록증 또는 운전면허증이 가이드 안에 또렷하게 보이도록 맞춰주세요.",
             key = null,
             warningMessage = firstWarning
         )
     }
 
-    if (status == OCR_STATUS_RETAKE_REQUIRED && !hasCoreIdentity) {
+    if (!hasName) {
         return IdCaptureAssessment(
             canProceed = false,
             requiresReview = false,
-            statusMessage = firstWarning ?: "주민등록번호가 잘 보이도록 신분증을 더 가까이 맞춰주세요.",
+            statusMessage = firstWarning ?: "이름을 인식하지 못했습니다. 신분증을 더 또렷하게 맞춰주세요.",
+            key = null,
+            warningMessage = firstWarning
+        )
+    }
+
+    if (!hasResidentNumber || status == OCR_STATUS_RETAKE_REQUIRED) {
+        return IdCaptureAssessment(
+            canProceed = false,
+            requiresReview = false,
+            statusMessage = firstWarning ?: "주민등록번호 앞 6자리와 뒤 1자리가 보이도록 다시 촬영해 주세요.",
             key = null,
             warningMessage = firstWarning
         )
     }
 
     val requiresReview = status == OCR_STATUS_REVIEW_REQUIRED ||
-            status == OCR_STATUS_RETAKE_REQUIRED ||
-            !hasName ||
-            !hasResidentNumber ||
-            !hasDocumentType ||
             extracted.warnings.isNotEmpty() ||
             (hasName && extracted.nameConfidence in 0.0..0.779)
 

@@ -17,6 +17,7 @@ import org.springframework.mock.web.MockMultipartFile;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,7 +35,8 @@ class ResidentIdVerifyControllerTest {
     @Test
     @DisplayName("OCR 추출 결과를 반환한다")
     void extract_returnsServiceResponse() {
-        given(residentIdVerifyService.extract(any())).willReturn(
+        given(principal.getName()).willReturn("user-1");
+        given(residentIdVerifyService.extract(eq("user-1"), any())).willReturn(
                 ResidentIdExtractResponse.builder()
                         .documentType("RESIDENT_ID")
                         .documentMatched(true)
@@ -52,7 +54,8 @@ class ResidentIdVerifyControllerTest {
         );
 
         ResponseEntity<ResidentIdExtractResponse> response = residentIdVerifyController.extract(
-                new MockMultipartFile("image", "card.jpg", "image/jpeg", new byte[]{1, 2, 3})
+                new MockMultipartFile("image", "card.jpg", "image/jpeg", new byte[]{1, 2, 3}),
+                principal
         );
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();

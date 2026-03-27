@@ -1,6 +1,7 @@
 package com.ssafy.naeda.domain.user.service;
 
 import com.ssafy.naeda.domain.face.service.FaceRegistrationSessionService;
+import com.ssafy.naeda.domain.identity.service.ResidentIdVerificationSessionService;
 import com.ssafy.naeda.domain.pay.service.PayLimitService;
 import com.ssafy.naeda.domain.pay.service.PayMethodService;
 import com.ssafy.naeda.domain.user.dto.request.UpdateFacePaySettingsRequest;
@@ -41,6 +42,9 @@ class FacePaySettingsServiceTest {
     private FaceRegistrationSessionService faceRegistrationSessionService;
 
     @Mock
+    private ResidentIdVerificationSessionService residentIdVerificationSessionService;
+
+    @Mock
     private PayMethodService payMethodService;
 
     @Mock
@@ -52,6 +56,7 @@ class FacePaySettingsServiceTest {
         User user = baseUser().userNo(1L).build();
         given(userRepository.findByUserId("user-1")).willReturn(Optional.of(user));
         given(faceRegistrationSessionService.hasActiveSession("user-1")).willReturn(true);
+        given(residentIdVerificationSessionService.isConfirmed("user-1")).willReturn(true);
         given(faceRegistrationSessionService.isRegistrationReady("user-1")).willReturn(true);
 
         FacePaySettingsResponse response = facePaySettingsService.updateSettings(
@@ -67,6 +72,7 @@ class FacePaySettingsServiceTest {
         verify(payMethodService).setFacePay(1L, 7L);
         verify(payLimitService).setLimit(eq(1L), any());
         verify(faceRegistrationSessionService).clearSession("user-1");
+        verify(residentIdVerificationSessionService).clearSession("user-1");
     }
 
     @Test
@@ -79,6 +85,7 @@ class FacePaySettingsServiceTest {
         given(userRepository.findByUserId("user-1")).willReturn(Optional.of(user));
         given(passwordEncoder.matches("123456", "encoded-pin")).willReturn(true);
         given(faceRegistrationSessionService.hasActiveSession("user-1")).willReturn(true);
+        given(residentIdVerificationSessionService.isConfirmed("user-1")).willReturn(true);
         given(faceRegistrationSessionService.isRegistrationReady("user-1")).willReturn(true);
 
         FacePaySettingsResponse response = facePaySettingsService.updateSettings(
@@ -131,6 +138,22 @@ class FacePaySettingsServiceTest {
         assertThatThrownBy(() -> facePaySettingsService.updateSettings("user-1", request(false, null, null, null, null, null)))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("대표 결제수단을 선택해주세요.");
+    }
+
+    @Test
+    @DisplayName("얼굴 등록 세션이 있어도 신분증 확인이 끝나지 않으면 저장할 수 없다")
+    void updateSettings_requiresResidentIdConfirmation() {
+        User user = baseUser().userNo(1L).build();
+        given(userRepository.findByUserId("user-1")).willReturn(Optional.of(user));
+        given(faceRegistrationSessionService.hasActiveSession("user-1")).willReturn(true);
+        given(residentIdVerificationSessionService.isConfirmed("user-1")).willReturn(false);
+
+        assertThatThrownBy(() -> facePaySettingsService.updateSettings(
+                "user-1",
+                request(false, null, 7L, 300_000L, 3_000_000L, 100_000L)
+        ))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("신분증 확인을 먼저 완료해주세요.");
     }
 
     private static UpdateFacePaySettingsRequest request(

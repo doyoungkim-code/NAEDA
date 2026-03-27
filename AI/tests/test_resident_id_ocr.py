@@ -108,6 +108,26 @@ def test_driver_license_full_extraction(monkeypatch):
     assert data["residentNumberConfidence"] > 0.0
 
 
+def test_driver_license_number_does_not_override_resident_number(monkeypatch):
+    gs, ro = _setup(monkeypatch, [[
+        [[[0, 0], [40, 0], [40, 10], [0, 10]], ("운전면허증", 0.99)],
+        [[[0, 20], [90, 20], [90, 30], [0, 30]], ("면허번호 11-12-123456-12", 0.97)],
+        [[[0, 40], [60, 40], [60, 50], [0, 50]], ("성명 홍길동", 0.95)],
+        [[[0, 60], [90, 60], [90, 70], [0, 70]], ("900101-1******", 0.92)],
+    ]])
+    try:
+        response = _post_extract()
+    finally:
+        _teardown(gs, ro)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["documentType"] == "DRIVER_LICENSE"
+    assert data["name"] == "홍길동"
+    assert data["residentFront6"] == "900101"
+    assert data["residentBackFirst1"] == "1"
+
+
 def test_resident_id_split_name(monkeypatch):
     gs, ro = _setup(monkeypatch, [[
         [[[0, 0], [70, 0], [70, 10], [0, 10]], ("주민등록증", 0.99)],

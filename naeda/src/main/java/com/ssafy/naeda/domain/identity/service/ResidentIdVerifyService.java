@@ -8,6 +8,7 @@ import com.ssafy.naeda.domain.identity.dto.response.ResidentIdExtractResponse;
 import com.ssafy.naeda.domain.identity.dto.response.ResidentIdVerifyResponse;
 import com.ssafy.naeda.domain.user.entity.User;
 import com.ssafy.naeda.domain.user.repository.UserRepository;
+import com.ssafy.naeda.global.exception.BadRequestException;
 import com.ssafy.naeda.global.exception.NotFoundException;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
@@ -24,10 +25,12 @@ public class ResidentIdVerifyService {
     private final UserRepository userRepository;
     private final ResidentIdOcrClient residentIdOcrClient;
     private final FaceInputValidator faceInputValidator;
+    private final ResidentIdVerificationSessionService residentIdVerificationSessionService;
 
-    public ResidentIdExtractResponse extract(MultipartFile image) {
+    public ResidentIdExtractResponse extract(String userId, MultipartFile image) {
         faceInputValidator.validateImage(image);
         ResidentIdOcrResponse ocrResponse = residentIdOcrClient.extractResidentId(image);
+        residentIdVerificationSessionService.recordExtraction(userId, hasRecognizedIdentity(ocrResponse));
 
         return ResidentIdExtractResponse.builder()
                 .documentType(ocrResponse.getDocumentType())
@@ -46,6 +49,10 @@ public class ResidentIdVerifyService {
     }
 
     public ResidentIdVerifyResponse confirm(String userId, ResidentIdConfirmRequest request) {
+        if (!residentIdVerificationSessionService.hasActiveExtraction(userId)) {
+            throw new BadRequestException("OCR로 인식한 신분증 정보를 먼저 확인해주세요.");
+        }
+
         User user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
 
@@ -57,6 +64,12 @@ public class ResidentIdVerifyService {
         boolean nameMatched = normalizedName.equals(extractedName);
         boolean residentNoMatched = normalizedResidentNo.equals(extractedResidentNo);
         boolean verified = nameMatched && residentNoMatched;
+
+        if (verified) {
+            residentIdVerificationSessionService.markConfirmed(userId);
+        } else {
+            residentIdVerificationSessionService.resetConfirmation(userId);
+        }
 
         return ResidentIdVerifyResponse.builder()
                 .verified(verified)
@@ -72,5 +85,13 @@ public class ResidentIdVerifyService {
 
     private String normalizeDigits(String value) {
         return NON_DIGIT.matcher(value == null ? "" : value).replaceAll("");
+    }
+
+    private boolean hasRecognizedIdentity(ResidentIdOcrResponse response) {
+        return response != null
+                && response.isDocumentMatched()
+                && !normalizeName(response.getName()).isBlank()
+                && normalizeDigits(response.getResidentFront6()).length() == 6
+                && normalizeDigits(response.getResidentBackFirst1()).length() == 1;
     }
 }

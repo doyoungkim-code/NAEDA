@@ -38,9 +38,10 @@ public class ResidentIdVerifyController {
             @ApiResponse(responseCode = "503", description = "OCR 서비스 장애", content = @Content(schema = @Schema(implementation = Object.class)))
     })
     public ResponseEntity<ResidentIdExtractResponse> extract(
-            @RequestPart("image") MultipartFile image
+            @RequestPart("image") MultipartFile image,
+            Principal principal
     ) {
-        return ResponseEntity.ok(residentIdVerifyService.extract(image));
+        return ResponseEntity.ok(residentIdVerifyService.extract(principal.getName(), image));
     }
 
     @PostMapping(value = "/confirm", consumes = MediaType.APPLICATION_JSON_VALUE)
