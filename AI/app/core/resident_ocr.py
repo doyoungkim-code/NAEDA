@@ -14,8 +14,8 @@ from app.core.upload_validation import validate_image_bytes
 
 SUPPORTED_DOCUMENT_TYPES = {"RESIDENT_ID", "DRIVER_LICENSE"}
 DOCUMENT_KEYWORDS = {
-    "RESIDENT_ID": ("주민등록증",),
-    "DRIVER_LICENSE": ("운전면허증", "운전면허"),
+    "RESIDENT_ID": ("주민등록증", "주민등록", "민등록증"),
+    "DRIVER_LICENSE": ("운전면허증", "운전면허", "면허증"),
 }
 NAME_LABELS = ("성명", "이름")
 COMMON_NAME_STOPWORDS = (
@@ -79,6 +79,23 @@ NAME_DIRECT_PATTERN = re.compile(r"(?:성명|이름)\s*[:：]?\s*([가-힣\s]{2,
 RETAKE_REQUIRED = "RETAKE_REQUIRED"
 REVIEW_REQUIRED = "REVIEW_REQUIRED"
 SUCCESS = "SUCCESS"
+
+
+def _retake_result(message: str) -> dict[str, Any]:
+    return {
+        "documentType": None,
+        "documentMatched": False,
+        "name": None,
+        "residentFront6": None,
+        "residentBackFirst1": None,
+        "provider": "paddleocr",
+        "confidence": 0.0,
+        "documentConfidence": 0.0,
+        "nameConfidence": 0.0,
+        "residentNumberConfidence": 0.0,
+        "extractionStatus": RETAKE_REQUIRED,
+        "warnings": [message],
+    }
 
 
 def _normalize_name(value: str | None) -> str:
@@ -461,7 +478,7 @@ def _build_extraction_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
     settings = get_settings()
     document_type, document_confidence = _vote_document_type(results)
     if document_type not in SUPPORTED_DOCUMENT_TYPES:
-        raise AIServiceError(status_code=400, code="OCR_EXTRACTION_FAILED", message="Unsupported id card type")
+        return _retake_result("주민등록증 또는 운전면허증 상단 문구가 잘 보이도록 신분증을 프레임 중앙에 맞춰주세요.")
 
     filtered_results = [result for result in results if result.get("document_type") == document_type]
     if not filtered_results:
@@ -548,7 +565,7 @@ def _extract_with_paddle_provider(image_raw: bytes) -> dict[str, Any]:
         parsed_results.append(parsed)
 
     if not parsed_results:
-        raise AIServiceError(status_code=400, code="OCR_EXTRACTION_FAILED", message="No text detected")
+        return _retake_result("신분증에서 텍스트를 읽지 못했습니다. 신분증을 더 크게 맞추고 빛 반사를 줄여주세요.")
 
     return _build_extraction_summary(parsed_results)
 
