@@ -46,7 +46,7 @@ public class TransactionLog {
     @Column(name = "ai_category", length = 30)
     private String aiCategory;
 
-    @Column(name = "ssafy_transaction_id", length = 100, unique = true)
+    @Column(name = "ssafy_transaction_id", length = 100)
     private String ssafyTransactionId;
 
     @CreationTimestamp
