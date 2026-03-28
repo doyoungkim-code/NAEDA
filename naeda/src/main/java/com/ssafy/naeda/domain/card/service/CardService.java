@@ -377,7 +377,7 @@ public class CardService {
         Map<String, TransactionLog> existingLogMap = allTxUniqueNos.isEmpty()
                 ? Map.of()
                 : transactionLogRepository.findBySsafyTransactionIdIn(allTxUniqueNos).stream()
-                .collect(Collectors.toMap(TransactionLog::getSsafyTransactionId, Function.identity()));
+                .collect(Collectors.toMap(TransactionLog::getSsafyTransactionId, Function.identity(), (a, b) -> a));
 
         Map<String, AiConsumptionCategoryItem> classificationTargets = new LinkedHashMap<>();
         for (ParsedCardTransaction parsedTransaction : parsedTransactions) {
