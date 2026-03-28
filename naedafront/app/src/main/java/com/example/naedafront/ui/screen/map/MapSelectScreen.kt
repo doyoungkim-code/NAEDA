@@ -2012,7 +2012,7 @@ private fun PopularRestaurantMapTab(
                     RecommendRepository.getRecommendStoresNearby(
                         lat = selectedRegion.centerLat,
                         lng = selectedRegion.centerLng,
-                        radius = 3.0
+                        radius = 5.0
                     )
                 } else {
                     RecommendRepository.getRecommendStores(dong = selectedRegion.label)
