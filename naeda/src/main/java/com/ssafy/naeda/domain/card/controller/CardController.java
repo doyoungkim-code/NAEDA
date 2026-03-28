@@ -82,9 +82,10 @@ public class CardController {
     public ResponseEntity<List<CardTransactionResponse>> getCardTransactions (
             @PathVariable Long cardId,
             @RequestParam @Positive Long userNo,
+            @RequestParam(defaultValue = "CREDIT") String cardType,
             @ModelAttribute @Valid CardTransactionRequest request
     ) {
-        return ResponseEntity.ok(cardService.getCardTransactions(userNo, cardId, request));
+        return ResponseEntity.ok(cardService.getCardTransactions(userNo, cardId, cardType, request));
     }
 }
 
