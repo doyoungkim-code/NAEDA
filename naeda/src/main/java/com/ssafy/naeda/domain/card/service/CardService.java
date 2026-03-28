@@ -335,29 +335,50 @@ public class CardService {
             CardInfo cardInfo,
             CardTransactionRequest request
     ) {
-        // SSAFY API 호출
-        Map<String, Object> header = ssafyHeaderFactory.create(CARD_TX_API, user.getUserKey());
-        Map<String, Object> body = ssafyApiClient.buildBody(header,
-                "cardNo", cardInfo.cardNo(),
-                "cvc", cardInfo.cvc(),
-                "startDate", request.getStartDate(),
-                "endDate", request.getEndDate()
-        );
+        List<TransactionLog> savedLogs = new ArrayList<>();
 
-        Map<String, Object> response = ssafyApiClient.post(CARD_TX_PATH, body);
+        // 1. SSAFY API 호출 (실패해도 DB 조회로 폴백)
+        try {
+            Map<String, Object> header = ssafyHeaderFactory.create(CARD_TX_API, user.getUserKey());
+            Map<String, Object> body = ssafyApiClient.buildBody(header,
+                    "cardNo", cardInfo.cardNo(),
+                    "cvc", cardInfo.cvc(),
+                    "startDate", request.getStartDate(),
+                    "endDate", request.getEndDate()
+            );
 
+            Map<String, Object> response = ssafyApiClient.post(CARD_TX_PATH, body);
+            savedLogs = syncSsafyTransactions(response, cardInfo);
+        } catch (Exception e) {
+            log.warn("[CardService] SSAFY 카드 거래내역 조회 실패, DB 폴백: cardNo={}", cardInfo.cardNo(), e);
+        }
+
+        // 2. SSAFY 결과가 비어있으면 DB에서 직접 조회 (카드 결제로 생성된 TransactionLog)
+        if (savedLogs.isEmpty() && cardInfo.accountId() != null) {
+            savedLogs = transactionLogRepository.findByAccountIdAndTransactionTypeOrderByTransactedDesc(
+                    cardInfo.accountId(), TransactionType.WITHDRAW
+            );
+        }
+
+        log.info("[CardService] 카드 결제 내역 조회: userNo={}, cardNo={}, 건수={}", user.getUserNo(), cardInfo.cardNo(), savedLogs.size());
+
+        return savedLogs.stream()
+                .map(CardTransactionResponse::from)
+                .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<TransactionLog> syncSsafyTransactions(Map<String, Object> response, CardInfo cardInfo) {
         Object recRaw = response.get("REC");
         if (recRaw == null || !(recRaw instanceof Map)) {
             return List.of();
         }
-        @SuppressWarnings("unchecked")
         Map<String, Object> rec = (Map<String, Object>) recRaw;
 
         Object txListRaw = rec.get("transactionList");
         if (txListRaw == null || !(txListRaw instanceof List)) {
             return List.of();
         }
-        @SuppressWarnings("unchecked")
         List<Map<String, Object>> transactionList = (List<Map<String, Object>>) txListRaw;
 
         if (transactionList == null || transactionList.isEmpty()) {
@@ -368,7 +389,6 @@ public class CardService {
                 .map(this::parseCardTransaction)
                 .toList();
 
-        // 각 거래를 transaction_log에 캐싱 (중복 스킵) - 배치 조회로 N+1 방지
         List<String> allTxUniqueNos = parsedTransactions.stream()
                 .map(ParsedCardTransaction::ssafyTransactionId)
                 .filter(id -> id != null)
@@ -434,11 +454,7 @@ public class CardService {
             savedLogs.add(transactionLogRepository.save(logEntity));
         }
 
-        log.info("[CardService] 카드 결제 내역 조회: userNo={}, cardNo={}, 건수={}", user.getUserNo(), cardInfo.cardNo(), savedLogs.size());
-
-        return savedLogs.stream()
-                .map(CardTransactionResponse::from)
-                .toList();
+        return savedLogs;
     }
 
 
