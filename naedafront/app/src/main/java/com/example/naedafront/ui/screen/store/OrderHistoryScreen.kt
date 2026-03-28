@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,26 +23,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.LocalShipping
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -63,12 +55,6 @@ fun OrderHistoryScreen(
     onOrderClick: (Long) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-
-    val hiddenOrderIds = remember { mutableStateListOf<Long>() }
-
-    val visibleOrders = uiState.orders.filterNot { order ->
-        hiddenOrderIds.contains(order.orderId)
-    }
 
     Column(
         modifier = Modifier
@@ -101,7 +87,7 @@ fun OrderHistoryScreen(
                 }
             }
 
-            visibleOrders.isEmpty() -> {
+            uiState.orders.isEmpty() -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -121,14 +107,11 @@ fun OrderHistoryScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(visibleOrders, key = { it.orderId }) { order ->
+                    items(uiState.orders, key = { it.orderId }) { order ->
                         OrderHistoryBlock(
                             order = order,
                             imageUrl = uiState.productImageUrls[order.productId].orEmpty(),
-                            onClick = { onOrderClick(order.orderId) },
-                            onCancelClick = {
-                                hiddenOrderIds.add(order.orderId)
-                            }
+                            onClick = { onOrderClick(order.orderId) }
                         )
                     }
 
@@ -178,8 +161,7 @@ private fun OrderHistoryTopBar(
 private fun OrderHistoryBlock(
     order: OrderResponse,
     imageUrl: String,
-    onClick: () -> Unit,
-    onCancelClick: () -> Unit
+    onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -265,24 +247,6 @@ private fun OrderHistoryBlock(
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
-
-            OutlinedButton(
-                onClick = onCancelClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFFB42318)
-                )
-            ) {
-                Text(
-                    text = "배송취소",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
         }
     }
 }

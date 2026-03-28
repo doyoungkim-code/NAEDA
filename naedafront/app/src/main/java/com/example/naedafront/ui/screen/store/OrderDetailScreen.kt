@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.LocalShipping
@@ -63,52 +65,59 @@ fun OrderDetailScreen(
     ) {
         OrderDetailTopBar(onBackClick = onBackClick)
 
-        when {
-            uiState.isLoading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) {
+            when {
+                uiState.isLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
-            }
 
-            uiState.errorMessage != null && uiState.order == null -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = uiState.errorMessage ?: "오류가 발생했습니다.",
-                        color = Color(0xFFB00020),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
+                uiState.errorMessage != null && uiState.order == null -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = uiState.errorMessage ?: "오류가 발생했습니다.",
+                            color = Color(0xFFB00020),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                uiState.order == null -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "주문 정보가 없습니다.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                else -> {
+                    OrderDetailContent(
+                        modifier = Modifier.fillMaxSize(),
+                        order = uiState.order!!,
+                        product = uiState.product,
+                        address = uiState.address,
+                        user = uiState.user,
+                        productError = uiState.errorMessage
                     )
                 }
-            }
-
-            uiState.order == null -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "주문 정보가 없습니다.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            else -> {
-                OrderDetailContent(
-                    order = uiState.order!!,
-                    product = uiState.product,
-                    address = uiState.address,
-                    user = uiState.user,
-                    productError = uiState.errorMessage
-                )
             }
         }
     }
@@ -151,6 +160,7 @@ private fun OrderDetailTopBar(
 
 @Composable
 private fun OrderDetailContent(
+    modifier: Modifier = Modifier,
     order: OrderResponse,
     product: ProductResponse?,
     address: AddressResponse?,
@@ -164,8 +174,9 @@ private fun OrderDetailContent(
     val addressText = buildAddressText(address)
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
             .navigationBarsPadding(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
