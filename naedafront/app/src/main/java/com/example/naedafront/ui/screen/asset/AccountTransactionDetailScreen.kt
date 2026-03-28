@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
@@ -27,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.naedafront.data.remote.response.PaymentDetailResponse
 import com.example.naedafront.ui.theme.Mint900
 import com.example.naedafront.ui.theme.NaedaTypography
@@ -49,37 +52,54 @@ fun AccountTransactionDetailScreen(
 ) {
     val isPayment = paymentDetail != null
     val isDeposit = transaction.transactionType.equals("DEPOSIT", ignoreCase = true)
-    val accentColor = Mint900
-
+    val headerColor = Mint900
+    val amountColor = if (isDeposit) Color(0xFF307CBF) else Color(0xFFF2522E)
+    val amountValue = paymentDetail?.amount ?: transaction.amount
+    val amountText = if (isDeposit) {
+        "+${formatAmount(amountValue)}원"
+    } else {
+        "-${formatAmount(amountValue)}원"
+    }
+    val isPaymentTransaction = isPayment || transaction.isPaymentTransaction()
+    val headlineLabel = "거래처"
     val headlineValue = when {
         isPayment && storeName.isNotBlank() -> storeName
         transaction.counterpart.isNotBlank() -> transaction.counterpart
         transaction.memo.isNotBlank() -> transaction.memo
         else -> "거래 정보 없음"
     }
-
-    val paymentMethod = listOf(bankName, accountNumber)
-        .filter { it.isNotBlank() }
-        .joinToString(" ")
-        .ifBlank { "계좌 정보 없음" }
-
-    val detailFields = if (isPayment) {
-        listOf(
-            "결제 수단" to paymentMethod,
-            "결제 시간" to ((paymentDetail?.createdAt?.formatCreatedAt()) ?: transaction.transacted.toDisplayDateTime()),
-            "적립 포인트" to (paymentDetail?.earnedPoints?.let { "${formatAmount(it)}P" } ?: "${formatAmount(transaction.estimatedPoints)}P"),
-            "결제 번호" to (paymentDetail?.ssafyTransactionId ?: paymentDetail?.paymentId?.toString().orEmpty()).ifBlank { transaction.ssafyTransactionId.ifBlank { transaction.id } },
-            "결제 장소" to headlineValue,
-        )
+    val badgeText = if (isDeposit) "입금" else "출금"
+    val paymentMethodTitle = "거래 방식"
+    val paymentMethod = if (isPaymentTransaction) {
+        transaction.toPaymentMethodLabel(paymentDetail?.authMethod)
     } else {
-        listOf(
-            "결제 수단" to paymentMethod,
-            "거래 시간" to transaction.transacted.toDisplayDateTime(),
-            "적립 포인트" to "${formatAmount(transaction.estimatedPoints)}P",
-            "거래 후 잔액" to "${formatAmount(transaction.balanceAfter)}원",
-            "거래 번호" to transaction.ssafyTransactionId.ifBlank { transaction.id },
-            "거래처" to headlineValue,
-        )
+        if (isDeposit) "입금" else "출금"
+    }
+    val transactedText = if (isPayment) {
+        paymentDetail?.createdAt?.formatCreatedAt() ?: transaction.transacted.toDisplayDateTime()
+    } else {
+        transaction.transacted.toDisplayDateTime()
+    }
+    val pointsText = "${formatAmount((paymentDetail?.earnedPoints ?: transaction.estimatedPoints).coerceAtLeast(0L))}P"
+    val transactionIdText = if (isPayment) {
+        (
+            paymentDetail?.ssafyTransactionId
+                ?: paymentDetail?.paymentId?.toString().orEmpty()
+            ).ifBlank { transaction.ssafyTransactionId.ifBlank { transaction.id } }
+    } else {
+        transaction.ssafyTransactionId.ifBlank { transaction.id }
+    }
+    val categoryText = transaction.category.takeIf { it.isNotBlank() } ?: "-"
+    val detailFields = buildList {
+        add(paymentMethodTitle to paymentMethod)
+        add("거래 유형" to if (isDeposit) "입금" else "출금")
+        add("거래 시간" to transactedText)
+        add("카테고리" to categoryText)
+        if (!isDeposit) {
+            add("적립 포인트" to pointsText)
+        }
+        add("거래 번호" to transactionIdText)
+        add(headlineLabel to headlineValue)
     }
 
     Box(
@@ -107,7 +127,7 @@ fun AccountTransactionDetailScreen(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "닫기",
-                        tint = accentColor
+                        tint = headerColor
                     )
                 }
 
@@ -116,9 +136,9 @@ fun AccountTransactionDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (isPayment) "결제 상세" else "거래 상세",
+                        text = if (isPaymentTransaction) "결제 상세" else "거래 상세",
                         style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = accentColor
+                        color = headerColor
                     )
                 }
 
@@ -145,20 +165,20 @@ fun AccountTransactionDetailScreen(
                         modifier = Modifier
                             .size(84.dp)
                             .clip(CircleShape)
-                            .background(accentColor.copy(alpha = 0.1f)),
+                            .background(headerColor.copy(alpha = 0.1f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (isPayment) "PAY" else if (isDeposit) "IN" else "OUT",
+                            text = badgeText,
                             style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                            color = accentColor
+                            color = headerColor
                         )
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))
 
                     Text(
-                        text = if (isPayment) "결제 장소" else "거래처",
+                        text = headlineLabel,
                         style = NaedaTypography.bodyMedium,
                         color = OnSurfaceVariant
                     )
@@ -185,47 +205,39 @@ fun AccountTransactionDetailScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = if (isPayment) "총 결제 금액" else "총 거래 금액",
-                                style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                color = OnSurfaceVariant
-                            )
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            Text(
-                                text = "${formatAmount(paymentDetail?.amount ?: transaction.amount)}원",
-                                style = NaedaTypography.displayMedium.copy(fontWeight = FontWeight.Bold),
-                                color = accentColor
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            AccountDetailStatusChip(
-                                text = when {
-                                    isPayment -> paymentDetail?.status.toPaymentStatusLabel()
-                                    isDeposit -> "입금 완료"
-                                    else -> "출금 완료"
-                                },
-                                accentColor = accentColor
+                                text = amountText,
+                                style = NaedaTypography.displayLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 42.sp
+                                ),
+                                color = amountColor
                             )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
                     ) {
-                        detailFields.forEach { (label, value) ->
-                            AccountDetailField(
-                                label = label,
-                                value = value
-                            )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            detailFields.forEach { (label, value) ->
+                                AccountDetailField(
+                                    label = label,
+                                    value = value
+                                )
+                            }
                         }
                     }
 
-                    Spacer(modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     AccountDetailPrimaryButton(
                         text = "닫기",
@@ -308,6 +320,36 @@ private fun AccountDetailPrimaryButton(
 
 private fun formatAmount(amount: Long): String {
     return "%,d".format(amount)
+}
+
+private fun TransactionItem.isPaymentTransaction(): Boolean {
+    return memo.contains("페이스페이 결제") ||
+        memo.contains("카드 결제") ||
+        estimatedPoints > 0L
+}
+
+private fun TransactionItem.toPaymentMethodLabel(authMethod: String?): String {
+    return "페이스페이"
+}
+
+private fun String.toAuthLevelLabel(): String {
+    return when (uppercase()) {
+        "FACE_ONLY" -> "얼굴 인증"
+        "FACE_PIN" -> "얼굴 + PIN"
+        "FACE_PHONE" -> "얼굴 + 휴대폰"
+        "FACE_SIGNATURE" -> "얼굴 + 서명"
+        "FACE_PIN_SIGNATURE" -> "얼굴 + PIN + 서명"
+        else -> this
+    }
+}
+
+private fun String.toFdsActionLabel(): String {
+    return when (uppercase()) {
+        "NONE" -> "이상 없음"
+        "PAUSE" -> "추가 확인"
+        "BLOCK" -> "차단"
+        else -> this
+    }
 }
 
 private fun String?.toPaymentStatusLabel(): String {

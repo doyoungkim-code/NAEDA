@@ -141,9 +141,7 @@ private fun AssetTransactionResponse.toUi(index: Int): TransactionItem {
         counterpart = counterpart.orEmpty().ifBlank { "거래처 없음" },
         memo = memo.orEmpty(),
         category = aiCategory.orEmpty().ifBlank {
-            category.orEmpty().ifBlank {
-                memo.orEmpty().ifBlank { "기타" }
-            }
+            category.orEmpty().ifBlank { "기타" }
         },
         amount = amount ?: 0L,
         balanceAfter = balanceAfter ?: 0L,

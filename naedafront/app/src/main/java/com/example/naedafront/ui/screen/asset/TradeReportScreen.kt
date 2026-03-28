@@ -1420,7 +1420,6 @@ private fun RecentTradeTransactionRow(
         item.time.takeIf { it.isNotBlank() },
         item.category.takeIf { it.isNotBlank() }
     ).joinToString(" · ")
-    val pointInfo = "${item.balanceLabel} ${item.balanceAfter}"
     val paymentInfo = listOfNotNull(
         item.bankName.takeIf { it.isNotBlank() },
         item.accountNumber.takeIf { it.isNotBlank() },
@@ -1452,14 +1451,6 @@ private fun RecentTradeTransactionRow(
                     maxLines = 1
                 )
             }
-
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = pointInfo,
-                style = NaedaTypography.labelSmall,
-                color = OnSurfaceVariant,
-                maxLines = 1
-            )
 
             Spacer(modifier = Modifier.height(2.dp))
             Text(
@@ -1543,12 +1534,6 @@ private fun TradeTransactionRow(
                 )
             }
 
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = "${item.balanceLabel} ${item.balanceAfter}",
-                style = NaedaTypography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
 
         Text(
