@@ -654,8 +654,8 @@ private fun TransactionRow(
     val transactionColor = if (isDeposit) Color(0xFF307CBF) else Color(0xFFF2522E)
 
     val title = when {
-        item.counterpart.isNotBlank() -> item.counterpart
-        item.memo.isNotBlank() -> item.memo
+        item.memo.isNotBlank() -> item.memo.replace(Regex("\\s*(페이스페이|카드)\\s*결제$"), "")
+        item.counterpart.isNotBlank() && !item.counterpart.all { it.isDigit() } -> item.counterpart
         else -> "계좌 거래"
     }
 
