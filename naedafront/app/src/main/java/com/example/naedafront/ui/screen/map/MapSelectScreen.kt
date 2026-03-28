@@ -135,9 +135,7 @@ data class MapRegion(
     val restaurants: List<Restaurant>,
     val labelCenter: Offset? = null,
     val pinX: Float = 0f,  // 이미지 너비 기준 % (0~1)
-    val pinY: Float = 0f,  // 이미지 높이 기준 % (0~1)
-    val centerLat: Double = 0.0,
-    val centerLng: Double = 0.0
+    val pinY: Float = 0f   // 이미지 높이 기준 % (0~1)
 )
 
 private data class StoreMapFilterState(
@@ -212,7 +210,6 @@ private val REGIONS: List<MapRegion> = listOf(
         label = "무을면",
         labelCenter = Offset(150f, 230f),
         pinX = 0.20f, pinY = 0.20f,
-        centerLat = 36.2700, centerLng = 128.2500,
         points = parsePoints("89,195 110,182 132,174 174,169 172,185 178,200 191,213 207,211 227,207 214,223 219,241 219,249 219,263 212,271 202,276 185,261 183,245 152,241 143,237 132,238 130,210 118,217 101,210 90,200"),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -225,7 +222,6 @@ private val REGIONS: List<MapRegion> = listOf(
         label = "도개면",
         labelCenter = Offset(320f, 155f),
         pinX = 0.67f, pinY = 0.26f,
-        centerLat = 36.2800, centerLng = 128.4200,
         points = parsePoints("237,117 236,135 238,150 243,166 280,189 292,208 301,216 304,222 322,225 337,222 361,225 372,218 377,205 367,189 353,178 342,164 321,142 313,126 285,112 267,128 253,136 243,120"),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -238,7 +234,6 @@ private val REGIONS: List<MapRegion> = listOf(
         label = "옥성면",
         labelCenter = Offset(210f, 165f),
         pinX = 0.42f, pinY = 0.20f,
-        centerLat = 36.2600, centerLng = 128.3300,
         points = parsePoints("178,166 189,151 196,127 211,109 232,110 232,135 235,164 245,169 276,188 287,201 283,227 271,241 243,259 235,260 222,235 217,213 193,195 187,192 179,170"),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -251,7 +246,6 @@ private val REGIONS: List<MapRegion> = listOf(
         label = "선산읍",
         labelCenter = Offset(260f, 280f),
         pinX = 0.40f, pinY = 0.34f,
-        centerLat = 36.2200, centerLng = 128.3200,
         points = parsePoints("193,277 219,263 220,238 231,244 236,255 245,255 274,245 281,238 283,228 308,219 314,228 319,252 327,281 337,313 336,321 324,326 295,324 277,324 260,310 247,314 250,322 250,331 242,331 228,317 222,304 225,295 214,287 205,285 193,279"),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -264,7 +258,6 @@ private val REGIONS: List<MapRegion> = listOf(
         label = "해평면",
         labelCenter = Offset(370f, 290f),
         pinX = 0.63f, pinY = 0.50f,
-        centerLat = 36.2000, centerLng = 128.4000,
         points = parsePoints("312,224 355,223 367,225 382,243 396,250 405,263 403,280 403,297 394,307 386,325 383,332 373,337 362,348 363,363 363,373 358,375 348,357 331,335 331,319"),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -277,7 +270,6 @@ private val REGIONS: List<MapRegion> = listOf(
         label = "고아읍",
         labelCenter = Offset(270f, 345f),
         pinX = 0.40f, pinY = 0.53f,
-        centerLat = 36.1800, centerLng = 128.3400,
         points = parsePoints("228,375 254,373 274,380 290,380 327,380 338,376 358,373 345,347 341,331 305,319 268,320 258,308 252,313 251,329 251,337 247,341 239,359 247,372 230,376"),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -289,7 +281,6 @@ private val REGIONS: List<MapRegion> = listOf(
     MapRegion(
         label = "선주원남동",
         pinX = 0.23f, pinY = 0.70f,
-        centerLat = 36.1300, centerLng = 128.3200,
         points = parsePoints("221,373 303,373 345,375 369,375 399,365 415,375 429,393 426,413 418,435 391,436 368,429 357,422 335,437 330,454 318,451 282,423 276,410 258,412 246,405 235,396 223,380"),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -301,7 +292,6 @@ private val REGIONS: List<MapRegion> = listOf(
     MapRegion(
         label = "지산동",
         pinX = 0.41f, pinY = 0.69f,
-        centerLat = 36.1350, centerLng = 128.3450,
         points = emptyList(),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -312,7 +302,6 @@ private val REGIONS: List<MapRegion> = listOf(
     MapRegion(
         label = "송정동",
         pinX = 0.38f, pinY = 0.72f,
-        centerLat = 36.1280, centerLng = 128.3380,
         points = emptyList(),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -323,7 +312,6 @@ private val REGIONS: List<MapRegion> = listOf(
     MapRegion(
         label = "원평동",
         pinX = 0.35f, pinY = 0.69f,
-        centerLat = 36.1320, centerLng = 128.3300,
         points = emptyList(),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -334,7 +322,6 @@ private val REGIONS: List<MapRegion> = listOf(
     MapRegion(
         label = "광평동",
         pinX = 0.38f, pinY = 0.77f,
-        centerLat = 36.1150, centerLng = 128.3400,
         points = emptyList(),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -345,7 +332,6 @@ private val REGIONS: List<MapRegion> = listOf(
     MapRegion(
         label = "공단동",
         pinX = 0.43f, pinY = 0.805f,
-        centerLat = 36.1050, centerLng = 128.3500,
         points = emptyList(),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -356,7 +342,6 @@ private val REGIONS: List<MapRegion> = listOf(
     MapRegion(
         label = "상모사곡동",
         pinX = 0.31f, pinY = 0.80f,
-        centerLat = 36.1100, centerLng = 128.3200,
         points = emptyList(),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -367,7 +352,6 @@ private val REGIONS: List<MapRegion> = listOf(
     MapRegion(
         label = "임오동",
         pinX = 0.34f, pinY = 0.86f,
-        centerLat = 36.0950, centerLng = 128.3300,
         points = emptyList(),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -378,7 +362,6 @@ private val REGIONS: List<MapRegion> = listOf(
     MapRegion(
         label = "양포동",
         pinX = 0.56f, pinY = 0.75f,
-        centerLat = 36.1100, centerLng = 128.3800,
         points = emptyList(),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -389,7 +372,6 @@ private val REGIONS: List<MapRegion> = listOf(
     MapRegion(
         label = "진미동",
         pinX = 0.50f, pinY = 0.84f,
-        centerLat = 36.0950, centerLng = 128.3600,
         points = emptyList(),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -401,7 +383,6 @@ private val REGIONS: List<MapRegion> = listOf(
         label = "산동면",
         labelCenter = Offset(435f, 330f),
         pinX = 0.69f, pinY = 0.69f,
-        centerLat = 36.1500, centerLng = 128.4300,
         points = parsePoints("364,361 364,342 380,326 405,301 402,257 428,253 441,269 453,289 464,296 468,313 454,328 444,334 436,345 422,372 419,374 410,367 396,361 385,367 377,368 370,365 367,361"),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -414,7 +395,6 @@ private val REGIONS: List<MapRegion> = listOf(
         label = "장천면",
         labelCenter = Offset(470f, 365f),
         pinX = 0.83f, pinY = 0.84f,
-        centerLat = 36.1200, centerLng = 128.4500,
         points = parsePoints("467,290 485,288 502,308 500,321 483,330 490,355 492,370 499,396 452,391 438,391 418,376 423,360 437,342 466,332 469,313 462,296 460,286"),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -426,7 +406,6 @@ private val REGIONS: List<MapRegion> = listOf(
     MapRegion(
         label = "신평동",
         pinX = 0.41f, pinY = 0.74f,
-        centerLat = 36.1200, centerLng = 128.3450,
         points = emptyList(),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -437,7 +416,6 @@ private val REGIONS: List<MapRegion> = listOf(
     MapRegion(
         label = "비산동",
         pinX = 0.44f, pinY = 0.72f,
-        centerLat = 36.1250, centerLng = 128.3500,
         points = emptyList(),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -448,7 +426,6 @@ private val REGIONS: List<MapRegion> = listOf(
     MapRegion(
         label = "도량동",
         pinX = 0.35f, pinY = 0.65f,
-        centerLat = 36.1400, centerLng = 128.3300,
         points = emptyList(),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -459,7 +436,6 @@ private val REGIONS: List<MapRegion> = listOf(
     MapRegion(
         label = "형곡동",
         pinX = 0.315f, pinY = 0.75f,
-        centerLat = 36.1180, centerLng = 128.3250,
         points = emptyList(),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -470,7 +446,6 @@ private val REGIONS: List<MapRegion> = listOf(
     MapRegion(
         label = "인동동",
         pinX = 0.58f, pinY = 0.87f,
-        centerLat = 36.0850, centerLng = 128.3900,
         points = emptyList(),
         color = Color(0xFF5B5CEB),
         restaurants = listOf(
@@ -2008,15 +1983,7 @@ private fun PopularRestaurantMapTab(
         if (selectedRegion != null) {
             isRecommendLoading = true
             runCatching {
-                if (selectedRegion.centerLat != 0.0 && selectedRegion.centerLng != 0.0) {
-                    RecommendRepository.getRecommendStoresNearby(
-                        lat = selectedRegion.centerLat,
-                        lng = selectedRegion.centerLng,
-                        radius = 5.0
-                    )
-                } else {
-                    RecommendRepository.getRecommendStores(dong = selectedRegion.label)
-                }
+                RecommendRepository.getRecommendStores(dong = selectedRegion.label)
             }.onSuccess { stores ->
                 recommendStores = stores
             }.onFailure {

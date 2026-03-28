@@ -77,65 +77,9 @@ public class RecommendService {
         return result;
     }
 
-    /**
-     * 좌표 기반 추천 가게 목록 조회.
-     */
-    public List<RecommendResponse> getRecommendStoresNearby(
-            Double lat, Double lng, Double radiusKm, String category, String sort
-    ) {
-        List<Store> allRecommended = storeRepository.findRecommendedByFilters(null, category);
-
-        List<Store> nearby = allRecommended.stream()
-                .filter(s -> s.getLatitude() != null && s.getLongitude() != null)
-                .filter(s -> distanceKm(lat, lng, s.getLatitude(), s.getLongitude()) <= radiusKm)
-                .toList();
-
-        Map<Long, Long> visitMap = payTransactionRepository.countVisitsByStore()
-                .stream()
-                .collect(Collectors.toMap(
-                        row -> (Long) row[0],
-                        row -> (Long) row[1]
-                ));
-
-        long maxVisits = visitMap.values().stream()
-                .mapToLong(Long::longValue)
-                .max()
-                .orElse(1L);
-
-        List<RecommendResponse> result = nearby.stream()
-                .map(store -> {
-                    long visitCount = visitMap.getOrDefault(store.getStoreId(), 0L);
-                    double normalizedRating = store.getRating() / 5.0;
-                    double normalizedVisits = (double) visitCount / maxVisits;
-                    double score = (normalizedRating * RATING_WEIGHT) + (normalizedVisits * VISIT_WEIGHT);
-                    return RecommendResponse.from(store, visitCount, Math.round(score * 100.0) / 100.0);
-                })
-                .collect(Collectors.toList());
-
-        if ("rating".equals(sort)) {
-            result.sort(Comparator.comparing(RecommendResponse::getRating).reversed());
-        } else if ("visits".equals(sort)) {
-            result.sort(Comparator.comparing(RecommendResponse::getVisitCount).reversed());
-        } else {
-            result.sort(Comparator.comparing(RecommendResponse::getScore).reversed());
-        }
-
-        return result;
-    }
-
     private static String normalizeDong(String dong) {
         if (dong == null || dong.isBlank()) return null;
         return dong.replaceAll("(면|읍|동)$", "");
-    }
-
-    private static double distanceKm(double lat1, double lng1, double lat2, double lng2) {
-        double R = 6371.0;
-        double dLat = Math.toRadians(lat2 - lat1);
-        double dLng = Math.toRadians(lng2 - lng1);
-        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
-                 + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                 * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
     /**

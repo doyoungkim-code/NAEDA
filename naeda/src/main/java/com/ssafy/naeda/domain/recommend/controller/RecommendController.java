@@ -32,21 +32,6 @@ public class RecommendController {
     }
 
     /**
-     * GET /api/recommend/stores/nearby?lat=36.12&lng=128.33&radius=3.0&sort=rating
-     */
-    @GetMapping("/stores/nearby")
-    @Operation(summary = "좌표 기반 추천 가게 조회", description = "위도/경도 중심 반경(km) 내 추천 매장 조회")
-    public ResponseEntity<List<RecommendResponse>> getRecommendStoresNearby(
-            @RequestParam Double lat,
-            @RequestParam Double lng,
-            @RequestParam(defaultValue = "3.0") Double radius,
-            @RequestParam(required = false) String category,
-            @RequestParam(required = false) String sort
-    ) {
-        return ResponseEntity.ok(recommendService.getRecommendStoresNearby(lat, lng, radius, category, sort));
-    }
-
-    /**
      * GET /api/recommend/dongs
      */
     @GetMapping("/dongs")
