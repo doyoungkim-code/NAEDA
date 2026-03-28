@@ -102,10 +102,10 @@ def _decode_image(image_raw: bytes) -> np.ndarray:
     return bgr
 
 
-def _resize(image: np.ndarray, target: int = 1200) -> np.ndarray:
+def _resize(image: np.ndarray, target: int = 960) -> np.ndarray:
     h, w = image.shape[:2]
     longest = max(h, w)
-    if longest < 600 or longest > 3000:
+    if longest < 500 or longest > target:
         scale = target / float(longest)
         return cv2.resize(image, (max(1, int(w * scale)), max(1, int(h * scale))),
                           interpolation=cv2.INTER_CUBIC if scale > 1 else cv2.INTER_AREA)
@@ -113,7 +113,13 @@ def _resize(image: np.ndarray, target: int = 1200) -> np.ndarray:
 
 
 def _preprocess_variants(bgr: np.ndarray) -> list[np.ndarray]:
-    """원본 + CLAHE + 적응형 이진화 총 3가지 변형 생성."""
+    """원본을 첫 번째로, 보조 변형은 뒤에 배치 (early exit로 보통 원본만 사용)."""
+    resized = _resize(bgr)
+    return [resized]
+
+
+def _fallback_variants(bgr: np.ndarray) -> list[np.ndarray]:
+    """원본에서 인식 실패 시 사용할 보조 변형 (CLAHE + 적응형 이진화)."""
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
 
     clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8)).apply(gray)
@@ -123,7 +129,6 @@ def _preprocess_variants(bgr: np.ndarray) -> list[np.ndarray]:
                                    cv2.THRESH_BINARY, 31, 9)
 
     return [
-        _resize(bgr),
         _resize(cv2.cvtColor(clahe, cv2.COLOR_GRAY2BGR)),
         _resize(cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)),
     ]
@@ -489,7 +494,7 @@ def _extract_with_paddle(image_raw: bytes) -> dict[str, Any]:
     ocr = _get_paddle_ocr()
     all_results: list[dict[str, Any]] = []
 
-    # 원본 이미지 + 전처리 변형 3종 (좋은 결과 나오면 즉시 종료)
+    # 1단계: 원본 이미지로 시도 (가장 빠름, 1~2초)
     for variant in _preprocess_variants(bgr):
         parsed = _ocr_and_extract(ocr, variant)
         if parsed:
@@ -497,9 +502,18 @@ def _extract_with_paddle(image_raw: bytes) -> dict[str, Any]:
             if _is_good_enough(parsed):
                 return _build_response(_best_result(all_results))
 
-    # 세로 이미지(폰 세로 촬영, 신분증 가로)면 90도 회전해서도 시도
+    # 2단계: 원본 실패 시 보조 변형 (CLAHE, 이진화) 시도
+    if not all_results or not any(_is_good_enough(r) for r in all_results):
+        for variant in _fallback_variants(bgr):
+            parsed = _ocr_and_extract(ocr, variant)
+            if parsed:
+                all_results.append(parsed)
+                if _is_good_enough(parsed):
+                    return _build_response(_best_result(all_results))
+
+    # 3단계: 세로 이미지면 90도 회전 시도 (최후의 수단)
     h, w = bgr.shape[:2]
-    if h > w:
+    if h > w and not any(_is_good_enough(r) for r in all_results):
         rotated = cv2.rotate(bgr, cv2.ROTATE_90_CLOCKWISE)
         for variant in _preprocess_variants(rotated):
             parsed = _ocr_and_extract(ocr, variant)
