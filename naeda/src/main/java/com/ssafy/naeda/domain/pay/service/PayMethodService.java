@@ -20,6 +20,10 @@ public class PayMethodService {
         return payMethodRepository.findByUserNoAndIsActiveTrue(userNo);
     }
 
+    /**
+     * 대표 결제수단 설정 = 페이스페이 결제수단 설정 (통합)
+     * 기존 대표/페이스페이 설정을 모두 해제하고, 대상에 둘 다 설정한다.
+     */
     @Transactional
     public PayMethod setDefault(Long userNo, Long paymentMethodId) {
         List<PayMethod> methods = payMethodRepository.findByUserNoAndIsActiveTrue(userNo);
@@ -30,27 +34,20 @@ public class PayMethodService {
                 .orElseThrow(() -> new NotFoundException("결제 수단을 찾을 수 없습니다."));
 
         methods.forEach(PayMethod::clearDefault);
+        methods.forEach(PayMethod::clearFacePay);
         target.setAsDefault();
+        target.setAsFacePay();
 
         payMethodRepository.saveAll(methods);
         return target;
     }
 
+    /**
+     * 페이스페이 결제수단 설정 = 대표 결제수단 설정 (통합)
+     */
     @Transactional
     public PayMethod setFacePay(Long userNo, Long paymentMethodId) {
-        List<PayMethod> methods = payMethodRepository.findByUserNoAndIsActiveTrue(userNo);
-
-        PayMethod target = methods.stream()
-                .filter(method -> method.getPaymentMethodId().equals(paymentMethodId))
-                .findFirst()
-                .orElseThrow(() -> new NotFoundException("결제 수단을 찾을 수 없습니다."));
-
-        methods.forEach(PayMethod::clearDefault);
-        methods.forEach(PayMethod::clearFacePay);
-        target.setAsFacePay();
-
-        payMethodRepository.saveAll(methods);
-        return target;
+        return setDefault(userNo, paymentMethodId);
     }
 
     @Transactional
