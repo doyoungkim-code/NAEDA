@@ -507,6 +507,51 @@ public class PayFacadeService {
         }
 
         String ssafyTransactionId = extractCardTransactionId(ssafyResponse);
+
+        // 카드 결제 TransactionLog 저장 (WITHDRAW — 고객 연결 계좌)
+        if (paymentMethod.getAccountId() != null) {
+            accountRepository.findById(paymentMethod.getAccountId()).ifPresent(cardAccount -> {
+                long balanceAfter;
+                try {
+                    balanceAfter = getBalanceAfter(user.getUserKey(), cardAccount.getAccountNo());
+                } catch (Exception e) {
+                    log.warn("[Pay] 카드 결제 잔액 조회 실패: requestId={}", requestId, e);
+                    balanceAfter = 0L;
+                }
+                transactionLogRepository.save(TransactionLog.builder()
+                        .accountId(cardAccount.getAccountId())
+                        .transactionType(TransactionType.WITHDRAW)
+                        .amount(amount)
+                        .balanceAfter(balanceAfter)
+                        .counterpart(store.getStoreName())
+                        .memo(store.getStoreName() + " 카드 결제")
+                        .ssafyTransactionId(ssafyTransactionId)
+                        .build());
+            });
+        }
+
+        // 카드 결제 TransactionLog 저장 (DEPOSIT — 가맹점 계좌)
+        if (store.getAccountId() != null) {
+            accountRepository.findById(store.getAccountId()).ifPresent(depositAccount -> {
+                long depositBalanceAfter;
+                try {
+                    depositBalanceAfter = getBalanceAfter(user.getUserKey(), depositAccount.getAccountNo());
+                } catch (Exception e) {
+                    log.warn("[Pay] 카드 결제 입금 계좌 잔액 조회 실패: requestId={}", requestId, e);
+                    depositBalanceAfter = 0L;
+                }
+                transactionLogRepository.save(TransactionLog.builder()
+                        .accountId(depositAccount.getAccountId())
+                        .transactionType(TransactionType.DEPOSIT)
+                        .amount(amount)
+                        .balanceAfter(depositBalanceAfter)
+                        .counterpart(user.getUserId())
+                        .memo(store.getStoreName() + " 카드 결제")
+                        .ssafyTransactionId(ssafyTransactionId)
+                        .build());
+            });
+        }
+
         log.info("[Pay] 카드 결제 API 성공: requestId={}, cardType={}", requestId, paymentMethod.getMethodType());
         return ssafyTransactionId;
     }
