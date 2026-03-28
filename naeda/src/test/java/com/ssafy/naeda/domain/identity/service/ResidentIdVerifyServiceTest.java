@@ -82,6 +82,44 @@ class ResidentIdVerifyServiceTest {
     }
 
     @Test
+    @DisplayName("문서와 주민번호가 인식되면 이름이 비어도 OCR 세션을 유지한다")
+    void extract_keepsSessionWhenNameMissingButDocumentAndResidentNoExist() throws Exception {
+        ResidentIdOcrResponse response = new ResidentIdOcrResponse();
+        setField(response, "documentType", "RESIDENT_ID");
+        setField(response, "documentMatched", true);
+        setField(response, "name", (String) null);
+        setField(response, "residentFront6", "900101");
+        setField(response, "residentBackFirst1", "1");
+        given(residentIdOcrClient.extractResidentId(any())).willReturn(response);
+
+        residentIdVerifyService.extract(
+                "user-1",
+                new MockMultipartFile("image", "card.jpg", "image/jpeg", new byte[]{1, 2, 3})
+        );
+
+        verify(residentIdVerificationSessionService).recordExtraction("user-1", true);
+    }
+
+    @Test
+    @DisplayName("문서가 불명확해도 이름과 주민번호가 인식되면 OCR 세션을 유지한다")
+    void extract_keepsSessionWhenNameAndResidentNoExistWithoutDocumentMatch() throws Exception {
+        ResidentIdOcrResponse response = new ResidentIdOcrResponse();
+        setField(response, "documentType", (String) null);
+        setField(response, "documentMatched", false);
+        setField(response, "name", "홍길동");
+        setField(response, "residentFront6", "900101");
+        setField(response, "residentBackFirst1", "1");
+        given(residentIdOcrClient.extractResidentId(any())).willReturn(response);
+
+        residentIdVerifyService.extract(
+                "user-1",
+                new MockMultipartFile("image", "card.jpg", "image/jpeg", new byte[]{1, 2, 3})
+        );
+
+        verify(residentIdVerificationSessionService).recordExtraction("user-1", true);
+    }
+
+    @Test
     @DisplayName("이름과 주민번호 7자리가 모두 일치하면 확인 성공")
     void confirm_success() {
         given(residentIdVerificationSessionService.hasActiveExtraction("user-1")).willReturn(true);

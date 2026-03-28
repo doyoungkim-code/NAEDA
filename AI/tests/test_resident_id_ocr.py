@@ -26,7 +26,7 @@ def _make_fake_paddle(ocr_return):
             pass
 
         def ocr(self, image, cls=True):
-            return ocr_return
+            return ocr_return(image) if callable(ocr_return) else ocr_return
 
     fake_module.PaddleOCR = FakePaddleOCR
     return fake_module
@@ -165,6 +165,33 @@ def test_prefers_name_over_region(monkeypatch):
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "김민수"
+
+
+def test_recovers_name_from_name_roi(monkeypatch):
+    def fake_ocr(image):
+        height, width = image.shape[:2]
+        if width < 8 or height < 8:
+            return [[
+                [[[0, 0], [20, 0], [20, 10], [0, 10]], ("성명", 0.97)],
+                [[[24, 0], [70, 0], [70, 10], [24, 10]], ("홍길동", 0.95)],
+            ]]
+        return [[
+            [[[0, 0], [70, 0], [70, 10], [0, 10]], ("주민등록증", 0.99)],
+            [[[0, 40], [90, 40], [90, 50], [0, 50]], ("900101-1******", 0.96)],
+        ]]
+
+    gs, ro = _setup(monkeypatch, fake_ocr)
+    try:
+        response = _post_extract()
+    finally:
+        _teardown(gs, ro)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["documentType"] == "RESIDENT_ID"
+    assert data["name"] == "홍길동"
+    assert data["residentFront6"] == "900101"
+    assert data["residentBackFirst1"] == "1"
 
 
 def test_no_name_returns_review(monkeypatch):

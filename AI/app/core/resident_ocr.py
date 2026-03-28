@@ -186,6 +186,50 @@ def _flatten_ocr(result) -> list[dict[str, Any]]:
     return entries
 
 
+def _ocr_entries(ocr, image: np.ndarray) -> list[dict[str, Any]]:
+    if image.size == 0:
+        return []
+    try:
+        result = ocr.ocr(image, cls=True)
+    except AIServiceError:
+        raise
+    except Exception:
+        logger.exception("PaddleOCR inference failed")
+        return []
+    return _flatten_ocr(result)
+
+
+def _crop_by_ratio(image: np.ndarray, left: float, top: float, right: float, bottom: float) -> np.ndarray:
+    height, width = image.shape[:2]
+    if height <= 1 or width <= 1:
+        return image
+
+    left_px = int(width * left)
+    top_px = int(height * top)
+    right_px = int(width * right)
+    bottom_px = int(height * bottom)
+
+    left_px = max(0, min(width - 1, left_px))
+    top_px = max(0, min(height - 1, top_px))
+    right_px = max(left_px + 1, min(width, right_px))
+    bottom_px = max(top_px + 1, min(height, bottom_px))
+    return image[top_px:bottom_px, left_px:right_px]
+
+
+def _crop_name_roi(image: np.ndarray, entries: list[dict[str, Any]]) -> np.ndarray:
+    height, width = image.shape[:2]
+    label_entry = next((e for e in entries if any(label in e["text"] for label in NAME_LABELS)), None)
+    if label_entry is None:
+        return _crop_by_ratio(image, 0.0, 0.0, 0.78, 0.55)
+
+    margin_y = max(12.0, label_entry["h"] * 1.2)
+    left = max(0, int(label_entry["right"] - width * 0.02))
+    top = max(0, int(label_entry["top"] - margin_y))
+    right = min(width, max(left + 1, int(label_entry["right"] + width * 0.45)))
+    bottom = min(height, max(top + 1, int(label_entry["bottom"] + margin_y)))
+    return image[top:bottom, left:right]
+
+
 # ── 문서 유형 감지 ────────────────────────────────────────────────────
 def _detect_doc_type(entries: list[dict[str, Any]]) -> tuple[str | None, float]:
     joined = " ".join(e["text"] for e in entries)
@@ -301,21 +345,31 @@ def _extract_name(entries: list[dict[str, Any]]) -> tuple[str | None, float]:
 
 # ── 단일 이미지 OCR 실행 및 필드 추출 ─────────────────────────────────
 def _ocr_and_extract(ocr, image: np.ndarray) -> dict[str, Any] | None:
-    try:
-        result = ocr.ocr(image, cls=True)
-    except AIServiceError:
-        raise
-    except Exception:
-        logger.exception("PaddleOCR inference failed")
-        return None
-
-    entries = _flatten_ocr(result)
+    entries = _ocr_entries(ocr, image)
     if not entries:
         return None
 
     doc_type, doc_conf = _detect_doc_type(entries)
     front6, back1, rn_conf = _extract_resident_number(entries)
     name, name_conf = _extract_name(entries)
+
+    if doc_type is None:
+        top_entries = _ocr_entries(ocr, _crop_by_ratio(image, 0.0, 0.0, 1.0, 0.35))
+        roi_doc_type, roi_doc_conf = _detect_doc_type(top_entries)
+        if roi_doc_type and roi_doc_conf > doc_conf:
+            doc_type, doc_conf = roi_doc_type, roi_doc_conf
+
+    if name is None:
+        name_entries = _ocr_entries(ocr, _crop_name_roi(image, entries))
+        roi_name, roi_name_conf = _extract_name(name_entries)
+        if roi_name and roi_name_conf > name_conf:
+            name, name_conf = roi_name, roi_name_conf
+
+    if front6 is None or back1 is None:
+        number_entries = _ocr_entries(ocr, _crop_by_ratio(image, 0.0, 0.22, 1.0, 0.88))
+        roi_front6, roi_back1, roi_rn_conf = _extract_resident_number(number_entries)
+        if roi_front6 and roi_back1 and roi_rn_conf > rn_conf:
+            front6, back1, rn_conf = roi_front6, roi_back1, roi_rn_conf
 
     return {
         "doc_type": doc_type,

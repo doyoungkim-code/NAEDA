@@ -1994,17 +1994,21 @@ private fun IdCardScanningStageContent(
                 }
 
                 val assessment = assessResidentIdExtract(extracted)
-                if (!assessment.canProceed) {
+                val shouldOpenConfirm = shouldOpenIdConfirm(extracted, assessment)
+                if (!assessment.canProceed && !shouldOpenConfirm) {
                     val message = assessment.warningMessage ?: assessment.statusMessage
                     blockUntilGuideChanges(message, IdScanFailureReason.OCR_RETAKE)
                     onErrorUpdated(message)
                     break
                 }
 
-                val displayExtract = if (assessment.requiresReview && extracted.warnings.isEmpty()) {
+                val reviewWarnings = extracted.warnings.filter { it.isNotBlank() }.ifEmpty {
+                    listOfNotNull(assessment.warningMessage ?: assessment.statusMessage)
+                }
+                val displayExtract = if (!assessment.canProceed || assessment.requiresReview) {
                     extracted.copy(
                         extractionStatus = OCR_STATUS_REVIEW_REQUIRED,
-                        warnings = listOf(assessment.warningMessage ?: assessment.statusMessage)
+                        warnings = reviewWarnings
                     )
                 } else {
                     extracted
@@ -3837,26 +3841,6 @@ private fun assessResidentIdExtract(extracted: ResidentIdExtractResponseDto): Id
     val firstWarning = extracted.warnings.firstOrNull { it.isNotBlank() }
     val hasSupportedDocument = extracted.documentMatched && !extracted.documentType.isNullOrBlank()
 
-    if (!hasSupportedDocument) {
-        return IdCaptureAssessment(
-            canProceed = false,
-            requiresReview = false,
-            statusMessage = firstWarning ?: "주민등록증 또는 운전면허증이 가이드 안에 또렷하게 보이도록 맞춰주세요.",
-            key = null,
-            warningMessage = firstWarning
-        )
-    }
-
-    if (!hasName) {
-        return IdCaptureAssessment(
-            canProceed = false,
-            requiresReview = false,
-            statusMessage = firstWarning ?: "이름을 인식하지 못했습니다. 신분증을 더 또렷하게 맞춰주세요.",
-            key = null,
-            warningMessage = firstWarning
-        )
-    }
-
     if (!hasResidentNumber || status == OCR_STATUS_RETAKE_REQUIRED) {
         return IdCaptureAssessment(
             canProceed = false,
@@ -3867,17 +3851,29 @@ private fun assessResidentIdExtract(extracted: ResidentIdExtractResponseDto): Id
         )
     }
 
-    val requiresReview = status == OCR_STATUS_REVIEW_REQUIRED ||
+    if (!hasSupportedDocument && !hasName) {
+        return IdCaptureAssessment(
+            canProceed = false,
+            requiresReview = false,
+            statusMessage = firstWarning ?: "신분증 정보를 다시 확인할 수 있도록 이름이나 문서 정보가 더 또렷하게 보이게 맞춰주세요.",
+            key = null,
+            warningMessage = firstWarning
+        )
+    }
+
+    val requiresReview = !hasSupportedDocument ||
+            !hasName ||
+            status == OCR_STATUS_REVIEW_REQUIRED ||
             extracted.warnings.isNotEmpty() ||
             (hasName && extracted.nameConfidence in 0.0..0.779)
 
     return IdCaptureAssessment(
-        canProceed = true,
+        canProceed = hasSupportedDocument && hasName,
         requiresReview = requiresReview,
         statusMessage = if (requiresReview) {
-            "일부 항목이 비어 있어도 확인 화면에서 직접 수정할 수 있습니다."
+            "자동 입력값을 확인한 뒤 다음 단계로 진행해 주세요."
         } else {
-            "신분증 정보를 읽는 중입니다. 흔들리지 않게 유지해 주세요."
+            "신분증 확인 화면으로 이동합니다."
         },
         key = buildResidentIdExtractKey(extracted),
         warningMessage = firstWarning
@@ -3891,11 +3887,10 @@ private fun shouldOpenIdConfirm(
     if (assessment.canProceed) {
         return true
     }
-    return extracted.documentMatched ||
-            !extracted.documentType.isNullOrBlank() ||
-            !extracted.name.isNullOrBlank() ||
-            !extracted.residentFront6.isNullOrBlank() ||
-            !extracted.residentBackFirst1.isNullOrBlank()
+    val hasResidentNumber = extracted.residentFront6?.length == 6 && extracted.residentBackFirst1?.length == 1
+    val hasName = !extracted.name.isNullOrBlank()
+    val hasDocumentSignal = extracted.documentMatched || !extracted.documentType.isNullOrBlank()
+    return hasResidentNumber && (hasName || hasDocumentSignal)
 }
 
 private fun isDocumentGuideStateSimilar(

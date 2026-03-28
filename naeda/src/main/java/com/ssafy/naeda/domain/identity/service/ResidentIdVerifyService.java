@@ -88,10 +88,15 @@ public class ResidentIdVerifyService {
     }
 
     private boolean hasRecognizedIdentity(ResidentIdOcrResponse response) {
-        return response != null
-                && response.isDocumentMatched()
-                && !normalizeName(response.getName()).isBlank()
-                && normalizeDigits(response.getResidentFront6()).length() == 6
-                && normalizeDigits(response.getResidentBackFirst1()).length() == 1;
+        if (response == null) {
+            return false;
+        }
+
+        boolean hasResidentNumber =
+                normalizeDigits(response.getResidentFront6()).length() == 6
+                        && normalizeDigits(response.getResidentBackFirst1()).length() == 1;
+        boolean hasName = !normalizeName(response.getName()).isBlank();
+
+        return hasResidentNumber && (response.isDocumentMatched() || hasName);
     }
 }
