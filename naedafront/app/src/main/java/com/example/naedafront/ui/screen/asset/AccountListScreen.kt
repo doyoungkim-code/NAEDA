@@ -278,7 +278,6 @@ private fun AccountListHeader(count: Int, onRegisterNew: () -> Unit) {
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column {
             Text(
@@ -291,6 +290,25 @@ private fun AccountListHeader(count: Int, onRegisterNew: () -> Unit) {
                 style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onBackground
             )
+        }
+        if (false) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clickable { onRegisterNew() }
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "계좌 추가",
+                tint = Mint900,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(2.dp))
+            Text(
+                text = "추가하기",
+                style = NaedaTypography.labelMedium,
+                color = Mint900
+            )
+        }
         }
     }
 }
