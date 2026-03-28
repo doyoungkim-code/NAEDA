@@ -25,6 +25,15 @@ private interface RecommendApiService {
         @Query("sort") sort: String? = null
     ): List<RecommendResponseDto>
 
+    @GET("api/recommend/stores/nearby")
+    suspend fun getRecommendStoresNearby(
+        @Query("lat") lat: Double,
+        @Query("lng") lng: Double,
+        @Query("radius") radius: Double = 3.0,
+        @Query("category") category: String? = null,
+        @Query("sort") sort: String? = null
+    ): List<RecommendResponseDto>
+
     @GET("api/recommend/dongs")
     suspend fun getDongs(): List<String>
 }
@@ -39,6 +48,23 @@ object RecommendRepository {
     ): List<RecommendResponseDto> {
         return runCatching {
             service.getRecommendStores(dong, category, sort)
+        }.getOrElse { throwable ->
+            throw IllegalStateException(
+                throwable.message ?: "맛집 추천 정보를 불러오지 못했습니다.",
+                throwable
+            )
+        }
+    }
+
+    suspend fun getRecommendStoresNearby(
+        lat: Double,
+        lng: Double,
+        radius: Double = 3.0,
+        category: String? = null,
+        sort: String? = null
+    ): List<RecommendResponseDto> {
+        return runCatching {
+            service.getRecommendStoresNearby(lat, lng, radius, category, sort)
         }.getOrElse { throwable ->
             throw IllegalStateException(
                 throwable.message ?: "맛집 추천 정보를 불러오지 못했습니다.",
