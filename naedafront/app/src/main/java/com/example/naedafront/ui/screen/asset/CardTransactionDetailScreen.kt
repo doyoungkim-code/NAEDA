@@ -43,7 +43,7 @@ fun CardTransactionDetailScreen(
     onClose: () -> Unit,
 ) {
     val accentColor = Mint900
-    val merchantName = transaction.merchantName.ifBlank { "매장 정보 없음" }
+    val merchantName = transaction.displayName
     val paymentMethod = buildList {
         card?.cardName?.takeIf { it.isNotBlank() }?.let(::add)
         card?.cardNo?.maskCardNumber()?.takeIf { it.isNotBlank() && it != "-" }?.let(::add)

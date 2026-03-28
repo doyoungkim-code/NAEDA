@@ -24,11 +24,23 @@ public class CardTransactionResponse {
                 .transactionUniqueNo(log.getSsafyTransactionId())
                 .categoryName(log.getCategory())
                 .aiCategory(log.getAiCategory())
-                .merchantName(log.getCounterpart())
+                .merchantName(resolveMerchantName(log))
                 .transactionDate(log.getTransacted().toLocalDate().toString())
                 .transactionTime(log.getTransacted().toLocalTime().toString())
                 .amount(log.getAmount())
                 .cardStatus(log.getMemo())
                 .build();
+    }
+
+    private static String resolveMerchantName(TransactionLog log) {
+        String counterpart = log.getCounterpart();
+        // counterpart가 숫자(계좌번호)인 경우 memo에서 매장명 추출
+        if (counterpart != null && counterpart.matches("\\d{10,}")) {
+            String memo = log.getMemo();
+            if (memo != null && !memo.isBlank()) {
+                return memo.replaceAll("\\s*(페이스페이|카드)\\s*결제$", "");
+            }
+        }
+        return counterpart;
     }
 }

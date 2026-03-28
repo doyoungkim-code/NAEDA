@@ -103,6 +103,15 @@ data class CardTransactionItem(
 
     val estimatedPoints: Long
         get() = if (isCanceled) 0L else amount * 5 / 100
+
+    /** merchantName이 계좌번호(숫자)인 경우 카테고리명으로 대체 */
+    val displayName: String
+        get() = when {
+            merchantName.isBlank() -> "가맹점 정보 없음"
+            merchantName.all { it.isDigit() } && merchantName.length >= 10 ->
+                category.takeIf { it.isNotBlank() && it != "기타" } ?: "내다페이 결제"
+            else -> merchantName
+        }
 }
 
 data class CardDetailUiState(
@@ -742,7 +751,7 @@ private fun CardTransactionRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = item.merchantName.ifBlank { "가맹점 정보 없음" },
+                text = item.displayName,
                 style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1
@@ -809,7 +818,7 @@ private fun CardTransactionDetailDialog(
                 )
                 DetailRow("적립 포인트", "${formatAmount(transaction.estimatedPoints)}P")
                 DetailRow("결제 번호", transaction.transactionId)
-                DetailRow("결제 장소", transaction.merchantName.ifBlank { "가맹점 정보 없음" })
+                DetailRow("결제 장소", transaction.displayName)
             }
         }
     )
@@ -856,7 +865,7 @@ private fun CardTransactionDetailFullScreen(
         title = "결제 상세",
         badgeText = "결",
         headlineLabel = "결제 장소",
-        headlineValue = transaction.merchantName.ifBlank { "가맹점 정보 없음" },
+        headlineValue = transaction.displayName,
         amountText = "${formatAmount(transaction.amount)}원",
         statusText = statusText,
         accentColor = accentColor,
@@ -869,7 +878,7 @@ private fun CardTransactionDetailFullScreen(
         )
         CardDetailField("적립 포인트", "${formatAmount(transaction.estimatedPoints)}P")
         CardDetailField("결제 번호", transaction.transactionId)
-        CardDetailField("결제 장소", transaction.merchantName.ifBlank { "가맹점 정보 없음" })
+        CardDetailField("결제 장소", transaction.displayName)
     }
 }
 
