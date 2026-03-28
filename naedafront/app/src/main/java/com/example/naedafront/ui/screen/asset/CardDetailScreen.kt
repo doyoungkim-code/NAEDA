@@ -32,6 +32,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -298,6 +300,13 @@ fun CardDetailRoute(
     var isSearchMode by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var showPeriodDialog by rememberSaveable { mutableStateOf(false) }
+    var selectedFlow by rememberSaveable { mutableStateOf("전체") }
+
+    LaunchedEffect(Unit) {
+        if (selectedFlow !in listOf("전체", "입금", "출금")) {
+            selectedFlow = "전체"
+        }
+    }
 
     LaunchedEffect(cardId, cardType, cardName, cardNo, uiState.selectedPeriod) {
         viewModel.loadData(
@@ -324,6 +333,8 @@ fun CardDetailRoute(
         onSearchQueryChange = { searchQuery = it },
         onBack = onBack,
         onPeriodClick = { showPeriodDialog = true },
+        selectedFlow = selectedFlow,
+        onFlowSelect = { selectedFlow = it },
         onCategorySelect = { viewModel.selectCategory(it) },
         onTransactionClick = { viewModel.showTransactionDetail(it) },
         onDismissDetail = { viewModel.clearSelectedTransaction() }
@@ -350,12 +361,22 @@ fun CardDetailScreen(
     onSearchQueryChange: (String) -> Unit,
     onBack: () -> Unit,
     onPeriodClick: () -> Unit,
+    selectedFlow: String,
+    onFlowSelect: (String) -> Unit,
     onCategorySelect: (String) -> Unit,
     onTransactionClick: (CardTransactionItem) -> Unit,
     onDismissDetail: () -> Unit
 ) {
-    val filteredTransactions = remember(uiState.filteredTransactions, searchQuery) {
-        uiState.filteredTransactions.filter { it.matches(searchQuery) }
+    val filteredTransactions = remember(uiState.filteredTransactions, searchQuery, selectedFlow) {
+        uiState.filteredTransactions
+            .filter { item ->
+                when (selectedFlow) {
+                    "입금" -> item.isCanceled
+                    "출금" -> !item.isCanceled
+                    else -> true
+                }
+            }
+            .filter { it.matches(searchQuery) }
     }
 
     val groupedTransactions = remember(filteredTransactions) {
@@ -398,8 +419,10 @@ fun CardDetailScreen(
             }
 
             item {
-                CardFilterRow(
+                CardFilterRowV2(
                     selectedPeriod = uiState.selectedPeriod,
+                    selected = selectedFlow,
+                    onSelect = onFlowSelect,
                     onPeriodClick = onPeriodClick
                 )
             }
@@ -632,10 +655,101 @@ private fun CardSearchBar(
 }
 
 @Composable
-private fun CardFilterRow(
+private fun CardFilterRowV2(
     selectedPeriod: String,
+    selected: String,
+    onSelect: (String) -> Unit,
     onPeriodClick: () -> Unit
 ) {
+    var showSortMenu by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(SurfaceColor)
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Box {
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(SurfaceVariant)
+                    .clickable { showSortMenu = true }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "정렬",
+                    style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = Mint900
+                )
+                Icon(
+                    imageVector = Icons.Default.ArrowDownward,
+                    contentDescription = null,
+                    tint = Mint900,
+                    modifier = Modifier.size(12.dp)
+                )
+            }
+
+            DropdownMenu(
+                expanded = showSortMenu,
+                onDismissRequest = { showSortMenu = false }
+            ) {
+                listOf("전체", "입금", "출금").forEach { option ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = option,
+                                color = if (selected == option) Mint900 else OnBackground
+                            )
+                        },
+                        onClick = {
+                            onSelect(option)
+                            showSortMenu = false
+                        }
+                    )
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(SurfaceVariant)
+                .clickable { onPeriodClick() }
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = selectedPeriod,
+                style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = Mint900
+            )
+            Icon(
+                imageVector = Icons.Default.ArrowDownward,
+                contentDescription = null,
+                tint = Mint900,
+                modifier = Modifier.size(12.dp)
+            )
+        }
+    }
+
+    HorizontalDivider(color = OutlineVariant, thickness = 1.dp)
+}
+
+@Composable
+private fun CardFilterRow(
+    selectedPeriod: String,
+    selected: String,
+    onSelect: (String) -> Unit,
+    onPeriodClick: () -> Unit
+) {
+    var showSortMenu by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -677,6 +791,41 @@ private fun CardFilterRow(
 }
 
 @Composable
+private fun CardFlowFilterRow(
+    selected: String,
+    onSelect: (String) -> Unit
+) {
+    val options = listOf("전체", "입금", "출금")
+
+    LazyRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(SurfaceColor)
+            .padding(top = 12.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(options) { option ->
+            val isSelected = selected == option
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(if (isSelected) Mint900 else SurfaceVariant)
+                    .clickable { onSelect(option) }
+                    .padding(horizontal = 14.dp, vertical = 7.dp)
+            ) {
+                Text(
+                    text = option,
+                    style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = if (isSelected) Color.White else OnSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun CardCategoryFilterRow(
     categories: List<String>,
     selected: String,
@@ -686,7 +835,7 @@ private fun CardCategoryFilterRow(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .padding(bottom = 12.dp),
+            .padding(top = 10.dp, bottom = 12.dp),
         contentPadding = PaddingValues(horizontal = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -708,8 +857,6 @@ private fun CardCategoryFilterRow(
             }
         }
     }
-
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 }
 
 @Composable
