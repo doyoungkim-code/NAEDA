@@ -175,6 +175,7 @@ fun HomeScreen(
             val totalAmount = CardRepository.getCardTransactions(
                 userNo = userNo,
                 cardId = cardId,
+                cardType = card.cardType.orEmpty().ifBlank { "CREDIT" },
                 period = "전체"
             ).getOrDefault(emptyList())
                 .filter { !it.isCanceled }
