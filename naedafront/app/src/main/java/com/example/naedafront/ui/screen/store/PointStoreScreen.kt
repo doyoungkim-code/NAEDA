@@ -57,6 +57,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
@@ -66,6 +67,7 @@ import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import kotlinx.coroutines.launch
 
 private data class StoreCategory(
@@ -565,7 +567,9 @@ private fun ProductCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(162.dp),
-                badge = item.badge
+                badge = item.badge,
+                requestWidth = 180.dp,
+                requestHeight = 162.dp
             )
 
             Column(
@@ -614,8 +618,27 @@ private fun ProductImage(
     modifier: Modifier = Modifier,
     badge: String? = null,
     contentScale: ContentScale = ContentScale.Crop,
-    imagePadding: Dp = 0.dp
+    imagePadding: Dp = 0.dp,
+    requestWidth: Dp? = null,
+    requestHeight: Dp? = null
 ) {
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val imageRequest = remember(imageUrl, requestWidth, requestHeight) {
+        ImageRequest.Builder(context)
+            .data(imageUrl)
+            .crossfade(false)
+            .apply {
+                if (requestWidth != null && requestHeight != null) {
+                    size(
+                        with(density) { requestWidth.roundToPx() },
+                        with(density) { requestHeight.roundToPx() }
+                    )
+                }
+            }
+            .build()
+    }
+
     Box(
         modifier = modifier
             .background(MaterialTheme.colorScheme.surfaceVariant),
@@ -623,7 +646,7 @@ private fun ProductImage(
     ) {
         if (imageUrl.isNotBlank()) {
             AsyncImage(
-                model = imageUrl,
+                model = imageRequest,
                 contentDescription = thumbnailLabel,
                 modifier = Modifier
                     .fillMaxSize()
@@ -707,7 +730,9 @@ private fun StoreItemDetailDialog(
                         .aspectRatio(1f)
                         .clip(RoundedCornerShape(18.dp)),
                     contentScale = ContentScale.Fit,
-                    imagePadding = 12.dp
+                    imagePadding = 12.dp,
+                    requestWidth = 320.dp,
+                    requestHeight = 320.dp
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))

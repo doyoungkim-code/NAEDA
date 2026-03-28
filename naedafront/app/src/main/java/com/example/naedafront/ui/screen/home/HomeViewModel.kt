@@ -310,7 +310,7 @@ private fun PaymentResponse.toTransactionItem(): TransactionItem {
         isIncome = false,
         iconBg = if (isSuccess) Color(0xFFDCEBFF) else Color(0xFFFFEBEE),
         icon = Icons.Default.ShoppingBag,
-        badgeText = if (isSuccess && isFacePayTransaction) "FacePay" else null
+        badgeText = if (isSuccess && isFacePayTransaction) "FACE PAY" else null
     )
 }
 
