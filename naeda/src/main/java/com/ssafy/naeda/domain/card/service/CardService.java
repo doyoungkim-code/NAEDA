@@ -18,6 +18,7 @@ import com.ssafy.naeda.domain.consumption.client.dto.AiConsumptionCategoryItem;
 import com.ssafy.naeda.domain.pay.entity.MethodType;
 import com.ssafy.naeda.domain.pay.entity.PayMethod;
 import com.ssafy.naeda.domain.pay.repository.PayMethodRepository;
+import com.ssafy.naeda.domain.pay.repository.PayTransactionRepository;
 import com.ssafy.naeda.domain.transaction.entity.TransactionLog;
 import com.ssafy.naeda.domain.transaction.entity.TransactionType;
 import com.ssafy.naeda.domain.transaction.repository.TransactionLogRepository;
@@ -69,6 +70,7 @@ public class CardService {
     private final DebitCardRepository debitCardRepository;
     private final PayMethodRepository paymentMethodRepository;
     private final TransactionLogRepository transactionLogRepository;
+    private final PayTransactionRepository payTransactionRepository;
     private final ConsumptionCategoryAiClient consumptionCategoryAiClient;
 
     /**
@@ -353,11 +355,14 @@ public class CardService {
             log.warn("[CardService] SSAFY 카드 거래내역 조회 실패, DB 폴백: cardNo={}", cardInfo.cardNo(), e);
         }
 
-        // 2. SSAFY 결과가 비어있으면 DB에서 직접 조회 (카드 결제로 생성된 TransactionLog)
+        // 2. SSAFY 결과가 비어있으면 DB에서 직접 조회 (해당 카드의 결제 내역만)
         if (savedLogs.isEmpty() && cardInfo.accountId() != null) {
-            savedLogs = transactionLogRepository.findByAccountIdAndTransactionTypeOrderByTransactedDesc(
-                    cardInfo.accountId(), TransactionType.WITHDRAW
-            );
+            // 해당 카드의 ssafyTransactionId로만 조회 (다른 카드/계좌이체 건 제외)
+            List<String> cardTxIds = payTransactionRepository
+                    .findSsafyTransactionIdsByCardNo(cardInfo.cardNo());
+            if (!cardTxIds.isEmpty()) {
+                savedLogs = transactionLogRepository.findBySsafyTransactionIdIn(cardTxIds);
+            }
         }
 
         log.info("[CardService] 카드 결제 내역 조회: userNo={}, cardNo={}, 건수={}", user.getUserNo(), cardInfo.cardNo(), savedLogs.size());

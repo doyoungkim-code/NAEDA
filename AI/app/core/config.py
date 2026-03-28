@@ -13,9 +13,9 @@ class Settings(BaseSettings):
     arcface_model_name: str = "buffalo_l"
     arcface_provider: str = "CPUExecutionProvider"
     arcface_det_size: int = 320
-    ai_timeout_seconds: float = 5.0
-    ai_retry_count: int = 1
-    ai_retry_backoff_ms: int = 150
+    ai_timeout_seconds: float = 30.0
+    ai_retry_count: int = 2
+    ai_retry_backoff_ms: int = 500
     ai_max_image_bytes: int = 3_145_728
     ai_feature_version: str = "fds-feature-v1"
     ai_rule_version: str = "fds-rule-v1"

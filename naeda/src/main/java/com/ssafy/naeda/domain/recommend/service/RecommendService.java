@@ -36,8 +36,9 @@ public class RecommendService {
      * @return 추천 목록
      */
     public List<RecommendResponse> getRecommendStores(String dong, String category, String sort) {
-        // 1. dong, category 조건에 맞는 Store 목록 조회
-        List<Store> stores = storeRepository.findRecommendedByFilters(dong, category);
+        // 1. dong에서 면/읍/동 접미사 제거하여 유연한 검색 (산동면 → 산동, 산동읍 모두 매칭)
+        String normalizedDong = normalizeDong(dong);
+        List<Store> stores = storeRepository.findRecommendedByFilters(normalizedDong, category);
 
         // 2. 각 가게별 방문수(결제 횟수) 집계
         Map<Long, Long> visitMap = payTransactionRepository.countVisitsByStore()
@@ -74,6 +75,11 @@ public class RecommendService {
         }
 
         return result;
+    }
+
+    private static String normalizeDong(String dong) {
+        if (dong == null || dong.isBlank()) return null;
+        return dong.replaceAll("(면|읍|동)$", "");
     }
 
     /**

@@ -1975,9 +1975,8 @@ private fun PopularRestaurantMapTab(
     var isRecommendLoading by remember { mutableStateOf(false) }
     var selectedStoreDetail by remember { mutableStateOf<MapStoreResponseDto?>(null) }
     var isDetailLoading by remember { mutableStateOf(false) }
-    val displayedRecommendStores = remember(selectedRegion?.label, recommendStores, featuredFallbackStores) {
-        val regionLabel = selectedRegion?.label ?: return@remember emptyList()
-        mergeWithFeaturedFallbackStores(regionLabel, recommendStores, featuredFallbackStores)
+    val displayedRecommendStores = remember(selectedRegion?.label, recommendStores) {
+        if (selectedRegion?.label == null) emptyList() else recommendStores
     }
 
     LaunchedEffect(selectedRegion?.label) {

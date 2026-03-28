@@ -92,6 +92,20 @@ async def handle_unexpected_error(request: Request, _: Exception):
     )
 
 
+@app.on_event("startup")
+async def warmup_ocr():
+    """서버 시작 시 PaddleOCR 모델을 미리 로딩하여 첫 요청 타임아웃 방지."""
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        from app.core.resident_ocr import _get_paddle_ocr
+        logger.info("[Warmup] PaddleOCR 모델 로딩 시작...")
+        _get_paddle_ocr()
+        logger.info("[Warmup] PaddleOCR 모델 로딩 완료")
+    except Exception as e:
+        logger.warning("[Warmup] PaddleOCR 모델 로딩 실패 (요청 시 재시도): %s", e)
+
+
 @app.get("/health")
 def health_check() -> dict[str, str]:
     return {"status": "ok"}
