@@ -104,10 +104,12 @@ data class CardTransactionItem(
     val estimatedPoints: Long
         get() = if (isCanceled) 0L else amount * 5 / 100
 
-    /** merchantName이 계좌번호(숫자)인 경우 카테고리명으로 대체 */
+    /** merchantName이 계좌번호(숫자) 또는 이메일인 경우 카테고리명으로 대체 */
     val displayName: String
         get() = when {
             merchantName.isBlank() -> "가맹점 정보 없음"
+            merchantName.contains("@") ->
+                category.takeIf { it.isNotBlank() && it != "기타" } ?: "내다페이 결제"
             merchantName.all { it.isDigit() } && merchantName.length >= 10 ->
                 category.takeIf { it.isNotBlank() && it != "기타" } ?: "내다페이 결제"
             else -> merchantName
