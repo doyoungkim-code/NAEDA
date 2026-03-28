@@ -595,6 +595,25 @@ public class PayFacadeService {
                 .ssafyTransactionId(ssafyTransactionId)
                 .build());
 
+        // 입금 계좌(가맹점) DEPOSIT TransactionLog 저장
+        String depositTransactionId = extractDepositTransactionNo(recList);
+        long depositBalanceAfter;
+        try {
+            depositBalanceAfter = getBalanceAfter(user.getUserKey(), depositAccount.getAccountNo());
+        } catch (Exception e) {
+            log.warn("[Pay] 입금 계좌 잔액 조회 실패: requestId={}", requestId, e);
+            depositBalanceAfter = 0L;
+        }
+        transactionLogRepository.save(TransactionLog.builder()
+                .accountId(depositAccount.getAccountId())
+                .transactionType(TransactionType.DEPOSIT)
+                .amount(amount)
+                .balanceAfter(depositBalanceAfter)
+                .counterpart(withdrawalAccount.getAccountNo())
+                .memo(store.getStoreName() + " 페이스페이 결제")
+                .ssafyTransactionId(depositTransactionId)
+                .build());
+
         log.info("[Pay] 계좌이체 API 성공: requestId={}", requestId);
         return ssafyTransactionId;
     }
@@ -754,6 +773,15 @@ public class PayFacadeService {
         if (recList == null || recList.isEmpty()) return null;
         return recList.stream()
                 .filter(rec -> "2".equals(rec.get("transactionType")))
+                .map(rec -> (String) rec.get("transactionUniqueNo"))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String extractDepositTransactionNo(List<Map<String, Object>> recList) {
+        if (recList == null || recList.isEmpty()) return null;
+        return recList.stream()
+                .filter(rec -> "1".equals(rec.get("transactionType")))
                 .map(rec -> (String) rec.get("transactionUniqueNo"))
                 .findFirst()
                 .orElse(null);

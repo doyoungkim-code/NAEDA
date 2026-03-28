@@ -87,6 +87,28 @@ public class TransferService {
                 .ssafyTransactionId(ssafyTransactionId)
                 .build());
 
+        // 5-2. 입금 계좌 DEPOSIT TransactionLog 저장
+        String depositTransactionId = extractDepositTransactionNo(recList);
+        accountRepository.findByAccountNo(request.getDepositAccountNo())
+                .ifPresent(depositAccount -> {
+                    long depositBalanceAfter;
+                    try {
+                        depositBalanceAfter = getBalanceAfter(user.getUserKey(), request.getDepositAccountNo());
+                    } catch (Exception e) {
+                        log.warn("[TransferService] 입금 계좌 잔액 조회 실패: depositAccountNo={}", request.getDepositAccountNo(), e);
+                        depositBalanceAfter = 0L;
+                    }
+                    transactionLogRepository.save(TransactionLog.builder()
+                            .accountId(depositAccount.getAccountId())
+                            .transactionType(TransactionType.DEPOSIT)
+                            .amount(request.getAmount())
+                            .balanceAfter(depositBalanceAfter)
+                            .counterpart(request.getWithdrawalAccountNo())
+                            .memo(request.getMemo())
+                            .ssafyTransactionId(depositTransactionId)
+                            .build());
+                });
+
         // 6. TransferResponse 반환
         return TransferResponse.builder()
                 .withdrawalAccountNo(request.getWithdrawalAccountNo())
