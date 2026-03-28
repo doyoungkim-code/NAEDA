@@ -635,7 +635,7 @@ public class PayFacadeService {
                 .transactionType(TransactionType.WITHDRAW)
                 .amount(amount)
                 .balanceAfter(balanceAfter)
-                .counterpart(depositAccount.getAccountNo())
+                .counterpart(store.getStoreName())
                 .memo(store.getStoreName() + " 페이스페이 결제")
                 .ssafyTransactionId(ssafyTransactionId)
                 .build());
@@ -654,7 +654,7 @@ public class PayFacadeService {
                 .transactionType(TransactionType.DEPOSIT)
                 .amount(amount)
                 .balanceAfter(depositBalanceAfter)
-                .counterpart(withdrawalAccount.getAccountNo())
+                .counterpart(user.getUserId())
                 .memo(store.getStoreName() + " 페이스페이 결제")
                 .ssafyTransactionId(depositTransactionId)
                 .build());
