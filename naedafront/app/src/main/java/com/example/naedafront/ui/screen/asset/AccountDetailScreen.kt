@@ -67,6 +67,11 @@ import androidx.compose.material3.MaterialTheme
 import com.example.naedafront.ui.theme.Mint500
 import com.example.naedafront.ui.theme.Mint900
 import com.example.naedafront.ui.theme.NaedaTypography
+import com.example.naedafront.ui.theme.OnBackground
+import com.example.naedafront.ui.theme.OnSurfaceVariant
+import com.example.naedafront.ui.theme.OutlineVariant
+import com.example.naedafront.ui.theme.Surface as SurfaceColor
+import com.example.naedafront.ui.theme.SurfaceVariant
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
