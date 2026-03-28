@@ -801,7 +801,9 @@ private fun TransactionRow(
 
     val title = when {
         item.memo.isNotBlank() -> item.memo.replace(Regex("\\s*(페이스페이|카드)\\s*결제$"), "")
-        item.counterpart.isNotBlank() && !item.counterpart.all { it.isDigit() } -> item.counterpart
+        item.counterpart.isNotBlank()
+                && !item.counterpart.all { it.isDigit() }
+                && !item.counterpart.contains("@") -> item.counterpart
         else -> "계좌 거래"
     }
 
