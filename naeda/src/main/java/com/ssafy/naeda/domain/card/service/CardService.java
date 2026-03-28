@@ -310,10 +310,10 @@ public class CardService {
 
     @Transactional
     public List<CardTransactionResponse> getCardTransactions(Long userNo,
-                                                             Long cardId, CardTransactionRequest request) {
+                                                             Long cardId, String cardType, CardTransactionRequest request) {
         User user = userRepository.findById(userNo)
                 .orElseThrow(() -> new NotFoundException("존재하지 않는 사용자입니다."));
-        CardInfo cardInfo = findCardByIdAndUserNo(cardId, userNo);
+        CardInfo cardInfo = findCardByIdAndUserNo(cardId, userNo, cardType);
         return fetchCardTransactions(user, cardInfo, request);
     }
 
@@ -451,18 +451,17 @@ public class CardService {
      * 카드 정보(cardNo, cvc, accountId)를 담은 CardInfo를 반환한다.
      */
 
-    private CardInfo findCardByIdAndUserNo(Long cardId, Long userNo) {
-        // credit_card에서 먼저 탐색
+    private CardInfo findCardByIdAndUserNo(Long cardId, Long userNo, String cardType) {
+        if ("DEBIT".equalsIgnoreCase(cardType)) {
+            return debitCardRepository.findById(cardId)
+                    .filter(card -> card.getUserNo().equals(userNo) && Boolean.TRUE.equals(card.getIsActive()))
+                    .map(card -> new CardInfo(card.getCardNo(), card.getCvc(), card.getAccountId()))
+                    .orElseThrow(() -> new NotFoundException("카드를 찾을 수 없습니다: " + cardId));
+        }
         return creditCardRepository.findById(cardId)
                 .filter(card -> card.getUserNo().equals(userNo) && Boolean.TRUE.equals(card.getIsActive()))
                 .map(card -> new CardInfo(card.getCardNo(), card.getCvc(), card.getAccountId()))
-                .orElseGet(() ->
-                        // credit에 없으면 debit_card에서 탐색
-                        debitCardRepository.findById(cardId)
-                                .filter(card -> card.getUserNo().equals(userNo) && Boolean.TRUE.equals(card.getIsActive()))
-                                .map(card -> new CardInfo(card.getCardNo(), card.getCvc(), card.getAccountId()))
-                                .orElseThrow(() -> new NotFoundException("카드를 찾을 수 없습니다: " + cardId))
-                );
+                .orElseThrow(() -> new NotFoundException("카드를 찾을 수 없습니다: " + cardId));
     }
 
     /**

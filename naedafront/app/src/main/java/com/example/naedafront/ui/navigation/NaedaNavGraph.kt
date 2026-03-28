@@ -436,6 +436,9 @@ fun NaedaNavGraph(
                     if (navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) {
                         navController.currentBackStackEntry
                             ?.savedStateHandle
+                            ?.set("cardType", card.cardType)
+                        navController.currentBackStackEntry
+                            ?.savedStateHandle
                             ?.set("cardName", card.cardName)
                         navController.currentBackStackEntry
                             ?.savedStateHandle
@@ -492,6 +495,11 @@ fun NaedaNavGraph(
             )
         ) { backStackEntry ->
             val cardId = backStackEntry.arguments?.getLong("cardId")
+            val cardType = navController
+                .previousBackStackEntry
+                ?.savedStateHandle
+                ?.get<String>("cardType")
+                .orEmpty().ifBlank { "CREDIT" }
             val cardName = navController
                 .previousBackStackEntry
                 ?.savedStateHandle
@@ -505,6 +513,7 @@ fun NaedaNavGraph(
 
             CardDetailRoute(
                 cardId = cardId,
+                cardType = cardType,
                 cardName = cardName,
                 cardNo = cardNo,
                 onBack = { navController.popBackStack() }
@@ -744,6 +753,9 @@ private fun HomeTabContent(
         onCardTransactionClick = { card ->
             navController.currentBackStackEntry
                 ?.savedStateHandle
+                ?.set("cardType", card.cardType.orEmpty().ifBlank { "CREDIT" })
+            navController.currentBackStackEntry
+                ?.savedStateHandle
                 ?.set("cardName", card.cardName.orEmpty())
             navController.currentBackStackEntry
                 ?.savedStateHandle
@@ -822,6 +834,9 @@ private fun AssetTabContent(
         },
         onCardClick = { card ->
             if (navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) {
+                navController.currentBackStackEntry
+                    ?.savedStateHandle
+                    ?.set("cardType", card.cardType)
                 navController.currentBackStackEntry
                     ?.savedStateHandle
                     ?.set("cardName", card.cardName)
