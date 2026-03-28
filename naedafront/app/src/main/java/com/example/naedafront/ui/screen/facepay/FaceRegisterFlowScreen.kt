@@ -65,6 +65,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CreditCard
@@ -74,7 +75,6 @@ import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.outlined.FaceRetouchingNatural
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Button
@@ -2030,7 +2030,7 @@ private fun IdCardScanningStageContent(
             .background(Color(0xFF0E1717))
     ) {
         Text(
-            text = "신분증을 2초 동안 유지해 주세요",
+            text = "신분증을 가이드라인에 맞춰주세요",
             fontFamily = NaedaFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = 22.sp,
@@ -2246,55 +2246,6 @@ private fun IdConfirmStageContent(
             color = MaterialTheme.colorScheme.onBackground,
             lineHeight = 34.sp
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "이름과 주민등록번호 앞 6자리, 뒤 첫 1자리만 사용합니다.",
-            fontFamily = NaedaFontFamily,
-            fontSize = 14.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            lineHeight = 22.sp
-        )
-
-        if (reviewMessages.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(18.dp))
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = "자동 인식 결과를 다시 확인해 주세요",
-                        fontFamily = NaedaFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                }
-                reviewMessages.forEach { warning ->
-                    Text(
-                        text = "• $warning",
-                        fontFamily = NaedaFontFamily,
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 19.sp
-                    )
-                }
-            }
-        }
-
         Spacer(modifier = Modifier.height(28.dp))
 
         // ── 이름 필드 ─────────────────────────────────────────────
@@ -2750,7 +2701,7 @@ private fun PaymentMethodSelectCard(
             .clip(RoundedCornerShape(18.dp))
             .clickable(enabled = enabled && item.selectable, onClick = onClick),
         shape = RoundedCornerShape(18.dp),
-        color = if (item.isDefault) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 1.dp
     ) {
         Row(
@@ -2763,13 +2714,19 @@ private fun PaymentMethodSelectCard(
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(if (item.type == FacePaySelectableType.ACCOUNT) MaterialTheme.colorScheme.primaryContainer else Color(0xFFFFF3D8)),
+                    .background(
+                        if (item.type == FacePaySelectableType.ACCOUNT) {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        } else {
+                            Color(0xFFFFF3D8)
+                        }
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (item.type == FacePaySelectableType.ACCOUNT) Icons.Default.SwapVert else Icons.Default.CreditCard,
+                    imageVector = if (item.type == FacePaySelectableType.ACCOUNT) Icons.Default.AccountBalance else Icons.Default.CreditCard,
                     contentDescription = null,
-                    tint = if (item.type == FacePaySelectableType.ACCOUNT) MaterialTheme.colorScheme.primary else Color(0xFFCC8B00),
+                    tint = if (item.type == FacePaySelectableType.ACCOUNT) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFFCC8B00),
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -2790,14 +2747,19 @@ private fun PaymentMethodSelectCard(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(999.dp))
-                                .background(MaterialTheme.colorScheme.primary)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f),
+                                    shape = RoundedCornerShape(999.dp)
+                                )
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = "현재 대표",
+                                text = "대표",
                                 fontFamily = NaedaFontFamily,
                                 fontSize = 11.sp,
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onBackground,
                                 fontWeight = FontWeight.Bold
                             )
                         }
