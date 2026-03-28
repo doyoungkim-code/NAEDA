@@ -19,6 +19,7 @@ interface CardApi {
     suspend fun getCardTransactions(
         @Path("cardId") cardId: Long,
         @Query("userNo") userNo: Long,
+        @Query("cardType") cardType: String,
         @Query("startDate") startDate: String,
         @Query("endDate") endDate: String
     ): Response<List<CardTransactionResponse>>

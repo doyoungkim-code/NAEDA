@@ -57,6 +57,7 @@ object CardRepository {
     suspend fun getCardTransactions(
         userNo: Long,
         cardId: Long,
+        cardType: String,
         period: String
     ): Result<List<CardTransactionItemData>> {
         return runCatching {
@@ -64,12 +65,13 @@ object CardRepository {
 
             Log.d(
                 TAG,
-                "getCardTransactions start | userNo=$userNo | cardId=$cardId | startDate=${query.startDate} | endDate=${query.endDate}"
+                "getCardTransactions start | userNo=$userNo | cardId=$cardId | cardType=$cardType | startDate=${query.startDate} | endDate=${query.endDate}"
             )
 
             val response = api.getCardTransactions(
                 cardId = cardId,
                 userNo = userNo,
+                cardType = cardType,
                 startDate = query.startDate,
                 endDate = query.endDate
             )

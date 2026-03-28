@@ -158,6 +158,7 @@ class CardDetailViewModel : ViewModel() {
     fun loadData(
         context: Context,
         cardId: Long,
+        cardType: String = "CREDIT",
         fallbackCardName: String = "",
         fallbackCardNo: String = ""
     ) {
@@ -214,6 +215,7 @@ class CardDetailViewModel : ViewModel() {
             CardRepository.getCardTransactions(
                 userNo = userNo,
                 cardId = cardId,
+                cardType = cardType,
                 period = _uiState.value.selectedPeriod
             ).onSuccess { items ->
                 _uiState.update {
@@ -275,6 +277,7 @@ private fun CardTransactionItem.matches(query: String): Boolean {
 @Composable
 fun CardDetailRoute(
     cardId: Long? = null,
+    cardType: String = "CREDIT",
     cardName: String = "",
     cardNo: String = "",
     onBack: () -> Unit = {}
@@ -287,10 +290,11 @@ fun CardDetailRoute(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var showPeriodDialog by rememberSaveable { mutableStateOf(false) }
 
-    LaunchedEffect(cardId, cardName, cardNo, uiState.selectedPeriod) {
+    LaunchedEffect(cardId, cardType, cardName, cardNo, uiState.selectedPeriod) {
         viewModel.loadData(
             context = context,
             cardId = cardId ?: -1L,
+            cardType = cardType,
             fallbackCardName = cardName,
             fallbackCardNo = cardNo
         )
