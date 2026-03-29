@@ -563,7 +563,7 @@ public class AuthService {
                 .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
 
         user.updatePassword(passwordEncoder.encode(newPassword));
-        userRepository.save(user);
+        userRepository.saveAndFlush(user);
 
         log.info("[AuthService] 비밀번호 재설정 완료: phone={}", phone);
     }
