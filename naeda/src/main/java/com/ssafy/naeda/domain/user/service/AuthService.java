@@ -562,23 +562,9 @@ public class AuthService {
         User user = userRepository.findByPhone(phone)
                 .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
 
-        String oldHash = user.getPassword();
-        String encoded = passwordEncoder.encode(newPassword);
-        user.updatePassword(encoded);
+        user.updatePassword(passwordEncoder.encode(newPassword));
         userRepository.saveAndFlush(user);
 
-        // 디버그: DB에서 다시 읽어서 실제 저장된 값 검증
-        User verify = userRepository.findByPhone(phone).orElse(null);
-        boolean matchesNew = verify != null && passwordEncoder.matches(newPassword, verify.getPassword());
-        boolean hashChanged = verify != null && !oldHash.equals(verify.getPassword());
-
-        log.info("[AuthService] 비밀번호 재설정 디버그: phone={}, userId={}, hashChanged={}, matchesNewPassword={}, oldHash={}, newHash={}, dbHash={}",
-                phone,
-                user.getUserId(),
-                hashChanged,
-                matchesNew,
-                oldHash.substring(0, Math.min(20, oldHash.length())),
-                encoded.substring(0, Math.min(20, encoded.length())),
-                verify != null ? verify.getPassword().substring(0, Math.min(20, verify.getPassword().length())) : "null");
+        log.info("[AuthService] 비밀번호 재설정 완료: phone={}", phone);
     }
 }
