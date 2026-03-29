@@ -1,0 +1,314 @@
+package com.example.naedafront.ui.screen.signup
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.naedafront.ui.common.SignUpProgressBar
+import com.example.naedafront.ui.theme.Background
+import com.example.naedafront.ui.theme.Mint900
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SignUpPhoneScreen(
+    signUpViewModel: SignUpViewModel,
+    onBackClick: () -> Unit = {},
+    onConfirmClick: () -> Unit = {}
+) {
+    var phoneDigits by remember { mutableStateOf("") }
+    var showDuplicatePhoneDialog by remember { mutableStateOf(false) }
+    var duplicatePhoneMessage by remember { mutableStateOf("") }
+    var isChecking by remember { mutableStateOf(false) }
+
+    val formattedPhone = formatPhone(phoneDigits)
+    val isValid = isValidPhoneNumber(phoneDigits)
+    val showInvalidPhoneMessage = phoneDigits.isNotEmpty() && (
+        (phoneDigits.length >= 3 && !phoneDigits.startsWith("01")) ||
+            (phoneDigits.length == 11 && !isValid)
+        )
+
+    fun handleConfirm() {
+        if (!isValid || isChecking) return
+
+        isChecking = true
+        signUpViewModel.checkPhoneDuplicate(phoneDigits) { isDuplicate, message ->
+            isChecking = false
+            if (isDuplicate) {
+                duplicatePhoneMessage = message ?: "이미 등록된 전화번호입니다."
+                showDuplicatePhoneDialog = true
+            } else {
+                // API 스펙에 맞게 하이픈 없는 숫자만 저장
+                signUpViewModel.updatePhone(phoneDigits)
+
+                // 다음 화면으로 이동
+                onConfirmClick()
+            }
+        }
+    }
+
+    if (showDuplicatePhoneDialog) {
+        AlertDialog(
+            onDismissRequest = { showDuplicatePhoneDialog = false },
+            confirmButton = {
+                TextButton(onClick = { showDuplicatePhoneDialog = false }) {
+                    Text("확인")
+                }
+            },
+            title = {
+                Text("전화번호 중복")
+            },
+            text = {
+                Text(duplicatePhoneMessage)
+            }
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {},
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "뒤로가기",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                ),
+                windowInsets = WindowInsets(0)
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0)
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 24.dp)
+        ) {
+            SignUpProgressBar(
+                currentStep = 3,
+                modifier = Modifier.padding(horizontal = 24.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "휴대폰 번호를\n입력해주세요",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                lineHeight = 34.sp
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Text(
+                text = "휴대폰 번호",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = formattedPhone.ifEmpty { "010-0000-0000" },
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (phoneDigits.isNotEmpty()) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.outlineVariant
+                },
+                letterSpacing = 1.sp
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(2.dp)
+                    .background(MaterialTheme.colorScheme.primary)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = if (showInvalidPhoneMessage) {
+                    "올바른 휴대폰 번호 형식이 아닙니다."
+                } else {
+                    "본인 명의의 휴대폰 번호를 입력해 주세요."
+                },
+                fontSize = 12.sp,
+                color = if (showInvalidPhoneMessage) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.outline
+                }
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Button(
+                onClick = { handleConfirm() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                enabled = isValid && !isChecking,
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = Color.White,
+                    disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
+                )
+            ) {
+                Text(
+                    text = "확인",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            NumberKeypad(
+                onNumberClick = { digit ->
+                    if (phoneDigits.length < 11) {
+                        phoneDigits += digit
+                    }
+                },
+                onDeleteClick = {
+                    if (phoneDigits.isNotEmpty()) {
+                        phoneDigits = phoneDigits.dropLast(1)
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+private fun isValidPhoneNumber(phone: String): Boolean {
+    return phone.matches(Regex("""^01[0-9]\d{8}$"""))
+}
+
+/**
+ * 숫자를 010-1234-5678 형태로 포맷
+ */
+private fun formatPhone(digits: String): String {
+    return when {
+        digits.length <= 3 -> digits
+        digits.length <= 7 -> "${digits.substring(0, 3)}-${digits.substring(3)}"
+        else -> "${digits.substring(0, 3)}-${digits.substring(3, 7)}-${digits.substring(7)}"
+    }
+}
+
+/**
+ * 공용 숫자 키패드
+ */
+@Composable
+fun NumberKeypad(
+    onNumberClick: (String) -> Unit,
+    onDeleteClick: () -> Unit,
+    textColor: Color = MaterialTheme.colorScheme.onSurface
+) {
+    val keys = listOf(
+        listOf("1", "2", "3"),
+        listOf("4", "5", "6"),
+        listOf("7", "8", "9"),
+        listOf("", "0", "⌫")
+    )
+
+    Column {
+        keys.forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                row.forEach { key ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
+                            .then(
+                                if (key.isNotEmpty()) {
+                                    Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable {
+                                            if (key == "⌫") onDeleteClick()
+                                            else onNumberClick(key)
+                                        }
+                                } else {
+                                    Modifier
+                                }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (key.isNotEmpty()) {
+                            Text(
+                                text = key,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = textColor
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+private fun SignUpPhoneScreenPreview() {
+    MaterialTheme {
+        SignUpPhoneScreen(
+            signUpViewModel = SignUpViewModel()
+        )
+    }
+}

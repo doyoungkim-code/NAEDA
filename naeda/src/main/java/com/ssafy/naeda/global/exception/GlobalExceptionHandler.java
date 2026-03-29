@@ -1,0 +1,180 @@
+package com.ssafy.naeda.global.exception;
+
+import com.ssafy.naeda.domain.face.exception.FaceException;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import jakarta.validation.ConstraintViolationException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.RestClientException;
+import org.springframework.dao.DataIntegrityViolationException;
+
+
+import java.util.Map;
+
+@Slf4j
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(FaceException.class)
+    public ResponseEntity<ErrorResponse> handleFaceException(FaceException e) {
+        log.warn("FaceException: code={}, message={}", e.getCode(), e.getMessage());
+        boolean retryable = "AI_TIMEOUT".equals(e.getCode()) || "AI_UNAVAILABLE".equals(e.getCode());
+        return ResponseEntity.status(e.getStatus())
+                .body(new ErrorResponse(
+                        e.getCode(),
+                        e.getMessage(),
+                        null,
+                        retryable ? "FAILED_RETRYABLE" : "FAILED",
+                        retryable ? Boolean.TRUE : null
+                ));
+    }
+
+    @ExceptionHandler(SsafyApiException.class)
+    public ResponseEntity<ErrorResponse> handleSsafyApiException(SsafyApiException e) {
+        log.warn("SsafyApiException: code={}, message={}", e.getErrorCode(), e.getMessage());
+        HttpStatus status = "NETWORK_ERROR".equals(e.getErrorCode())
+                ? HttpStatus.SERVICE_UNAVAILABLE   // 503
+                : HttpStatus.BAD_GATEWAY;          // 502
+        return ResponseEntity.status(status)
+                .body(new ErrorResponse(e.getErrorCode(), e.getMessage()));
+    }
+
+    @ExceptionHandler(CallNotPermittedException.class)
+    public ResponseEntity<ErrorResponse> handleCircuitBreakerOpen(CallNotPermittedException e) {
+        log.warn("CircuitBreaker OPEN: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ErrorResponse("SERVICE_UNAVAILABLE",
+                        "현재 금융 서비스가 일시적으로 불안정합니다. 잠시 후 다시 시도해주세요."));
+    }
+
+    @ExceptionHandler(RestClientException.class)
+    public ResponseEntity<ErrorResponse> handleRestClientException(RestClientException e) {
+        log.error("RestClientException: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ErrorResponse("NETWORK_ERROR",
+                        "외부 API 연결에 실패했습니다. 잠시 후 다시 시도해주세요."));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException e) {
+        String detail = e.getMostSpecificCause() != null
+                ? e.getMostSpecificCause().getMessage()
+                : e.getMessage();
+        log.warn("DataIntegrityViolation: {}", detail);
+
+        // unique constraint 위반 (중복)
+        if (detail != null && detail.contains("phone")) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ErrorResponse("DUPLICATE", "이미 등록된 전화번호입니다."));
+        }
+        if (detail != null && detail.contains("user_id")) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ErrorResponse("DUPLICATE", "이미 존재하는 아이디입니다."));
+        }
+
+        // 기존: FK 참조 위반 등
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("INVALID_REFERENCE", "유효하지 않은 참조값입니다. userId를 확인해주세요."));
+    }
+
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException e) {
+        log.warn("Validation failed: {}", e.getMessage());
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("VALIDATION_ERROR", "입력값이 올바르지 않습니다."));
+    }
+
+    @ExceptionHandler({
+            MissingServletRequestPartException.class,
+            MissingServletRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class,
+            NumberFormatException.class
+    })
+    public ResponseEntity<ErrorResponse> handleBadRequest(Exception e) {
+        log.warn("Bad request: {}", e.getMessage());
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("BAD_REQUEST", "요청 파라미터를 확인해주세요."));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException e) {
+        log.warn("Upload size exceeded: {}", e.getMessage());
+        return ResponseEntity.status(413)
+                .body(new ErrorResponse("FILE_TOO_LARGE", "업로드 파일 크기가 제한(10MB)을 초과했습니다."));
+    }
+
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFoundException(NotFoundException e) {
+        log.warn("Not found: {}", e.getMessage());
+        return ResponseEntity.status(404)
+                .body(new ErrorResponse("NOT_FOUND", e.getMessage()));
+    }
+
+    @ExceptionHandler(DuplicateException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateException(DuplicateException e) {
+        log.warn("Duplicate: {}", e.getMessage());
+        return ResponseEntity.status(409)
+                .body(new ErrorResponse("DUPLICATE", e.getMessage()));
+    }
+
+    @ExceptionHandler(InsufficientBalanceException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientBalanceException(InsufficientBalanceException e) {
+        log.warn("Insufficient balance: {}", e.getMessage());
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("INSUFFICIENT_BALANCE", e.getMessage()));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolationException(ConstraintViolationException e) {
+        log.warn("Constraint violation: {}", e.getMessage());
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("VALIDATION_ERROR", "입력값이 올바르지 않습니다."));
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalStateException(IllegalStateException e) {
+        log.warn("Illegal state: {}", e.getMessage());
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("ILLEGAL_STATE", e.getMessage()));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException e) {
+        log.warn("Illegal argument: {}", e.getMessage());
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("ILLEGAL_ARGUMENT", e.getMessage()));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleException(Exception e) {
+        log.error("Unexpected error", e);
+        return ResponseEntity.status(500)
+                .body(new ErrorResponse("INTERNAL_ERROR", "서버 오류가 발생했습니다."));
+    }
+
+    @ExceptionHandler(AuthenticationFailedException.class)
+    public ResponseEntity<ErrorResponse> handleAuthenticationFailed(AuthenticationFailedException e){
+        log.warn("Authentication failed: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ErrorResponse("AUTHENTICATION_FAILED",e.getMessage()));
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ErrorResponse> handleBadRequestException(BadRequestException e) {
+        log.warn("Bad request: {}", e.getMessage());
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("BAD_REQUEST", e.getMessage()));
+    }
+
+
+}

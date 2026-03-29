@@ -1,5 +1,6 @@
 *.iml
 .gradle
+.gradle-user-home/
 /local.properties
 /.idea/caches
 /.idea/libraries
@@ -13,3 +14,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+app/build/
+*.hprof
+.gradle-local/
+.gradle-tmp/

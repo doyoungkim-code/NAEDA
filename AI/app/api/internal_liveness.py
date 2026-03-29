@@ -1,0 +1,49 @@
+from fastapi import APIRouter, Depends, File, Form, UploadFile
+
+from app.core.config import Settings, get_settings
+from app.core.headpose import check_headpose
+from app.core.metrics import INFERENCE_FALLBACK_TOTAL, INFERENCE_STATUS_TOTAL
+from app.core.security import verify_internal_service_token
+from app.core.upload_validation import validate_upload_metadata
+from app.schemas.headpose import HeadPoseCheckResponse
+
+router = APIRouter(prefix="/internal/v1/liveness", tags=["internal-liveness"])
+
+
+@router.post(
+    "/headpose/check",
+    response_model=HeadPoseCheckResponse,
+    responses={
+        400: {"description": "Invalid image, direction, or face validation failed"},
+        401: {"description": "Invalid service token"},
+        503: {"description": "AI service unavailable"},
+        504: {"description": "AI timeout"},
+    },
+)
+async def check_headpose_direction(
+    expected_direction: str = Form(..., alias="expectedDirection"),
+    image: UploadFile = File(...),
+    _: None = Depends(verify_internal_service_token),
+    settings: Settings = Depends(get_settings),
+) -> HeadPoseCheckResponse:
+    validate_upload_metadata(image, settings.ai_max_image_bytes)
+    result = await check_headpose(
+        upload_file=image,
+        expected_direction=expected_direction.lower(),
+        timeout_seconds=settings.ai_timeout_seconds,
+    )
+    INFERENCE_STATUS_TOTAL.labels(endpoint="headpose_check", status=result.ai_status).inc()
+    if result.fallback_used:
+        INFERENCE_FALLBACK_TOTAL.labels(endpoint="headpose_check").inc()
+    return HeadPoseCheckResponse(
+        expected_direction=result.expected_direction,
+        detected_direction=result.detected_direction,
+        matched=result.matched,
+        yaw=result.yaw,
+        pitch=result.pitch,
+        confidence=result.confidence,
+        fallback_used=result.fallback_used,
+        ai_status=result.ai_status,
+        message=result.message,
+    )
+

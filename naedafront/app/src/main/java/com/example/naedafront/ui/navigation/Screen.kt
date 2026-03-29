@@ -1,0 +1,112 @@
+// File: app/src/main/java/com/example/naedafront/ui/navigation/Screen.kt
+package com.example.naedafront.ui.navigation
+
+sealed class Screen(val route: String) {
+
+    object Splash : Screen("splash")
+    object Welcome : Screen("welcome")
+    object Login : Screen("login")
+
+    object SignUpGraph : Screen("signup_graph")
+
+    object OrderComplete : Screen("order_complete")
+    object OrderHistory : Screen("order_history")
+    object OrderDetail : Screen("order_detail/{orderId}") {
+        fun createRoute(orderId: Long) = "order_detail/$orderId"
+    }
+
+    object DeliveryAddress : Screen("delivery_address")
+    object SignUp : Screen("signup")
+    object SignUpRrn : Screen("signup_rrn")
+    object SignUpPhone : Screen("signup_phone")
+
+    object SignUpVerify : Screen("signup_verify/{phone}") {
+        fun createRoute(phone: String) = "signup_verify/$phone"
+    }
+
+    object SignUpEmail : Screen("signup_email")
+    object SignUpPassword : Screen("signup_password")
+    object SignUpPin : Screen("signup_pin")
+
+    object Home : Screen("home")
+    object Store : Screen("store")
+    object PointHistory : Screen("point_history")
+    object Scan : Screen("scan")
+    object Asset : Screen("asset")
+    object More : Screen("more")
+
+    object FaceRegister : Screen("face_register")
+    object FaceIntro : Screen("face_intro")
+    object FaceGuide : Screen("face_guide")
+    object FaceMatchRecognize : Screen("face_match_recognize")
+    object FaceMatchResult : Screen("face_match_result")
+    object FaceCapture : Screen("face_capture")
+    object FaceAnalyzing : Screen("face_analyzing")
+    object FaceComplete : Screen("face_complete")
+    object GumiMap : Screen("gumi_map")
+
+    object StoreDetail : Screen("store_detail/{storeId}") {
+        fun createRoute(storeId: String) = "store_detail/$storeId"
+    }
+
+    object AccountList : Screen("account_list/{tab}") {
+        fun createRoute(tab: Int = 0) = "account_list/$tab"
+    }
+
+    object RegisterAsset : Screen("register_asset/{tab}") {
+        fun createRoute(tab: Int) = "register_asset/$tab"
+    }
+
+    object AccountDetail : Screen("account_detail/{accountId}/{accountNo}") {
+        fun createRoute(accountId: Long?, accountNo: String) =
+            "account_detail/${accountId ?: 0}/$accountNo"
+    }
+
+    object CardDetail : Screen("card_detail/{cardId}") {
+        fun createRoute(cardId: Long) = "card_detail/$cardId"
+    }
+
+    object Transfer : Screen("transfer")
+
+    object Transaction : Screen("transaction") {
+        const val ASSET_TYPE_ARG = "assetType"
+        const val PAYMENT_METHOD_ID_ARG = "paymentMethodId"
+        const val ASSET_TYPE_ACCOUNT = "account"
+        const val ASSET_TYPE_CARD = "card"
+
+        val routeWithArgs =
+            "$route?$ASSET_TYPE_ARG={$ASSET_TYPE_ARG}&$PAYMENT_METHOD_ID_ARG={$PAYMENT_METHOD_ID_ARG}"
+
+        fun createRoute(assetType: String? = null, paymentMethodId: Long? = null): String =
+            if (assetType.isNullOrBlank() || paymentMethodId == null || paymentMethodId <= 0L) {
+                route
+            } else {
+                "$route?$ASSET_TYPE_ARG=$assetType&$PAYMENT_METHOD_ID_ARG=$paymentMethodId"
+            }
+    }
+
+    object Report : Screen("report")
+    object Coupon : Screen("coupon")
+    object Donation : Screen("donation")
+    object Chat : Screen("chat")
+
+    object MyPage : Screen("mypage")
+    object SecondaryAuthPin : Screen("secondary_auth_pin")
+    object Settings : Screen("settings")
+    object Notification : Screen("notification")
+    object NotificationSettings : Screen("notification_settings")
+    object TermsOfService : Screen("terms_of_service")
+    object PrivacyPolicy : Screen("privacy_policy")
+    object Security : Screen("security")
+    object CustomerCenter : Screen("customer_center")
+
+    object PasswordResetEmail : Screen("password_reset_email")
+    object PasswordResetVerify : Screen("password_reset_verify")
+    object PasswordResetNew : Screen("password_reset_new")
+
+    object NoticeList : Screen("notice_list")
+
+    object NoticeDetail : Screen("notice_detail/{type}/{id}") {
+        fun createRoute(type: String, id: Long) = "notice_detail/$type/$id"
+    }
+}

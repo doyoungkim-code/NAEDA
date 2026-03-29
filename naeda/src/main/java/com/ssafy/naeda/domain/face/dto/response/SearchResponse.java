@@ -1,0 +1,57 @@
+package com.ssafy.naeda.domain.face.dto.response;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Builder;
+import lombok.Getter;
+import com.ssafy.naeda.domain.rba.dto.AuthLevel;
+import com.ssafy.naeda.domain.rba.dto.AuthMethod;
+
+import java.util.List;
+import java.util.Set;
+
+@Getter
+@Builder
+@Schema(description = "얼굴 검색 응답")
+public class SearchResponse {
+
+    @Schema(description = "임계값 이상 매칭 여부", example = "true")
+    private boolean matched;
+    @Schema(description = "매칭 판정 상태", example = "MATCH")
+    private FaceMatchStatus status;
+    @Schema(description = "다음 단계 액션", example = "PASS")
+    private String nextAction;
+    @Schema(description = "가장 유사한 사용자 ID", example = "user-1001")
+    private String bestUserId;
+    @Schema(description = "가장 유사한 사용자 이름", example = "홍길동")
+    private String username;
+    @Schema(description = "가장 유사한 사용자 번호", example = "1")
+    private Long userNo;
+    @Schema(description = "가장 유사한 사용자 번호", example = "1")
+    private Long matchedUserNo;
+    @Schema(description = "최고 유사도", example = "0.92")
+    private float similarity;
+    @Schema(description = "MATCH 기준 임계값", example = "0.7")
+    private float matchThreshold;
+    @Schema(description = "AMBIGUOUS 하한 임계값", example = "0.65")
+    private float ambiguousThreshold;
+    @Schema(description = "AI 품질 점수(0~1)", example = "0.93")
+    private float qualityScore;
+    @Schema(description = "AI 추정 yaw(도)", example = "1.2")
+    private float yaw;
+    @Schema(description = "AI 추정 pitch(도)", example = "-0.8")
+    private float pitch;
+    @Schema(description = "AI 추정 roll(도)", example = "0.1")
+    private float roll;
+    @Schema(description = "RBA 최종 인증 레벨", example = "FACE_PHONE")
+    private AuthLevel authLevel;
+    @Schema(description = "요구 인증 수단 목록")
+    private Set<AuthMethod> requiredMethods;
+    @Schema(description = "차단 여부", example = "false")
+    private boolean blocked;
+    @Schema(description = "RBA 판정 사유")
+    private String rbaReason;
+    @Schema(description = "상위 유사 후보 목록")
+    private List<CandidateDto> candidates;
+    @Schema(description = "AI 처리 메타데이터")
+    private AiProcessingInfo aiProcessing;
+}

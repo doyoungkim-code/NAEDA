@@ -1,0 +1,96 @@
+package com.ssafy.naeda.domain.user.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "\"user\"")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Builder
+@Getter
+public class User {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "user_no")
+    private Long userNo;
+
+    @Column(name = "user_id", length = 100, nullable = false, unique = true)
+    private String userId;
+
+    @Column(nullable = false)
+    private String password;
+
+    @Column(length = 50, nullable = false)
+    private String username;
+
+    @Column(name = "resident_no", length = 7, nullable = false)
+    private String residentNo;
+
+    @Column(length = 20, nullable = false, unique = true)
+    private String phone;
+
+    @Column(name = "institution_code", length = 50, nullable = false)
+    private String institutionCode;
+
+    @Column(name = "user_key")
+    private String userKey;
+
+    @Column(name = "face_registered", nullable = false)
+    @Builder.Default
+    private Boolean faceRegistered = false;
+
+    @Column(name = "secondary_auth_enabled")
+    @Builder.Default
+    private Boolean secondaryAuthEnabled = false;
+
+    @Column(name = "pin_password")
+    private String pinPassword;
+
+    @Column(name = "fcm_token")
+    private String fcmToken;
+
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime created;
+
+    private LocalDateTime modified;
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.modified = LocalDateTime.now();
+    }
+
+    public void registerFace() {
+        this.faceRegistered = true;
+    }
+
+    public void updateFacePaySettings(boolean faceRegistered, boolean secondaryAuthEnabled) {
+        this.faceRegistered = faceRegistered;
+        this.secondaryAuthEnabled = secondaryAuthEnabled;
+    }
+
+    public void updateUserKey(String userKey) {
+        this.userKey = userKey;
+    }
+
+    public void updatePinPassword(String pinPassword) {
+        this.pinPassword = pinPassword;
+    }
+
+    public void updateFcmToken(String fcmToken) {
+        this.fcmToken = fcmToken;
+    }
+    public void clearFcmToken() {
+        this.fcmToken = null;
+    }
+
+    public void updatePassword(String password) {
+        this.password = password;
+    }
+
+}

@@ -1,47 +1,144 @@
 package com.example.naedafront
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.naedafront.ui.theme.NaedafrontTheme
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.example.naedafront.data.remote.ApiConfig
+import com.example.naedafront.data.remote.RetrofitClient
+import com.example.naedafront.ui.common.NaedaBottomNavBar
+import com.example.naedafront.ui.common.NaedaChatFab
+import com.example.naedafront.ui.navigation.NaedaNavGraph
+import com.example.naedafront.ui.navigation.Screen
+import com.example.naedafront.ui.theme.NaedaTheme
+import com.google.firebase.messaging.FirebaseMessaging
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        ApiConfig.initialize(applicationContext)
+
+        // 저장된 access token을 앱 시작 시 RetrofitClient에 주입
+        RetrofitClient.setAccessToken(AuthPrefs.getAccessToken(this))
+
         enableEdgeToEdge()
+
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.hide(WindowInsetsCompat.Type.navigationBars())
+        insetsController.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
         setContent {
-            NaedafrontTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+            val isDarkMode = remember { mutableStateOf(AuthPrefs.isDarkMode(this)) }
+
+            NaedaTheme(darkTheme = isDarkMode.value) {
+                NaedaApp(
+                    isDarkMode = isDarkMode.value,
+                    onDarkModeChange = { enabled ->
+                        isDarkMode.value = enabled
+                        AuthPrefs.setDarkMode(this@MainActivity, enabled)
+                    }
+                )
             }
         }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    1001
+                )
+            }
+        }
+
+        if (AuthPrefs.hasSession(this)) {
+            com.example.naedafront.fcm.NaedaFirebaseMessagingService.registerCurrentToken(this)
+        }
+
+        FirebaseMessaging.getInstance().token
+            .addOnSuccessListener { token ->
+                android.util.Log.d("FCM_TOKEN", "토큰: $token")
+            }
     }
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+fun NaedaApp(
+    isDarkMode: Boolean = false,
+    onDarkModeChange: (Boolean) -> Unit = {}
+) {
+    val context = LocalContext.current
+    val startDestination = remember {
+        if (AuthPrefs.hasSession(context)) Screen.Home.route else Screen.Welcome.route
+    }
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    NaedafrontTheme {
-        Greeting("Android")
+    val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    val bottomBarRoutes = listOf(
+        Screen.Home.route,
+        Screen.Store.route,
+        Screen.Scan.route,
+        Screen.Asset.route,
+        Screen.More.route,
+        Screen.MyPage.route
+    )
+
+    val showBottomBar = currentRoute in bottomBarRoutes
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets.statusBars,
+        bottomBar = {
+            if (showBottomBar) {
+                NaedaBottomNavBar(
+                    navController = navController,
+                    currentRoute = currentRoute
+                )
+            }
+        },
+        floatingActionButton = {
+            if (currentRoute == Screen.Home.route) {
+                NaedaChatFab(onClick = { navController.navigate(Screen.Chat.route) })
+            }
+        }
+    ) { innerPadding ->
+        NaedaNavGraph(
+            navController = navController,
+            startDestination = startDestination,
+            modifier = Modifier.padding(innerPadding),
+            isDarkMode = isDarkMode,
+            onDarkModeChange = onDarkModeChange
+        )
     }
 }

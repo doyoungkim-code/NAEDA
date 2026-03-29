@@ -1,0 +1,13 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+#  datasource:
+#    url: jdbc:postgresql://j14d103.p.ssafy.io:5432/naeda
+#    username: naedauser
+#    password: "naeda1234!"
+#  data:
+#    redis:
+#      host: j14d103.p.ssafy.io
+#      port: 6379
+#      password: redis1234!

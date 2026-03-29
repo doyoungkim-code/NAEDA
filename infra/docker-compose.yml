@@ -1,0 +1,188 @@
+services:
+  # ============================================================
+  # PostgreSQL DB
+  # ============================================================
+  postgres:
+    build:
+      context: .
+      dockerfile: postgres/Dockerfile
+    container_name: naeda-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: Asia/Seoul
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - naeda-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # Redis
+  # ============================================================
+  redis:
+    image: redis:7.2-alpine
+    container_name: naeda-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
+    environment:
+      TZ: Asia/Seoul
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - naeda-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # Kafka (Zookeeper + Broker)
+  # ============================================================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: naeda-zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      TZ: Asia/Seoul
+    ports:
+      - "2181:2181"
+    networks:
+      - naeda-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: naeda-kafka
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      TZ: Asia/Seoul
+    ports:
+      - "9092:9092"
+    networks:
+      - naeda-network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+
+
+  # ============================================================
+  # AI 서버 (FastAPI)
+  # ============================================================
+  ai-server:
+    build:
+      context: ../AI
+      dockerfile: Dockerfile
+    container_name: naeda-ai
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Seoul
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN}
+      INTERNAL_SERVICE_TOKEN: ${AI_SERVICE_TOKEN}
+      RESIDENT_OCR_PROVIDER: ${RESIDENT_OCR_PROVIDER:-paddleocr}
+      RESIDENT_OCR_PADDLE_HOME: /app/.paddle
+      # DB - Docker 내부에서는 서비스명으로 접근
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      # OpenAI (챗봇)
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+    volumes:
+      - ../AI/.paddle:/app/.paddle
+    ports:
+      - "${AI_PORT}:8000"
+    networks:
+      - naeda-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================================
+  # Backend (Spring Boot) ← 새로 추가!
+  # ============================================================
+  backend:
+    build:
+      context: ../naeda
+      dockerfile: Dockerfile
+    container_name: naeda-backend
+    restart: unless-stopped
+    environment:
+      # DB - Docker 내부에서는 서비스명으로 접근
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      # Redis
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # JWT
+      JWT_SECRET: ${JWT_SECRET}
+      # AI
+      AI_BASE_URL: http://ai-server:8000
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN}
+      AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS}
+      NAVER_SEARCH_CLIENT_ID: ${NAVER_SEARCH_CLIENT_ID}
+      NAVER_SEARCH_CLIENT_SECRET: ${NAVER_SEARCH_CLIENT_SECRET}
+      # SSAFY
+      SSAFY_API_KEY: ${SSAFY_API_KEY}
+      # Face
+      FACE_ENCRYPT_KEY: ${FACE_ENCRYPT_KEY}
+      # Kafka
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # FCM
+      FCM_CREDENTIALS_PATH: /firebase/firebase-service-account.json
+      TZ: Asia/Seoul
+    volumes:
+      - ./firebase-service-account.json:/firebase/firebase-service-account.json:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - naeda-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+
+# ============================================================
+# 볼륨
+# ============================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# ============================================================
+# 네트워크
+# ============================================================
+networks:
+  naeda-network:
+    driver: bridge

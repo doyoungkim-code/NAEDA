@@ -1,0 +1,16 @@
+package com.ssafy.naeda.domain.notification.repository;
+
+import com.ssafy.naeda.domain.notification.entity.Notification;
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.List;
+
+public interface NotificationRepository extends JpaRepository<Notification, Long> {
+
+    List<Notification> findByUserNoOrderBySentDesc(Long userNo);
+
+    List<Notification> findByUserNoAndIsReadFalseOrderBySentDesc(Long userNo);
+
+    long countByUserNoAndIsReadFalse(Long userNo);
+
+    void deleteByUserNo(Long userNo);
+}

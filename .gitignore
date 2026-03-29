@@ -1,5 +1,6 @@
 # IDE
 .idea/
+**/.idea/
 .vscode/
 *.iml
 *.iws
@@ -24,7 +25,36 @@ $RECYCLE.BIN/
 .venv
 venv/
 env/
-.env.*
+.cache/
+**/.cache/
+.npm/
+**/.npm/
+.pnpm-store/
+**/.pnpm-store/
+.yarn/
+**/.yarn/
+node_modules/
+**/node_modules/
+coverage/
+**/coverage/
+htmlcov/
+**/htmlcov/
+.eslintcache
+**/.eslintcache
+.parcel-cache/
+**/.parcel-cache/
+**/.gradle-user/
+**/.gradle-local/
+**/.gradle-tmp/
+.gradle-local/
+.gradle-tmp/
+**/.pytest_cache/
+**/__pycache__/
+**/.venv/
+**/.env
+**/.env.*
+!**/.env.example
+
 
 # Python (AI 서버)
 __pycache__/
@@ -43,6 +73,37 @@ dist/
 build/
 out/
 target/
+.gradle/
+**/.gradle/
+.gradle-user-home/
+**/.gradle-user-home/
+.android/
+**/.android/
+.kotlin/
+**/.kotlin/
+**/gradle-*-bin.zip.part
+**/gradle-*-bin.zip.lck
 
 # Logs
 *.log
+**/logs/
+
+# 환경변수 파일 (절대 커밋 금지)
+infra/.env
+
+# Firebase Service Account Key (절대 커밋 금지)
+*-firebase-adminsdk-*.json
+firebase-service-account.json
+
+# Docker 볼륨 데이터
+infra/postgres/data/
+AI/.paddle/
+AI/.paddleocr/
+**/.paddle/
+**/.paddleocr/
+
+# Local test / experimental apps
+AItest/
+AItestFront/
+
+.claude

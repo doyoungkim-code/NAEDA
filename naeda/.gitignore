@@ -1,5 +1,6 @@
 HELP.md
 .gradle
+.gradle-user/
 build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
@@ -35,3 +36,12 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# env (do not commit secrets)
+.env
+.env.*
+!.env.example
+test-output/
+reports/
+*.hprof
+hs_err_pid*

@@ -1,3 +1,135 @@
 spring:
   application:
     name: naeda
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:naeda/.env[.properties]
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: redis1234!
+  datasource:
+      url: jdbc:postgresql://localhost:5432/naeda
+      username: naedauser
+      password: "naeda1234!"
+      driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+          enable.idempotence: true
+          max.in.flight.requests.per.connection: 1
+    consumer:
+      group-id: naeda-payment
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      properties:
+        spring.json.trusted.packages: "com.ssafy.naeda.domain.pay.dto.event"
+
+
+ai:
+  base-url: ${AI_BASE_URL:http://localhost:8000}
+  service-token: ${AI_SERVICE_TOKEN:dev-internal-token}
+  timeout-seconds: ${AI_TIMEOUT_SECONDS:20}
+
+face:
+  threshold:
+    match: 0.7
+    ambiguous: 0.65
+  top-k: 3
+  max-image-bytes: 3145728
+  encrypt-key: ${FACE_ENCRYPT_KEY:}
+
+rba:
+  high-amount: 50000
+
+fds:
+  version:
+    feature: fds-feature-v1
+    rule: fds-rule-v1
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    display-request-duration: true
+    operations-sorter: method
+
+ssafy:
+  api:
+    base-url: https://finopenapi.ssafy.io/ssafy/api/v1
+    key: ${SSAFY_API_KEY:}
+
+payment:
+  point:
+    rate: 0.05
+  request:
+    ttl-seconds: 30
+    process-ttl-seconds: 300
+
+store:
+  bootstrap:
+    enabled: true
+  seed:
+    resources: classpath:seed/stores/gumi_bakery.csv,classpath:seed/stores/gumi_restaurant.csv
+  enrichment:
+    enabled: true
+    version: map-v6
+    timeout-seconds: 3
+    user-agent: Mozilla/5.0
+    defaults:
+      image:
+        restaurant: /images/store/default-restaurant.svg
+        bakery: /images/store/default-bakery.svg
+        store: /images/store/default-store.svg
+    naver:
+      client-id: ${NAVER_SEARCH_CLIENT_ID:}
+      client-secret: ${NAVER_SEARCH_CLIENT_SECRET:}
+
+jwt:
+  secret: ${JWT_SECRET:naeda-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
+  access-token-expiry: 7200000      # 2시간 (밀리초)
+  refresh-token-expiry: 604800000   # 7일 (밀리초)
+
+resilience4j:
+  retry:
+    instances:
+      ssafyApi:
+        max-attempts: 3                    # 최초 1회 + 재시도 2회 = 총 3회
+        wait-duration: 1s                 # 재시도 간격 1초
+        retry-exceptions:
+          - org.springframework.web.client.RestClientException  # 네트워크/타임아웃 오류만 재시도
+        ignore-exceptions:
+          - com.ssafy.naeda.global.exception.SsafyApiException  # 비즈니스 오류(E1001 등)는 재시도 안 함
+
+  circuitbreaker:
+    instances:
+      ssafyApi:
+        failure-rate-threshold: 50         # 실패율 50% 넘으면 OPEN
+        sliding-window-size: 10            # 최근 10건 기준으로 판단
+        wait-duration-in-open-state: 30s   # OPEN 후 30초 대기 → HALF_OPEN
+        permitted-number-of-calls-in-half-open-state: 3  # HALF_OPEN에서 3건 테스트
+        sliding-window-type: COUNT_BASED   # 횟수 기반 슬라이딩 윈도우
+
+fcm:
+  credentials-path: ${FCM_CREDENTIALS_PATH:../naeda-fcm-firebase-adminsdk-fbsvc-b5c3c26d36.json}
