@@ -70,8 +70,6 @@ fun NoticeListScreen(
         NoticeRepository.getAllFestivals()
             .onSuccess { festivals ->
                 festivals.forEach { f ->
-                    val startDate = f.startDate?.substring(5)?.replace("-", ".") ?: ""
-                    val endDate = f.endDate?.substring(5)?.replace("-", ".") ?: ""
                     items.add(
                         NoticeItem(
                             id = f.festivalId ?: 0L,
@@ -80,7 +78,7 @@ fun NoticeListScreen(
                             tagColor = Color(0xFFE91E63),
                             title = f.title ?: "",
                             content = f.description ?: "",
-                            date = "$startDate ~ $endDate",
+                            date = formatNoticePeriod(f.startDate, f.endDate),
                             createdRaw = f.created ?: "",
                             scheduleStartRaw = f.startDate ?: "",
                             imageUrl = f.imageUrl
@@ -93,7 +91,6 @@ fun NoticeListScreen(
         NoticeRepository.getAllNotices()
             .onSuccess { noticeList ->
                 noticeList.forEach { n ->
-                    val created = n.created?.substring(5, 10)?.replace("-", ".") ?: ""
                     items.add(
                         NoticeItem(
                             id = n.noticeId ?: 0L,
@@ -102,7 +99,7 @@ fun NoticeListScreen(
                             tagColor = Color(0xFF1976D2),
                             title = n.title ?: "",
                             content = n.content ?: "",
-                            date = created,
+                            date = n.created.toNoticeMonthDay(),
                             createdRaw = n.modified ?: n.created ?: "",
                             scheduleStartRaw = "",
                             imageUrl = null

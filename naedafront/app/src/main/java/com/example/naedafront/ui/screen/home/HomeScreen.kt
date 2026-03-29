@@ -1388,23 +1388,6 @@ private fun TransactionRow(item: TransactionItem) {
             .padding(horizontal = 4.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(item.iconBg),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                item.icon,
-                contentDescription = null,
-                tint = if (item.isIncome) Success else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                modifier = Modifier.size(20.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
         Column(modifier = Modifier.weight(1f)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1452,7 +1435,7 @@ private fun TransactionRow(item: TransactionItem) {
             style = MaterialTheme.typography.bodyMedium.copy(
                 fontWeight = FontWeight.Bold
             ),
-            color = if (item.isIncome) Success else MaterialTheme.colorScheme.onBackground
+            color = if (item.isIncome) Color(0xFF307CBF) else MaterialTheme.colorScheme.onBackground
         )
     }
 }
