@@ -544,9 +544,8 @@ private fun CardDetailHeader(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 IconButton(onClick = onBack) {
                     Icon(
@@ -556,6 +555,16 @@ private fun CardDetailHeader(
                     )
                 }
 
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "\uAC70\uB798\uB0B4\uC5ED",
+                        style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White
+                    )
+                }
                 IconButton(onClick = onSearchToggle) {
                     Icon(
                         imageVector = if (isSearchMode) Icons.Default.Close else Icons.Default.Search,
@@ -566,12 +575,6 @@ private fun CardDetailHeader(
             }
 
             Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-                Text(
-                    text = "거래내역",
-                    style = NaedaTypography.labelMedium,
-                    color = Color.White.copy(alpha = 0.8f)
-                )
-                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = card?.cardNo.orEmpty().maskCardNumber(),
                     style = NaedaTypography.labelSmall,
@@ -1025,7 +1028,7 @@ private fun CardTransactionDetailFullScreen(
         accentColor = accentColor,
         onDismiss = onDismiss
     ) {
-        CardDetailField("결제 방식", paymentMethod)
+        CardDetailField("결제 방식", "카드 결제")
         CardDetailField(
             "결제 시간",
             transaction.transactedRaw.toDisplayDateTime().ifBlank { "-" }

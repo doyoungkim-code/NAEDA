@@ -63,6 +63,8 @@ target/
 **/.android/
 .kotlin/
 **/.kotlin/
+**/gradle-*-bin.zip.part
+**/gradle-*-bin.zip.lck
 
 # Logs
 *.log
