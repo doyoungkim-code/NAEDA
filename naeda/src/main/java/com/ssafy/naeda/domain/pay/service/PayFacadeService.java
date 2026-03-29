@@ -435,6 +435,7 @@ public class PayFacadeService {
         // 카드 정보 조회
         String cardNo;
         String cvc;
+        Long cardAccountId = paymentMethod.getAccountId(); // PayMethod의 accountId (체크카드용)
         if (paymentMethod.getMethodType() == MethodType.CREDIT_CARD) {
             var card = creditCardRepository.findById(paymentMethod.getCreditCardId())
                     .orElseThrow(() -> new NotFoundException("신용카드 정보를 찾을 수 없습니다."));
@@ -445,6 +446,10 @@ public class PayFacadeService {
 
             cardNo = card.getCardNo();
             cvc = card.getCvc();
+            // 신용카드는 PayMethod에 accountId가 없으므로 카드 엔티티에서 가져옴
+            if (cardAccountId == null) {
+                cardAccountId = card.getAccountId();
+            }
         } else {
             var card = debitCardRepository.findById(paymentMethod.getDebitCardId())
                     .orElseThrow(() -> new NotFoundException("체크카드 정보를 찾을 수 없습니다."));
@@ -454,6 +459,9 @@ public class PayFacadeService {
             }
             cardNo = card.getCardNo();
             cvc = card.getCvc();
+            if (cardAccountId == null) {
+                cardAccountId = card.getAccountId();
+            }
         }
 
         //체크카드 잔액 사전 검증
@@ -508,9 +516,9 @@ public class PayFacadeService {
 
         String ssafyTransactionId = extractCardTransactionId(ssafyResponse);
 
-        // 카드 결제 TransactionLog 저장 (WITHDRAW — 고객 연결 계좌)
-        if (paymentMethod.getAccountId() != null) {
-            accountRepository.findById(paymentMethod.getAccountId()).ifPresent(cardAccount -> {
+        // 카드 결제 TransactionLog 저장 (WITHDRAW — 체크카드만, 신용카드는 즉시 출금 아님)
+        if (paymentMethod.getMethodType() == MethodType.DEBIT_CARD && cardAccountId != null) {
+            accountRepository.findById(cardAccountId).ifPresent(cardAccount -> {
                 long balanceAfter;
                 try {
                     balanceAfter = getBalanceAfter(user.getUserKey(), cardAccount.getAccountNo());
@@ -524,13 +532,14 @@ public class PayFacadeService {
                         .amount(amount)
                         .balanceAfter(balanceAfter)
                         .counterpart(store.getStoreName())
+                        .category(store.getCategoryName())
                         .memo(store.getStoreName() + " 카드 결제")
                         .ssafyTransactionId(ssafyTransactionId)
                         .build());
             });
         }
 
-        // 카드 결제 TransactionLog 저장 (DEPOSIT — 가맹점 계좌)
+        // 카드 결제 TransactionLog 저장 (DEPOSIT — 가맹점 계좌, 카드 화면 데이터 소스)
         if (store.getAccountId() != null) {
             accountRepository.findById(store.getAccountId()).ifPresent(depositAccount -> {
                 long depositBalanceAfter;
@@ -545,7 +554,8 @@ public class PayFacadeService {
                         .transactionType(TransactionType.DEPOSIT)
                         .amount(amount)
                         .balanceAfter(depositBalanceAfter)
-                        .counterpart(user.getUserId())
+                        .counterpart(store.getStoreName())
+                        .category(store.getCategoryName())
                         .memo(store.getStoreName() + " 카드 결제")
                         .ssafyTransactionId(ssafyTransactionId)
                         .build());
@@ -636,6 +646,7 @@ public class PayFacadeService {
                 .amount(amount)
                 .balanceAfter(balanceAfter)
                 .counterpart(store.getStoreName())
+                .category(store.getCategoryName())
                 .memo(store.getStoreName() + " 페이스페이 결제")
                 .ssafyTransactionId(ssafyTransactionId)
                 .build());
