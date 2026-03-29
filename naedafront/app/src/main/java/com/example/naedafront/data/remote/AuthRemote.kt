@@ -48,7 +48,7 @@ private interface AuthApiService {
     suspend fun verifyPasswordReset(@Body request: PasswordResetVerifyBody): Response<PasswordResetVerifyResponse>
 
     @POST("api/auth/password-reset/confirm")
-    suspend fun confirmPasswordReset(@Body request: PasswordResetConfirmBody): Response<Unit>
+    suspend fun confirmPasswordReset(@Body request: PasswordResetConfirmBody): Response<Void>
 }
 
 sealed interface LoginResult {
