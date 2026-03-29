@@ -61,7 +61,7 @@ fun AccountTransactionDetailScreen(
         "-${formatAmount(amountValue)}원"
     }
     val isPaymentTransaction = isPayment || transaction.isPaymentTransaction()
-    val headlineLabel = "거래처"
+    val headlineLabel = "결제처"
     val headlineValue = when {
         isPayment && storeName.isNotBlank() -> storeName
         transaction.counterpart.isNotBlank() -> transaction.counterpart
@@ -69,7 +69,7 @@ fun AccountTransactionDetailScreen(
         else -> "거래 정보 없음"
     }
     val badgeText = if (isDeposit) "입금" else "출금"
-    val paymentMethodTitle = "거래 방식"
+    val paymentMethodTitle = "결제 방식"
     val paymentMethod = if (isPaymentTransaction) {
         transaction.toPaymentMethodLabel(paymentDetail?.authMethod)
     } else {
@@ -91,14 +91,16 @@ fun AccountTransactionDetailScreen(
     }
     val categoryText = transaction.category.takeIf { it.isNotBlank() } ?: "-"
     val detailFields = buildList {
-        add(paymentMethodTitle to paymentMethod)
-        add("거래 유형" to if (isDeposit) "입금" else "출금")
+        if (!isDeposit) {
+            add(paymentMethodTitle to paymentMethod)
+        }
+        add("결제 유형" to if (isDeposit) "입금" else "출금")
         add("거래 시간" to transactedText)
         add("카테고리" to categoryText)
         if (!isDeposit) {
             add("적립 포인트" to pointsText)
         }
-        add("거래 번호" to transactionIdText)
+        add("결제 번호" to transactionIdText)
         add(headlineLabel to headlineValue)
     }
 
@@ -136,7 +138,7 @@ fun AccountTransactionDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (isPaymentTransaction) "결제 상세" else "거래 상세",
+                        text = "결제 상세",
                         style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = headerColor
                     )

@@ -943,9 +943,11 @@ fun TradeReportScreen(
                             RecentTradeTransactionRow(
                                 item = item,
                                 onClick = {
+                                    selectedPaymentItem = item
                                     if (item.paymentId > 0L) {
-                                        selectedPaymentItem = item
                                         viewModel.loadPaymentDetail(context, item.paymentId)
+                                    } else {
+                                        viewModel.clearPaymentDetail()
                                     }
                                 }
                             )
@@ -959,7 +961,7 @@ fun TradeReportScreen(
     }
         val paymentItem = selectedPaymentItem
         val paymentDetail = uiState.selectedPaymentDetail
-        if (paymentItem != null && paymentDetail != null) {
+        if (paymentItem != null && (paymentDetail != null || paymentItem.transaction != null)) {
             TradePaymentDetailScreen(
                 item = paymentItem,
                 detail = paymentDetail,

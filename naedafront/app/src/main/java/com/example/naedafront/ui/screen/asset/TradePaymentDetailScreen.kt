@@ -43,12 +43,14 @@ import java.util.Locale
 @Composable
 fun TradePaymentDetailScreen(
     item: TradeReportItem,
-    detail: PaymentDetailResponse,
+    detail: PaymentDetailResponse? = null,
     onClose: () -> Unit,
 ) {
     val accentColor = Mint900
+    val isPayment = detail != null
     val isIncome = item.isIncome
-    val amountValue = item.amountValue.takeIf { it > 0L } ?: detail.amount
+    val transaction = item.transaction
+    val amountValue = item.amountValue.takeIf { it > 0L } ?: detail?.amount ?: transaction?.amount ?: 0L
     val amountColor = if (isIncome) Color(0xFF307CBF) else Color(0xFFF2522E)
     val amountText = if (isIncome) {
         "+${tradeDetailAmount(amountValue)}\uC6D0"
@@ -58,28 +60,58 @@ fun TradePaymentDetailScreen(
     val merchantName = item.storeName.ifBlank {
         item.title.ifBlank { "\uAC00\uB9F9\uC810 \uC815\uBCF4 \uC5C6\uC74C" }
     }
-    val accountInfo = buildList {
-        item.bankName.takeIf { it.isNotBlank() }?.let(::add)
-        item.accountNumber.takeIf { it.isNotBlank() }?.let(::add)
-    }.joinToString(" ").ifBlank { "\uACC4\uC88C \uC815\uBCF4 \uC5C6\uC74C" }
-    val detailFields = if (isIncome) {
-        listOf(
-            "\uAC70\uB798 \uACC4\uC88C" to accountInfo,
-            "\uAC70\uB798 \uC2DC\uAC01" to detail.createdAt?.toTradeDetailDateTime().orEmpty().ifBlank { "-" },
-            "\uAC70\uB798 \uC0C1\uD0DC" to "\uC785\uAE08 \uC644\uB8CC",
-            item.balanceLabel.ifBlank { "\uAC70\uB798 \uD6C4 \uC794\uC561" } to item.balanceAfter.ifBlank { "-" },
-            "\uAC70\uB798 ID" to (detail.ssafyTransactionId ?: detail.paymentId.toString()),
-            "\uAC70\uB798 \uC0C1\uB300" to merchantName,
-        )
-    } else {
-        listOf(
-            "\uACB0\uC81C \uC218\uB2E8" to accountInfo,
-            "\uACB0\uC81C \uC2DC\uAC01" to detail.createdAt?.toTradeDetailDateTime().orEmpty().ifBlank { "-" },
-            "\uACB0\uC81C \uC0C1\uD0DC" to detail.status.toTradePaymentStatusText(),
-            "\uD3EC\uC778\uD2B8 \uC801\uB9BD" to (detail.earnedPoints?.let { "${tradeDetailAmount(it)}P" } ?: "0P"),
-            "\uAC70\uB798 ID" to (detail.ssafyTransactionId ?: detail.paymentId.toString()),
-            "\uACB0\uC81C \uC0C1\uD638" to merchantName,
-        )
+    val isPaymentTransaction = item.isPaymentTransaction() || isPayment
+    val headlineLabel = "\uACB0\uC81C\uCC98"
+    val headlineValue = when {
+        isPayment && merchantName.isNotBlank() -> merchantName
+        isIncome && item.title.isNotBlank() && item.title != "\uC785\uAE08" -> item.title
+        transaction?.counterpart?.isNotBlank() == true -> transaction.counterpart
+        transaction?.memo?.isNotBlank() == true -> transaction.memo
+        else -> "\uAC70\uB798 \uC815\uBCF4 \uC5C6\uC74C"
+    }
+    val badgeText = if (isIncome) "\uC785\uAE08" else "\uCD9C\uAE08"
+    val paymentMethodTitle = "\uACB0\uC81C \uBC29\uC2DD"
+    val paymentMethod = item.toTradePaymentMethodLabel(detail?.authMethod)
+    val paymentInstrumentText = when {
+        item.cardNumber.isNotBlank() -> item.cardNumber
+        item.bankName.isNotBlank() || item.accountNumber.isNotBlank() -> listOf(
+            item.bankName.takeIf { it.isNotBlank() },
+            item.accountNumber.takeIf { it.isNotBlank() }
+        ).joinToString(" ")
+        else -> "-"
+    }
+    val transactedText = detail?.createdAt
+        ?.toTradeDetailDateTime()
+        .orEmpty()
+        .ifBlank {
+            transaction?.transacted?.toTradeDetailDateTime()
+                ?: item.createdAtRaw.toTradeDetailDateTime()
+        }
+        .ifBlank { "-" }
+    val pointsText = "${tradeDetailAmount((detail?.earnedPoints ?: transaction?.estimatedPoints ?: 0L).coerceAtLeast(0L))}P"
+    val transactionIdText = detail?.ssafyTransactionId
+        ?.takeIf { it.isNotBlank() }
+        ?: transaction?.ssafyTransactionId?.takeIf { it.isNotBlank() }
+        ?: transaction?.id?.takeIf { it.isNotBlank() }
+        ?: detail?.paymentId?.toString()
+        ?: item.paymentId.takeIf { it > 0L }?.toString()
+        ?: "-"
+    val categoryText = transaction?.category?.takeIf { it.isNotBlank() }
+        ?: item.category.takeIf { it.isNotBlank() }
+        ?: "-"
+    val detailFields = buildList {
+        if (!isIncome) {
+            add(paymentMethodTitle to paymentMethod)
+            add("\uACB0\uC81C \uC218\uB2E8" to paymentInstrumentText)
+        }
+        add("\uACB0\uC81C \uC720\uD615" to if (isIncome) "\uC785\uAE08" else "\uCD9C\uAE08")
+        add("\uAC70\uB798 \uC2DC\uAC04" to transactedText)
+        add("\uCE74\uD14C\uACE0\uB9AC" to categoryText)
+        if (!isIncome) {
+            add("\uC801\uB9BD \uD3EC\uC778\uD2B8" to pointsText)
+        }
+        add("\uACB0\uC81C \uBC88\uD638" to transactionIdText)
+        add(headlineLabel to headlineValue)
     }
 
     Box(
@@ -116,7 +148,7 @@ fun TradePaymentDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "\uAC70\uB798 \uC0C1\uC138",
+                        text = "\uACB0\uC81C \uC0C1\uC138",
                         style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = accentColor
                     )
@@ -149,7 +181,7 @@ fun TradePaymentDetailScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (isIncome) "\uC785\uAE08" else "\uCD9C\uAE08",
+                            text = badgeText,
                             style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
                             color = accentColor
                         )
@@ -158,7 +190,7 @@ fun TradePaymentDetailScreen(
                     Spacer(modifier = Modifier.height(14.dp))
 
                     Text(
-                        text = "\uACB0\uC81C \uC0C1\uD638",
+                        text = headlineLabel,
                         style = NaedaTypography.bodyMedium,
                         color = OnSurfaceVariant
                     )
@@ -166,7 +198,7 @@ fun TradePaymentDetailScreen(
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = merchantName,
+                        text = headlineValue,
                         style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         color = OnBackground,
                         textAlign = TextAlign.Center
@@ -302,11 +334,19 @@ private fun tradeDetailAmount(amount: Long): String {
     return "%,d".format(amount)
 }
 
-private fun String?.toTradePaymentStatusText(): String {
-    return when (this?.uppercase()) {
-        "APPROVED", "SUCCESS", "COMPLETED" -> "\uACB0\uC81C \uC644\uB8CC"
-        "FAILED", "FAIL", "CANCELED", "CANCELLED" -> "\uACB0\uC81C \uC2E4\uD328"
-        else -> "\uCC98\uB9AC \uC644\uB8CC"
+private fun TradeReportItem.isPaymentTransaction(): Boolean {
+    return paymentId > 0L || (!isIncome && transaction?.ssafyTransactionId?.isNotBlank() == true)
+}
+
+private fun TradeReportItem.toTradePaymentMethodLabel(authMethod: String?): String {
+    if (isIncome) return "\uC785\uAE08"
+
+    val usesFacePay = authMethod?.contains("FACE", ignoreCase = true) == true
+
+    return when {
+        usesFacePay -> "\uD398\uC774\uC2A4\uD398\uC774"
+        isPaymentTransaction() -> "\uCE74\uB4DC"
+        else -> "\uCD9C\uAE08"
     }
 }
 
