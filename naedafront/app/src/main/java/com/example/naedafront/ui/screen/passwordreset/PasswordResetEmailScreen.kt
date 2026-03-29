@@ -37,8 +37,8 @@ fun PasswordResetEmailScreen(
     fun validate(): Boolean {
         phoneError = when {
             phone.isBlank() -> "휴대폰번호를 입력해주세요"
-            !phone.trim().matches(Regex("^01[016789]\\d{7,8}$")) ->
-                "올바른 휴대폰번호 형식이 아니에요"
+            !phone.trim().matches(Regex("^\\d{11}$")) ->
+                "휴대폰번호는 11자리 숫자여야 해요"
             else -> null
         }
         return phoneError == null
