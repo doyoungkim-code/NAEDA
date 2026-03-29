@@ -153,7 +153,7 @@ class HomeViewModel : ViewModel() {
         AssetRepository.getPayments(userNo)
             .onSuccess { payments ->
                 val items = payments
-                    .sortedByDescending { it.createdAt }
+                    .sortedByDescending { it.createdAt.toEpochMillis() }
                     .take(3)
                     .map { it.toTransactionItem() }
                 _uiState.update { it.copy(recentTransactions = items) }
@@ -333,5 +333,26 @@ private fun String.formatDateTime(): String {
         "${year}.${"%02d".format(month)}.${"%02d".format(day)} ${"%02d".format(hour24)}:${"%02d".format(minute)}"
     } catch (e: Exception) {
         this
+    }
+}
+
+private fun String?.toEpochMillis(): Long {
+    if (this.isNullOrBlank()) return Long.MIN_VALUE
+
+    return try {
+        val trimmed = this
+            .substringBefore(".")
+            .substringBefore("Z")
+            .let {
+                val plusIndex = it.indexOf('+')
+                if (plusIndex >= 0) it.substring(0, plusIndex) else it
+            }
+            .let {
+                if (it.length >= 19) it.substring(0, 19) else it
+            }
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+        inputFormat.parse(trimmed)?.time ?: Long.MIN_VALUE
+    } catch (e: Exception) {
+        Long.MIN_VALUE
     }
 }

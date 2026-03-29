@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
@@ -27,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.naedafront.ui.theme.Mint900
 import com.example.naedafront.ui.theme.NaedaTypography
 import com.example.naedafront.ui.theme.OnBackground
@@ -42,20 +45,28 @@ fun CardTransactionDetailScreen(
     card: CardHeaderUi?,
     onClose: () -> Unit,
 ) {
-    val accentColor = Mint900
+    val headerColor = Mint900
+    val amountColor = if (transaction.isCanceled) Color(0xFF307CBF) else Color(0xFFF2522E)
     val merchantName = transaction.displayName
-    val paymentMethod = buildList {
-        card?.cardName?.takeIf { it.isNotBlank() }?.let(::add)
-        card?.cardNo?.maskCardNumber()?.takeIf { it.isNotBlank() && it != "-" }?.let(::add)
-    }.joinToString(" ").ifBlank { "카드 정보 없음" }
-
-    val detailFields = listOf(
-        "결제 수단" to paymentMethod,
-        "결제 시간" to transaction.transactedRaw.toDisplayDateTime().ifBlank { "-" },
-        "적립 포인트" to "${formatAmount(transaction.estimatedPoints)}P",
-        "결제 번호" to transaction.transactionId.ifBlank { "-" },
-        "결제 장소" to merchantName,
-    )
+    val amountText = if (transaction.isCanceled) {
+        "+${formatAmount(transaction.amount)}원"
+    } else {
+        "-${formatAmount(transaction.amount)}원"
+    }
+    val badgeText = if (transaction.isCanceled) "입금" else "출금"
+    val categoryText = transaction.category.takeIf { it.isNotBlank() } ?: "-"
+    val pointsText = "${formatAmount((if (transaction.isCanceled) 0L else transaction.estimatedPoints).coerceAtLeast(0L))}P"
+    val detailFields = buildList {
+        add("거래 방식" to "카드 결제")
+        add("거래 유형" to if (transaction.isCanceled) "입금" else "출금")
+        add("거래 시간" to transaction.transactedRaw.toDisplayDateTime().ifBlank { "-" })
+        add("카테고리" to categoryText)
+        if (!transaction.isCanceled) {
+            add("적립 포인트" to pointsText)
+        }
+        add("거래 번호" to transaction.transactionId.ifBlank { "-" })
+        add("거래처" to merchantName)
+    }
 
     Box(
         modifier = Modifier
@@ -82,7 +93,7 @@ fun CardTransactionDetailScreen(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "닫기",
-                        tint = accentColor
+                        tint = headerColor
                     )
                 }
 
@@ -93,7 +104,7 @@ fun CardTransactionDetailScreen(
                     Text(
                         text = "결제 상세",
                         style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = accentColor
+                        color = headerColor
                     )
                 }
 
@@ -120,20 +131,20 @@ fun CardTransactionDetailScreen(
                         modifier = Modifier
                             .size(84.dp)
                             .clip(CircleShape)
-                            .background(accentColor.copy(alpha = 0.1f)),
+                            .background(headerColor.copy(alpha = 0.1f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "PAY",
+                            text = badgeText,
                             style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                            color = accentColor
+                            color = headerColor
                         )
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))
 
                     Text(
-                        text = "결제 장소",
+                        text = "거래처",
                         style = NaedaTypography.bodyMedium,
                         color = OnSurfaceVariant
                     )
@@ -160,43 +171,39 @@ fun CardTransactionDetailScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "총 결제 금액",
-                                style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                color = OnSurfaceVariant
-                            )
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            Text(
-                                text = "${formatAmount(transaction.amount)}원",
-                                style = NaedaTypography.displayMedium.copy(fontWeight = FontWeight.Bold),
-                                color = accentColor
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            CardDetailStatusChip(
-                                text = if (transaction.isCanceled) "결제 취소" else "결제 완료",
-                                accentColor = accentColor
+                                text = amountText,
+                                style = NaedaTypography.displayLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 42.sp
+                                ),
+                                color = amountColor
                             )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
                     ) {
-                        detailFields.forEach { (label, value) ->
-                            CardDetailField(
-                                label = label,
-                                value = value
-                            )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            detailFields.forEach { (label, value) ->
+                                CardDetailField(
+                                    label = label,
+                                    value = value
+                                )
+                            }
                         }
                     }
 
-                    Spacer(modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     CardDetailPrimaryButton(
                         text = "닫기",

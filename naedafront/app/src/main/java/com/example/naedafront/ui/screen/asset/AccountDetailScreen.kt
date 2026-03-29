@@ -471,9 +471,8 @@ private fun AccountDetailHeader(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 IconButton(onClick = onBack) {
                     Icon(
@@ -483,6 +482,16 @@ private fun AccountDetailHeader(
                     )
                 }
 
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "\uAC70\uB798\uB0B4\uC5ED",
+                        style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White
+                    )
+                }
                 IconButton(onClick = onSearchToggle) {
                     Icon(
                         imageVector = if (isSearchMode) Icons.Default.Close else Icons.Default.Search,
@@ -494,19 +503,16 @@ private fun AccountDetailHeader(
 
             Column(modifier = Modifier.padding(horizontal = 24.dp)) {
                 Text(
-                    text = "거래내역",
-                    style = NaedaTypography.labelMedium,
-                    color = Color.White.copy(alpha = 0.8f)
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
                     text = accountNumber.maskAccountNumber(),
                     style = NaedaTypography.labelSmall,
                     color = Color.White.copy(alpha = 0.65f)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
+                val accountNameText = accountName
+                    .takeUnless { it.contains("\uC218\uC2DC\uC785\uCD9C\uAE08") }
+                    .orEmpty()
                 Text(
-                    text = listOf(bankName, accountName)
+                    text = listOf(bankName, accountNameText)
                         .filter { it.isNotBlank() }
                         .joinToString(" · ")
                         .ifBlank { "기본 계좌" },
@@ -800,18 +806,34 @@ private fun TransactionRow(
     val transactionColor = if (isDeposit) Color(0xFF307CBF) else Color(0xFFF2522E)
 
     val title = when {
-        item.memo.isNotBlank() -> item.memo.replace(Regex("\\s*(페이스페이|카드)\\s*결제$"), "")
+        item.memo.isNotBlank() -> item.memo.replace(
+            Regex("\\s*(\\uD398\\uC774\\uC2A4\\uD398\\uC774|\\uCE74\\uB4DC)\\s*\\uACB0\\uC81C$"),
+            ""
+        )
         item.counterpart.isNotBlank()
                 && !item.counterpart.all { it.isDigit() }
                 && !item.counterpart.contains("@") -> item.counterpart
-        else -> "계좌 거래"
+        else -> "\uACC4\uC88C \uAC70\uB798"
     }
 
+    val paymentLabel = when {
+        item.memo.contains("\uD398\uC774\uC2A4\uD398\uC774 \uACB0\uC81C") -> "\uD398\uC774\uC2A4\uD398\uC774"
+        item.memo.contains("\uCE74\uB4DC \uACB0\uC81C") -> "\uD398\uC774\uC2A4\uD398\uC774"
+        else -> null
+    }
+    val categoryText = item.category.takeIf {
+        it.isNotBlank() &&
+            it != paymentLabel &&
+            it != title &&
+            it != item.memo &&
+            !it.contains("\uACB0\uC81C")
+    }
     val subtitle = listOfNotNull(
-        item.time.takeIf { it.isNotBlank() },
-        item.category.takeIf { it.isNotBlank() }
-    ).joinToString(" · ")
-
+        paymentLabel,
+        categoryText
+    ).joinToString(" \u00B7 ")
+        .ifBlank { if (isDeposit) "\uC785\uAE08" else "\uCD9C\uAE08" }
+    val timeText = item.time.ifBlank { "-" }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -828,33 +850,32 @@ private fun TransactionRow(
                 maxLines = 1
             )
 
-            if (subtitle.isNotBlank()) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = subtitle,
-                    style = NaedaTypography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
-                )
-            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = subtitle,
+                style = NaedaTypography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
 
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = if (item.estimatedPoints > 0L) {
-                    "적립 포인트 ${"%,d".format(item.estimatedPoints)}P"
-                } else {
-                    "거래 후 잔액 ${"%,d".format(item.balanceAfter)}원"
-                },
+                text = timeText,
                 style = NaedaTypography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
-        Text(
-            text = if (isDeposit) "+${"%,d".format(item.amount)}원" else "-${"%,d".format(item.amount)}원",
-            style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = transactionColor
-        )
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = if (isDeposit) "+${"%,d".format(item.amount)}\uC6D0" else "-${"%,d".format(item.amount)}\uC6D0",
+                style = NaedaTypography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = transactionColor,
+                maxLines = 1
+            )
+        }
     }
 
     HorizontalDivider(
@@ -863,7 +884,6 @@ private fun TransactionRow(
         modifier = Modifier.padding(horizontal = 20.dp)
     )
 }
-
 @Composable
 private fun AccountTransactionDetailDialog(
     transaction: TransactionItem,
@@ -895,7 +915,6 @@ private fun AccountTransactionDetailDialog(
                 if (transaction.estimatedPoints > 0L) {
                     DetailRow("적립 포인트", "${"%,d".format(transaction.estimatedPoints)}P")
                 }
-                DetailRow("거래 후 잔액", "${"%,d".format(transaction.balanceAfter)}원")
                 DetailRow("거래 번호", transaction.ssafyTransactionId.ifBlank { transaction.id })
             }
         }
@@ -982,7 +1001,6 @@ private fun AccountTransactionDetailFullScreen(
         if (transaction.estimatedPoints > 0L) {
             AccountDetailField("적립 포인트", "${"%,d".format(transaction.estimatedPoints)}P")
         }
-        AccountDetailField("거래 후 잔액", "${"%,d".format(transaction.balanceAfter)}원")
         AccountDetailField("거래 번호", transaction.ssafyTransactionId.ifBlank { transaction.id })
     }
 }
@@ -1437,11 +1455,7 @@ private fun TransactionItem.matches(query: String): Boolean {
 }
 
 private fun String?.toPaymentMethodLabel(): String {
-    return when (this?.uppercase()) {
-        "FACE" -> "내다페이(페이스페이)"
-        "PIN" -> "내다페이(PIN인증)"
-        else -> "내다페이"
-    }
+    return "페이스페이"
 }
 
 private fun String?.toPaymentStatusLabel(): String {
