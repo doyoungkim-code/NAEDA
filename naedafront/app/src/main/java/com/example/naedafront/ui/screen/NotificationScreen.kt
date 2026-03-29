@@ -81,6 +81,8 @@ class NotificationViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(NotificationUiState())
     val uiState: StateFlow<NotificationUiState> = _uiState.asStateFlow()
+    private val inFlightReadIds = mutableSetOf<Long>()
+    private var isMarkAllInFlight = false
 
     fun loadNotifications(context: Context) {
         val userNo = AuthPrefs.getUserNo(context) ?: return
@@ -120,10 +122,13 @@ class NotificationViewModel : ViewModel() {
 
     fun markAsRead(notificationId: Long?) {
         if (notificationId == null) return
+        if (isMarkAllInFlight) return
         if (_uiState.value.notifications.firstOrNull { it.notificationId == notificationId }?.isRead == true) return
+        if (!inFlightReadIds.add(notificationId)) return
 
         viewModelScope.launch {
-            NotificationRepository.markAsRead(notificationId)
+            try {
+                NotificationRepository.markAsRead(notificationId)
                 .onSuccess {
                     _uiState.update { state ->
                         state.copy(
@@ -137,16 +142,23 @@ class NotificationViewModel : ViewModel() {
                 .onFailure { error ->
                     _uiState.update { it.copy(error = error.message ?: "알림 읽음 처리에 실패했습니다.") }
                 }
+            } finally {
+                inFlightReadIds.remove(notificationId)
+            }
         }
     }
 
     fun markAllAsRead(context: Context) {
         val userNo = AuthPrefs.getUserNo(context) ?: return
         if (_uiState.value.unreadCount <= 0L) return
+        if (isMarkAllInFlight) return
+
+        isMarkAllInFlight = true
 
         viewModelScope.launch {
-            NotificationRepository.markAllAsRead(userNo)
-                .onSuccess {
+            try {
+                NotificationRepository.markAllAsRead(userNo)
+                    .onSuccess {
                     _uiState.update { state ->
                         state.copy(
                             notifications = emptyList(),
@@ -154,9 +166,12 @@ class NotificationViewModel : ViewModel() {
                         )
                     }
                 }
-                .onFailure { error ->
+                    .onFailure { error ->
                     _uiState.update { it.copy(error = error.message ?: "알림 전체 읽음 처리에 실패했습니다.") }
                 }
+            } finally {
+                isMarkAllInFlight = false
+            }
         }
     }
 }

@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -25,6 +26,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.AssetAccountResponse
 import com.example.naedafront.data.remote.AssetCardResponse
@@ -58,9 +62,11 @@ fun AccountListRoute(
     useRegisterDialog: Boolean = false
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val coroutineScope = rememberCoroutineScope()
     val userNo = remember(context) { AuthPrefs.getUserNo(context) }
     var reloadTick by remember { mutableIntStateOf(0) }
+    var hasResumedOnce by remember { mutableStateOf(false) }
     var uiState by remember { mutableStateOf<AssetListUiState>(AssetListUiState.Loading) }
     var showRegisterDialog by remember { mutableStateOf<Int?>(null) }
 
@@ -115,6 +121,22 @@ fun AccountListRoute(
             )
         }.getOrElse { throwable ->
             AssetListUiState.Error(throwable.message ?: "계좌와 카드 정보를 불러오지 못했습니다.")
+        }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (hasResumedOnce) {
+                    reloadTick++
+                } else {
+                    hasResumedOnce = true
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 

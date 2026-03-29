@@ -508,25 +508,25 @@ public class AuthService {
     private static final String RESET_CODE_PREFIX = "pwd-reset:";
     private static final String RESET_VERIFIED_PREFIX = "pwd-reset-verified:";
 
-    public PasswordResetCodeResponse requestPasswordReset(String userId) {
-        userRepository.findByUserId(userId)
-                .orElseThrow(() -> new NotFoundException("등록되지 않은 이메일입니다."));
+    public PasswordResetCodeResponse requestPasswordReset(String phone) {
+        userRepository.findByPhone(phone)
+                .orElseThrow(() -> new NotFoundException("등록되지 않은 휴대폰번호입니다."));
 
         String code = String.format("%06d", new SecureRandom().nextInt(1_000_000));
 
         redisTemplate.opsForValue().set(
-                RESET_CODE_PREFIX + userId,
+                RESET_CODE_PREFIX + phone,
                 code,
                 RESET_CODE_TTL_SECONDS,
                 TimeUnit.SECONDS
         );
 
-        log.info("[AuthService] 비밀번호 재설정 코드 발급: userId={}", userId);
+        log.info("[AuthService] 비밀번호 재설정 코드 발급: phone={}", phone);
         return PasswordResetCodeResponse.of(code, RESET_CODE_TTL_SECONDS);
     }
 
-    public PasswordResetVerifyResponse verifyPasswordResetCode(String userId, String code) {
-        String savedCode = redisTemplate.opsForValue().get(RESET_CODE_PREFIX + userId);
+    public PasswordResetVerifyResponse verifyPasswordResetCode(String phone, String code) {
+        String savedCode = redisTemplate.opsForValue().get(RESET_CODE_PREFIX + phone);
 
         if (savedCode == null) {
             throw new BadRequestException("인증 코드가 만료되었거나 존재하지 않습니다.");
@@ -535,35 +535,36 @@ public class AuthService {
             throw new BadRequestException("인증 코드가 일치하지 않습니다.");
         }
 
-        redisTemplate.delete(RESET_CODE_PREFIX + userId);
+        redisTemplate.delete(RESET_CODE_PREFIX + phone);
 
         String token = UUID.randomUUID().toString();
         redisTemplate.opsForValue().set(
                 RESET_VERIFIED_PREFIX + token,
-                userId,
+                phone,
                 RESET_TOKEN_TTL_SECONDS,
                 TimeUnit.SECONDS
         );
 
-        log.info("[AuthService] 비밀번호 재설정 코드 검증 성공: userId={}", userId);
+        log.info("[AuthService] 비밀번호 재설정 코드 검증 성공: phone={}", phone);
         return PasswordResetVerifyResponse.of(token);
     }
 
-    @Transactional
+    @Transactional(readOnly = false)
     public void confirmPasswordReset(String token, String newPassword) {
-        String userId = redisTemplate.opsForValue().get(RESET_VERIFIED_PREFIX + token);
+        String phone = redisTemplate.opsForValue().get(RESET_VERIFIED_PREFIX + token);
 
-        if (userId == null) {
+        if (phone == null) {
             throw new BadRequestException("유효하지 않거나 만료된 토큰입니다.");
         }
 
         redisTemplate.delete(RESET_VERIFIED_PREFIX + token);
 
-        User user = userRepository.findByUserId(userId)
+        User user = userRepository.findByPhone(phone)
                 .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
 
         user.updatePassword(passwordEncoder.encode(newPassword));
+        userRepository.saveAndFlush(user);
 
-        log.info("[AuthService] 비밀번호 재설정 완료: userId={}", userId);
+        log.info("[AuthService] 비밀번호 재설정 완료: phone={}", phone);
     }
 }

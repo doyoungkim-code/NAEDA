@@ -25,23 +25,23 @@ import kotlinx.coroutines.launch
 @Composable
 fun PasswordResetEmailScreen(
     onBackClick: () -> Unit = {},
-    onCodeReceived: (email: String, code: String) -> Unit = { _, _ -> }
+    onCodeReceived: (phone: String, code: String) -> Unit = { _, _ -> }
 ) {
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
 
-    var email by remember { mutableStateOf("") }
-    var emailError by remember { mutableStateOf<String?>(null) }
+    var phone by remember { mutableStateOf("") }
+    var phoneError by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
 
     fun validate(): Boolean {
-        emailError = when {
-            email.isBlank() -> "이메일을 입력해주세요"
-            !android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() ->
-                "올바른 이메일 형식이 아니에요"
+        phoneError = when {
+            phone.isBlank() -> "휴대폰번호를 입력해주세요"
+            !phone.trim().matches(Regex("^\\d{11}$")) ->
+                "휴대폰번호는 11자리 숫자여야 해요"
             else -> null
         }
-        return emailError == null
+        return phoneError == null
     }
 
     fun submit() {
@@ -50,13 +50,13 @@ fun PasswordResetEmailScreen(
 
         isLoading = true
         coroutineScope.launch {
-            AuthRepository.requestPasswordReset(email.trim())
+            AuthRepository.requestPasswordReset(phone.trim())
                 .onSuccess { response ->
                     isLoading = false
-                    onCodeReceived(email.trim(), response.code)
+                    onCodeReceived(phone.trim(), response.code)
                 }
                 .onFailure { error ->
-                    emailError = error.message ?: "요청에 실패했습니다."
+                    phoneError = error.message ?: "요청에 실패했습니다."
                     isLoading = false
                 }
         }
@@ -98,7 +98,7 @@ fun PasswordResetEmailScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "가입한 이메일을 입력하면\n인증코드를 보내드립니다.",
+                text = "가입한 휴대폰번호를 입력하면\n인증코드를 보내드립니다.",
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 22.sp
@@ -107,29 +107,36 @@ fun PasswordResetEmailScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             TextField(
-                value = email,
+                value = phone,
                 onValueChange = {
-                    email = it
-                    emailError = null
+                    phone = it
+                    phoneError = null
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp)),
                 label = {
                     Text(
-                        text = "이메일",
-                        color = if (emailError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = "휴대폰번호",
+                        color = if (phoneError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 13.sp
                     )
                 },
+                placeholder = {
+                    Text(
+                        text = "01012345678",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        fontSize = 14.sp
+                    )
+                },
                 keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
+                    keyboardType = KeyboardType.Phone,
                     imeAction = ImeAction.Done
                 ),
                 keyboardActions = KeyboardActions(onDone = { submit() }),
-                isError = emailError != null,
-                supportingText = if (emailError != null) {
-                    { Text(emailError!!, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
+                isError = phoneError != null,
+                supportingText = if (phoneError != null) {
+                    { Text(phoneError!!, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
                 } else null,
                 singleLine = true,
                 colors = TextFieldDefaults.colors(
