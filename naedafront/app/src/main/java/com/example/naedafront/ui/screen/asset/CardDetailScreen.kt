@@ -151,6 +151,7 @@ class CardDetailViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(CardDetailUiState())
     val uiState: StateFlow<CardDetailUiState> = _uiState.asStateFlow()
+    private var loadRequestToken = 0L
 
     fun updatePeriod(period: String) {
         _uiState.update {
@@ -180,7 +181,9 @@ class CardDetailViewModel : ViewModel() {
         fallbackCardName: String = "",
         fallbackCardNo: String = ""
     ) {
+        val requestToken = ++loadRequestToken
         val userNo = AuthPrefs.getUserNo(context)
+        val requestedPeriod = _uiState.value.selectedPeriod
 
         if (userNo == null) {
             _uiState.update {
@@ -229,13 +232,15 @@ class CardDetailViewModel : ViewModel() {
                     resolvedCard = cards.firstOrNull { it.cardId == cardId }?.toHeaderUi()
                         ?: resolvedCard
                 }
+            if (requestToken != loadRequestToken) return@launch
 
             CardRepository.getCardTransactions(
                 userNo = userNo,
                 cardId = cardId,
                 cardType = cardType,
-                period = _uiState.value.selectedPeriod
+                period = requestedPeriod
             ).onSuccess { items ->
+                if (requestToken != loadRequestToken) return@onSuccess
                 _uiState.update {
                     it.copy(
                         selectedCard = resolvedCard,
@@ -245,6 +250,7 @@ class CardDetailViewModel : ViewModel() {
                     )
                 }
             }.onFailure { throwable ->
+                if (requestToken != loadRequestToken) return@onFailure
                 _uiState.update {
                     it.copy(
                         selectedCard = resolvedCard,

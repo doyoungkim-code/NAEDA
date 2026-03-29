@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.AssetPayMethodResponse
 import com.example.naedafront.data.remote.AssetRepository
+import com.example.naedafront.data.remote.AssetTransactionResponse
 import com.example.naedafront.data.remote.NotificationRepository
 import com.example.naedafront.data.remote.PaymentResponse
 import com.example.naedafront.data.repository.NoticeRepository
@@ -150,9 +151,49 @@ class HomeViewModel : ViewModel() {
     }
 
     private suspend fun loadRecentTransactions(userNo: Long) {
+        val wallet = runCatching { AssetRepository.getWalletAssets(userNo) }.getOrNull()
+        val payments = AssetRepository.getPayments(userNo)
+            .getOrElse { emptyList() }
+            .filter { payment -> payment.status?.uppercase() in listOf("APPROVED", "SUCCESS", "COMPLETED") }
+        val paymentByTransactionId = payments.mapNotNull { payment ->
+            payment.ssafyTransactionId
+                ?.takeIf { it.isNotBlank() }
+                ?.let { it to payment }
+        }.toMap()
+        val accountTransactions = wallet?.accounts
+            ?.firstOrNull()
+            ?.accountId
+            ?.let { accountId ->
+                runCatching { AssetRepository.getTransactions(userNo, accountId) }
+                    .getOrElse { emptyList<AssetTransactionResponse>() }
+            }
+            .orEmpty()
+
+        val items = if (accountTransactions.isNotEmpty()) {
+            accountTransactions
+                .sortedByDescending { it.transacted.toEpochMillis() }
+                .take(3)
+                .map { transaction ->
+                    transaction.toTransactionItem(
+                        linkedPayment = transaction.ssafyTransactionId
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { paymentByTransactionId[it] }
+                    )
+                }
+        } else {
+            payments
+                .sortedByDescending { it.createdAt.toEpochMillis() }
+                .take(3)
+                .map { it.toTransactionItem() }
+        }
+
+        _uiState.update { it.copy(recentTransactions = items) }
+        return
+
         AssetRepository.getPayments(userNo)
             .onSuccess { payments ->
                 val items = payments
+                    .filter { payment -> payment.status?.uppercase() in listOf("APPROVED", "SUCCESS", "COMPLETED") }
                     .sortedByDescending { it.createdAt.toEpochMillis() }
                     .take(3)
                     .map { it.toTransactionItem() }
@@ -291,6 +332,46 @@ class HomeViewModel : ViewModel() {
                 _uiState.update { it.copy(unreadNotificationCount = 0L) }
             }
     }
+}
+
+private fun AssetTransactionResponse.toTransactionItem(
+    linkedPayment: PaymentResponse?
+): TransactionItem {
+    val isDeposit = transactionType.equals("DEPOSIT", ignoreCase = true)
+    val rawMemo = memo.orEmpty()
+    val rawCounterpart = counterpart.orEmpty()
+    val rawStoreName = linkedPayment?.storeName?.takeIf { it.isNotBlank() }.orEmpty()
+    val categoryText = linkedPayment?.categoryName?.takeIf { it.isNotBlank() }
+        ?: aiCategory?.takeIf { it.isNotBlank() }
+        ?: category?.takeIf { it.isNotBlank() }
+    val cleanedMemo = rawMemo.replace(
+        Regex("\\s*(\\uD398\\uC774\\uC2A4\\uD398\\uC774|\\uCE74\\uB4DC)\\s*\\uACB0\\uC81C$"),
+        ""
+    )
+    val title = when {
+        rawStoreName.isNotBlank() -> rawStoreName
+        cleanedMemo.isNotBlank() -> cleanedMemo
+        rawCounterpart.isNotBlank() &&
+            !rawCounterpart.all { it.isDigit() } &&
+            !rawCounterpart.contains("@") -> rawCounterpart
+        else -> if (isDeposit) "\uC785\uAE08" else "\uCD9C\uAE08"
+    }
+    val subtitle = listOfNotNull(
+        categoryText,
+        transacted?.formatDateTime()?.takeIf { it.isNotBlank() }
+    ).joinToString(" \u00B7 ")
+    val isFacePayTransaction = linkedPayment?.facePay == true ||
+        linkedPayment?.authLevel?.equals("FACE_PAY", ignoreCase = true) == true
+
+    return TransactionItem(
+        title = title,
+        subTitle = subtitle.ifBlank { transacted?.formatDateTime().orEmpty() },
+        amount = if (isDeposit) "+${"%,d".format(amount ?: 0L)}\uC6D0" else "-${"%,d".format(amount ?: 0L)}\uC6D0",
+        isIncome = false,
+        iconBg = Color(0xFFDCEBFF),
+        icon = Icons.Default.ShoppingBag,
+        badgeText = if (isFacePayTransaction) "FACE PAY" else null
+    )
 }
 
 private fun PaymentResponse.toTransactionItem(): TransactionItem {

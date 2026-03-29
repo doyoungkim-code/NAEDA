@@ -66,6 +66,7 @@ import com.example.naedafront.data.remote.AssetAccountResponse
 import com.example.naedafront.data.remote.AssetCardResponse
 import com.example.naedafront.data.remote.AssetPayMethodResponse
 import com.example.naedafront.data.remote.AssetRepository
+import com.example.naedafront.data.remote.AssetTransactionResponse
 import com.example.naedafront.data.remote.PaymentResponse
 import com.example.naedafront.data.remote.response.PaymentDetailResponse
 import androidx.compose.material3.MaterialTheme
@@ -103,7 +104,8 @@ data class TradeReportItem(
     val balanceLabel: String = "적립 포인트",
     val icon: ImageVector,
     val iconBg: Color,
-    val createdAtRaw: String = ""
+    val createdAtRaw: String = "",
+    val transaction: TransactionItem? = null
 ) {
     val date: String
         get() = createdAtRaw.toDateKey()
@@ -172,6 +174,9 @@ class TradeReportViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(TradeReportUiState())
     val uiState: StateFlow<TradeReportUiState> = _uiState.asStateFlow()
+    private var detailRequestToken = 0L
+    private var currentDetailPaymentId: Long? = null
+    private var listRequestToken = 0L
 
     fun updatePeriod(period: String) {
         _uiState.update {
@@ -188,6 +193,10 @@ class TradeReportViewModel : ViewModel() {
 
     fun loadPaymentDetail(context: Context, paymentId: Long) {
         val userNo = AuthPrefs.getUserNo(context) ?: return
+        if (_uiState.value.isDetailLoading && currentDetailPaymentId == paymentId) return
+
+        val requestToken = ++detailRequestToken
+        currentDetailPaymentId = paymentId
 
         viewModelScope.launch {
             _uiState.update {
@@ -198,7 +207,10 @@ class TradeReportViewModel : ViewModel() {
                 )
             }
 
-            AssetRepository.getPaymentDetail(userNo, paymentId)
+            val detailResult = AssetRepository.getPaymentDetail(userNo, paymentId)
+            if (requestToken != detailRequestToken || currentDetailPaymentId != paymentId) return@launch
+
+            detailResult
                 .onSuccess { detail ->
                     _uiState.update {
                         it.copy(
@@ -219,6 +231,8 @@ class TradeReportViewModel : ViewModel() {
     }
 
     fun clearPaymentDetail() {
+        detailRequestToken++
+        currentDetailPaymentId = null
         _uiState.update {
             it.copy(
                 selectedPaymentDetail = null,
@@ -230,6 +244,7 @@ class TradeReportViewModel : ViewModel() {
 
     fun loadData(context: Context, period: String) {
         val userNo = AuthPrefs.getUserNo(context) ?: return
+        val requestToken = ++listRequestToken
 
         viewModelScope.launch {
             _uiState.update {
@@ -242,6 +257,7 @@ class TradeReportViewModel : ViewModel() {
             }
 
             val walletData = runCatching { loadTradeWalletData(userNo) }.getOrNull()
+            if (requestToken != listRequestToken) return@launch
             walletData?.defaultAccount?.let { account ->
                 _uiState.update {
                     it.copy(
@@ -252,9 +268,11 @@ class TradeReportViewModel : ViewModel() {
                 }
             }
 
-            runCatching {
+            val accountResult = runCatching {
                 AssetRepository.getWalletAssets(userNo).accounts.firstOrNull()
-            }.onSuccess { account ->
+            }
+            if (requestToken != listRequestToken) return@launch
+            accountResult.onSuccess { account ->
                 _uiState.update {
                     it.copy(
                         accountName = account?.accountName ?: "대표계좌",
@@ -265,32 +283,42 @@ class TradeReportViewModel : ViewModel() {
             }
 
             val range = buildPeriodRange(period)
-
             AssetRepository.getPayments(userNo, range.first, range.second)
                 .onSuccess { payments ->
+                    if (requestToken != listRequestToken) return@onSuccess
+
+                    val transactions = payments
+                        .filter { payment -> payment.status?.uppercase() in listOf("APPROVED", "SUCCESS", "COMPLETED") }
+                        .map { payment ->
+                            payment.toRecentTradeItem(
+                                defaultAccount = walletData?.defaultAccount,
+                                accountById = walletData?.accountById.orEmpty(),
+                                payMethodById = walletData?.payMethodById.orEmpty(),
+                                cardById = walletData?.cardById.orEmpty()
+                            )
+                        }
+                        .sortedByDescending { item ->
+                            item.createdAtRaw.toTradeReportEpochMillis() ?: Long.MIN_VALUE
+                        }
+
                     _uiState.update {
                         it.copy(
-                            transactions = payments
-                                .filter { payment -> payment.status?.uppercase() in listOf("APPROVED", "SUCCESS", "COMPLETED") }
-                                .map { payment ->
-                                    payment.toRecentTradeItem(
-                                        defaultAccount = walletData?.defaultAccount,
-                                        accountById = walletData?.accountById.orEmpty(),
-                                        payMethodById = walletData?.payMethodById.orEmpty(),
-                                        cardById = walletData?.cardById.orEmpty()
-                                    )
-                                },
+                            transactions = transactions,
                             incomeTotal = 0L,
-                            expenseTotal = payments
-                                .filter { payment -> payment.status?.uppercase() in listOf("APPROVED", "SUCCESS", "COMPLETED") }
-                                .sumOf { payment -> payment.amount ?: 0L },
-                            isLoading = false
+                            expenseTotal = transactions.sumOf { item -> item.amountValue },
+                            isLoading = false,
+                            error = null
                         )
                     }
                 }
                 .onFailure { e ->
+                    if (requestToken != listRequestToken) return@onFailure
+
                     _uiState.update {
                         it.copy(
+                            transactions = emptyList(),
+                            incomeTotal = 0L,
+                            expenseTotal = 0L,
                             isLoading = false,
                             error = e.message
                         )
@@ -420,6 +448,148 @@ private fun PaymentResponse.toRecentTradeItem(
         iconBg = Color(0xFFDCEBFF),
         createdAtRaw = createdAt ?: ""
     )
+}
+
+private fun AssetTransactionResponse.toRecentTradeItem(
+    defaultAccount: AssetAccountResponse?,
+    linkedPayment: PaymentResponse?
+): TradeReportItem {
+    val isDeposit = transactionType.equals("DEPOSIT", ignoreCase = true)
+    val rawAmount = amount ?: 0L
+    val rawTransacted = transacted.orEmpty()
+    val rawMemo = memo.orEmpty()
+    val rawCounterpart = counterpart.orEmpty()
+    val rawStoreName = linkedPayment?.storeName?.trim().orEmpty()
+    val rawCategory = linkedPayment?.categoryName?.trim().orEmpty().ifBlank {
+        aiCategory.orEmpty().ifBlank { category.orEmpty() }
+    }
+    val cleanedMemo = rawMemo.replace(
+        Regex("\\s*(\\uD398\\uC774\\uC2A4\\uD398\\uC774|\\uCE74\\uB4DC)\\s*\\uACB0\\uC81C$"),
+        ""
+    )
+    val pointsText = linkedPayment?.earnedPoints
+        ?.takeIf { it > 0 }
+        ?.let { "${"%,d".format(it)}P" }
+        ?: "0P"
+    val title = when {
+        rawStoreName.isNotBlank() -> rawStoreName
+        cleanedMemo.isNotBlank() -> cleanedMemo
+        rawCounterpart.isNotBlank() &&
+            !rawCounterpart.all { it.isDigit() } &&
+            !rawCounterpart.contains("@") -> rawCounterpart
+        else -> if (isDeposit) "\uC785\uAE08" else "\uCD9C\uAE08"
+    }
+    val subtitle = rawTransacted.formatCreatedAt().ifBlank { rawTransacted }
+    val syntheticIdSeed = rawTransacted.hashCode().toLong()
+    val syntheticId = when {
+        linkedPayment?.paymentId != null -> linkedPayment.paymentId
+        logId != null && logId > 0L -> -logId
+        syntheticIdSeed <= -1L -> syntheticIdSeed
+        else -> -(syntheticIdSeed + 1L)
+    }
+
+    return TradeReportItem(
+        paymentId = syntheticId ?: -1L,
+        title = title,
+        subTitle = subtitle,
+        category = rawCategory,
+        storeName = rawStoreName,
+        amount = if (isDeposit) "+${"%,d".format(rawAmount)}\uC6D0" else "-${"%,d".format(rawAmount)}\uC6D0",
+        amountValue = rawAmount,
+        isIncome = isDeposit,
+        bankName = defaultAccount?.bankName.orEmpty(),
+        accountNumber = defaultAccount?.accountNo.orEmpty().maskAccountNumber(),
+        balanceAfter = if (linkedPayment != null) {
+            pointsText
+        } else {
+            "${"%,d".format(balanceAfter ?: 0L)}\uC6D0"
+        },
+        balanceLabel = if (linkedPayment != null) "\uC801\uB9BD \uD3EC\uC778\uD2B8" else "\uAC70\uB798 \uD6C4 \uC794\uC561",
+        icon = if (isDeposit) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
+        iconBg = if (isDeposit) Color(0xFFDFF7E8) else Color(0xFFDCEBFF),
+        createdAtRaw = rawTransacted,
+        transaction = TransactionItem(
+            id = logId?.toString() ?: ssafyTransactionId.orEmpty().ifBlank { "trade-${title.hashCode()}-${rawTransacted.hashCode()}" },
+            transactionType = transactionType.orEmpty(),
+            counterpart = rawCounterpart,
+            memo = rawMemo,
+            category = rawCategory,
+            amount = rawAmount,
+            balanceAfter = balanceAfter ?: 0L,
+            ssafyTransactionId = ssafyTransactionId.orEmpty(),
+            transacted = rawTransacted
+        )
+    )
+}
+
+private fun List<AssetTransactionResponse>.filterByPeriod(period: String): List<AssetTransactionResponse> {
+    val threshold = Calendar.getInstance().apply {
+        when (period) {
+            "1äºŒì‡±ì”ª" -> add(Calendar.DAY_OF_MONTH, -7)
+            "1åª›ì’–ì¡" -> add(Calendar.MONTH, -1)
+            "3åª›ì’–ì¡" -> add(Calendar.MONTH, -3)
+            "6åª›ì’–ì¡" -> add(Calendar.MONTH, -6)
+            else -> return this@filterByPeriod
+        }
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
+
+    return filter { transaction ->
+        val epochMillis = transaction.transacted.toTradeReportEpochMillis()
+        epochMillis == null || epochMillis >= threshold
+    }
+}
+
+private fun List<AssetTransactionResponse>.filterByThreshold(threshold: Long?): List<AssetTransactionResponse> {
+    if (threshold == null) return this
+    return filter { transaction ->
+        val epochMillis = transaction.transacted.toTradeReportEpochMillis()
+        epochMillis == null || epochMillis >= threshold
+    }
+}
+
+private fun String?.toTradeReportEpochMillis(): Long? {
+    if (this.isNullOrBlank()) return null
+
+    val normalizedRaw = trim().replace(
+        Regex("""\.\d{1,9}(?=Z|[+-]\d{2}:?\d{2}|$)"""),
+        ""
+    )
+    val patterns = listOf(
+        "yyyyMMdd HHmmss",
+        "yyyyMMdd HH:mm:ss",
+        "yyyyMMdd HH:mm",
+        "yyyyMMdd",
+        "yyyy-M-d HH:mm:ss",
+        "yyyy-M-d HH:mm",
+        "yyyy-M-d",
+        "yyyy.M.d HH:mm:ss",
+        "yyyy.M.d HH:mm",
+        "yyyy.M.d",
+        "yyyy-MM-dd HH:mm:ss",
+        "yyyy-MM-dd HH:mm",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSX",
+        "yyyy-MM-dd'T'HH:mm:ssX",
+        "yyyy-MM-dd'T'HH:mm:ss",
+        "yyyy.MM.dd HH:mm",
+        "yyyy-MM-dd"
+    )
+
+    for (pattern in patterns) {
+        val formatter = SimpleDateFormat(pattern, Locale.KOREA).apply {
+            isLenient = false
+            if (pattern.contains("X")) {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+        }
+        val parsed = runCatching { formatter.parse(normalizedRaw) }.getOrNull() ?: continue
+        return parsed.time
+    }
+
+    return null
 }
 
 private fun String.formatCreatedAt(): String {
@@ -710,7 +880,7 @@ fun TradeReportScreen(
                         item {
                             TransactionDateHeader(date = date)
                         }
-                        items(txList, key = { it.paymentId }) { item ->
+                        items(txList, key = { "${it.paymentId}:${it.createdAtRaw}" }) { item ->
                             RecentTradeTransactionRow(
                                 item = item,
                                 onClick = {
@@ -817,15 +987,25 @@ private fun RecentTradeReportHeaderV2(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "뒤로가기",
                         tint = Color.White
+                    )
+                }
+
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "\uCD5C\uADFC \uAC70\uB798\uB0B4\uC5ED",
+                        style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White
                     )
                 }
 
