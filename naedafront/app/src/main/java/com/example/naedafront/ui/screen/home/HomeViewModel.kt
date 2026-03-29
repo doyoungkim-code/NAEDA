@@ -161,31 +161,49 @@ class HomeViewModel : ViewModel() {
                 ?.let { it to payment }
         }.toMap()
         val accountTransactions = wallet?.accounts
-            ?.firstOrNull()
-            ?.accountId
-            ?.let { accountId ->
+            .orEmpty()
+            .mapNotNull { account -> account.accountId }
+            .distinct()
+            .flatMap { accountId ->
                 runCatching { AssetRepository.getTransactions(userNo, accountId) }
                     .getOrElse { emptyList<AssetTransactionResponse>() }
             }
-            .orEmpty()
+        val transactionBySsafyId = accountTransactions.mapNotNull { transaction ->
+            transaction.ssafyTransactionId
+                ?.takeIf { it.isNotBlank() }
+                ?.let { it to transaction }
+        }.toMap()
+        val linkedTransactionIds = paymentByTransactionId.keys
 
-        val items = if (accountTransactions.isNotEmpty()) {
+        val items = buildList<Pair<Long, TransactionItem>> {
+            payments.forEach { payment ->
+                val linkedTransaction = payment.ssafyTransactionId
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { transactionBySsafyId[it] }
+                val sortKey = linkedTransaction?.transacted.toEpochMillis()
+                    .takeIf { it != Long.MIN_VALUE }
+                    ?: payment.createdAt.toEpochMillis()
+                add(
+                    sortKey to (
+                        linkedTransaction?.toTransactionItem(linkedPayment = payment)
+                            ?: payment.toTransactionItem()
+                        )
+                )
+            }
+
             accountTransactions
-                .sortedByDescending { it.transacted.toEpochMillis() }
-                .take(3)
-                .map { transaction ->
-                    transaction.toTransactionItem(
-                        linkedPayment = transaction.ssafyTransactionId
-                            ?.takeIf { it.isNotBlank() }
-                            ?.let { paymentByTransactionId[it] }
-                    )
+                .filter { transaction ->
+                    val ssafyTransactionId = transaction.ssafyTransactionId
+                        ?.takeIf { it.isNotBlank() }
+                    ssafyTransactionId == null || ssafyTransactionId !in linkedTransactionIds
                 }
-        } else {
-            payments
-                .sortedByDescending { it.createdAt.toEpochMillis() }
-                .take(3)
-                .map { it.toTransactionItem() }
+                .forEach { transaction ->
+                    add(transaction.transacted.toEpochMillis() to transaction.toTransactionItem(linkedPayment = null))
+                }
         }
+            .sortedByDescending { it.first }
+            .take(3)
+            .map { it.second }
 
         _uiState.update { it.copy(recentTransactions = items) }
         return
@@ -211,8 +229,6 @@ class HomeViewModel : ViewModel() {
         NoticeRepository.getAllFestivals()
             .onSuccess { festivals ->
                 festivals.forEach { f ->
-                    val startDate = f.startDate?.substring(5)?.replace("-", ".") ?: ""
-                    val endDate = f.endDate?.substring(5)?.replace("-", ".") ?: ""
                     noticeItems.add(
                         NoticeItem(
                             id = f.festivalId ?: 0L,
@@ -221,7 +237,7 @@ class HomeViewModel : ViewModel() {
                             tagColor = Color(0xFFE91E63),
                             title = f.title ?: "",
                             content = f.description ?: "",
-                            date = "$startDate ~ $endDate",
+                            date = formatNoticePeriod(f.startDate, f.endDate),
                             createdRaw = f.created ?: "",
                             scheduleStartRaw = f.startDate ?: "",
                             imageUrl = f.imageUrl
@@ -236,7 +252,6 @@ class HomeViewModel : ViewModel() {
         NoticeRepository.getAllNotices()
             .onSuccess { notices ->
                 notices.forEach { n ->
-                    val created = n.created?.substring(5, 10)?.replace("-", ".") ?: ""
                     noticeItems.add(
                         NoticeItem(
                             id = n.noticeId ?: 0L,
@@ -245,7 +260,7 @@ class HomeViewModel : ViewModel() {
                             tagColor = Color(0xFF1976D2),
                             title = n.title ?: "",
                             content = n.content ?: "",
-                            date = created,
+                            date = n.created.toNoticeMonthDay(),
                             createdRaw = n.modified ?: n.created ?: "",
                             scheduleStartRaw = "",
                             imageUrl = null
@@ -367,7 +382,7 @@ private fun AssetTransactionResponse.toTransactionItem(
         title = title,
         subTitle = subtitle.ifBlank { transacted?.formatDateTime().orEmpty() },
         amount = if (isDeposit) "+${"%,d".format(amount ?: 0L)}\uC6D0" else "-${"%,d".format(amount ?: 0L)}\uC6D0",
-        isIncome = false,
+        isIncome = isDeposit,
         iconBg = Color(0xFFDCEBFF),
         icon = Icons.Default.ShoppingBag,
         badgeText = if (isFacePayTransaction) "FACE PAY" else null
