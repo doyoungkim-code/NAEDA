@@ -86,6 +86,10 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
+private const val CARD_FLOW_ALL = "전체"
+private const val CARD_FLOW_PAYMENT = "결제"
+private const val CARD_FLOW_CANCELED = "취소"
+
 data class CardHeaderUi(
     val cardId: Long,
     val cardIssuerName: String = "",
@@ -151,6 +155,7 @@ class CardDetailViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(CardDetailUiState())
     val uiState: StateFlow<CardDetailUiState> = _uiState.asStateFlow()
+    private var loadRequestToken = 0L
 
     fun updatePeriod(period: String) {
         _uiState.update {
@@ -180,7 +185,9 @@ class CardDetailViewModel : ViewModel() {
         fallbackCardName: String = "",
         fallbackCardNo: String = ""
     ) {
+        val requestToken = ++loadRequestToken
         val userNo = AuthPrefs.getUserNo(context)
+        val requestedPeriod = _uiState.value.selectedPeriod
 
         if (userNo == null) {
             _uiState.update {
@@ -229,13 +236,15 @@ class CardDetailViewModel : ViewModel() {
                     resolvedCard = cards.firstOrNull { it.cardId == cardId }?.toHeaderUi()
                         ?: resolvedCard
                 }
+            if (requestToken != loadRequestToken) return@launch
 
             CardRepository.getCardTransactions(
                 userNo = userNo,
                 cardId = cardId,
                 cardType = cardType,
-                period = _uiState.value.selectedPeriod
+                period = requestedPeriod
             ).onSuccess { items ->
+                if (requestToken != loadRequestToken) return@onSuccess
                 _uiState.update {
                     it.copy(
                         selectedCard = resolvedCard,
@@ -245,6 +254,7 @@ class CardDetailViewModel : ViewModel() {
                     )
                 }
             }.onFailure { throwable ->
+                if (requestToken != loadRequestToken) return@onFailure
                 _uiState.update {
                     it.copy(
                         selectedCard = resolvedCard,
@@ -307,11 +317,11 @@ fun CardDetailRoute(
     var isSearchMode by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var showPeriodDialog by rememberSaveable { mutableStateOf(false) }
-    var selectedFlow by rememberSaveable { mutableStateOf("전체") }
+    var selectedFlow by rememberSaveable { mutableStateOf(CARD_FLOW_ALL) }
 
     LaunchedEffect(Unit) {
-        if (selectedFlow !in listOf("전체", "입금", "출금")) {
-            selectedFlow = "전체"
+        if (selectedFlow !in listOf(CARD_FLOW_ALL, CARD_FLOW_PAYMENT, CARD_FLOW_CANCELED)) {
+            selectedFlow = CARD_FLOW_ALL
         }
     }
 
@@ -378,8 +388,8 @@ fun CardDetailScreen(
         uiState.filteredTransactions
             .filter { item ->
                 when (selectedFlow) {
-                    "입금" -> item.isCanceled
-                    "출금" -> !item.isCanceled
+                    CARD_FLOW_CANCELED -> item.isCanceled
+                    CARD_FLOW_PAYMENT -> !item.isCanceled
                     else -> true
                 }
             }
@@ -708,7 +718,7 @@ private fun CardFilterRowV2(
                 expanded = showSortMenu,
                 onDismissRequest = { showSortMenu = false }
             ) {
-                listOf("전체", "입금", "출금").forEach { option ->
+                listOf(CARD_FLOW_ALL, CARD_FLOW_PAYMENT, CARD_FLOW_CANCELED).forEach { option ->
                     DropdownMenuItem(
                         text = {
                             Text(
@@ -805,7 +815,7 @@ private fun CardFlowFilterRow(
     selected: String,
     onSelect: (String) -> Unit
 ) {
-    val options = listOf("전체", "입금", "출금")
+    val options = listOf(CARD_FLOW_ALL, CARD_FLOW_PAYMENT, CARD_FLOW_CANCELED)
 
     LazyRow(
         modifier = Modifier
@@ -1008,7 +1018,8 @@ private fun CardTransactionDetailFullScreen(
     onDismiss: () -> Unit
 ) {
     val statusText = if (transaction.isCanceled) "결제 취소" else "결제 완료"
-    val accentColor = if (transaction.isCanceled) Color(0xFF1F8F5F) else Mint900
+    val accentColor = if (transaction.isCanceled) Color(0xFF307CBF) else Mint900
+    val badgeText = if (transaction.isCanceled) "취" else "결"
     val paymentMethod = buildString {
         append(card?.cardName?.ifBlank { "카드 결제" } ?: "카드 결제")
         val maskedNo = card?.cardNo?.maskCardNumber().orEmpty()
@@ -1020,7 +1031,7 @@ private fun CardTransactionDetailFullScreen(
 
     CardDetailFullScreenLayout(
         title = "결제 상세",
-        badgeText = "결",
+        badgeText = badgeText,
         headlineLabel = "결제 장소",
         headlineValue = transaction.displayName,
         amountText = "${formatAmount(transaction.amount)}원",
@@ -1028,7 +1039,7 @@ private fun CardTransactionDetailFullScreen(
         accentColor = accentColor,
         onDismiss = onDismiss
     ) {
-        CardDetailField("결제 방식", "카드 결제")
+        CardDetailField("결제 방식", paymentMethod)
         CardDetailField(
             "결제 시간",
             transaction.transactedRaw.toDisplayDateTime().ifBlank { "-" }

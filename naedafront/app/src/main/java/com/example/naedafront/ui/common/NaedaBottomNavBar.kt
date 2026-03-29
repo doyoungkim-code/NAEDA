@@ -70,7 +70,7 @@ fun NaedaBottomNavBar(
             NavigationBarItem(
                 selected = isSelected,
                 onClick = {
-                    if (selectedRoute != item.route) {
+                    if (currentRoute != item.route) {
                         val isHome = item == BottomNavItem.HOME
                         navController.navigate(item.route) {
                             popUpTo(navController.graph.findStartDestination().id) {

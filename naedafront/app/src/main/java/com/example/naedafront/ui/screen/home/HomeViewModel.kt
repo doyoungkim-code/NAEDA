@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.AssetPayMethodResponse
 import com.example.naedafront.data.remote.AssetRepository
+import com.example.naedafront.data.remote.AssetTransactionResponse
 import com.example.naedafront.data.remote.NotificationRepository
 import com.example.naedafront.data.remote.PaymentResponse
 import com.example.naedafront.data.repository.NoticeRepository
@@ -150,9 +151,67 @@ class HomeViewModel : ViewModel() {
     }
 
     private suspend fun loadRecentTransactions(userNo: Long) {
+        val wallet = runCatching { AssetRepository.getWalletAssets(userNo) }.getOrNull()
+        val payments = AssetRepository.getPayments(userNo)
+            .getOrElse { emptyList() }
+            .filter { payment -> payment.status?.uppercase() in listOf("APPROVED", "SUCCESS", "COMPLETED") }
+        val paymentByTransactionId = payments.mapNotNull { payment ->
+            payment.ssafyTransactionId
+                ?.takeIf { it.isNotBlank() }
+                ?.let { it to payment }
+        }.toMap()
+        val accountTransactions = wallet?.accounts
+            .orEmpty()
+            .mapNotNull { account -> account.accountId }
+            .distinct()
+            .flatMap { accountId ->
+                runCatching { AssetRepository.getTransactions(userNo, accountId) }
+                    .getOrElse { emptyList<AssetTransactionResponse>() }
+            }
+        val transactionBySsafyId = accountTransactions.mapNotNull { transaction ->
+            transaction.ssafyTransactionId
+                ?.takeIf { it.isNotBlank() }
+                ?.let { it to transaction }
+        }.toMap()
+        val linkedTransactionIds = paymentByTransactionId.keys
+
+        val items = buildList<Pair<Long, TransactionItem>> {
+            payments.forEach { payment ->
+                val linkedTransaction = payment.ssafyTransactionId
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { transactionBySsafyId[it] }
+                val sortKey = linkedTransaction?.transacted.toEpochMillis()
+                    .takeIf { it != Long.MIN_VALUE }
+                    ?: payment.createdAt.toEpochMillis()
+                add(
+                    sortKey to (
+                        linkedTransaction?.toTransactionItem(linkedPayment = payment)
+                            ?: payment.toTransactionItem()
+                        )
+                )
+            }
+
+            accountTransactions
+                .filter { transaction ->
+                    val ssafyTransactionId = transaction.ssafyTransactionId
+                        ?.takeIf { it.isNotBlank() }
+                    ssafyTransactionId == null || ssafyTransactionId !in linkedTransactionIds
+                }
+                .forEach { transaction ->
+                    add(transaction.transacted.toEpochMillis() to transaction.toTransactionItem(linkedPayment = null))
+                }
+        }
+            .sortedByDescending { it.first }
+            .take(3)
+            .map { it.second }
+
+        _uiState.update { it.copy(recentTransactions = items) }
+        return
+
         AssetRepository.getPayments(userNo)
             .onSuccess { payments ->
                 val items = payments
+                    .filter { payment -> payment.status?.uppercase() in listOf("APPROVED", "SUCCESS", "COMPLETED") }
                     .sortedByDescending { it.createdAt.toEpochMillis() }
                     .take(3)
                     .map { it.toTransactionItem() }
@@ -170,8 +229,6 @@ class HomeViewModel : ViewModel() {
         NoticeRepository.getAllFestivals()
             .onSuccess { festivals ->
                 festivals.forEach { f ->
-                    val startDate = f.startDate?.substring(5)?.replace("-", ".") ?: ""
-                    val endDate = f.endDate?.substring(5)?.replace("-", ".") ?: ""
                     noticeItems.add(
                         NoticeItem(
                             id = f.festivalId ?: 0L,
@@ -180,7 +237,7 @@ class HomeViewModel : ViewModel() {
                             tagColor = Color(0xFFE91E63),
                             title = f.title ?: "",
                             content = f.description ?: "",
-                            date = "$startDate ~ $endDate",
+                            date = formatNoticePeriod(f.startDate, f.endDate),
                             createdRaw = f.created ?: "",
                             scheduleStartRaw = f.startDate ?: "",
                             imageUrl = f.imageUrl
@@ -195,7 +252,6 @@ class HomeViewModel : ViewModel() {
         NoticeRepository.getAllNotices()
             .onSuccess { notices ->
                 notices.forEach { n ->
-                    val created = n.created?.substring(5, 10)?.replace("-", ".") ?: ""
                     noticeItems.add(
                         NoticeItem(
                             id = n.noticeId ?: 0L,
@@ -204,7 +260,7 @@ class HomeViewModel : ViewModel() {
                             tagColor = Color(0xFF1976D2),
                             title = n.title ?: "",
                             content = n.content ?: "",
-                            date = created,
+                            date = n.created.toNoticeMonthDay(),
                             createdRaw = n.modified ?: n.created ?: "",
                             scheduleStartRaw = "",
                             imageUrl = null
@@ -291,6 +347,46 @@ class HomeViewModel : ViewModel() {
                 _uiState.update { it.copy(unreadNotificationCount = 0L) }
             }
     }
+}
+
+private fun AssetTransactionResponse.toTransactionItem(
+    linkedPayment: PaymentResponse?
+): TransactionItem {
+    val isDeposit = transactionType.equals("DEPOSIT", ignoreCase = true)
+    val rawMemo = memo.orEmpty()
+    val rawCounterpart = counterpart.orEmpty()
+    val rawStoreName = linkedPayment?.storeName?.takeIf { it.isNotBlank() }.orEmpty()
+    val categoryText = linkedPayment?.categoryName?.takeIf { it.isNotBlank() }
+        ?: aiCategory?.takeIf { it.isNotBlank() }
+        ?: category?.takeIf { it.isNotBlank() }
+    val cleanedMemo = rawMemo.replace(
+        Regex("\\s*(\\uD398\\uC774\\uC2A4\\uD398\\uC774|\\uCE74\\uB4DC)\\s*\\uACB0\\uC81C$"),
+        ""
+    )
+    val title = when {
+        rawStoreName.isNotBlank() -> rawStoreName
+        cleanedMemo.isNotBlank() -> cleanedMemo
+        rawCounterpart.isNotBlank() &&
+            !rawCounterpart.all { it.isDigit() } &&
+            !rawCounterpart.contains("@") -> rawCounterpart
+        else -> if (isDeposit) "\uC785\uAE08" else "\uCD9C\uAE08"
+    }
+    val subtitle = listOfNotNull(
+        categoryText,
+        transacted?.formatDateTime()?.takeIf { it.isNotBlank() }
+    ).joinToString(" \u00B7 ")
+    val isFacePayTransaction = linkedPayment?.facePay == true ||
+        linkedPayment?.authLevel?.equals("FACE_PAY", ignoreCase = true) == true
+
+    return TransactionItem(
+        title = title,
+        subTitle = subtitle.ifBlank { transacted?.formatDateTime().orEmpty() },
+        amount = if (isDeposit) "+${"%,d".format(amount ?: 0L)}\uC6D0" else "-${"%,d".format(amount ?: 0L)}\uC6D0",
+        isIncome = isDeposit,
+        iconBg = Color(0xFFDCEBFF),
+        icon = Icons.Default.ShoppingBag,
+        badgeText = if (isFacePayTransaction) "FACE PAY" else null
+    )
 }
 
 private fun PaymentResponse.toTransactionItem(): TransactionItem {
