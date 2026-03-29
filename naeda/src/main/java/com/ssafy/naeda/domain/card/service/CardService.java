@@ -402,7 +402,9 @@ public class CardService {
         Map<String, TransactionLog> existingLogMap = allTxUniqueNos.isEmpty()
                 ? Map.of()
                 : transactionLogRepository.findBySsafyTransactionIdIn(allTxUniqueNos).stream()
-                .collect(Collectors.toMap(TransactionLog::getSsafyTransactionId, Function.identity(), (a, b) -> a));
+                // WITHDRAW 로그(고객 쪽, 올바른 counterpart/category)를 DEPOSIT보다 우선 선택
+                .collect(Collectors.toMap(TransactionLog::getSsafyTransactionId, Function.identity(),
+                        (a, b) -> a.getTransactionType() == TransactionType.WITHDRAW ? a : b));
 
         Map<String, AiConsumptionCategoryItem> classificationTargets = new LinkedHashMap<>();
         for (ParsedCardTransaction parsedTransaction : parsedTransactions) {
