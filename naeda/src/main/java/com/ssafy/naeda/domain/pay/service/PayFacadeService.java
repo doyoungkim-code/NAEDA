@@ -516,8 +516,8 @@ public class PayFacadeService {
 
         String ssafyTransactionId = extractCardTransactionId(ssafyResponse);
 
-        // 카드 결제 TransactionLog 저장 (WITHDRAW — 고객 연결 계좌)
-        if (cardAccountId != null) {
+        // 카드 결제 TransactionLog 저장 (WITHDRAW — 체크카드만, 신용카드는 즉시 출금 아님)
+        if (paymentMethod.getMethodType() == MethodType.DEBIT_CARD && cardAccountId != null) {
             accountRepository.findById(cardAccountId).ifPresent(cardAccount -> {
                 long balanceAfter;
                 try {
@@ -539,7 +539,7 @@ public class PayFacadeService {
             });
         }
 
-        // 카드 결제 TransactionLog 저장 (DEPOSIT — 가맹점 계좌)
+        // 카드 결제 TransactionLog 저장 (DEPOSIT — 가맹점 계좌, 카드 화면 데이터 소스)
         if (store.getAccountId() != null) {
             accountRepository.findById(store.getAccountId()).ifPresent(depositAccount -> {
                 long depositBalanceAfter;
@@ -554,7 +554,8 @@ public class PayFacadeService {
                         .transactionType(TransactionType.DEPOSIT)
                         .amount(amount)
                         .balanceAfter(depositBalanceAfter)
-                        .counterpart(user.getUserId())
+                        .counterpart(store.getStoreName())
+                        .category(store.getCategoryName())
                         .memo(store.getStoreName() + " 카드 결제")
                         .ssafyTransactionId(ssafyTransactionId)
                         .build());
