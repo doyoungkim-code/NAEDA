@@ -530,15 +530,23 @@ private fun BalanceCard(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                val accountNameText = account.accountName
+                    ?.takeUnless { it.contains("\uC218\uC2DC\uC785\uCD9C\uAE08") }
+                    .orEmpty()
 
-                Text(
-                    text = account.accountName ?: "",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.7f)
-                )
+                if (accountNameText.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
 
-                Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = accountNameText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.7f)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                } else {
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
 
                 Text(
                     text = "₩${"%,d".format(account.accountBalance ?: 0L)}",
