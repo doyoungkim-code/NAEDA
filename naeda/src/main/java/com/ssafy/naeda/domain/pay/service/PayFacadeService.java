@@ -524,6 +524,7 @@ public class PayFacadeService {
                         .amount(amount)
                         .balanceAfter(balanceAfter)
                         .counterpart(store.getStoreName())
+                        .category(store.getCategoryName())
                         .memo(store.getStoreName() + " 카드 결제")
                         .ssafyTransactionId(ssafyTransactionId)
                         .build());
@@ -636,6 +637,7 @@ public class PayFacadeService {
                 .amount(amount)
                 .balanceAfter(balanceAfter)
                 .counterpart(store.getStoreName())
+                .category(store.getCategoryName())
                 .memo(store.getStoreName() + " 페이스페이 결제")
                 .ssafyTransactionId(ssafyTransactionId)
                 .build());
