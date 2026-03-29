@@ -25,6 +25,24 @@ $RECYCLE.BIN/
 .venv
 venv/
 env/
+.cache/
+**/.cache/
+.npm/
+**/.npm/
+.pnpm-store/
+**/.pnpm-store/
+.yarn/
+**/.yarn/
+node_modules/
+**/node_modules/
+coverage/
+**/coverage/
+htmlcov/
+**/htmlcov/
+.eslintcache
+**/.eslintcache
+.parcel-cache/
+**/.parcel-cache/
 **/.gradle-user/
 **/.gradle-local/
 **/.gradle-tmp/
@@ -83,5 +101,9 @@ AI/.paddle/
 AI/.paddleocr/
 **/.paddle/
 **/.paddleocr/
+
+# Local test / experimental apps
+AItest/
+AItestFront/
 
 .claude

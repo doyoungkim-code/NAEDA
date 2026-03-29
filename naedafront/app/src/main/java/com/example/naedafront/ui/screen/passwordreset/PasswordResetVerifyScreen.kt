@@ -20,11 +20,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.naedafront.data.remote.AuthRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
 fun PasswordResetVerifyScreen(
-    email: String,
+    phone: String,
     initialCode: String,
     onBackClick: () -> Unit = {},
     onVerified: (token: String) -> Unit = {}
@@ -32,9 +33,14 @@ fun PasswordResetVerifyScreen(
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
 
-    var code by remember { mutableStateOf(initialCode) }
+    var code by remember { mutableStateOf("") }
     var codeError by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
+
+    LaunchedEffect(initialCode) {
+        delay(1000L)
+        code = initialCode
+    }
 
     fun submit() {
         focusManager.clearFocus()
@@ -47,7 +53,7 @@ fun PasswordResetVerifyScreen(
         codeError = null
         isLoading = true
         coroutineScope.launch {
-            AuthRepository.verifyPasswordReset(email, code.trim())
+            AuthRepository.verifyPasswordReset(phone, code.trim())
                 .onSuccess { token ->
                     isLoading = false
                     onVerified(token)
@@ -95,35 +101,11 @@ fun PasswordResetVerifyScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "$email\n으로 전송된 인증코드를 입력해주세요.",
+                text = "등록된 번호로 전송된\n인증코드를 입력해주세요.",
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 22.sp
             )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "인증코드: ",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = initialCode,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
 
             Spacer(modifier = Modifier.height(24.dp))
 

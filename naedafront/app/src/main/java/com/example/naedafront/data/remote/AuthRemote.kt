@@ -29,10 +29,10 @@ private data class ErrorResponseDto(
 )
 
 // ── 비밀번호 찾기 DTOs ──
-data class PasswordResetRequestBody(val userId: String)
+data class PasswordResetRequestBody(val phone: String)
 data class PasswordResetCodeResponse(val code: String, val expiresInSeconds: Int)
 
-data class PasswordResetVerifyBody(val userId: String, val code: String)
+data class PasswordResetVerifyBody(val phone: String, val code: String)
 data class PasswordResetVerifyResponse(val token: String)
 
 data class PasswordResetConfirmBody(val token: String, val newPassword: String)
@@ -84,9 +84,9 @@ object AuthRepository {
     }
 
     // ── 비밀번호 찾기 1단계: 인증코드 요청 ──
-    suspend fun requestPasswordReset(userId: String): Result<PasswordResetCodeResponse> {
+    suspend fun requestPasswordReset(phone: String): Result<PasswordResetCodeResponse> {
         return runCatching {
-            service.requestPasswordReset(PasswordResetRequestBody(userId = userId.trim()))
+            service.requestPasswordReset(PasswordResetRequestBody(phone = phone.trim()))
         }.fold(
             onSuccess = { response ->
                 val body = response.body()
@@ -101,9 +101,9 @@ object AuthRepository {
     }
 
     // ── 비밀번호 찾기 2단계: 인증코드 검증 ──
-    suspend fun verifyPasswordReset(userId: String, code: String): Result<String> {
+    suspend fun verifyPasswordReset(phone: String, code: String): Result<String> {
         return runCatching {
-            service.verifyPasswordReset(PasswordResetVerifyBody(userId = userId.trim(), code = code.trim()))
+            service.verifyPasswordReset(PasswordResetVerifyBody(phone = phone.trim(), code = code.trim()))
         }.fold(
             onSuccess = { response ->
                 val body = response.body()
