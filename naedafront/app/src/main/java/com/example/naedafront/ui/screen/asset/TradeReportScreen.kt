@@ -282,21 +282,64 @@ class TradeReportViewModel : ViewModel() {
                 }
             }
 
+            val accountTransactions = walletData?.accountById
+                ?.keys
+                ?.sorted()
+                ?.flatMap { accountId ->
+                    runCatching { AssetRepository.getTransactions(userNo, accountId) }
+                        .getOrElse { emptyList<AssetTransactionResponse>() }
+                }
+                .orEmpty()
+            val transactionBySsafyId = accountTransactions
+                .mapNotNull { transaction ->
+                    transaction.ssafyTransactionId
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { it to transaction }
+                }
+                .toMap()
+            if (requestToken != listRequestToken) return@launch
+
             val range = buildPeriodRange(period)
             AssetRepository.getPayments(userNo, range.first, range.second)
                 .onSuccess { payments ->
                     if (requestToken != listRequestToken) return@onSuccess
 
-                    val transactions = payments
+                    val approvedPayments = payments
                         .filter { payment -> payment.status?.uppercase() in listOf("APPROVED", "SUCCESS", "COMPLETED") }
+                    val linkedTransactionIds = approvedPayments
+                        .mapNotNull { payment ->
+                            payment.ssafyTransactionId?.takeIf { it.isNotBlank() }
+                        }
+                        .toSet()
+                    val transactions = approvedPayments
                         .map { payment ->
                             payment.toRecentTradeItem(
                                 defaultAccount = walletData?.defaultAccount,
                                 accountById = walletData?.accountById.orEmpty(),
                                 payMethodById = walletData?.payMethodById.orEmpty(),
-                                cardById = walletData?.cardById.orEmpty()
+                                cardById = walletData?.cardById.orEmpty(),
+                                linkedTransaction = payment.ssafyTransactionId
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?.let { transactionBySsafyId[it] }
                             )
                         }
+                        .plus(
+                            accountTransactions
+                                .filterByPeriod(period)
+                                .filter { transaction ->
+                                    val ssafyTransactionId = transaction.ssafyTransactionId
+                                        ?.takeIf { it.isNotBlank() }
+                                    ssafyTransactionId == null || ssafyTransactionId !in linkedTransactionIds
+                                }
+                                .map { transaction ->
+                                    transaction.toRecentTradeItem(
+                                        defaultAccount = transaction.accountId
+                                            ?.let { accountId -> walletData?.accountById?.get(accountId) }
+                                            ?: walletData?.defaultAccount,
+                                        linkedPayment = null
+                                    )
+                                }
+                        )
                         .sortedByDescending { item ->
                             item.createdAtRaw.toTradeReportEpochMillis() ?: Long.MIN_VALUE
                         }
@@ -304,8 +347,12 @@ class TradeReportViewModel : ViewModel() {
                     _uiState.update {
                         it.copy(
                             transactions = transactions,
-                            incomeTotal = 0L,
-                            expenseTotal = transactions.sumOf { item -> item.amountValue },
+                            incomeTotal = transactions
+                                .filter { item -> item.isIncome }
+                                .sumOf { item -> item.amountValue },
+                            expenseTotal = transactions
+                                .filter { item -> !item.isIncome }
+                                .sumOf { item -> item.amountValue },
                             isLoading = false,
                             error = null
                         )
@@ -411,7 +458,8 @@ private fun PaymentResponse.toRecentTradeItem(
     defaultAccount: AssetAccountResponse?,
     accountById: Map<Long, AssetAccountResponse>,
     payMethodById: Map<Long, AssetPayMethodResponse>,
-    cardById: Map<Long, AssetCardResponse>
+    cardById: Map<Long, AssetCardResponse>,
+    linkedTransaction: AssetTransactionResponse? = null
 ): TradeReportItem {
     val rawAmount = amount ?: 0L
     val rawCategory = categoryName?.trim().orEmpty()
@@ -425,6 +473,17 @@ private fun PaymentResponse.toRecentTradeItem(
         .maskCardNumber()
         .takeIf { it.isNotBlank() && it != "-" }
         .orEmpty()
+    linkedTransaction?.let { transaction ->
+        return transaction.toRecentTradeItem(
+            defaultAccount = account,
+            linkedPayment = this
+        ).copy(
+            paymentId = paymentId ?: -1L,
+            bankName = account?.bankName.orEmpty(),
+            accountNumber = account?.accountNo.orEmpty().maskAccountNumber(),
+            cardNumber = maskedCardNumber
+        )
+    }
     val pointsText = earnedPoints
         ?.takeIf { it > 0 }
         ?.let { "${"%,d".format(it)}P 적립" }
@@ -499,12 +558,12 @@ private fun AssetTransactionResponse.toRecentTradeItem(
         isIncome = isDeposit,
         bankName = defaultAccount?.bankName.orEmpty(),
         accountNumber = defaultAccount?.accountNo.orEmpty().maskAccountNumber(),
-        balanceAfter = if (linkedPayment != null) {
+        balanceAfter = if (linkedPayment != null && !isDeposit) {
             pointsText
         } else {
             "${"%,d".format(balanceAfter ?: 0L)}\uC6D0"
         },
-        balanceLabel = if (linkedPayment != null) "\uC801\uB9BD \uD3EC\uC778\uD2B8" else "\uAC70\uB798 \uD6C4 \uC794\uC561",
+        balanceLabel = if (linkedPayment != null && !isDeposit) "\uC801\uB9BD \uD3EC\uC778\uD2B8" else "\uAC70\uB798 \uD6C4 \uC794\uC561",
         icon = if (isDeposit) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
         iconBg = if (isDeposit) Color(0xFFDFF7E8) else Color(0xFFDCEBFF),
         createdAtRaw = rawTransacted,

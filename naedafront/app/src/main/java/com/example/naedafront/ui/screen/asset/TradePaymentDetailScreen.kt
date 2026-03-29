@@ -48,11 +48,12 @@ fun TradePaymentDetailScreen(
 ) {
     val accentColor = Mint900
     val isIncome = item.isIncome
+    val amountValue = item.amountValue.takeIf { it > 0L } ?: detail.amount
     val amountColor = if (isIncome) Color(0xFF307CBF) else Color(0xFFF2522E)
     val amountText = if (isIncome) {
-        "+${tradeDetailAmount(detail.amount)}\uC6D0"
+        "+${tradeDetailAmount(amountValue)}\uC6D0"
     } else {
-        "-${tradeDetailAmount(detail.amount)}\uC6D0"
+        "-${tradeDetailAmount(amountValue)}\uC6D0"
     }
     val merchantName = item.storeName.ifBlank {
         item.title.ifBlank { "\uAC00\uB9F9\uC810 \uC815\uBCF4 \uC5C6\uC74C" }
@@ -61,14 +62,25 @@ fun TradePaymentDetailScreen(
         item.bankName.takeIf { it.isNotBlank() }?.let(::add)
         item.accountNumber.takeIf { it.isNotBlank() }?.let(::add)
     }.joinToString(" ").ifBlank { "\uACC4\uC88C \uC815\uBCF4 \uC5C6\uC74C" }
-    val detailFields = listOf(
-        "\uACB0\uC81C \uC218\uB2E8" to accountInfo,
-        "\uACB0\uC81C \uC2DC\uAC01" to detail.createdAt?.toTradeDetailDateTime().orEmpty().ifBlank { "-" },
-        "\uACB0\uC81C \uC0C1\uD0DC" to detail.status.toTradePaymentStatusText(),
-        "\uD3EC\uC778\uD2B8 \uC801\uB9BD" to (detail.earnedPoints?.let { "${tradeDetailAmount(it)}P" } ?: "0P"),
-        "\uAC70\uB798 ID" to (detail.ssafyTransactionId ?: detail.paymentId.toString()),
-        "\uACB0\uC81C \uC0C1\uD638" to merchantName,
-    )
+    val detailFields = if (isIncome) {
+        listOf(
+            "\uAC70\uB798 \uACC4\uC88C" to accountInfo,
+            "\uAC70\uB798 \uC2DC\uAC01" to detail.createdAt?.toTradeDetailDateTime().orEmpty().ifBlank { "-" },
+            "\uAC70\uB798 \uC0C1\uD0DC" to "\uC785\uAE08 \uC644\uB8CC",
+            item.balanceLabel.ifBlank { "\uAC70\uB798 \uD6C4 \uC794\uC561" } to item.balanceAfter.ifBlank { "-" },
+            "\uAC70\uB798 ID" to (detail.ssafyTransactionId ?: detail.paymentId.toString()),
+            "\uAC70\uB798 \uC0C1\uB300" to merchantName,
+        )
+    } else {
+        listOf(
+            "\uACB0\uC81C \uC218\uB2E8" to accountInfo,
+            "\uACB0\uC81C \uC2DC\uAC01" to detail.createdAt?.toTradeDetailDateTime().orEmpty().ifBlank { "-" },
+            "\uACB0\uC81C \uC0C1\uD0DC" to detail.status.toTradePaymentStatusText(),
+            "\uD3EC\uC778\uD2B8 \uC801\uB9BD" to (detail.earnedPoints?.let { "${tradeDetailAmount(it)}P" } ?: "0P"),
+            "\uAC70\uB798 ID" to (detail.ssafyTransactionId ?: detail.paymentId.toString()),
+            "\uACB0\uC81C \uC0C1\uD638" to merchantName,
+        )
+    }
 
     Box(
         modifier = Modifier
