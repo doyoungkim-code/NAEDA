@@ -45,7 +45,7 @@ fun CardTransactionDetailScreen(
     card: CardHeaderUi?,
     onClose: () -> Unit,
 ) {
-    val headerColor = Mint900
+    val headerColor = if (transaction.isCanceled) Color(0xFF307CBF) else Mint900
     val amountColor = if (transaction.isCanceled) Color(0xFF307CBF) else Color(0xFFF2522E)
     val merchantName = transaction.displayName
     val amountText = if (transaction.isCanceled) {
@@ -53,19 +53,21 @@ fun CardTransactionDetailScreen(
     } else {
         "-${formatAmount(transaction.amount)}원"
     }
-    val badgeText = if (transaction.isCanceled) "입금" else "출금"
+    val badgeText = if (transaction.isCanceled) "취소" else "결제"
     val categoryText = transaction.category.takeIf { it.isNotBlank() } ?: "-"
     val pointsText = "${formatAmount((if (transaction.isCanceled) 0L else transaction.estimatedPoints).coerceAtLeast(0L))}P"
     val detailFields = buildList {
-        add("거래 방식" to "카드 결제")
-        add("거래 유형" to if (transaction.isCanceled) "입금" else "출금")
+        if (!transaction.isCanceled) {
+            add("결제 방식" to "카드 결제")
+        }
+        add("결제 유형" to if (transaction.isCanceled) "취소" else "결제")
         add("거래 시간" to transaction.transactedRaw.toDisplayDateTime().ifBlank { "-" })
         add("카테고리" to categoryText)
         if (!transaction.isCanceled) {
             add("적립 포인트" to pointsText)
         }
-        add("거래 번호" to transaction.transactionId.ifBlank { "-" })
-        add("거래처" to merchantName)
+        add("결제 번호" to transaction.transactionId.ifBlank { "-" })
+        add("결제처" to merchantName)
     }
 
     Box(
@@ -144,7 +146,7 @@ fun CardTransactionDetailScreen(
                     Spacer(modifier = Modifier.height(14.dp))
 
                     Text(
-                        text = "거래처",
+                        text = "결제처",
                         style = NaedaTypography.bodyMedium,
                         color = OnSurfaceVariant
                     )

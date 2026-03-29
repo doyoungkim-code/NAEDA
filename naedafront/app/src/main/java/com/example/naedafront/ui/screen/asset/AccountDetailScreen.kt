@@ -503,19 +503,19 @@ private fun AccountDetailHeader(
 
             Column(modifier = Modifier.padding(horizontal = 24.dp)) {
                 Text(
-                    text = accountNumber.maskAccountNumber(),
+                    text = listOf(
+                        bankName,
+                        accountName.takeUnless { it.contains("\uC218\uC2DC\uC785\uCD9C\uAE08") }.orEmpty()
+                    )
+                        .filter { it.isNotBlank() }
+                        .joinToString(" · ")
+                        .ifBlank { "기본 계좌" },
                     style = NaedaTypography.labelSmall,
                     color = Color.White.copy(alpha = 0.65f)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                val accountNameText = accountName
-                    .takeUnless { it.contains("\uC218\uC2DC\uC785\uCD9C\uAE08") }
-                    .orEmpty()
                 Text(
-                    text = listOf(bankName, accountNameText)
-                        .filter { it.isNotBlank() }
-                        .joinToString(" · ")
-                        .ifBlank { "기본 계좌" },
+                    text = accountNumber.maskAccountNumber(),
                     style = NaedaTypography.labelSmall,
                     color = Color.White.copy(alpha = 0.65f)
                 )

@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -21,7 +22,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.example.naedafront.AuthPrefs
 import com.example.naedafront.data.remote.AssetAccountResponse
 import com.example.naedafront.data.remote.AssetRepository
@@ -48,9 +52,25 @@ fun AccountDetailRoute(
     onBack: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val userNo = remember(context) { AuthPrefs.getUserNo(context) }
     var reloadTick by remember { mutableIntStateOf(0) }
     var uiState by remember { mutableStateOf<AccountDetailUiState>(AccountDetailUiState.Loading) }
+    var hasResumedOnce by remember { mutableStateOf(false) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (hasResumedOnce) {
+                    reloadTick++
+                } else {
+                    hasResumedOnce = true
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     LaunchedEffect(userNo, accountId, accountNo, reloadTick) {
         if (userNo == null) {
@@ -62,13 +82,16 @@ fun AccountDetailRoute(
         uiState = runCatching {
             val detail = AssetRepository.getAccount(userNo, accountNo)
             val resolvedAccountId = accountId.toLongOrNull()?.takeIf { it > 0 } ?: detail.accountId
-            val transactions = resolvedAccountId?.let {
-                AssetRepository.getTransactions(userNo, it)
+            val transactions = resolvedAccountId?.let { resolvedId ->
+                runCatching { AssetRepository.getTransactions(userNo, resolvedId) }
+                    .getOrElse { emptyList() }
             }.orEmpty()
+                .sortedByDescending { transaction -> transaction.transacted.orEmpty() }
+            val latestBalance = detail.accountBalance ?: transactions.firstOrNull()?.balanceAfter ?: 0L
 
             AccountDetailUiState.Success(
                 account = detail.toDetailUi(resolvedAccountId),
-                balance = detail.accountBalance ?: 0L,
+                balance = latestBalance,
                 transactions = transactions.mapIndexed { index, transaction ->
                     transaction.toUi(index)
                 }
