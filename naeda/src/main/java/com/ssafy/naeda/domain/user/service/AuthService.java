@@ -549,7 +549,7 @@ public class AuthService {
         return PasswordResetVerifyResponse.of(token);
     }
 
-    @Transactional
+    @Transactional(readOnly = false)
     public void confirmPasswordReset(String token, String newPassword) {
         String phone = redisTemplate.opsForValue().get(RESET_VERIFIED_PREFIX + token);
 
@@ -562,9 +562,10 @@ public class AuthService {
         User user = userRepository.findByPhone(phone)
                 .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
 
-        user.updatePassword(passwordEncoder.encode(newPassword));
+        String encoded = passwordEncoder.encode(newPassword);
+        user.updatePassword(encoded);
         userRepository.saveAndFlush(user);
 
-        log.info("[AuthService] 비밀번호 재설정 완료: phone={}", phone);
+        log.info("[AuthService] 비밀번호 재설정 완료: phone={}, passwordUpdated={}", phone, !user.getPassword().isEmpty());
     }
 }
