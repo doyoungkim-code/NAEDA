@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
@@ -27,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.naedafront.data.remote.response.PaymentDetailResponse
 import com.example.naedafront.ui.theme.Mint900
 import com.example.naedafront.ui.theme.NaedaTypography
@@ -40,22 +43,76 @@ import java.util.Locale
 @Composable
 fun TradePaymentDetailScreen(
     item: TradeReportItem,
-    detail: PaymentDetailResponse,
+    detail: PaymentDetailResponse? = null,
     onClose: () -> Unit,
 ) {
     val accentColor = Mint900
-    val merchantName = item.storeName.ifBlank { item.title.ifBlank { "가맹점 정보 없음" } }
-    val accountInfo = buildList {
-        item.bankName.takeIf { it.isNotBlank() }?.let(::add)
-        item.accountNumber.takeIf { it.isNotBlank() }?.let(::add)
-    }.joinToString(" ").ifBlank { "계좌 정보 없음" }
-    val detailFields = listOf(
-        "결제 수단" to accountInfo,
-        "결제 시간" to (detail.createdAt?.toTradeDetailDateTime().orEmpty().ifBlank { "-" }),
-        "적립 포인트" to (detail.earnedPoints?.let { "${tradeDetailAmount(it)}P" } ?: "적립 없음"),
-        "거래 번호" to (detail.ssafyTransactionId ?: detail.paymentId.toString()),
-        "결제 장소" to merchantName,
-    )
+    val isPayment = detail != null
+    val isIncome = item.isIncome
+    val transaction = item.transaction
+    val amountValue = item.amountValue.takeIf { it > 0L } ?: detail?.amount ?: transaction?.amount ?: 0L
+    val amountColor = if (isIncome) Color(0xFF307CBF) else Color(0xFFF2522E)
+    val amountText = if (isIncome) {
+        "+${tradeDetailAmount(amountValue)}\uC6D0"
+    } else {
+        "-${tradeDetailAmount(amountValue)}\uC6D0"
+    }
+    val merchantName = item.storeName.ifBlank {
+        item.title.ifBlank { "\uAC00\uB9F9\uC810 \uC815\uBCF4 \uC5C6\uC74C" }
+    }
+    val isPaymentTransaction = item.isPaymentTransaction() || isPayment
+    val headlineLabel = "\uACB0\uC81C\uCC98"
+    val headlineValue = when {
+        isPayment && merchantName.isNotBlank() -> merchantName
+        isIncome && item.title.isNotBlank() && item.title != "\uC785\uAE08" -> item.title
+        transaction?.counterpart?.isNotBlank() == true -> transaction.counterpart
+        transaction?.memo?.isNotBlank() == true -> transaction.memo
+        else -> "\uAC70\uB798 \uC815\uBCF4 \uC5C6\uC74C"
+    }
+    val badgeText = if (isIncome) "\uC785\uAE08" else "\uCD9C\uAE08"
+    val paymentMethodTitle = "\uACB0\uC81C \uBC29\uC2DD"
+    val paymentMethod = item.toTradePaymentMethodLabel(detail?.authMethod)
+    val paymentInstrumentText = when {
+        item.cardNumber.isNotBlank() -> item.cardNumber
+        item.bankName.isNotBlank() || item.accountNumber.isNotBlank() -> listOf(
+            item.bankName.takeIf { it.isNotBlank() },
+            item.accountNumber.takeIf { it.isNotBlank() }
+        ).joinToString(" ")
+        else -> "-"
+    }
+    val transactedText = detail?.createdAt
+        ?.toTradeDetailDateTime()
+        .orEmpty()
+        .ifBlank {
+            transaction?.transacted?.toTradeDetailDateTime()
+                ?: item.createdAtRaw.toTradeDetailDateTime()
+        }
+        .ifBlank { "-" }
+    val pointsText = "${tradeDetailAmount((detail?.earnedPoints ?: transaction?.estimatedPoints ?: 0L).coerceAtLeast(0L))}P"
+    val transactionIdText = detail?.ssafyTransactionId
+        ?.takeIf { it.isNotBlank() }
+        ?: transaction?.ssafyTransactionId?.takeIf { it.isNotBlank() }
+        ?: transaction?.id?.takeIf { it.isNotBlank() }
+        ?: detail?.paymentId?.toString()
+        ?: item.paymentId.takeIf { it > 0L }?.toString()
+        ?: "-"
+    val categoryText = transaction?.category?.takeIf { it.isNotBlank() }
+        ?: item.category.takeIf { it.isNotBlank() }
+        ?: "-"
+    val detailFields = buildList {
+        if (!isIncome) {
+            add(paymentMethodTitle to paymentMethod)
+            add("\uACB0\uC81C \uC218\uB2E8" to paymentInstrumentText)
+        }
+        add("\uACB0\uC81C \uC720\uD615" to if (isIncome) "\uC785\uAE08" else "\uCD9C\uAE08")
+        add("\uAC70\uB798 \uC2DC\uAC04" to transactedText)
+        add("\uCE74\uD14C\uACE0\uB9AC" to categoryText)
+        if (!isIncome) {
+            add("\uC801\uB9BD \uD3EC\uC778\uD2B8" to pointsText)
+        }
+        add("\uACB0\uC81C \uBC88\uD638" to transactionIdText)
+        add(headlineLabel to headlineValue)
+    }
 
     Box(
         modifier = Modifier
@@ -81,7 +138,7 @@ fun TradePaymentDetailScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "닫기",
+                        contentDescription = "\uB2EB\uAE30",
                         tint = accentColor
                     )
                 }
@@ -91,7 +148,7 @@ fun TradePaymentDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "결제 상세",
+                        text = "\uACB0\uC81C \uC0C1\uC138",
                         style = NaedaTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = accentColor
                     )
@@ -124,7 +181,7 @@ fun TradePaymentDetailScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "PAY",
+                            text = badgeText,
                             style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
                             color = accentColor
                         )
@@ -133,7 +190,7 @@ fun TradePaymentDetailScreen(
                     Spacer(modifier = Modifier.height(14.dp))
 
                     Text(
-                        text = "결제 장소",
+                        text = headlineLabel,
                         style = NaedaTypography.bodyMedium,
                         color = OnSurfaceVariant
                     )
@@ -141,7 +198,7 @@ fun TradePaymentDetailScreen(
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = merchantName,
+                        text = headlineValue,
                         style = NaedaTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         color = OnBackground,
                         textAlign = TextAlign.Center
@@ -160,46 +217,42 @@ fun TradePaymentDetailScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "총 결제 금액",
-                                style = NaedaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                color = OnSurfaceVariant
-                            )
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            Text(
-                                text = "${tradeDetailAmount(detail.amount)}원",
-                                style = NaedaTypography.displayMedium.copy(fontWeight = FontWeight.Bold),
-                                color = accentColor
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            TradePaymentStatusChip(
-                                text = detail.status.toTradePaymentStatusText(),
-                                accentColor = accentColor
+                                text = amountText,
+                                style = NaedaTypography.displayLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 42.sp
+                                ),
+                                color = amountColor
                             )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
                     ) {
-                        detailFields.forEach { (label, value) ->
-                            TradePaymentDetailField(
-                                label = label,
-                                value = value
-                            )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            detailFields.forEach { (label, value) ->
+                                TradePaymentDetailField(
+                                    label = label,
+                                    value = value
+                                )
+                            }
                         }
                     }
 
-                    Spacer(modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     TradePaymentPrimaryButton(
-                        text = "닫기",
+                        text = "\uB2EB\uAE30",
                         onClick = onClose
                     )
                 }
@@ -281,11 +334,19 @@ private fun tradeDetailAmount(amount: Long): String {
     return "%,d".format(amount)
 }
 
-private fun String?.toTradePaymentStatusText(): String {
-    return when (this?.uppercase()) {
-        "APPROVED", "SUCCESS", "COMPLETED" -> "결제 완료"
-        "FAILED", "FAIL", "CANCELED", "CANCELLED" -> "결제 실패"
-        else -> "처리 완료"
+private fun TradeReportItem.isPaymentTransaction(): Boolean {
+    return paymentId > 0L || (!isIncome && transaction?.ssafyTransactionId?.isNotBlank() == true)
+}
+
+private fun TradeReportItem.toTradePaymentMethodLabel(authMethod: String?): String {
+    if (isIncome) return "\uC785\uAE08"
+
+    val usesFacePay = authMethod?.contains("FACE", ignoreCase = true) == true
+
+    return when {
+        usesFacePay -> "\uD398\uC774\uC2A4\uD398\uC774"
+        isPaymentTransaction() -> "\uCE74\uB4DC"
+        else -> "\uCD9C\uAE08"
     }
 }
 
@@ -296,7 +357,7 @@ private fun String.toTradeDetailDateTime(): String {
     val minute = calendar.get(Calendar.MINUTE)
     val month = calendar.get(Calendar.MONTH) + 1
     val day = calendar.get(Calendar.DAY_OF_MONTH)
-    return "${month}월 ${day}일 ${"%02d".format(hour24)}:${"%02d".format(minute)}"
+    return "${month}\uC6D4 ${day}\uC77C ${"%02d".format(hour24)}:${"%02d".format(minute)}"
 }
 
 private fun parseTradeDetailDate(raw: String): java.util.Date? {

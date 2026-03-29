@@ -10,6 +10,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -124,8 +125,8 @@ fun NaedaNavGraph(
         composable(Screen.PasswordResetEmail.route) {
             PasswordResetEmailScreen(
                 onBackClick = { navController.popBackStack() },
-                onCodeReceived = { email, code ->
-                    navController.currentBackStackEntry?.savedStateHandle?.set("resetEmail", email)
+                onCodeReceived = { phone, code ->
+                    navController.currentBackStackEntry?.savedStateHandle?.set("resetPhone", phone)
                     navController.currentBackStackEntry?.savedStateHandle?.set("resetCode", code)
                     navController.navigateSingleTopTo(Screen.PasswordResetVerify.route)
                 }
@@ -133,11 +134,11 @@ fun NaedaNavGraph(
         }
 
         composable(Screen.PasswordResetVerify.route) {
-            val email = navController.previousBackStackEntry?.savedStateHandle?.get<String>("resetEmail") ?: ""
+            val phone = navController.previousBackStackEntry?.savedStateHandle?.get<String>("resetPhone") ?: ""
             val code = navController.previousBackStackEntry?.savedStateHandle?.get<String>("resetCode") ?: ""
 
             PasswordResetVerifyScreen(
-                email = email,
+                phone = phone,
                 initialCode = code,
                 onBackClick = { navController.popBackStack() },
                 onVerified = { token ->
@@ -269,9 +270,8 @@ fun NaedaNavGraph(
 
             if (orderInfo == null) {
                 LaunchedEffect(Unit) {
-                    navController.navigate(Screen.Home.route) {
-                        launchSingleTop = true
-                    }
+                    clearStoreOrderDraftState()
+                    navController.navigateFromOrderFlow(Screen.Home.route)
                 }
 
                 Box(modifier = Modifier.fillMaxSize()) {}
@@ -279,13 +279,19 @@ fun NaedaNavGraph(
                 OrderCompleteScreen(
                     orderInfo = orderInfo,
                     onCloseClick = {
-                        navController.navigateSingleTopTo(Screen.Home.route)
+                        clearStoreOrderDraftState()
+                        navController.navigateFromOrderFlow(Screen.Home.route)
                     },
                     onOrderHistoryClick = {
-                        navController.navigateSingleTopTo(Screen.OrderHistory.route)
+                        clearStoreOrderDraftState()
+                        navController.navigate(Screen.OrderHistory.route) {
+                            popUpTo(Screen.DeliveryAddress.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
                     },
                     onHomeClick = {
-                        navController.navigateSingleTopTo(Screen.Home.route)
+                        clearStoreOrderDraftState()
+                        navController.navigateFromOrderFlow(Screen.Home.route)
                     }
                 )
             }
@@ -696,6 +702,8 @@ private fun HomeTabContent(
         ?.takeUnless { it.isBlank() }
         ?: "사용자"
 
+    var refreshTick by remember { mutableIntStateOf(0) }
+    var hasResumedOnce by remember { mutableStateOf(false) }
     var isFaceRegistered by remember {
         mutableStateOf(AuthPrefs.isFaceRegistered(context))
     }
@@ -703,7 +711,7 @@ private fun HomeTabContent(
     val homeViewModel: HomeViewModel = viewModel()
     val homeUiState by homeViewModel.uiState.collectAsState()
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(refreshTick) {
         runCatching { FaceRegistrationRepository.getFacePaySettings() }
             .onSuccess { settings ->
                 AuthPrefs.saveFacePaySettings(
@@ -730,7 +738,11 @@ private fun HomeTabContent(
     DisposableEffect(lifecycleOwner, context, homeViewModel) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                homeViewModel.refreshUnreadNotificationCount(context)
+                if (hasResumedOnce) {
+                    refreshTick++
+                } else {
+                    hasResumedOnce = true
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -887,6 +899,19 @@ private fun NavHostController.navigateSingleTopTo(route: String) {
     navigate(route) {
         launchSingleTop = true
     }
+}
+
+private fun NavHostController.navigateFromOrderFlow(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id)
+        launchSingleTop = true
+    }
+}
+
+private fun clearStoreOrderDraftState() {
+    StoreOrderDraftStore.selectedItem = null
+    StoreOrderDraftStore.deliveryRequest = ""
+    StoreOrderDraftStore.clearCompletedOrder()
 }
 
 @Composable

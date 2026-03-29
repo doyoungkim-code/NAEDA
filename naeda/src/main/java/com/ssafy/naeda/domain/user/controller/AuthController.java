@@ -134,15 +134,15 @@ public class AuthController {
     }
 
     @PostMapping("/password-reset/request")
-    @Operation(summary = "비밀번호 재설정 요청", description = "이메일로 6자리 인증 코드를 발급합니다.")
+    @Operation(summary = "비밀번호 재설정 요청", description = "휴대폰번호로 6자리 인증 코드를 발급합니다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "인증 코드 발급 성공"),
-            @ApiResponse(responseCode = "404", description = "등록되지 않은 이메일",
+            @ApiResponse(responseCode = "404", description = "등록되지 않은 휴대폰번호",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<PasswordResetCodeResponse> requestPasswordReset(
             @Valid @RequestBody PasswordResetRequestDto request) {
-        PasswordResetCodeResponse response = authService.requestPasswordReset(request.getUserId());
+        PasswordResetCodeResponse response = authService.requestPasswordReset(request.getPhone());
         return ResponseEntity.ok(response);
     }
 
@@ -156,7 +156,7 @@ public class AuthController {
     public ResponseEntity<PasswordResetVerifyResponse> verifyPasswordResetCode(
             @Valid @RequestBody PasswordResetVerifyRequest request) {
         PasswordResetVerifyResponse response = authService.verifyPasswordResetCode(
-                request.getUserId(), request.getCode());
+                request.getPhone(), request.getCode());
         return ResponseEntity.ok(response);
     }
 
