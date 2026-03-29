@@ -170,7 +170,28 @@ fun AccountListRoute(
                         onSetPrimaryCard(card)
                     }
                 },
-                onDeleteCard = onDeleteCard
+                onDeleteCard = { card ->
+                    if (userNo != null && card.cardId != null) {
+                        coroutineScope.launch {
+                            runCatching {
+                                AssetRepository.deleteCard(
+                                    userNo = userNo,
+                                    cardId = card.cardId,
+                                    cardType = card.cardType
+                                )
+                            }.onSuccess {
+                                Toast.makeText(context, "카드가 삭제되었습니다.", Toast.LENGTH_SHORT).show()
+                                reloadTick++
+                            }.onFailure { throwable ->
+                                Toast.makeText(
+                                    context,
+                                    throwable.message ?: "카드 삭제에 실패했습니다.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+                }
             )
 
             if (showRegisterDialog != null) {

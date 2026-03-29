@@ -313,6 +313,14 @@ object AssetRepository {
         }
     }
 
+    suspend fun deleteCard(userNo: Long, cardId: Long, cardType: String) {
+        runCatching {
+            api.deleteCard(cardId = cardId, userNo = userNo, cardType = cardType)
+        }.getOrElse { throwable ->
+            throw toReadableException(throwable, "카드 삭제에 실패했습니다.")
+        }
+    }
+
     suspend fun getPayments(
         userNo: Long,
         from: String? = null,
