@@ -125,8 +125,8 @@ fun NaedaNavGraph(
         composable(Screen.PasswordResetEmail.route) {
             PasswordResetEmailScreen(
                 onBackClick = { navController.popBackStack() },
-                onCodeReceived = { email, code ->
-                    navController.currentBackStackEntry?.savedStateHandle?.set("resetEmail", email)
+                onCodeReceived = { phone, code ->
+                    navController.currentBackStackEntry?.savedStateHandle?.set("resetPhone", phone)
                     navController.currentBackStackEntry?.savedStateHandle?.set("resetCode", code)
                     navController.navigateSingleTopTo(Screen.PasswordResetVerify.route)
                 }
@@ -134,11 +134,11 @@ fun NaedaNavGraph(
         }
 
         composable(Screen.PasswordResetVerify.route) {
-            val email = navController.previousBackStackEntry?.savedStateHandle?.get<String>("resetEmail") ?: ""
+            val phone = navController.previousBackStackEntry?.savedStateHandle?.get<String>("resetPhone") ?: ""
             val code = navController.previousBackStackEntry?.savedStateHandle?.get<String>("resetCode") ?: ""
 
             PasswordResetVerifyScreen(
-                email = email,
+                phone = phone,
                 initialCode = code,
                 onBackClick = { navController.popBackStack() },
                 onVerified = { token ->
